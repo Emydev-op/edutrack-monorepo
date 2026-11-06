@@ -479,10 +479,10 @@ const NEW_SCHOOL_DESCRIPTIONS: Record<string, string> = {
 const slug = (name: string) => name.toLowerCase().replace(/[^a-z]+/g, '-');
 
 /** Setup steps that complete from their own screens: whether each has been confirmed. */
-export type AutoStep = 'school-profile' | 'branches' | 'organogram-roles';
+export type AutoStep = 'school-profile' | 'branches' | 'organogram-roles' | 'staff';
 export const setupConfirmed: Record<string, Record<AutoStep, boolean>> = {
-  greenfield: { 'school-profile': true, branches: true, 'organogram-roles': true },
-  crestview: { 'school-profile': false, branches: false, 'organogram-roles': false },
+  greenfield: { 'school-profile': true, branches: true, 'organogram-roles': true, staff: true },
+  crestview: { 'school-profile': false, branches: false, 'organogram-roles': false, staff: false },
 };
 
 export const setup: Record<string, SetupProgress> = {

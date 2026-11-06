@@ -7,6 +7,7 @@ import { academicsRoutes } from './modules/academics';
 import { authRoutes } from './modules/auth';
 import { plannedRoutes } from './modules/planned';
 import { schoolRoutes } from './modules/school';
+import { staffRoutes } from './modules/staff';
 import { studentRoutes } from './modules/students';
 import { routesPath } from './routes-path';
 import './types';
@@ -47,6 +48,7 @@ const router = createRouter({
         ...academicsRoutes,
         ...schoolRoutes,
         ...studentRoutes,
+        ...staffRoutes,
         ...plannedRoutes,
       ],
     },

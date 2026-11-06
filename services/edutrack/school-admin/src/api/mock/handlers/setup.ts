@@ -42,6 +42,19 @@ export function setupView(req: Pick<MockRequest, 'headers'>): SetupProgress {
       }`,
       to: { name: routesPath.setupBranches.name },
     },
+    staff: (() => {
+      const current = schoolData[schoolId]!.staff.filter((s) => !s.left);
+      const teachers = current.filter((s) => s.kind === 'Teaching').length;
+      const accounts = schoolData[schoolId]!.users.filter(
+        (u) => u.staffId && ['Active', 'Invited', 'Suspended'].includes(u.status),
+      ).length;
+      return {
+        description: `${plural(current.length, 'staff member')} · ${plural(teachers, 'teacher')} · ${accounts} with system accounts`,
+        to: confirmed.staff
+          ? { name: routesPath.staff.directory.name }
+          : { name: routesPath.staff.directory.name, query: { from: 'setup' } },
+      };
+    })(),
     'organogram-roles': {
       description: `${plural(positions.length, 'position')} · ${positions.filter((p) => !p.holderIds.length).length} vacant · ${plural(roles.length, 'role')}`,
       to: { name: routesPath.school.organogram.name, query: { from: 'setup' } },
@@ -83,6 +96,10 @@ mock.post('/v1/setup/steps/:id/complete', (req) => {
         `Complete these first: ${bad.map((b) => `${b.name} (${branchIssues(b).join(', ').toLowerCase()})`).join('; ')}.`,
       );
     confirmed.branches = true;
+  } else if (id === 'staff') {
+    if (!data.staff.some((s) => s.kind === 'Teaching' && !s.left))
+      throw new MockHttpError(422, 'Add at least one teacher so classes can be assigned.');
+    confirmed.staff = true;
   } else if (id === 'organogram-roles') {
     if (data.positions.length < 2)
       throw new MockHttpError(

@@ -55,14 +55,98 @@ export interface BranchRow {
   original: boolean;
 }
 
-export interface StaffRow {
+export type StaffKind = 'Teaching' | 'Non-teaching';
+export type StaffGroup = 'Teaching' | 'Administrative' | 'Finance' | 'Operations';
+export type Employment = 'Full-time' | 'Part-time' | 'Contract';
+
+export interface StaffDocument {
   id: string;
   name: string;
+  kind: string;
+  uploaded: string;
+  status: 'Verified' | 'Pending' | 'Missing' | 'Optional';
+}
+
+export interface StaffRow {
+  id: string;
+  /** Display name with title, e.g. "Mrs. Grace Okafor". Kept in step with the parts below. */
+  name: string;
+  title: string;
+  firstName: string;
+  lastName: string;
+  gender: 'Female' | 'Male' | '';
+  phone: string;
+  email: string;
+  address: string;
+  emergencyContact: string;
   position: string;
+  department: string;
+  kind: StaffKind;
+  group: StaffGroup;
+  employment: Employment;
+  /** When they joined, e.g. "Sep 2019" or an ISO date for new staff. */
+  since: string;
   staffNumber: string;
-  /** Branch names, or "All branches". */
+  /** Branch names, or "All branches". Derived from branchIds. */
   branch: string;
+  branchIds: string[];
+  /** Subject codes they can teach (teaching staff). */
+  qualified: string[];
+  maxPeriods: number;
+  documents: StaffDocument[];
   left?: boolean;
+  leftOn?: string;
+}
+
+/** Department group for the directory tabs, from the job title. */
+export function groupOf(kind: StaffKind, position: string): StaffGroup {
+  if (kind === 'Teaching') return 'Teaching';
+  if (/bursar|account|finance|payroll/i.test(position)) return 'Finance';
+  if (/driver|store|security|clean|nurse|lab|librar|cook|gardener|maintenance/i.test(position))
+    return 'Operations';
+  return 'Administrative';
+}
+
+const TITLES = /^(Mr|Mrs|Miss|Ms|Dr|Prof|Rev|Mme)\.?\s+/;
+
+/** A full staff record from the few facts the seed lists give. */
+export function staffRecord(
+  p: Pick<StaffRow, 'id' | 'name' | 'position' | 'staffNumber' | 'branch'> &
+    Partial<StaffRow> & { branches: { id: string; name: string }[] },
+): StaffRow {
+  const { branches, ...rest } = p;
+  const title = p.name.match(TITLES)?.[0]?.trim() ?? '';
+  const [firstName = '', ...last] = p.name.replace(TITLES, '').split(' ');
+  const kind: StaffKind =
+    p.kind ??
+    (/teacher|hod|vice principal \(academics\)|coordinator/i.test(p.position)
+      ? 'Teaching'
+      : 'Non-teaching');
+  const branchIds =
+    p.branchIds ??
+    (p.branch === 'All branches'
+      ? branches.map((b) => b.id)
+      : branches.filter((b) => p.branch.includes(b.name)).map((b) => b.id));
+  return {
+    title,
+    firstName,
+    lastName: last.join(' '),
+    gender: /^(Mrs|Miss|Ms|Mme)/.test(title) ? 'Female' : title === 'Mr.' ? 'Male' : '',
+    phone: '',
+    email: '',
+    address: '',
+    emergencyContact: '',
+    department: kind === 'Teaching' ? 'Academics' : groupOf(kind, p.position),
+    kind,
+    group: groupOf(kind, p.position),
+    employment: 'Full-time',
+    since: '',
+    qualified: [],
+    maxPeriods: 28,
+    documents: [],
+    ...rest,
+    branchIds,
+  };
 }
 
 export interface UserRow {
@@ -394,15 +478,37 @@ const GF_STAFF: [
 const LAST_ACTIVE = ['Today', '2 hr ago', 'Yesterday', '3 Dec'];
 
 function greenfield(): SchoolData {
+  const branchList = [
+    { id: 'mc', name: 'Main Campus' },
+    { id: 'lk', name: 'Lekki Campus' },
+    { id: 'aj', name: 'Ajah Annex' },
+  ];
   const staff: StaffRow[] = GF_STAFF.map(
-    ([id, name, position, staffNumber, branch, , , , left]) => ({
-      id,
-      name,
-      position,
-      staffNumber,
-      branch,
-      ...(left && { left }),
-    }),
+    ([id, name, position, staffNumber, branch, account, , since, left], i) =>
+      staffRecord({
+        id,
+        name,
+        position,
+        staffNumber,
+        branch,
+        since,
+        branches: branchList.filter((b) => b.id !== 'aj'),
+        email: account === 'No account' ? '' : `${id}@greenfieldacademy.ng`,
+        phone: `+234 80${(i % 7) + 2} 555 0${String(120 + i * 7).padStart(3, '0')}`,
+        address: 'Ikeja, Lagos',
+        emergencyContact: 'Spouse · +234 803 555 0144',
+        documents: [
+          {
+            id: 'd1',
+            name: 'employment-letter.pdf',
+            kind: 'Employment letter',
+            uploaded: since,
+            status: 'Verified',
+          },
+          { id: 'd2', name: '', kind: 'Guarantor form', uploaded: '—', status: 'Missing' },
+        ],
+        ...(left && { left, leftOn: 'Jul 2026' }),
+      }),
   );
   const users: UserRow[] = GF_STAFF.filter((s) => s[5] !== 'No account').map(
     ([id, name, position, , branch, account, roles, since], i) => ({
@@ -763,13 +869,17 @@ function crestview(): SchoolData {
       },
     ],
     staff: [
-      {
+      staffRecord({
         id: 'udo',
         name: 'Mr. Emem Udo',
         position: 'Principal',
         staffNumber: 'CC-ST-0001',
         branch: 'All branches',
-      },
+        branches: [{ id: 'cmc', name: 'Main Campus' }],
+        email: 'e.udo@crestviewcollege.ng',
+        phone: '0809 555 0123',
+        since: 'Nov 2026',
+      }),
     ],
     users: [
       {

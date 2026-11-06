@@ -4,5 +4,6 @@ export * from './common';
 export * from './dashboard';
 export * from './setup';
 export * from './shell';
+export * from './staff';
 export * from './school';
 export * from './students';

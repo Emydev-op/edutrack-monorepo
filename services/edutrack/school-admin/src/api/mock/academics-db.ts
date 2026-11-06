@@ -24,7 +24,7 @@ import type {
 } from '@/types';
 import { DAYS } from '@/types';
 
-import { schoolData } from './school-db';
+import { schoolData, staffRecord } from './school-db';
 import { studentsData } from './students-db';
 
 /* ---------------- Records ---------------- */
@@ -1300,4 +1300,83 @@ export function syncStudentClasses(schoolId: string) {
 }
 
 export const sectionCodeOf = sectionCode;
-Object.keys(academicsData).forEach(syncStudentClasses);
+
+/* ---------------- Teachers come from Staff ---------------- */
+
+/** Teaching staff who are still with the school, as Academics sees them. */
+export function teachersFromStaff(schoolId: string): TeacherRec[] {
+  return schoolData[schoolId]!.staff.filter((s) => s.kind === 'Teaching' && !s.left).map((s) => ({
+    id: s.id,
+    name: s.name,
+    branches: s.branchIds,
+    qualified: s.qualified,
+    employment: s.employment === 'Part-time' ? 'Part-time' : 'Full-time',
+    maxPeriods: s.maxPeriods,
+  }));
+}
+
+/**
+ * Seeded teachers become staff records (enriching the ones that already exist), then Academics
+ * reads its teacher list live from Staff, so staff changes show up in assignments straight away.
+ */
+function linkTeachersToStaff(schoolId: string) {
+  const sd = schoolData[schoolId]!;
+  const acad = academicsData[schoolId]!;
+  const prefix = sd.staff[0]?.staffNumber.split('-ST-')[0] ?? 'ST';
+  let seq = sd.staff.length;
+  for (const t of acad.teachers) {
+    let s = sd.staff.find((x) => x.id === t.id);
+    if (!s) {
+      s = staffRecord({
+        id: t.id,
+        name: t.name,
+        position: 'Teacher',
+        staffNumber: `${prefix}-ST-${String(200 + ++seq).padStart(4, '0')}`,
+        branch: '',
+        branchIds: t.branches,
+        branches: [],
+        since: 'Sep 2022',
+        phone: `+234 80${(seq % 7) + 2} 555 ${String(1000 + seq * 13).slice(-4)}`,
+        documents: [
+          {
+            id: 'd1',
+            name: 'trcn-certificate.pdf',
+            kind: 'Teaching certificate (TRCN)',
+            uploaded: 'Sep 2022',
+            status: 'Verified',
+          },
+        ],
+      });
+      sd.staff.push(s);
+    }
+    Object.assign(s, {
+      kind: 'Teaching',
+      group: 'Teaching',
+      department: s.department === 'Academics' || !s.department ? 'Academics' : s.department,
+      qualified: t.qualified,
+      maxPeriods: t.maxPeriods,
+      employment: t.employment,
+      branchIds: t.branches,
+      branch: branchLabel(schoolId, t.branches),
+    });
+  }
+  Object.defineProperty(acad, 'teachers', {
+    get: () => teachersFromStaff(schoolId),
+    enumerable: true,
+    configurable: true,
+  });
+}
+
+/** "Main Campus + Lekki Campus", or "All branches" when they cover every active branch. */
+export function branchLabel(schoolId: string, ids: string[]) {
+  const active = schoolData[schoolId]!.branches.filter((b) => b.status === 'Active');
+  if (active.length > 1 && active.every((b) => ids.includes(b.id))) return 'All branches';
+  return schoolData[schoolId]!.branches.filter((b) => ids.includes(b.id))
+    .map((b) => b.name)
+    .join(' + ');
+}
+
+Object.keys(academicsData).forEach((id) => {
+  linkTeachersToStaff(id);
+  syncStudentClasses(id);
+});

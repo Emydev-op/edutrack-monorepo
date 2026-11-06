@@ -80,6 +80,14 @@ export const routesPath = {
   staff: {
     directory: { name: 'staff', path: '/staff' },
     teachers: { name: 'teachers', path: '/staff/teachers' },
+    new: { name: 'staff-new', path: '/staff/new' },
+    import: { name: 'staff-import', path: '/staff/import' },
+    edit: { name: 'staff-edit', path: '/staff/:id/edit' },
+    detail: { name: 'staff-member', path: '/staff/:id' },
+    teaching: { name: 'staff-teaching', path: 'teaching' },
+    access: { name: 'staff-access', path: 'access' },
+    documents: { name: 'staff-documents', path: 'documents' },
+    activity: { name: 'staff-activity', path: 'activity' },
   },
   finance: {
     overview: { name: 'finance', path: '/finance' },

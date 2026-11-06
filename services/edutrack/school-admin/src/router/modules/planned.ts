@@ -21,6 +21,8 @@ const BUILT = new Set<string>([
   routesPath.academics.assessments.name,
   routesPath.academics.results.name,
   routesPath.academics.promotion.name,
+  routesPath.staff.directory.name,
+  routesPath.staff.teachers.name,
   routesPath.students.list.name,
   routesPath.students.admissions.name,
   routesPath.students.enrollment.name,
