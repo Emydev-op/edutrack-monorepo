@@ -9,6 +9,7 @@ import './handlers/setup';
 import './handlers/organogram';
 import './handlers/school';
 import './handlers/shell';
+import './handlers/staff';
 import './handlers/students';
 import './handlers/users';
 

@@ -43,6 +43,13 @@ export const queryKeys = {
     matches: (first: string, surname: string) => ['admissions', 'matches', first, surname] as const,
   },
   enrollment: ['enrollment'] as const,
+  staff: {
+    all: ['staff'] as const,
+    list: (params: object) => ['staff', 'list', params] as const,
+    detail: (id: string) => ['staff', 'detail', id] as const,
+    formOptions: ['staff', 'form-options'] as const,
+    teachers: ['staff', 'teachers'] as const,
+  },
   academics: {
     all: ['academics'] as const,
     sections: ['academics', 'sections'] as const,

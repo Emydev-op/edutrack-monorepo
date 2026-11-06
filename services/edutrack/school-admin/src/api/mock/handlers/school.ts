@@ -126,11 +126,15 @@ function branchLevels(data: SchoolData, b: BranchRow) {
 const toBranch = (data: SchoolData, b: BranchRow) => {
   const { original, ...rest } = b;
   const classArms = branchLevels(data, b).reduce((n, { level }) => n + level.arms.length, 0);
+  // Staff with records at the branch, plus the seeded headcount for staff not listed in the demo.
+  const listed = data.staff.filter((s) => !s.left && s.branchIds.includes(b.id)).length;
+  const staff = Math.max(b.staff, listed);
   return {
     ...rest,
     classArms,
+    staff,
     headName: staffName(data, b.headId),
-    canDelete: !original && !b.students && !b.staff && !classArms && data.branches.length > 1,
+    canDelete: !original && !b.students && !staff && !classArms && data.branches.length > 1,
   };
 };
 
@@ -181,9 +185,9 @@ mock.get('/v1/branches/:id', (req) => {
       arms: level.arms.map((a) => a.arm).join(', '),
       students: level.arms.reduce((n, a) => n + armStudents(schoolId, level, a).count, 0),
     })),
-    staffList: b.staff
+    staffList: data.staff.some((s) => !s.left && s.branchIds.includes(b.id))
       ? data.staff
-          .filter((s) => !s.left && (s.branch.includes(b.name) || s.branch === 'All branches'))
+          .filter((s) => !s.left && s.branchIds.includes(b.id))
           .map((s) => ({
             id: s.id,
             name: s.name,
