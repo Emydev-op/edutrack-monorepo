@@ -1,0 +1,36 @@
+name: Sync main into dev
+
+# After a release lands on main (version bumps, changelogs), open a PR to bring dev level
+# with main so the next dev → main release PR has no conflicts.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: sync-dev
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Open a main → dev PR when dev is behind
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git fetch origin dev
+          behind=$(git rev-list --count origin/dev..origin/main)
+          if [ "$behind" = "0" ]; then echo "dev is up to date"; exit 0; fi
+          existing=$(gh pr list --base dev --head main --state open --json number --jq 'length')
+          if [ "$existing" != "0" ]; then echo "A sync PR is already open"; exit 0; fi
+          gh label create sync --color 0E8A16 --description "Branch sync PR" 2>/dev/null || true
+          gh pr create --base dev --head main --label sync \
+            --title "chore(repo): sync main into dev" \
+            --body "Brings dev level with main after a release ($behind commit(s)). Merge with a **merge commit**, not squash."

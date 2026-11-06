@@ -24,6 +24,7 @@
     "services/edutrack/parent-portal": { "component": "parent-portal" },
     "packages/shared": { "component": "shared" },
     "packages/ui": { "component": "ui" },
-    "packages/web-core": { "component": "web-core" }
+    "packages/web-core": { "component": "web-core" },
+    "packages/app-kit": { "component": "app-kit" }
   }
 }

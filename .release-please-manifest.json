@@ -7,5 +7,6 @@
   "services/edutrack/parent-portal": "0.1.0",
   "packages/shared": "0.1.0",
   "packages/ui": "0.1.0",
-  "packages/web-core": "0.1.0"
+  "packages/web-core": "0.1.0",
+  "packages/app-kit": "0.1.0"
 }

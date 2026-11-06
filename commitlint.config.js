@@ -15,6 +15,7 @@ export default {
         'ui',
         'shared',
         'web-core',
+        'app-kit',
         'infra',
         'ci',
         'deps',

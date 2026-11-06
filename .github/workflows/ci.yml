@@ -106,7 +106,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npm run typecheck -w @edutrack/shared -w @edutrack/web-core -w @edutrack/ui
+      - run: npm run typecheck -w @edutrack/shared -w @edutrack/web-core -w @edutrack/ui -w @edutrack/app-kit
+      - run: npm run test -w @edutrack/app-kit --if-present
 
   docker:
     name: Docker image (${{ matrix.workspace }})
@@ -130,3 +131,15 @@ jobs:
           push: false
           cache-from: type=gha,scope=${{ matrix.workspace }}
           cache-to: type=gha,mode=max,scope=${{ matrix.workspace }}
+
+  # The one check branch protection requires. Matrix jobs come and go with the files a PR
+  # touches, so protection can't name them; this job fails if any of them failed.
+  ci-passed:
+    name: CI passed
+    if: ${{ always() }}
+    needs: [changes, format, verify, shared-packages, docker]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check job results
+        run: |
+          echo '${{ toJSON(needs) }}' | jq -e 'all(.[]; .result == "success" or .result == "skipped")'
