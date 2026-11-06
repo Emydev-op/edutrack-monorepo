@@ -1,0 +1,12 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": true,
+    "types": [],
+    // Self-reference so imports read the same inside this package and in every portal.
+    "paths": {
+      "@edutrack/app-kit/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue"]
+}

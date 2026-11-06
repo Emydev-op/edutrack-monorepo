@@ -1,0 +1,19 @@
+@import 'tailwindcss';
+@import '@edutrack/ui/styles.css';
+@import '@edutrack/app-kit/styles.css';
+
+/* Register this app's own templates as Tailwind class sources. */
+@source '../';
+
+/* Toasts follow the design: a dark pill with a green check, centred at the bottom. */
+[data-sonner-toast].toast-ink {
+  --normal-bg: var(--foreground);
+  --normal-text: #ffffff;
+  --normal-border: var(--foreground);
+  --success-bg: var(--foreground);
+  --success-text: #ffffff;
+  --success-border: var(--foreground);
+}
+[data-sonner-toast].toast-ink [data-icon] {
+  color: #8fd1b1;
+}

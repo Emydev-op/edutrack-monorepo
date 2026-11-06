@@ -1,0 +1,41 @@
+{
+  "name": "@edutrack/ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EduTrack design system — shadcn-vue components, theme tokens and Tailwind styles",
+  "type": "module",
+  "exports": {
+    "./styles.css": "./src/styles.css",
+    "./lib/*": "./src/lib/*.ts",
+    "./components/*": "./src/components/*/index.ts",
+    "./composables/*": "./src/composables/*.ts",
+    "./assets/*": "./src/assets/*"
+  },
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "ui:add": "shadcn-vue add"
+  },
+  "dependencies": {
+    "@fontsource-variable/lexend": "^5.3.0",
+    "@lucide/vue": "^1.67.0",
+    "@vueuse/core": "^15.0.0",
+    "class-variance-authority": "^0.7.1",
+    "cn": "^0.5.2",
+    "reka-ui": "^2.11.0",
+    "tw-animate-css": "^1.4.0",
+    "vee-validate": "^4.15.1",
+    "vue-sonner": "^2.0.9"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.4",
+    "@vue/tsconfig": "^0.9.1",
+    "shadcn-vue": "^2.9.0",
+    "tailwindcss": "^4.3.4",
+    "typescript": "~6.0.3",
+    "vue": "^3.5.44",
+    "vue-tsc": "^3.3.14"
+  }
+}

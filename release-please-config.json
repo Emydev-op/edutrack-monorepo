@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "include-component-in-tag": true,
+  "separate-pull-requests": false,
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "plugins": [{ "type": "node-workspace", "merge": false }],
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance" },
+    { "type": "refactor", "section": "Refactoring" },
+    { "type": "deps", "section": "Dependencies" },
+    { "type": "docs", "section": "Documentation", "hidden": true },
+    { "type": "chore", "section": "Miscellaneous", "hidden": true }
+  ],
+  "packages": {
+    "services/edutrack/backend": { "component": "backend" },
+    "services/edutrack/platform-backoffice": { "component": "platform-backoffice" },
+    "services/edutrack/school-admin": { "component": "school-admin" },
+    "services/edutrack/teacher-portal": { "component": "teacher-portal" },
+    "services/edutrack/student-portal": { "component": "student-portal" },
+    "services/edutrack/parent-portal": { "component": "parent-portal" },
+    "packages/shared": { "component": "shared" },
+    "packages/ui": { "component": "ui" },
+    "packages/web-core": { "component": "web-core" }
+  }
+}

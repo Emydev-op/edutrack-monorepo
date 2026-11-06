@@ -1,0 +1,43 @@
+{
+  "name": "@edutrack/app-kit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared portal building blocks: tables, page headers, metric cards, form fields, dialogs and drawers",
+  "type": "module",
+  "exports": {
+    "./styles.css": "./src/styles.css",
+    "./types": "./src/types.ts",
+    "./components/*": "./src/components/*",
+    "./composables/*": "./src/composables/*.ts",
+    "./lib/*": "./src/lib/*.ts"
+  },
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@edutrack/ui": "*",
+    "@lucide/vue": "^1.67.0",
+    "@vueuse/core": "^15.0.0",
+    "chroma-js": "^3.2.0",
+    "vee-validate": "^4.15.1",
+    "vue-sonner": "^2.0.9"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0",
+    "vue-router": "^5.4.0"
+  },
+  "devDependencies": {
+    "@types/chroma-js": "^3.1.3",
+    "@types/jsdom": "^30.0.0",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "@vue/tsconfig": "^0.9.1",
+    "jsdom": "^30.1.3",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.5",
+    "vitest": "^4.1.11",
+    "vue": "^3.5.44",
+    "vue-router": "^5.4.0",
+    "vue-tsc": "^3.3.14"
+  }
+}

@@ -1,0 +1,52 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      vue:
+        patterns:
+          [
+            'vue',
+            'vue-*',
+            '@vue/*',
+            'pinia',
+            '@tanstack/vue-query',
+            'vee-validate',
+            '@vee-validate/*',
+          ]
+      nestjs:
+        patterns: ['@nestjs/*']
+      prisma:
+        patterns: ['prisma', '@prisma/*']
+      tooling:
+        patterns:
+          [
+            'eslint*',
+            '@eslint/*',
+            'oxlint*',
+            'prettier',
+            'typescript',
+            'vite',
+            'vitest',
+            '@vitest/*',
+          ]
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'chore(ci)'
+  - package-ecosystem: docker
+    directories: ['/services/edutrack/*']
+    target-branch: dev
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'chore(deps)'

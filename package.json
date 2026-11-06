@@ -1,0 +1,56 @@
+{
+  "name": "edutrack-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "EduTrack — multi-tenant school management platform (backend + web portals)",
+  "license": "UNLICENSED",
+  "type": "module",
+  "packageManager": "npm@11.19.1",
+  "engines": {
+    "node": ">=24.12.0",
+    "npm": ">=11.0.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "services/edutrack/*"
+  ],
+  "scripts": {
+    "postinstall": "npm run build -w @edutrack/shared",
+    "prepare": "husky || true",
+    "dev:backend": "npm run start:dev -w @edutrack/backend",
+    "dev:backoffice": "npm run dev -w @edutrack/platform-backoffice",
+    "dev:school-admin": "npm run dev -w @edutrack/school-admin",
+    "dev:teacher": "npm run dev -w @edutrack/teacher-portal",
+    "dev:student": "npm run dev -w @edutrack/student-portal",
+    "dev:parent": "npm run dev -w @edutrack/parent-portal",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "infra:up": "docker compose -f infrastructure/docker/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infrastructure/docker/docker-compose.yml down",
+    "infra:logs": "docker compose -f infrastructure/docker/docker-compose.yml logs -f",
+    "db:migrate": "npm run prisma:migrate -w @edutrack/backend",
+    "db:studio": "npm run prisma:studio -w @edutrack/backend"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3"
+  },
+  "lint-staged": {
+    "*.{ts,mts,vue,js,mjs,json,md,yml,yaml,css}": "prettier --write"
+  },
+  "allowScripts": {
+    "prisma": true,
+    "@prisma/engines": true,
+    "vue-demi": true,
+    "msgpackr-extract": true,
+    "@scarf/scarf": false
+  }
+}

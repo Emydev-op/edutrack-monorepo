@@ -1,0 +1,20 @@
+{
+  "$schema": "https://shadcn-vue.com/schema.json",
+  "style": "new-york",
+  "typescript": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@edutrack/ui/components",
+    "utils": "@edutrack/ui/lib/utils",
+    "ui": "@edutrack/ui/components",
+    "lib": "@edutrack/ui/lib",
+    "composables": "@edutrack/ui/composables"
+  }
+}

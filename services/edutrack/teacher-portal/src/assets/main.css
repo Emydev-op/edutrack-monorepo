@@ -1,0 +1,5 @@
+@import 'tailwindcss';
+@import '@edutrack/ui/styles.css';
+
+/* Register this app's own templates as Tailwind class sources. */
+@source '../';

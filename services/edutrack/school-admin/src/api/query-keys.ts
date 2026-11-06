@@ -1,0 +1,71 @@
+import type { WorkingContext } from '@/types';
+
+/**
+ * Every TanStack Query key in the app. Keys are hierarchical so a mutation can invalidate a whole
+ * area (`queryKeys.setup.all`). Keys for school data include the working context, so switching
+ * branch, session or term fetches that context's figures.
+ */
+export const queryKeys = {
+  invitation: (token: string) => ['invitation', token] as const,
+  contextOptions: ['context-options'] as const,
+  navCounts: ['nav-counts'] as const,
+  notifications: ['notifications'] as const,
+  search: (q: string) => ['search', q] as const,
+  dashboard: {
+    all: ['dashboard'] as const,
+    summary: (ctx: WorkingContext) => [...queryKeys.dashboard.all, 'summary', ctx] as const,
+    finance: (ctx: WorkingContext) => [...queryKeys.dashboard.all, 'finance', ctx] as const,
+  },
+  setup: { all: ['setup'] as const },
+  profile: ['school-profile'] as const,
+  staffOptions: ['staff-options'] as const,
+  branches: {
+    all: ['branches'] as const,
+    detail: (id: string) => ['branches', id] as const,
+  },
+  users: {
+    all: ['users'] as const,
+    detail: (id: string) => ['users', id] as const,
+  },
+  roles: {
+    all: ['roles'] as const,
+    detail: (id: string) => ['roles', id] as const,
+  },
+  organogram: ['organogram'] as const,
+  students: {
+    all: ['students'] as const,
+    list: (params: object) => ['students', 'list', params] as const,
+    detail: (id: string) => ['students', 'detail', id] as const,
+  },
+  admissions: {
+    all: ['admissions'] as const,
+    options: ['admissions', 'options'] as const,
+    matches: (first: string, surname: string) => ['admissions', 'matches', first, surname] as const,
+  },
+  enrollment: ['enrollment'] as const,
+  academics: {
+    all: ['academics'] as const,
+    sections: ['academics', 'sections'] as const,
+    sessions: ['academics', 'sessions'] as const,
+    sessionClose: (id: string) => ['academics', 'session-close', id] as const,
+    calendar: ['academics', 'calendar'] as const,
+    classes: ['academics', 'classes'] as const,
+    classDetail: (id: string) => ['academics', 'class', id] as const,
+    curriculum: ['academics', 'curriculum'] as const,
+    assignments: (branch: string) => ['academics', 'assignments', branch] as const,
+    timetableArms: (term: string, branch: string) =>
+      ['academics', 'timetable-arms', term, branch] as const,
+    timetable: (arm: string, term: string) => ['academics', 'timetable', arm, term] as const,
+    assessment: ['academics', 'assessment'] as const,
+    results: (params: object) => ['academics', 'results', params] as const,
+    sheet: (arm: string, subject: string) => ['academics', 'sheet', arm, subject] as const,
+    reportCard: (id: string) => ['academics', 'report-card', id] as const,
+    corrections: ['academics', 'corrections'] as const,
+    promotion: (id: string) => ['academics', 'promotion', id] as const,
+  },
+  guardians: {
+    all: ['guardians'] as const,
+    list: (params: object) => ['guardians', 'list', params] as const,
+    detail: (id: string) => ['guardians', 'detail', id] as const,
+  },
+};

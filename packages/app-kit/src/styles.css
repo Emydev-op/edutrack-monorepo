@@ -1,0 +1,2 @@
+/* Registers the app-kit templates as Tailwind class sources. Import after '@edutrack/ui/styles.css'. */
+@source './';

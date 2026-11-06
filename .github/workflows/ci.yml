@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect changed workspaces
+    runs-on: ubuntu-latest
+    outputs:
+      workspaces: ${{ steps.filter.outputs.changes }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          # A change to shared packages or root tooling re-checks every app.
+          filters: |
+            shared: &shared
+              - 'packages/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/ci.yml'
+            backend:
+              - *shared
+              - 'services/edutrack/backend/**'
+            platform-backoffice:
+              - *shared
+              - 'services/edutrack/platform-backoffice/**'
+              - 'infrastructure/docker/nginx/**'
+            school-admin:
+              - *shared
+              - 'services/edutrack/school-admin/**'
+              - 'infrastructure/docker/nginx/**'
+            teacher-portal:
+              - *shared
+              - 'services/edutrack/teacher-portal/**'
+              - 'infrastructure/docker/nginx/**'
+            student-portal:
+              - *shared
+              - 'services/edutrack/student-portal/**'
+              - 'infrastructure/docker/nginx/**'
+            parent-portal:
+              - *shared
+              - 'services/edutrack/parent-portal/**'
+              - 'infrastructure/docker/nginx/**'
+
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+
+  verify:
+    name: ${{ matrix.workspace }}
+    needs: changes
+    if: ${{ needs.changes.outputs.workspaces != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: ${{ fromJSON(needs.changes.outputs.workspaces) }}
+        exclude:
+          - workspace: shared
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint -w @edutrack/${{ matrix.workspace }}
+      - name: Typecheck
+        run: npm run typecheck -w @edutrack/${{ matrix.workspace }}
+      - name: Test
+        run: npm run test -w @edutrack/${{ matrix.workspace }}
+      - name: Build
+        run: npm run build -w @edutrack/${{ matrix.workspace }}
+
+  shared-packages:
+    name: Shared packages
+    needs: changes
+    if: ${{ contains(fromJSON(needs.changes.outputs.workspaces), 'shared') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck -w @edutrack/shared -w @edutrack/web-core -w @edutrack/ui
+
+  docker:
+    name: Docker image (${{ matrix.workspace }})
+    needs: [changes, verify]
+    if: ${{ needs.changes.outputs.workspaces != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workspace: ${{ fromJSON(needs.changes.outputs.workspaces) }}
+        exclude:
+          - workspace: shared
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      # Builds only, to keep Dockerfiles honest. Publishing is set up with the deploy target.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: services/edutrack/${{ matrix.workspace }}/Dockerfile
+          push: false
+          cache-from: type=gha,scope=${{ matrix.workspace }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.workspace }}

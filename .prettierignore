@@ -1,0 +1,7 @@
+node_modules
+dist
+coverage
+package-lock.json
+CHANGELOG.md
+services/edutrack/backend/src/generated
+services/edutrack/backend/prisma/migrations

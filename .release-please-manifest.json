@@ -1,0 +1,11 @@
+{
+  "services/edutrack/backend": "0.1.0",
+  "services/edutrack/platform-backoffice": "0.1.0",
+  "services/edutrack/school-admin": "0.1.0",
+  "services/edutrack/teacher-portal": "0.1.0",
+  "services/edutrack/student-portal": "0.1.0",
+  "services/edutrack/parent-portal": "0.1.0",
+  "packages/shared": "0.1.0",
+  "packages/ui": "0.1.0",
+  "packages/web-core": "0.1.0"
+}

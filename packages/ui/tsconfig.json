@@ -1,0 +1,13 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": true,
+    "types": [],
+    // Self-reference so shadcn-vue writes imports like `@edutrack/ui/lib/utils`,
+    // which resolve the same way inside this package and in every portal.
+    "paths": {
+      "@edutrack/ui/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue"]
+}
