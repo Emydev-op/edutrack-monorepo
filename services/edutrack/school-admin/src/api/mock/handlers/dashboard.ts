@@ -5,12 +5,15 @@ import type { DashboardMetric } from '@/types';
 import { routesPath } from '@/router/routes-path';
 
 import { academicsData } from '../academics-db';
+import { smsCreditOf } from '../comms-db';
+import { tickets } from '../support-db';
 import { branchFigures, dashboards } from '../db';
 import { schoolData } from '../school-db';
 import { currentTerm } from './academics-shared';
 import { sectionFigures, termFigures, weekly } from './finance-overview';
 import { financeSnapshot, millions } from './finance-shared';
 import { currentUser } from './shared';
+import { needsYou } from './support';
 
 /** Collection figures for the dashboard, from Finance, for a branch name or all branches. */
 function feeFigures(schoolId: string, branch: string) {
@@ -71,19 +74,34 @@ mock.get('/v1/dashboard', (req) => {
   return {
     ...base,
     metrics: [
-      metric(
-        'Students',
-        students.toLocaleString('en-NG'),
-        '+36 since 2025/2026 Third Term',
-        'success',
-      ),
+      studentsMetric(school, branch, students),
       metric('Teachers', String(teachers), '2 subjects without a teacher', 'warning'),
       metric('Classes', String(classes), 'SSS 1C has no class teacher', 'warning'),
       ...feeMetrics(school, branch, [collected, collectedHint, outstanding, outstandingHint]),
     ],
-    attention: base.attention.flatMap((a) => liveAttention(school, branch, a)),
+    attention: [
+      ...base.attention.flatMap((a) => liveAttention(school, branch, a)),
+      ...opsAttention(school),
+    ],
   };
 });
+
+/** Enrolled students from the live roll (new admissions this session as the hint). */
+function studentsMetric(school: string, branch: string, fallback: number) {
+  const snap = financeSnapshot(school);
+  const branchId = branch === 'All branches' ? null : schoolBranchId(school, branch);
+  const roll = [...snap.students.values()].filter(
+    (s) => s.active && (branchId === null || s.branchId === branchId),
+  );
+  if (!roll.length) return metric('Students', fallback.toLocaleString('en-NG'), '', 'neutral');
+  const fresh = roll.filter((s) => s.isNew).length;
+  return metric(
+    'Students',
+    roll.length.toLocaleString('en-NG'),
+    fresh ? `${fresh.toLocaleString('en-NG')} new this session` : 'No new admissions yet',
+    fresh ? 'success' : 'neutral',
+  );
+}
 
 function feeMetrics(school: string, branch: string, fallback: string[]) {
   const x = feeFigures(school, branch);
@@ -110,6 +128,44 @@ function feeMetrics(school: string, branch: string, fallback: string[]) {
 }
 
 /** Finance attention items carry live counts; they drop off once nothing is waiting. */
+/** Account-level items: SMS sender ID and support tickets waiting on the school. */
+function opsAttention(school: string): (typeof dashboards)[string]['attention'] {
+  const out: (typeof dashboards)[string]['attention'] = [];
+  const { senderId, units } = smsCreditOf(school);
+  if (senderId.status !== 'Approved')
+    out.push({
+      id: 'sender-id',
+      badge: { label: senderId.status === 'Rejected' ? 'Rejected' : 'Pending', tone: 'warning' },
+      text:
+        senderId.status === 'Not requested'
+          ? 'No SMS sender ID yet · SMS goes out as “EDUTRACK”'
+          : `SMS sender ID “${senderId.name}” ${senderId.status === 'Rejected' ? 'was rejected' : 'awaiting approval'}`,
+      area: 'Communication · Notifications',
+      action: 'Review',
+      to: { name: routesPath.settings.name, query: { tab: 'notifications' } },
+    });
+  if (units < 2000)
+    out.push({
+      id: 'sms-credit',
+      badge: { label: 'Low', tone: 'warning' },
+      text: `SMS credit is low · ${units.toLocaleString('en-NG')} units left`,
+      area: 'Settings · Subscription',
+      action: 'View',
+      to: { name: routesPath.settings.name, query: { tab: 'subscription' } },
+    });
+  const waiting = tickets.filter((t) => t.schoolId === school && needsYou(t));
+  if (waiting.length)
+    out.push({
+      id: 'support',
+      badge: { label: 'Reply', tone: 'info' },
+      text: `${waiting.length} support ticket${waiting.length === 1 ? ' needs' : 's need'} your reply or confirmation`,
+      area: 'Support',
+      action: 'Open',
+      to: { name: routesPath.support.name },
+    });
+  return out;
+}
+
 function liveAttention(
   school: string,
   branch: string,

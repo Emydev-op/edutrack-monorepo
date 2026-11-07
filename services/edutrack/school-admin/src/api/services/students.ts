@@ -40,6 +40,9 @@ function useStudentsMutation<V, R>(fn: (vars: V) => Promise<R>) {
           queryKeys.admissions.all,
           queryKeys.enrollment,
           queryKeys.dashboard.all,
+          queryKeys.finance.all,
+          queryKeys.comms.all,
+          queryKeys.notifications,
         ].map((queryKey) => qc.invalidateQueries({ queryKey })),
       ),
   });

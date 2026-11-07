@@ -20,6 +20,7 @@ import {
   type StudentsData,
 } from '../students-db';
 import { academicsData } from '../academics-db';
+import { guardianInvited, studentAdmitted, studentExited } from '../comms-events';
 import {
   buildInvoice,
   chargedIn,
@@ -30,6 +31,7 @@ import {
 } from '../finance-db';
 import { isoToday, siblingPositions, totalOf } from '../finance-ledger';
 import { schoolData } from '../school-db';
+import { nextNumberFor } from '../settings-db';
 import { financeSnapshot, invoiceRowFor, naira } from './finance-shared';
 import { currentUser, EMAIL, isPhone, requireText } from './shared';
 
@@ -302,6 +304,14 @@ mock.post('/v1/students/:id/transfer', (req) => {
     notes: p.notes ?? '',
   };
   s.status = p.kind === 'Transfer' ? 'Transferred' : 'Withdrawn';
+  studentExited(
+    currentUser(req).schoolId,
+    guardiansOf(data, s.id),
+    { id: s.id, name: displayName(s) },
+    p.kind,
+    date,
+    actor,
+  );
   s.activity.push({
     id: `x${Date.now()}`,
     title: p.kind === 'Transfer' ? `Transferred to ${s.exit.destination}` : 'Withdrawn',
@@ -440,6 +450,7 @@ mock.get('/v1/admissions/matches', (req) => {
 
 mock.post('/v1/admissions', (req) => {
   const { data, actor } = dataFor(req);
+  const schoolId = currentUser(req).schoolId;
   const p = req.body as AdmitPayload;
   const surname = requireText(p.surname, 'Enter the surname');
   const firstName = requireText(p.firstName, 'Enter the first name');
@@ -482,7 +493,7 @@ mock.post('/v1/admissions', (req) => {
     data.guardians.push(guardian);
   }
 
-  const admissionNo = `STU-2026-${String(data.nextAdmission++).padStart(4, '0')}`;
+  const admissionNo = nextNumberFor(schoolId, 'admission', data.nextAdmission++);
   const id = `${firstName.toLowerCase().replace(/[^a-z]+/g, '-')}-${admissionNo.slice(-4)}`;
   let invoiceTotal = 0;
   const record: StudentRecord = {
@@ -526,6 +537,7 @@ mock.post('/v1/admissions', (req) => {
     ],
   };
   data.students.unshift(record);
+  const inviteNow = !!guardian && !!p.invite && guardian.portal !== 'Active';
   if (guardian) {
     guardian.children[id] = { relationship: p.relationship, paysFees: p.paysFees, primary: true };
     if (p.invite && guardian.portal === 'No account') guardian.portal = 'Invited';
@@ -543,6 +555,25 @@ mock.post('/v1/admissions', (req) => {
   const app = p.applicationId ? data.applications.find((a) => a.id === p.applicationId) : null;
   if (app)
     Object.assign(app, { stage: 'Admitted', stageNote: 'Now an active student', studentId: id });
+  if (guardian) {
+    const schoolId = currentUser(req).schoolId;
+    studentAdmitted(
+      schoolId,
+      guardian,
+      { id, name: `${firstName} ${surname}`, admissionNo, className: `${p.level}${p.arm}` },
+      actor,
+    );
+    if (inviteNow)
+      guardianInvited(
+        schoolId,
+        guardian,
+        Object.keys(guardian.children).flatMap((cid) => {
+          const c = data.students.find((x) => x.id === cid);
+          return c ? [displayName(c)] : [];
+        }),
+        actor,
+      );
+  }
   return {
     studentId: id,
     name: `${firstName} ${surname}`,
@@ -864,6 +895,16 @@ mock.post('/v1/guardians', (req) => {
     const s = data.students.find((x) => x.id === id);
     if (s?.status === 'Incomplete profile') s.status = 'Active';
   }
+  if (p.invite)
+    guardianInvited(
+      currentUser(req).schoolId,
+      g,
+      p.studentIds.flatMap((cid) => {
+        const c = data.students.find((x) => x.id === cid);
+        return c ? [displayName(c)] : [];
+      }),
+      dataFor(req).actor,
+    );
   return guardianRow(data, g);
 });
 

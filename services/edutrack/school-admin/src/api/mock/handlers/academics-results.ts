@@ -24,6 +24,7 @@ import {
   type PromotionClassRec,
   type SheetRec,
 } from '../academics-db';
+import { resultsPublished } from '../comms-events';
 import { schoolData } from '../school-db';
 import { studentsData, type StudentRecord } from '../students-db';
 import {
@@ -37,6 +38,7 @@ import {
   teacherName,
   termFrom,
 } from './academics-shared';
+import { academicPolicy } from '../settings-db';
 import { requireText } from './shared';
 
 const ABILITY: Record<string, number> = {
@@ -99,9 +101,14 @@ function gradeOf(scheme: AssessmentScheme, total: number) {
 function totalOf(acad: AcademicsData, scheme: AssessmentScheme, values: ScoreValue[]) {
   let total = 0;
   let counted = 0;
+  // Settings → Academic: an exempt component either drops out (the rest re-weight to 100%) or scores 0.
+  const reweight = academicPolicy(acad).reweightExempt;
   for (const [i, c] of scheme.components.entries()) {
     const v = values[i];
-    if (v === 'EXM') continue;
+    if (v === 'EXM') {
+      if (!reweight) counted += c.weight;
+      continue;
+    }
     if (v === null || v === undefined || v === 'ABS') return null;
     total += (v / c.max) * c.weight;
     counted += c.weight;
@@ -139,7 +146,7 @@ function sheetRows(schoolId: string, acad: AcademicsData, sheet: SheetRec): Shee
   });
 }
 
-function sheetView(schoolId: string, acad: AcademicsData, sheet: SheetRec): ResultSheet {
+export function sheetView(schoolId: string, acad: AcademicsData, sheet: SheetRec): ResultSheet {
   ensureScores(schoolId, acad, sheet);
   const { level, arm } = findArm(acad, sheet.armId);
   const scheme = schemeFor(acad, level.section)!;
@@ -385,7 +392,7 @@ mock.get('/v1/academics/results/publish/:armId', (req) => {
 });
 
 mock.post('/v1/academics/results/publish/:armId', (req) => {
-  const { acad, schoolId, log } = acadFor(req);
+  const { acad, schoolId, log, actor } = acadFor(req);
   const body = req.body as { acknowledged?: boolean; term?: string };
   const term = termFrom(acad, body.term) ?? fail('No term', 409);
   const key = `${term.id}|${req.params.armId}`;
@@ -406,6 +413,13 @@ mock.post('/v1/academics/results/publish/:armId', (req) => {
     'Results',
     `Published ${check.arm} results`,
     `${term.name} · ${plural(check.students, 'student')}`,
+  );
+  resultsPublished(
+    schoolId,
+    check.arm,
+    term.name,
+    acad.sessions.find((x) => x.terms.some((t) => t.id === term.id))?.name ?? '',
+    actor,
   );
   return check;
 });
@@ -633,8 +647,18 @@ function nextFor(c: PromotionClassRec, d: string | null) {
   }
 }
 
+/** The fee note on a student, in line with the school's fees-block setting. */
+function feeNote(note: string, balance: number, block: boolean) {
+  if (!balance || !/outstanding/.test(note)) return note;
+  return note.replace(
+    /·.*$/,
+    block ? '· must be cleared before promotion' : '· fees don’t block promotion',
+  );
+}
+
 function promotionView(acad: AcademicsData, classId?: string): PromotionView {
   const p = acad.promotion;
+  const policy = academicPolicy(acad);
   if (!p)
     return {
       from: '',
@@ -648,6 +672,8 @@ function promotionView(acad: AcademicsData, classId?: string): PromotionView {
       students: [],
       applied: false,
       empty: true,
+      suggestions: policy.promotionSuggestions,
+      feesBlock: policy.blockPromotionOnFees,
     };
   const cls =
     p.classes.find((c) => c.id === classId) ??
@@ -671,11 +697,14 @@ function promotionView(acad: AcademicsData, classId?: string): PromotionView {
     arm: cls.arm,
     students: cls.students.map((s) => ({
       ...s,
+      note: feeNote(s.note, s.balance, policy.blockPromotionOnFees),
       eligible: eligibleOf(acad, s),
       next: nextFor(cls, s.decision ?? (cls.status !== 'Pending' ? s.suggestion : null)),
     })),
     applied: cls.status !== 'Pending',
     empty: false,
+    suggestions: policy.promotionSuggestions,
+    feesBlock: policy.blockPromotionOnFees,
   };
 }
 
@@ -704,7 +733,17 @@ mock.post('/v1/academics/promotion/:classId/apply', (req) => {
   if (cls.status !== 'Pending') fail('Decisions for this class are already applied.', 409);
   const undecided = cls.students.filter((s) => !s.decision);
   if (undecided.length) fail(`Decide for ${undecided.map((s) => s.name).join(', ')} first.`);
+  const policy = academicPolicy(acad);
+  if (policy.blockPromotionOnFees) {
+    const owing = cls.students.filter((s) => s.decision === 'Promote' && s.balance > 0);
+    if (owing.length)
+      fail(
+        `Your school blocks promotion while fees are outstanding: ${owing.map((s) => s.name).join(', ')}. Clear the balance or choose another decision.`,
+      );
+  }
+  // With suggestions off there is no rule to go against, so no exception reasons are needed.
   const noReason = cls.students.filter((s) => {
+    if (!policy.promotionSuggestions) return false;
     const ok = eligibleOf(acad, s);
     return (
       ((ok && s.decision === 'Repeat') || (!ok && s.decision === 'Promote')) && !s.reason.trim()

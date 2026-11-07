@@ -67,6 +67,7 @@ const decisionOf = (s: PromotionStudent) =>
   applied.value ? (s.decision ?? s.suggestion) : (edits.value[s.id]?.decision ?? null);
 const isException = (s: PromotionStudent) => {
   const d = decisionOf(s);
+  if (!view.value?.suggestions) return false;
   return !!d && ((s.eligible && d === 'Repeat') || (!s.eligible && d === 'Promote'));
 };
 const nextFor = (s: PromotionStudent) => {
@@ -197,7 +198,7 @@ async function confirmApply() {
     <PageHeader
       title="Promotion"
       :status="applied ? 'Complete' : 'In progress'"
-      :description="`${view.from} → ${view.to} · ${view.className} · Main Campus. The system suggests; authorised staff decide.`"
+      :description="`${view.from} → ${view.to} · ${view.className} · Main Campus. ${view.suggestions ? 'The system suggests; authorised staff decide.' : 'Authorised staff decide for each student.'}`"
     >
       <template #actions>
         <Button v-if="applied && fromSessionId" as-child
@@ -207,7 +208,9 @@ async function confirmApply() {
           ></Button
         >
         <template v-else-if="!applied">
-          <Button variant="outline" @click="applySuggestions">Apply suggestions to pending</Button>
+          <Button v-if="view.suggestions" variant="outline" @click="applySuggestions"
+            >Apply suggestions to pending</Button
+          >
           <Button
             variant="outline"
             :disabled="!dirty || save.isPending.value"
@@ -250,8 +253,16 @@ async function confirmApply() {
       <span class="text-xs font-medium tracking-[0.04em] text-faint uppercase">Promotion rule</span>
       <span class="text-[13px]">{{ view.rule }}</span>
       <span class="text-xs text-muted-foreground"
-        >Fees don’t block promotion at your school. A decision that goes against the rule is an
-        exception and needs a reason.</span
+        >{{
+          view.feesBlock
+            ? 'Students with fees outstanding can’t be promoted at your school.'
+            : 'Fees don’t block promotion at your school.'
+        }}
+        {{
+          view.suggestions
+            ? 'A decision that goes against the rule is an exception and needs a reason.'
+            : 'Eligibility suggestions are turned off in Settings → Academic.'
+        }}</span
       >
     </section>
 
@@ -299,12 +310,16 @@ async function confirmApply() {
             >{{ s.english }}</span
           >
           <StatusBadge
+            v-if="view.suggestions"
             :label="s.eligible ? 'Eligible' : 'Not eligible'"
             :tone="s.eligible ? 'success' : 'error'"
           />
+          <span v-else class="text-faint">—</span>
           <span class="flex flex-col gap-0.5">
             <span class="text-body">{{ s.note || '—' }}</span>
-            <span class="text-xs text-faint">Suggested: {{ s.suggestion }}</span>
+            <span v-if="view.suggestions" class="text-xs text-faint"
+              >Suggested: {{ s.suggestion }}</span
+            >
           </span>
           <span class="flex flex-col gap-1.5">
             <span v-if="applied" class="font-medium">{{ decisionOf(s) }}</span>
@@ -317,7 +332,7 @@ async function confirmApply() {
             >
               <option value="">Choose…</option>
               <option v-for="d in DECISIONS" :key="d" :value="d">
-                {{ d }}{{ d === s.suggestion ? ' (suggested)' : '' }}
+                {{ d }}{{ view.suggestions && d === s.suggestion ? ' (suggested)' : '' }}
               </option>
             </select>
             <template v-if="isException(s)">

@@ -27,8 +27,16 @@ const logout = useLogoutMutation();
 const signingOut = ref(false);
 
 const links = [
-  { label: 'My profile & security', to: { name: routesPath.settings.name }, icon: UserIcon },
-  { label: 'Notification settings', to: { name: routesPath.settings.name }, icon: BellIcon },
+  {
+    label: 'My profile & security',
+    to: { name: routesPath.settings.name, query: { tab: 'security' } },
+    icon: UserIcon,
+  },
+  {
+    label: 'Notification settings',
+    to: { name: routesPath.settings.name, query: { tab: 'notifications' } },
+    icon: BellIcon,
+  },
 ];
 
 // Opened after the menu closes, so the dialog doesn't compete with the menu's focus handling.

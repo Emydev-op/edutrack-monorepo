@@ -18,9 +18,11 @@ import {
   nextId,
   nextNo,
   type AccountRec,
+  type PaymentRec,
   type StatementLineRec,
   type StatementRec,
 } from '../finance-db';
+import { paymentsConfirmed } from '../comms-events';
 import { accountMovements, last, addDays, daysBetween, isoToday, sum } from '../finance-ledger';
 import { fmtDate, plural } from './academics-shared';
 import {
@@ -604,9 +606,11 @@ mock.post('/v1/finance/statements/:id/confirm', (req) => {
   );
   if (!lines.length) throw new MockHttpError(422, 'There are no matched lines to confirm.');
   let total = 0;
+  const confirmed: PaymentRec[] = [];
   for (const l of lines) {
     const p = ctx.fin.payments.find((x) => x.id === l.paymentId)!;
     if (p.status !== 'Pending verification') continue;
+    confirmed.push(p);
     p.accountId = st.accountId;
     p.status = 'Confirmed';
     p.verifiedBy = ctx.actor;
@@ -637,6 +641,8 @@ mock.post('/v1/finance/statements/:id/confirm', (req) => {
     `${plural(lines.length, 'payment')} confirmed from a bank statement`,
     naira(total),
   );
+  ctx.refresh();
+  paymentsConfirmed(ctx.schoolId, confirmed, ctx.actor);
   return statementView(ctx.refresh(), st);
 });
 

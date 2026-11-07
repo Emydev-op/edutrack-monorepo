@@ -55,6 +55,8 @@ function useAcademicsMutation<V, R>(fn: (vars: V) => Promise<R>) {
           queryKeys.staff.all,
           queryKeys.setup.all,
           queryKeys.navCounts,
+          queryKeys.comms.all,
+          queryKeys.notifications,
           queryKeys.contextOptions,
           queryKeys.students.all,
           queryKeys.enrollment,

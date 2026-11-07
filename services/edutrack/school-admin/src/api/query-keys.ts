@@ -101,4 +101,24 @@ export const queryKeys = {
     vendors: (params: object) => ['finance', 'vendors', params] as const,
     vendor: (id: string) => ['finance', 'vendor', id] as const,
   },
+  /** Communication: announcements, delivery logs, templates, events, inbox. Owned by communication.ts. */
+  comms: {
+    all: ['comms'] as const,
+    key: (...parts: unknown[]) => ['comms', ...parts] as const,
+  },
+  /** Reports. Owned by reports.ts. */
+  reports: {
+    all: ['reports'] as const,
+    key: (...parts: unknown[]) => ['reports', ...parts] as const,
+  },
+  /** Settings. Owned by settings.ts. */
+  settings: {
+    all: ['settings'] as const,
+    key: (...parts: unknown[]) => ['settings', ...parts] as const,
+  },
+  /** Support tickets. Owned by support.ts. */
+  support: {
+    all: ['support'] as const,
+    key: (...parts: unknown[]) => ['support', ...parts] as const,
+  },
 };

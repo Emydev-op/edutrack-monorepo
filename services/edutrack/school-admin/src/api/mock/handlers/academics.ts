@@ -49,7 +49,9 @@ import {
   type LevelRec,
   type TimetableRec,
 } from '../academics-db';
+import { timetablePublished } from '../comms-events';
 import { schoolData } from '../school-db';
+import { academicPolicy } from '../settings-db';
 import { studentsData } from '../students-db';
 import {
   acadFor,
@@ -1059,9 +1061,13 @@ export function weighted(acad: AcademicsData, section: string, values: (number |
   if (!scheme || scheme.mode !== 'scores') return null;
   let total = 0;
   let counted = 0;
+  const reweight = academicPolicy(acad).reweightExempt;
   for (const [i, c] of scheme.components.entries()) {
     const v = values[i];
-    if (v === 'EXM') continue;
+    if (v === 'EXM') {
+      if (!reweight) counted += c.weight;
+      continue;
+    }
     if (v === null || v === undefined || v === 'ABS') return null;
     total += (Number(v) / c.max) * c.weight;
     counted += c.weight;
@@ -1656,6 +1662,16 @@ mock.post('/v1/academics/timetable/:action', (req) => {
       tt.publishedVersion = tt.version;
       entry(`Version ${tt.version} published`);
       log('Academics', `Timetable published: ${view.arm}`, `${view.term} · v${tt.version}`);
+      timetablePublished(
+        schoolId,
+        view.arm,
+        view.palette.flatMap((x) => {
+          const name = teacherName(acad, x.teacherId);
+          return name ? [name] : [];
+        }),
+        view.term,
+        actor,
+      );
       break;
     case 'revise':
       if (tt.status !== 'Published') fail('Only a published timetable can be revised.', 409);

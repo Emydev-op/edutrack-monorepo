@@ -1,4 +1,4 @@
-import { mock, MockHttpError } from '@edutrack/web-core/mock';
+import { mock, MockHttpError, type MockRequest } from '@edutrack/web-core/mock';
 
 import { routesPath } from '@/router/routes-path';
 import type {
@@ -355,9 +355,12 @@ const REPORTS: Record<ReportId, { title: string; description: string }> = {
   },
 };
 
-mock.get('/v1/finance/reports/:id', (req): ReportView => {
+/** One Finance report; also used by the school-wide Reports section so both show the same figures. */
+export function financeReport(
+  req: Pick<MockRequest, 'headers' | 'query'>,
+  id: ReportId,
+): ReportView {
   const ctx = finFor(req);
-  const id = req.params.id as ReportId;
   const meta = REPORTS[id];
   if (!meta) throw new MockHttpError(404, 'Report not found');
   const term = termOf(ctx, req.query.term, req.query.session);
@@ -586,7 +589,11 @@ mock.get('/v1/finance/reports/:id', (req): ReportView => {
       closing: sum(rows.map((x) => x.closing)),
     },
   };
-});
+}
+
+mock.get('/v1/finance/reports/:id', (req): ReportView =>
+  financeReport(req, req.params.id as ReportId),
+);
 
 function accountMovesBetween(ctx: FinCtx, accountId: string, from: string, to: string) {
   const acc = ctx.fin.accounts.find((a) => a.id === accountId)!;

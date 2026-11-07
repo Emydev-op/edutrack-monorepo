@@ -35,6 +35,8 @@ function useStaffMutation<V, R>(fn: (vars: V) => Promise<R>) {
           queryKeys.branches.all,
           queryKeys.setup.all,
           queryKeys.navCounts,
+          queryKeys.comms.all,
+          queryKeys.notifications,
         ].map((queryKey) => qc.invalidateQueries({ queryKey })),
       ),
   });
