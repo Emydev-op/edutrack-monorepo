@@ -7,6 +7,7 @@ import { academicsRoutes } from './modules/academics';
 import { authRoutes } from './modules/auth';
 import { plannedRoutes } from './modules/planned';
 import { schoolRoutes } from './modules/school';
+import { financeRoutes } from './modules/finance';
 import { staffRoutes } from './modules/staff';
 import { studentRoutes } from './modules/students';
 import { routesPath } from './routes-path';
@@ -49,6 +50,7 @@ const router = createRouter({
         ...schoolRoutes,
         ...studentRoutes,
         ...staffRoutes,
+        ...financeRoutes,
         ...plannedRoutes,
       ],
     },

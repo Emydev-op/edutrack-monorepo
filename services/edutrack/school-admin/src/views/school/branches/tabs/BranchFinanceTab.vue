@@ -13,7 +13,7 @@ defineProps<{ branch: BranchDetail }>();
 <template>
   <KeyValueCard
     v-if="branch.finance"
-    title="First Term 2026/2027"
+    :title="branch.finance.term"
     class="max-w-xl"
     :rows="[
       { label: 'Billed', value: branch.finance.billed },
