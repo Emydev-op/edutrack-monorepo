@@ -33,9 +33,13 @@ function useSchoolMutation<V, R>(fn: (vars: V) => Promise<R>, refresh: QueryKey[
     mutationFn: fn,
     onSuccess: () =>
       Promise.all(
-        [...refresh, queryKeys.navCounts, queryKeys.setup.all].map((queryKey) =>
-          qc.invalidateQueries({ queryKey }),
-        ),
+        [
+          ...refresh,
+          queryKeys.navCounts,
+          queryKeys.setup.all,
+          queryKeys.comms.all,
+          queryKeys.notifications,
+        ].map((queryKey) => qc.invalidateQueries({ queryKey })),
       ),
   });
 }

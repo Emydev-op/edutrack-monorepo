@@ -71,6 +71,8 @@ export function useFinanceMutation<V, R>(fn: (vars: V) => Promise<R>) {
           queryKeys.branches.all,
           queryKeys.setup.all,
           queryKeys.navCounts,
+          queryKeys.comms.all,
+          queryKeys.notifications,
           queryKeys.academics.all,
         ].map((queryKey) => qc.invalidateQueries({ queryKey })),
       ),

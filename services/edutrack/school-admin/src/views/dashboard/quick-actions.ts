@@ -16,13 +16,13 @@ export const QUICK_ACTIONS = [
   { label: 'Admit student', icon: UserPlusIcon, to: { name: r.students.admissions.name } },
   { label: 'Import students', icon: FileSpreadsheetIcon, to: { name: r.students.import.name } },
   { label: 'Add staff', icon: UsersIcon, to: { name: r.staff.directory.name } },
-  { label: 'Create invoice', icon: ReceiptIcon, to: { name: r.finance.invoices.name } },
-  { label: 'Record payment', icon: HandCoinsIcon, to: { name: r.finance.payments.name } },
+  { label: 'Create invoice', icon: ReceiptIcon, to: { name: r.finance.invoiceGenerate.name } },
+  { label: 'Record payment', icon: HandCoinsIcon, to: { name: r.finance.paymentNew.name } },
   { label: 'Review results', icon: BookCheckIcon, to: { name: r.academics.results.name } },
   {
     label: 'New announcement',
     icon: MegaphoneIcon,
-    to: { name: r.communication.announcements.name },
+    to: { name: r.communication.announcementNew.name },
   },
   { label: 'Raise stock request', icon: PackageIcon, to: { name: r.inventory.requests.name } },
 ];

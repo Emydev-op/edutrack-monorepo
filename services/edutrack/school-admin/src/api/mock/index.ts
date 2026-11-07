@@ -18,6 +18,10 @@ import './handlers/shell';
 import './handlers/staff';
 import './handlers/students';
 import './handlers/users';
+import './handlers/communication';
+import './handlers/reports';
+import './handlers/settings';
+import './handlers/support';
 
 export { mockAdapter };
 

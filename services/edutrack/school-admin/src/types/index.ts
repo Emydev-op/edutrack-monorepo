@@ -8,3 +8,7 @@ export * from './staff';
 export * from './school';
 export * from './students';
 export * from './finance';
+export * from './communication';
+export * from './reports';
+export * from './settings';
+export * from './support';

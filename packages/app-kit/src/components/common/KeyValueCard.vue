@@ -19,12 +19,13 @@ defineProps<{ title: string; rows: KeyValueRow[]; status?: string; footer?: stri
       <StatusBadge v-if="status" :label="status" />
       <slot name="action" />
     </header>
-    <dl class="grid grid-cols-[minmax(120px,auto)_1fr] gap-x-4 gap-y-2 text-[13px]">
+    <dl class="grid grid-cols-[minmax(120px,auto)_minmax(0,1fr)] gap-x-4 gap-y-2 text-[13px]">
       <template v-for="row in rows" :key="row.label">
         <dt class="text-faint truncate">{{ row.label }}</dt>
         <dd
           :class="
             cn(
+              'min-w-0 break-words',
               row.emphasis === 'error' && 'font-medium text-error-strong',
               row.emphasis === 'strong' && 'font-semibold',
               row.emphasis === 'success' && 'font-medium text-success-strong',

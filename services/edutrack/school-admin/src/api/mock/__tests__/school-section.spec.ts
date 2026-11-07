@@ -125,7 +125,7 @@ describe('School section mock API', () => {
     async () => {
       expect(
         (await failure(api.post('/v1/branches/mc/deactivate', { reason: 'x' }))).message,
-      ).toContain('842 students');
+      ).toContain('847 students');
       expect(
         (await failure(crest.post('/v1/branches/cmc/deactivate', { reason: 'x' }))).message,
       ).toContain('at least one active branch');

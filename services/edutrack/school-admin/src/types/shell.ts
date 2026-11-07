@@ -27,6 +27,8 @@ export interface NotificationItem {
   when: string;
   unread: boolean;
   to: RouteLocationRaw;
+  /** Local "YYYY-MM-DDTHH:mm" it arrived, for sorting and fresh "when" labels. */
+  at?: string;
 }
 
 export interface SearchResult {

@@ -91,6 +91,8 @@ export interface FinStudent {
   isNew: boolean;
   /** Still enrolled (left students keep their invoices). */
   active: boolean;
+  /** For enrollment reports; unknown for students added without one. */
+  gender?: 'Female' | 'Male';
 }
 
 export interface LineRec {
@@ -516,6 +518,7 @@ export function recordStudents(schoolId: string): FinStudent[] {
       payerPhone: g?.phone ?? '',
       isNew: s.admissionNo.startsWith('STU-2026') && s.id !== 'aisha',
       active: ['Active', 'Incomplete profile'].includes(s.status),
+      gender: s.gender,
     };
   });
 }
@@ -1079,6 +1082,7 @@ function gfRoll(fin: FinanceData) {
           payerPhone: payer.phone,
           isNew,
           active: true,
+          gender: girl ? 'Female' : 'Male',
         });
       }
     }
@@ -1349,6 +1353,10 @@ function seedGreenfield(): FinanceData {
 
   gfRoll(fin);
   const students = [...fin.studentIndex().values()];
+  // Branch head counts follow the generated roll, so Branches, the dashboard, Reports and the
+  // subscription usage all show the same number of enrolled students.
+  for (const b of schoolData.greenfield!.branches)
+    b.students = students.filter((s) => s.active && s.branchId === b.id).length;
   // Plans: a quarter of families pay in installments.
   for (const s of students) {
     const r = R(s.key + 'plan');

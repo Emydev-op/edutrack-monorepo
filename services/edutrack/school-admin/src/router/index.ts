@@ -7,7 +7,11 @@ import { academicsRoutes } from './modules/academics';
 import { authRoutes } from './modules/auth';
 import { plannedRoutes } from './modules/planned';
 import { schoolRoutes } from './modules/school';
+import { communicationRoutes } from './modules/communication';
 import { financeRoutes } from './modules/finance';
+import { reportRoutes } from './modules/reports';
+import { settingsRoutes } from './modules/settings';
+import { supportRoutes } from './modules/support';
 import { staffRoutes } from './modules/staff';
 import { studentRoutes } from './modules/students';
 import { routesPath } from './routes-path';
@@ -51,6 +55,10 @@ const router = createRouter({
         ...studentRoutes,
         ...staffRoutes,
         ...financeRoutes,
+        ...communicationRoutes,
+        ...reportRoutes,
+        ...settingsRoutes,
+        ...supportRoutes,
         ...plannedRoutes,
       ],
     },

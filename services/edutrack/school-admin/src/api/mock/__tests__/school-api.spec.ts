@@ -72,8 +72,8 @@ describe('school admin mock API', () => {
         params: { branch: 'Lekki Campus' },
       })
     ).data;
-    expect(main.metrics[0]).toMatchObject({ label: 'Students', value: '842' });
-    expect(lekki.metrics[0]?.value).toBe('406');
+    expect(main.metrics[0]).toMatchObject({ label: 'Students', value: '847' });
+    expect(lekki.metrics[0]?.value).toBe('367');
     expect(main.attention.length).toBeGreaterThan(0);
 
     const empty = (await crestview.get<DashboardSummary>('/v1/dashboard')).data;

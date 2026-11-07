@@ -5,13 +5,22 @@ import { BellIcon } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 
+import { useMarkReadMutation } from '@/api/services/communication';
 import { useMarkNotificationsReadMutation, useNotificationsQuery } from '@/api/services/shell';
 import { routesPath } from '@/router/routes-path';
 
 const open = ref(false);
 const { data: notifications } = useNotificationsQuery();
 const markAll = useMarkNotificationsReadMutation();
+const markRead = useMarkReadMutation();
 const unread = computed(() => notifications.value?.filter((n) => n.unread).length ?? 0);
+/** The latest few; the Notifications page has the rest. */
+const latest = computed(() => notifications.value?.slice(0, 8) ?? []);
+
+function opened(n: { id: string; unread: boolean }) {
+  open.value = false;
+  if (n.unread) markRead.mutate(n.id);
+}
 </script>
 
 <template>
@@ -40,13 +49,16 @@ const unread = computed(() => notifications.value?.filter((n) => n.unread).lengt
           Mark all as read
         </button>
       </div>
+      <p v-if="!latest.length" class="px-3.5 py-6 text-center text-[13px] text-muted-foreground">
+        No notifications yet.
+      </p>
       <div class="overflow-y-auto">
         <RouterLink
-          v-for="n in notifications"
+          v-for="n in latest"
           :key="n.id"
           :to="n.to"
           class="grid grid-cols-[8px_1fr_auto] gap-2.5 border-b border-divider px-3.5 py-2.5 hover:bg-muted"
-          @click="open = false"
+          @click="opened(n)"
         >
           <span
             :class="cn('mt-1.5 size-1.5 rounded-full', n.unread ? 'bg-primary' : 'bg-transparent')"
@@ -63,7 +75,9 @@ const unread = computed(() => notifications.value?.filter((n) => n.unread).lengt
         class="px-3.5 py-2.5 text-[13px] font-medium text-primary hover:underline"
         @click="open = false"
       >
-        View all
+        View all{{
+          notifications && notifications.length > latest.length ? ` (${notifications.length})` : ''
+        }}
       </RouterLink>
     </PopoverContent>
   </Popover>

@@ -3,6 +3,7 @@ import { mock, MockHttpError } from '@edutrack/web-core/mock';
 import { ACTION_LABELS, PERMISSION_MODULES, ROLE_SCOPES } from '@/config/permissions';
 import type { AccessPayload, InvitePayload, RolePayload } from '@/types';
 
+import { staffInvited } from '../comms-events';
 import type { SchoolData, UserRow } from '../school-db';
 import { EMAIL, historyOf, requireText, schoolDataFor } from './shared';
 
@@ -57,7 +58,7 @@ function validateAccess(data: SchoolData, p: AccessPayload) {
 }
 
 mock.post('/v1/users/invitations', (req) => {
-  const { data, log } = schoolDataFor(req);
+  const { data, log, schoolId, actor } = schoolDataFor(req);
   const p = req.body as InvitePayload;
   const staff = p.staffId ? data.staff.find((s) => s.id === p.staffId) : null;
   if (p.staffId && !staff) throw new MockHttpError(422, 'Choose the staff member.');
@@ -95,6 +96,13 @@ mock.post('/v1/users/invitations', (req) => {
     invited: 'Today',
   };
   data.users.push(user);
+  staffInvited(
+    schoolId,
+    { id: staff?.id ?? user.id, name, email, phone: staff?.phone ?? '' },
+    p.roles.join(', '),
+    actor,
+    user.id,
+  );
   log(
     `User:${user.id}`,
     `Invited as ${p.roles.join(', ')}`,
@@ -142,7 +150,7 @@ const ALLOWED: Record<UserAction, UserRow['status'][]> = {
 };
 
 mock.post('/v1/users/:id/:action', (req) => {
-  const { data, log } = schoolDataFor(req);
+  const { data, log, schoolId, actor } = schoolDataFor(req);
   const u = findUser(data, req.params.id!);
   const action = req.params.action as UserAction;
   if (!ALLOWED[action]) throw new MockHttpError(404, 'Unknown action');
@@ -172,10 +180,19 @@ mock.post('/v1/users/:id/:action', (req) => {
     case 'password-reset':
       log(`User:${u.id}`, 'Sent password reset', u.email);
       break;
-    case 'resend':
+    case 'resend': {
       u.invited = 'Today';
+      const s = u.staffId ? data.staff.find((x) => x.id === u.staffId) : null;
+      staffInvited(
+        schoolId,
+        { id: s?.id ?? u.id, name: u.name, email: u.email, phone: s?.phone ?? '' },
+        u.roles.join(', '),
+        actor,
+        u.id,
+      );
       log(`User:${u.id}`, 'Resent invitation');
       break;
+    }
     case 'revoke':
       u.status = 'Revoked';
       log(`User:${u.id}`, 'Revoked invitation');

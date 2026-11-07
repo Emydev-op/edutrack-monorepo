@@ -23,6 +23,7 @@ import {
   type InvoiceRec,
   type TermRef,
 } from '../finance-db';
+import { feeReminders, invoicesIssued, paymentDetailsSent } from '../comms-events';
 import { isoToday, levelRank, siblingPositions, sum, totalOf } from '../finance-ledger';
 import { fmtDate, plural } from './academics-shared';
 import {
@@ -356,6 +357,7 @@ mock.post('/v1/finance/invoices/generate', (req) => {
     naira(pv.total),
   );
   ctx.refresh();
+  if (p.issue) invoicesIssued(ctx.schoolId, created, ctx.actor);
   return {
     created: created.length,
     issued: p.issue ? created.length : 0,
@@ -373,6 +375,7 @@ mock.post('/v1/finance/invoices/issue', (req) => {
     issueInvoice(ctx.fin, inv, isoToday(), ctx.actor, !!ctx.students.get(inv.studentKey)?.payer);
   ctx.log('finance', `${plural(drafts.length, 'invoice')} issued`);
   ctx.refresh();
+  invoicesIssued(ctx.schoolId, drafts, ctx.actor);
   return { issued: drafts.length, notified: drafts.filter((i) => i.notified).length };
 });
 
@@ -428,6 +431,7 @@ mock.post('/v1/finance/invoices/remind', (req) => {
     channel: 'SMS · Email',
     by: ctx.actor,
   });
+  feeReminders(ctx.schoolId, withPayer, ctx.actor);
   ctx.log(
     'finance',
     `Fee reminders sent to ${plural(payers.size, 'fee payer')}`,
@@ -683,6 +687,7 @@ mock.post('/v1/finance/invoices/:id/remind', (req) => {
     ),
   );
   ctx.fin.reminders.unshift({ date: isoToday(), count: 1, channel: 'SMS · Email', by: ctx.actor });
+  feeReminders(ctx.schoolId, [inv], ctx.actor);
   return { sentTo: s.payer };
 });
 
@@ -699,6 +704,7 @@ mock.post('/v1/finance/students/:key/send-details', (req) => {
     );
   ctx.fin.reminders.unshift({ date: isoToday(), count: 1, channel: 'SMS · Email', by: ctx.actor });
   ctx.log('finance', `Payment details sent to ${s.payer}`, s.name);
+  paymentDetailsSent(ctx.schoolId, s.key, ctx.actor);
   return { sentTo: s.payer };
 });
 
