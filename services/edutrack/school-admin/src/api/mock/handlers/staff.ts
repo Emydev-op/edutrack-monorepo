@@ -609,7 +609,7 @@ mock.post('/v1/staff/:id/documents/:docId/verify', (req) => {
 
 const batches = new Map<string, StaffImportBatch>();
 
-function parseCsv(text: string) {
+export function parseCsv(text: string) {
   const rows: string[][] = [];
   let row: string[] = [];
   let cur = '';

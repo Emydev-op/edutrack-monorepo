@@ -7,3 +7,4 @@ export * from './shell';
 export * from './staff';
 export * from './school';
 export * from './students';
+export * from './finance';

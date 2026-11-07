@@ -1,12 +1,14 @@
 import { mock } from '@edutrack/web-core/mock';
 
 import { routesPath } from '@/router/routes-path';
+import type { SearchResult } from '@/types';
 
 import { academicsData } from '../academics-db';
 import { contextOptions, notifications, searchIndex } from '../db';
 import { currentSession, currentTerm } from './academics-shared';
 import { schoolData } from '../school-db';
 import { setupView } from './setup';
+import { financeSnapshot } from './finance-shared';
 import { currentUser } from './shared';
 
 /** Branch, session and term choices. Branches come from School → Branches, so they stay current. */
@@ -53,10 +55,10 @@ mock.get('/v1/nav-counts', (req) => {
   const setupLeft = s.finished ? 0 : s.steps.filter((x) => x.required && !x.done).length;
   return {
     [routesPath.setup.name]: setupLeft,
-    ...(school === 'greenfield' && {
-      [routesPath.finance.payments.name]: 2,
-      [routesPath.inventory.requests.name]: 1,
-    }),
+    [routesPath.finance.payments.name]: financeSnapshot(school).fin.payments.filter(
+      (p) => p.status === 'Pending verification',
+    ).length,
+    ...(school === 'greenfield' && { [routesPath.inventory.requests.name]: 1 }),
   };
 });
 
@@ -69,7 +71,51 @@ mock.post('/v1/notifications/read-all', (req) => {
 
 mock.get('/v1/search', (req) => {
   const q = (req.query.q ?? '').trim().toLowerCase();
-  return (searchIndex[currentUser(req).schoolId] ?? [])
-    .filter((r) => !q || `${r.title} ${r.type} ${r.meta}`.toLowerCase().includes(q))
-    .slice(0, 9);
+  const school = currentUser(req).schoolId;
+  const fixed = (searchIndex[school] ?? []).filter(
+    (r) => !q || `${r.title} ${r.type} ${r.meta}`.toLowerCase().includes(q),
+  );
+  return [...fixed, ...(q.length >= 3 ? financeSearch(school, q) : [])].slice(0, 9);
 });
+
+/** Invoices, receipts and vendors matching a search, straight from Finance. */
+function financeSearch(schoolId: string, q: string): SearchResult[] {
+  const snap = financeSnapshot(schoolId);
+  const out: SearchResult[] = [];
+  for (const inv of snap.fin.invoices) {
+    if (out.length >= 4) break;
+    const s = snap.students.get(inv.studentKey);
+    if (!`${inv.no} ${s?.name ?? ''}`.toLowerCase().includes(q) || !inv.no) continue;
+    const st = snap.ledger.invoice(inv.id);
+    out.push({
+      id: `inv-${inv.id}`,
+      type: 'Invoice',
+      title: inv.no,
+      meta: `${s?.name ?? ''} · ₦${st.total.toLocaleString('en-NG')} · ${st.status}`,
+      to: { name: routesPath.finance.invoiceDetail.name, params: { id: inv.id } },
+    });
+  }
+  for (const p of snap.fin.payments) {
+    if (out.length >= 6) break;
+    if (!p.no.toLowerCase().includes(q) && !p.reference.toLowerCase().includes(q)) continue;
+    out.push({
+      id: `pay-${p.id}`,
+      type: 'Payment',
+      title: p.no,
+      meta: `${snap.students.get(p.studentKey)?.name ?? ''} · ₦${p.amount.toLocaleString('en-NG')} · ${p.status}`,
+      to: { name: routesPath.finance.paymentDetail.name, params: { id: p.id } },
+    });
+  }
+  for (const v of snap.fin.vendors) {
+    if (out.length >= 8) break;
+    if (!v.name.toLowerCase().includes(q)) continue;
+    out.push({
+      id: `ven-${v.id}`,
+      type: 'Vendor',
+      title: v.name,
+      meta: v.category,
+      to: { name: routesPath.finance.vendorDetail.name, params: { id: v.id } },
+    });
+  }
+  return out;
+}

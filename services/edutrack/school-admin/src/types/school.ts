@@ -99,7 +99,13 @@ export interface BranchDetail extends Branch {
   scopedUsers: { name: string; roles: string[] }[];
   classes: { section: string; level: string; arms: string; students: number }[];
   staffList: { id: string; name: string; position: string; scope: string; account: string }[];
-  finance: { billed: string; collected: string; outstanding: string; expenses: string } | null;
+  finance: {
+    term: string;
+    billed: string;
+    collected: string;
+    outstanding: string;
+    expenses: string;
+  } | null;
   history: TimelineEntry[];
 }
 

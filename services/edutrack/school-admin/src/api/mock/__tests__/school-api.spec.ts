@@ -79,7 +79,16 @@ describe('school admin mock API', () => {
     const empty = (await crestview.get<DashboardSummary>('/v1/dashboard')).data;
     expect(empty).toMatchObject({ hasData: false, attention: [], activity: [] });
     expect((await crestview.get('/v1/search', { params: { q: 'Adeyemi' } })).data).toEqual([]);
-    expect((await greenfield.get('/v1/search', { params: { q: 'Adeyemi' } })).data).toHaveLength(4);
+    const found = (
+      await greenfield.get<{ type: string; title: string }[]>('/v1/search', {
+        params: { q: 'Adeyemi' },
+      })
+    ).data;
+    // Students and parents from the index, plus the family's invoices from Finance.
+    expect(found.filter((r) => r.type !== 'Invoice')).toHaveLength(3);
+    expect(found.filter((r) => r.type === 'Invoice').map((r) => r.title)).toContain(
+      'INV-2026-0418',
+    );
   });
 
   it('only finishes setup once every required step is done', { timeout: 20_000 }, async () => {

@@ -3,9 +3,16 @@ import { mock, MockHttpError, type MockRequest } from '@edutrack/web-core/mock';
 import { routesPath } from '@/router/routes-path';
 import type { SetupProgress, SetupStep } from '@/types';
 
+import { academicsData } from '../academics-db';
 import { setup, setupConfirmed, type AutoStep } from '../db';
 import { schoolData } from '../school-db';
-import { academicSteps, completeAcademicStep, isAcademicStep } from './academics-shared';
+import {
+  academicSteps,
+  completeAcademicStep,
+  currentTerm,
+  isAcademicStep,
+} from './academics-shared';
+import { financeSnapshot } from './finance-shared';
 import { currentUser } from './shared';
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -66,6 +73,7 @@ export function setupView(req: Pick<MockRequest, 'headers'>): SetupProgress {
     steps: base.steps.map((s) => {
       const id = s.id as AutoStep;
       if (isAcademicStep(s.id)) return { ...s, ...academic[s.id], auto: true };
+      if (s.id === 'fees') return { ...s, ...feesStep(schoolId), auto: true };
       return id in live
         ? { ...s, ...live[id], done: confirmed[id], auto: true }
         : { ...s, auto: false };
@@ -86,6 +94,10 @@ mock.post('/v1/setup/steps/:id/complete', (req) => {
   }
   if (id === 'school-profile')
     throw new MockHttpError(409, 'Save the school profile to complete this step.');
+  if (id === 'fees') {
+    completeFeesStep(schoolId);
+    return setupView(req).steps.find((s) => s.id === id);
+  }
   if (id === 'branches') {
     const active = data.branches.filter((b) => b.status === 'Active');
     if (!active.length) throw new MockHttpError(422, 'Add at least one active branch first.');
@@ -129,3 +141,66 @@ mock.post('/v1/setup/finish', (req) => {
   setup[currentUser(req).schoolId]!.finished = true;
   return { ...view, finished: true };
 });
+
+/* ---------------- Fees (Finance) ---------------- */
+
+function feesState(schoolId: string) {
+  const snap = financeSnapshot(schoolId);
+  const acad = academicsData[schoolId]!;
+  const term = snap.terms.find((t) => t.id === currentTerm(acad)?.id) ?? null;
+  const branches = schoolData[schoolId]!.branches.filter(
+    (b) => b.status === 'Active' && acad.levels.some((l) => l.branchId === b.id),
+  );
+  const published = term
+    ? branches.filter((b) =>
+        snap.fin.structures.some(
+          (x) => x.termId === term.id && x.branchId === b.id && x.status === 'Published',
+        ),
+      )
+    : [];
+  const parentAccount = snap.fin.accounts.some((a) => a.status === 'Active' && a.showToParents);
+  const invoices = term
+    ? snap.fin.invoices.filter((i) => i.termId === term.id && i.status === 'Issued').length
+    : 0;
+  return { snap, term, branches, published, parentAccount, invoices };
+}
+
+function feesStep(schoolId: string): Pick<SetupStep, 'description' | 'to' | 'done'> {
+  const x = feesState(schoolId);
+  const items = x.snap.fin.items.filter((i) => i.status === 'Active').length;
+  const to = { name: routesPath.finance.fees.name, query: { from: 'setup' } };
+  if (!items || !x.term)
+    return {
+      description: 'Fee items, amounts per class, discounts and due dates',
+      to,
+      done: false,
+    };
+  const parts = [
+    plural(items, 'fee item'),
+    x.published.length === x.branches.length
+      ? `${x.term.name} published`
+      : `${x.term.name} published at ${x.published.length} of ${x.branches.length} branches`,
+    x.invoices ? plural(x.invoices, 'invoice') + ' issued' : 'no invoices yet',
+    ...(x.parentAccount ? [] : ['no bank account for parents']),
+  ];
+  return { description: parts.join(' · '), to, done: x.snap.fin.confirmed };
+}
+
+function completeFeesStep(schoolId: string) {
+  const x = feesState(schoolId);
+  if (!x.snap.fin.items.some((i) => i.status === 'Active' && i.type === 'Compulsory'))
+    throw new MockHttpError(422, 'Add your fee items first, starting with Tuition.');
+  if (!x.term) throw new MockHttpError(422, 'Create the academic session and its terms first.');
+  const missing = x.branches.filter((b) => !x.published.includes(b));
+  if (missing.length)
+    throw new MockHttpError(
+      422,
+      `Publish ${x.term.name} fees for ${missing.map((b) => b.name).join(', ')} first.`,
+    );
+  if (!x.parentAccount)
+    throw new MockHttpError(
+      422,
+      'Add the bank account parents pay into (Finance › Bank & Cash Accounts) and mark it “Shown to parents”.',
+    );
+  x.snap.fin.confirmed = true;
+}
