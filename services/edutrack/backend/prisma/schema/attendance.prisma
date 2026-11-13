@@ -1,0 +1,69 @@
+// Daily class register taken by the class teacher.
+
+/// Present · Late · Absent · Excused. Present rate counts Present and Late.
+enum AttendanceMark {
+  PRESENT
+  LATE
+  ABSENT
+  EXCUSED
+
+  @@map("attendance_mark")
+}
+
+/// One arm's register for one school day.
+model AttendanceRegister {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  schoolId       String   @map("school_id") @db.Uuid
+  termId         String   @map("term_id") @db.Uuid
+  armId          String   @map("arm_id") @db.Uuid
+  date           DateTime @db.Date
+  takenById      String   @map("taken_by_id") @db.Uuid
+  /// The class teacher (staff record) who took it; the history shows who held the class.
+  takenByStaffId String?  @map("taken_by_staff_id") @db.Uuid
+  /// First save.
+  takenAt        DateTime @map("taken_at") @db.Timestamptz(3)
+  /// Students counted in the arm without an EduTrack record (headcount only), per mark.
+  othersPresent  Int      @default(0) @map("others_present")
+  othersLate     Int      @default(0) @map("others_late")
+  othersAbsent   Int      @default(0) @map("others_absent")
+  othersExcused  Int      @default(0) @map("others_excused")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school       School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  term         Term              @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Restrict)
+  arm          ClassArm          @relation(fields: [schoolId, armId], references: [schoolId, id], onDelete: Restrict)
+  takenByStaff Staff?            @relation("RegisterTakenBy", fields: [schoolId, takenByStaffId], references: [schoolId, id], onDelete: Restrict)
+  marks        AttendanceEntry[]
+
+  @@unique([schoolId, id])
+  // One register per arm per day.
+  @@unique([armId, date])
+  @@index([schoolId, termId, date])
+  @@map("attendance_registers")
+}
+
+model AttendanceEntry {
+  id                 String         @id @default(uuid(7)) @db.Uuid
+  schoolId           String         @map("school_id") @db.Uuid
+  registerId         String         @map("register_id") @db.Uuid
+  studentId          String         @map("student_id") @db.Uuid
+  /// Copied from the register for per-student term summaries without a join.
+  termId             String         @map("term_id") @db.Uuid
+  date               DateTime       @db.Date
+  mark               AttendanceMark
+  /// Required for Excused, optional note for Absent.
+  reason             String?
+  guardianNotifiedAt DateTime?      @map("guardian_notified_at") @db.Timestamptz(3)
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school   School             @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  register AttendanceRegister @relation(fields: [schoolId, registerId], references: [schoolId, id], onDelete: Cascade)
+  student  Student            @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  term     Term               @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([registerId, studentId])
+  @@index([schoolId, studentId, termId, date])
+  @@map("attendance_entries")
+}

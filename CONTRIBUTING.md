@@ -84,7 +84,7 @@ Components specific to one portal go in that portal's `src/components/`.
 ## Database changes
 
 ```bash
-# edit services/edutrack/backend/prisma/schema.prisma, then:
+# edit the domain file in services/edutrack/backend/prisma/schema/*.prisma, then:
 npm run db:migrate -- --name add_attendance
 ```
 

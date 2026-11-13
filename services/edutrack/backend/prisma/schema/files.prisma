@@ -1,0 +1,62 @@
+// Uploaded files. Every attachment, document, photo and logo points at a StoredFile; the bytes
+// live in S3 under storageKey.
+
+enum FileScanStatus {
+  PENDING
+  CLEAN
+  INFECTED
+  FAILED
+
+  @@map("file_scan_status")
+}
+
+model StoredFile {
+  id           String         @id @default(uuid(7)) @db.Uuid
+  /// Null for platform files (user avatars, platform documents).
+  schoolId     String?        @map("school_id") @db.Uuid
+  /// S3 object key, e.g. schools/<schoolId>/2026/11/<id>.pdf.
+  storageKey   String         @unique @map("storage_key")
+  originalName String         @map("original_name")
+  mimeType     String         @map("mime_type")
+  sizeBytes    BigInt         @map("size_bytes")
+  /// Hex SHA-256 of the content (dedupe, integrity).
+  sha256       String         @db.Char(64)
+  uploadedById String?        @map("uploaded_by_id") @db.Uuid
+  scanStatus   FileScanStatus @default(PENDING) @map("scan_status")
+  scannedAt    DateTime?      @map("scanned_at") @db.Timestamptz(3)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// Retention: the purge job deletes the S3 object and scrubs this row after this day. Set to
+  /// leftOn + 2 years on a leaver's documents and photos; null = keep (results, fee records).
+  retainUntil  DateTime?      @map("retain_until") @db.Date
+  /// When the object was deleted from S3 by the purge job.
+  purgedAt     DateTime?      @map("purged_at") @db.Timestamptz(3)
+  /// Soft delete; the object is purged from S3 by a job after the retention window.
+  deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz(3)
+
+  school                   School?                   @relation("FileSchool", fields: [schoolId], references: [id], onDelete: Restrict)
+  avatarOfUsers            User[]                    @relation("UserAvatar")
+  logoOfSchools            School[]                  @relation("SchoolLogo")
+  certificateOfSchools     School[]                  @relation("SchoolCertificate")
+  staffPhotos              Staff[]                   @relation("StaffPhoto")
+  studentPhotos            Student[]                 @relation("StudentPhoto")
+  studentExitDocuments     Student[]                 @relation("StudentExitDocument")
+  payments                 Payment[]
+  bankStatements           BankStatement[]
+  expenses                 Expense[]
+  staffDocuments           StaffDocument[]
+  studentDocuments         StudentDocument[]
+  scoreCorrections         ScoreCorrection[]
+  importBatches            ImportBatch[]
+  supportTicketAttachments SupportTicketAttachment[]
+  assignmentAttachments    AssignmentAttachment[]
+  submissionFiles          SubmissionFile[]
+  materials                Material[]
+  lessonNotes              LessonNote[]
+
+  @@unique([schoolId, id])
+  @@index([schoolId, createdAt])
+  @@index([sha256])
+  @@index([retainUntil], map: "stored_files_purge_idx", where: raw("purged_at IS NULL AND retain_until IS NOT NULL"))
+  @@map("stored_files")
+}

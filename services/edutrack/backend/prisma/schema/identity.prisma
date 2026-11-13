@@ -1,0 +1,336 @@
+// Identity and access: one global User, sessions, tokens, invitations, school memberships and
+// school roles. Platform-staff access lives in platform.prisma.
+
+/// Account-wide state. School access is per membership (SchoolMembership.status).
+enum UserStatus {
+  ACTIVE
+  /// Platform-wide block (abuse, fraud). Blocks every portal.
+  SUSPENDED
+  DEACTIVATED
+
+  @@map("user_status")
+}
+
+/// Which app a session or invitation belongs to.
+enum Portal {
+  PLATFORM
+  SCHOOL_ADMIN
+  TEACHER
+  PARENT
+  STUDENT
+
+  @@map("portal")
+}
+
+enum MembershipKind {
+  STAFF
+  GUARDIAN
+  STUDENT
+
+  @@map("membership_kind")
+}
+
+/// School Admin "Users" statuses.
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+  /// Invitation withdrawn before it was accepted.
+  REVOKED
+
+  @@map("membership_status")
+}
+
+/// Pending · Accepted · Expired · Revoked. "Resent" is a pending invitation with sendCount > 1.
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+
+  @@map("invitation_status")
+}
+
+enum InvitationKind {
+  PLATFORM_STAFF
+  SCHOOL_STAFF
+  GUARDIAN
+  STUDENT
+
+  @@map("invitation_kind")
+}
+
+enum AccessScope {
+  SCHOOL
+  BRANCH
+
+  @@map("access_scope")
+}
+
+enum RoleType {
+  PREDEFINED
+  CUSTOM
+
+  @@map("role_type")
+}
+
+/// What a school role's permissions reach.
+enum RoleScope {
+  SCHOOL
+  BRANCH
+  SECTION
+  DEPARTMENT
+  ASSIGNED_CLASSES
+  STORE
+
+  @@map("role_scope")
+}
+
+/// A person who can sign in. One row per person across the whole platform (email and phone are each unique).
+model User {
+  id                     String     @id @default(uuid(7)) @db.Uuid
+  /// Sign-in handle. Optional: many guardians only have a phone number, and pupils sign in with
+  /// their admission number on the school's subdomain (via their STUDENT membership). The app
+  /// requires email or phone for staff and guardians.
+  email                  String?    @unique @db.Citext
+  emailVerifiedAt        DateTime?  @map("email_verified_at") @db.Timestamptz(3)
+  /// Sign-in handle and SMS number, normalised to E.164 (+2348031234567) before saving.
+  phone                  String?    @unique
+  title                  String?
+  firstName              String     @map("first_name")
+  lastName               String     @map("last_name")
+  avatarFileId           String?    @map("avatar_file_id") @db.Uuid
+  status                 UserStatus @default(ACTIVE)
+  /// argon2id hash (PHC string). Null until an invitation is accepted.
+  passwordHash           String?    @map("password_hash")
+  passwordChangedAt      DateTime?  @map("password_changed_at") @db.Timestamptz(3)
+  /// Force a new password at next sign-in (admin reset, expired password).
+  mustChangePassword     Boolean    @default(false) @map("must_change_password")
+  /// Consecutive failed sign-ins; reset on success. Threshold comes from the school's sign-in rules.
+  failedSignInCount      Int        @default(0) @map("failed_sign_in_count")
+  lastFailedSignInAt     DateTime?  @map("last_failed_sign_in_at") @db.Timestamptz(3)
+  lockedUntil            DateTime?  @map("locked_until") @db.Timestamptz(3)
+  lastSignInAt           DateTime?  @map("last_sign_in_at") @db.Timestamptz(3)
+  lastSeenAt             DateTime?  @map("last_seen_at") @db.Timestamptz(3)
+  /// TOTP secret, encrypted with the app key (never stored in plain text).
+  totpSecretEncrypted    String?    @map("totp_secret_encrypted")
+  totpEnabledAt          DateTime?  @map("totp_enabled_at") @db.Timestamptz(3)
+  /// Hashes of one-time recovery codes.
+  totpRecoveryCodeHashes String[]   @map("totp_recovery_code_hashes")
+  createdAt              DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt              DateTime?  @map("deleted_at") @db.Timestamptz(3)
+
+  avatarFile           StoredFile?              @relation("UserAvatar", fields: [avatarFileId], references: [id], onDelete: SetNull)
+  sessions             AuthSession[]
+  passwordResetTokens  PasswordResetToken[]
+  invitations          Invitation[]
+  memberships          SchoolMembership[]
+  platformStaff        PlatformStaff?
+  notifications        Notification[]
+  notificationPrefs    NotificationPreference[]
+  supportTicketsRaised SupportTicket[]          @relation("TicketRequester")
+  supportTicketsOwned  SupportTicket[]          @relation("TicketAssignee")
+  supportSessions      SupportSession[]
+
+  @@index([lastSeenAt])
+  @@map("users")
+}
+
+/// A signed-in device. The refresh token rotates on every use; the previous hash is kept to
+/// detect reuse (a stolen token), which revokes the session.
+model AuthSession {
+  id                       String    @id @default(uuid(7)) @db.Uuid
+  userId                   String    @map("user_id") @db.Uuid
+  portal                   Portal
+  /// The school signed into (null for the platform back office).
+  schoolId                 String?   @map("school_id") @db.Uuid
+  /// SHA-256 of the current refresh token.
+  refreshTokenHash         String    @unique @map("refresh_token_hash")
+  previousRefreshTokenHash String?   @map("previous_refresh_token_hash")
+  /// "Chrome on macOS".
+  deviceLabel              String?   @map("device_label")
+  userAgent                String?   @map("user_agent")
+  ip                       String?   @db.Inet
+  /// Coarse location from IP, e.g. "Lagos, NG".
+  location                 String?
+  rememberMe               Boolean   @default(false) @map("remember_me")
+  lastSeenAt               DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+  expiresAt                DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt                DateTime? @map("revoked_at") @db.Timestamptz(3)
+  /// sign_out, password_changed, admin, reuse_detected, expired.
+  revokedReason            String?   @map("revoked_reason")
+  /// Read-only support session this sign-in is running under (platform staff only).
+  supportSessionId         String?   @map("support_session_id") @db.Uuid
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([schoolId, lastSeenAt])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model PasswordResetToken {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  /// SHA-256 of the emailed token.
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt      DateTime? @map("used_at") @db.Timestamptz(3)
+  requestedIp String?   @map("requested_ip") @db.Inet
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("password_reset_tokens")
+}
+
+/// An emailed link to activate access. The invitee's User and the access row (membership or
+/// platform staff) are created when the invitation is sent, in INVITED state; accepting sets the
+/// password and activates them.
+model Invitation {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  kind            InvitationKind
+  status          InvitationStatus @default(PENDING)
+  /// SHA-256 of the token in the link. Resending issues a new token and replaces this.
+  tokenHash       String           @unique @map("token_hash")
+  /// Where the link was sent: email, SMS (E.164 phone) or both. At least one is required (CHECK).
+  email           String?          @db.Citext
+  phone           String?
+  userId          String           @map("user_id") @db.Uuid
+  /// Null for platform-staff invitations.
+  schoolId        String?          @map("school_id") @db.Uuid
+  membershipId    String?          @map("membership_id") @db.Uuid
+  platformStaffId String?          @map("platform_staff_id") @db.Uuid
+  /// Shown on the accept page ("Mathematics Teacher").
+  position        String?
+  invitedById     String?          @map("invited_by_id") @db.Uuid
+  sendCount       Int              @default(1) @map("send_count")
+  lastSentAt      DateTime         @default(now()) @map("last_sent_at") @db.Timestamptz(3)
+  expiresAt       DateTime         @map("expires_at") @db.Timestamptz(3)
+  acceptedAt      DateTime?        @map("accepted_at") @db.Timestamptz(3)
+  revokedAt       DateTime?        @map("revoked_at") @db.Timestamptz(3)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school        School?           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  membership    SchoolMembership? @relation(fields: [schoolId, membershipId], references: [schoolId, id], onDelete: Cascade)
+  platformStaff PlatformStaff?    @relation(fields: [platformStaffId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, status, createdAt])
+  @@index([userId])
+  @@index([membershipId])
+  @@index([platformStaffId])
+  @@index([status, expiresAt])
+  @@map("invitations")
+}
+
+/// A user's access to one school through one portal family. A teacher who is also a parent at
+/// the same school has two memberships (STAFF and GUARDIAN).
+model SchoolMembership {
+  id           String           @id @default(uuid(7)) @db.Uuid
+  schoolId     String           @map("school_id") @db.Uuid
+  userId       String           @map("user_id") @db.Uuid
+  kind         MembershipKind
+  status       MembershipStatus @default(INVITED)
+  /// STAFF: SCHOOL-wide or limited to the branches in MembershipBranch.
+  scope        AccessScope      @default(SCHOOL)
+  /// Exactly one of these is set, matching kind (a school user may have no staff record).
+  staffId      String?          @map("staff_id") @db.Uuid
+  guardianId   String?          @map("guardian_id") @db.Uuid
+  studentId    String?          @map("student_id") @db.Uuid
+  invitedAt    DateTime?        @map("invited_at") @db.Timestamptz(3)
+  activatedAt  DateTime?        @map("activated_at") @db.Timestamptz(3)
+  lastActiveAt DateTime?        @map("last_active_at") @db.Timestamptz(3)
+  /// Why access was suspended or deactivated; shown when sign-in is refused.
+  statusReason String?          @map("status_reason")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school      School             @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  user        User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  staff       Staff?             @relation(fields: [schoolId, staffId], references: [schoolId, id], onDelete: Restrict)
+  guardian    Guardian?          @relation(fields: [schoolId, guardianId], references: [schoolId, id], onDelete: Restrict)
+  student     Student?           @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  roles       MembershipRole[]
+  branches    MembershipBranch[]
+  invitations Invitation[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, userId, kind])
+  @@unique([schoolId, staffId])
+  @@unique([schoolId, guardianId])
+  @@unique([schoolId, studentId])
+  @@index([userId])
+  @@index([schoolId, kind, status])
+  @@map("school_memberships")
+}
+
+/// A school's role. Predefined roles are copied into each school at provisioning (key set) so
+/// every role is a real row; custom roles have no key.
+model SchoolRole {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  schoolId    String    @map("school_id") @db.Uuid
+  /// Stable code for predefined roles the app checks: school_admin, owner, teacher, hod,
+  /// academic_head, bursar, principal, branch_admin…
+  key         String?
+  name        String
+  type        RoleType  @default(CUSTOM)
+  scope       RoleScope @default(SCHOOL)
+  description String    @default("")
+  /// Module key -> allowed action keys, e.g. {"students": ["view", "create"]}.
+  permissions Json      @default("{}")
+  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school               School                  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  members              MembershipRole[]
+  suggestedOnPositions PositionSuggestedRole[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, name])
+  @@unique([schoolId, key])
+  @@map("school_roles")
+}
+
+model MembershipRole {
+  schoolId     String   @map("school_id") @db.Uuid
+  membershipId String   @map("membership_id") @db.Uuid
+  roleId       String   @map("role_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school     School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  membership SchoolMembership @relation(fields: [schoolId, membershipId], references: [schoolId, id], onDelete: Cascade)
+  role       SchoolRole       @relation(fields: [schoolId, roleId], references: [schoolId, id], onDelete: Restrict)
+
+  @@id([membershipId, roleId])
+  @@index([schoolId, roleId])
+  @@map("membership_roles")
+}
+
+/// Branches a BRANCH-scoped membership can see.
+model MembershipBranch {
+  schoolId     String   @map("school_id") @db.Uuid
+  membershipId String   @map("membership_id") @db.Uuid
+  branchId     String   @map("branch_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school     School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  membership SchoolMembership @relation(fields: [schoolId, membershipId], references: [schoolId, id], onDelete: Cascade)
+  branch     Branch           @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+
+  @@id([membershipId, branchId])
+  @@index([schoolId, branchId])
+  @@map("membership_branches")
+}

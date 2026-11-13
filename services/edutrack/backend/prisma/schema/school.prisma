@@ -1,0 +1,472 @@
+// The tenant: school profile and settings, branches, departments, organogram, setup checklist,
+// number sequences and import batches.
+
+/// Operational lifecycle set by the platform. Subscription state is on Subscription.
+enum SchoolStatus {
+  ONBOARDING
+  ACTIVE
+  SUSPENDED
+
+  @@map("school_status")
+}
+
+enum SchoolOwnership {
+  PRIVATE
+  PUBLIC
+  MISSION
+
+  @@map("school_ownership")
+}
+
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("branch_status")
+}
+
+/// Kinds of human-facing numbers generated per school.
+enum NumberKind {
+  ADMISSION
+  STAFF
+  INVOICE
+  RECEIPT
+  REFUND
+  EXPENSE
+  TRANSFER
+  APPLICATION
+
+  @@map("number_kind")
+}
+
+enum ImportKind {
+  STUDENTS
+  STAFF
+
+  @@map("import_kind")
+}
+
+enum ImportStatus {
+  VALIDATED
+  COMMITTED
+  DISCARDED
+
+  @@map("import_status")
+}
+
+enum ScoreRounding {
+  WHOLE_NUMBER
+  ONE_DECIMAL
+
+  @@map("score_rounding")
+}
+
+model School {
+  id                     String          @id @default(uuid(7)) @db.Uuid
+  /// URL-safe tenant handle for <slug>.edutrack.ng (teacher, parent, student portals). Reserved
+  /// words are blocked in app code.
+  slug                   String          @unique @db.Citext
+  /// Optional custom domain for the school portals, verified later.
+  customDomain           String?         @unique @map("custom_domain") @db.Citext
+  customDomainVerifiedAt DateTime?       @map("custom_domain_verified_at") @db.Timestamptz(3)
+  name                   String
+  /// Set by EduTrack at provisioning; changed through support.
+  legalName              String          @map("legal_name")
+  /// Free text shown in the back office, e.g. "Secondary", "Nursery & Primary".
+  schoolType             String?         @map("school_type")
+  ownership              SchoolOwnership @default(PRIVATE)
+  registrationNumber     String?         @map("registration_number")
+  status                 SchoolStatus    @default(ONBOARDING)
+  /// Hex colour, e.g. #1F6FEB. Portals are themed with it after sign-in.
+  brandColor             String?         @map("brand_color")
+  motto                  String?
+  foundedYear            Int?            @map("founded_year")
+  logoFileId             String?         @map("logo_file_id") @db.Uuid
+  certificateFileId      String?         @map("certificate_file_id") @db.Uuid
+  email                  String?         @db.Citext
+  phone                  String?
+  website                String?
+  street                 String?
+  city                   String?
+  lga                    String?
+  state                  String?
+  country                String          @default("NG") @db.Char(2)
+  approvingBody          String?         @map("approving_body")
+  approvalNumber         String?         @map("approval_number")
+  cacNumber              String?         @map("cac_number")
+  timezone               String          @default("Africa/Lagos")
+  currency               String          @default("NGN") @db.Char(3)
+  provisionedAt          DateTime?       @map("provisioned_at") @db.Timestamptz(3)
+  provisionedById        String?         @map("provisioned_by_id") @db.Uuid
+  /// The admin marked setup complete; the dashboard stops prompting.
+  setupFinishedAt        DateTime?       @map("setup_finished_at") @db.Timestamptz(3)
+  suspendedAt            DateTime?       @map("suspended_at") @db.Timestamptz(3)
+  suspensionReason       String?         @map("suspension_reason")
+  createdAt              DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  logoFile                 StoredFile?               @relation("SchoolLogo", fields: [logoFileId], references: [id], onDelete: SetNull)
+  certificateFile          StoredFile?               @relation("SchoolCertificate", fields: [certificateFileId], references: [id], onDelete: SetNull)
+  files                    StoredFile[]              @relation("FileSchool")
+  sections                 Section[]
+  academicSessions         AcademicSession[]
+  terms                    Term[]
+  termEvents               TermEvent[]
+  calendarEvents           CalendarEvent[]
+  classLevels              ClassLevel[]
+  classArms                ClassArm[]
+  classTeacherAssignments  ClassTeacherAssignment[]
+  subjects                 Subject[]
+  curriculumEntries        CurriculumEntry[]
+  electiveGroups           ElectiveGroup[]
+  electiveGroupSubjects    ElectiveGroupSubject[]
+  studentSubjects          StudentSubject[]
+  teachingAssignments      TeachingAssignment[]
+  timetablePeriods         TimetablePeriod[]
+  timetables               Timetable[]
+  timetableSlots           TimetableSlot[]
+  assessmentSchemes        AssessmentScheme[]
+  assessmentComponents     AssessmentComponent[]
+  gradeBands               GradeBand[]
+  descriptiveRatings       DescriptiveRating[]
+  attendanceRegisters      AttendanceRegister[]
+  attendanceEntries        AttendanceEntry[]
+  auditEvents              AuditEvent[]
+  communicationSettings    CommunicationSettings?
+  senderIdRequests         SenderIdRequest[]
+  smsCreditTransactions    SmsCreditTransaction[]
+  commsEventSettings       CommsEventSetting[]
+  messageTemplates         MessageTemplate[]
+  announcements            Announcement[]
+  announcementArms         AnnouncementArm[]
+  messages                 Message[]
+  messageRecipients        MessageRecipient[]
+  messageDeliveries        MessageDelivery[]
+  notifications            Notification[]
+  notificationPreferences  NotificationPreference[]
+  financeSettings          FinanceSettings?
+  feeItems                 FeeItem[]
+  feeStructures            FeeStructure[]
+  feeStructureAmounts      FeeStructureAmount[]
+  discounts                Discount[]
+  paymentPlans             PaymentPlan[]
+  paymentPlanInstallments  PaymentPlanInstallment[]
+  invoices                 Invoice[]
+  invoiceLines             InvoiceLine[]
+  invoiceDiscounts         InvoiceDiscount[]
+  invoiceInstallments      InvoiceInstallment[]
+  bankAccounts             BankAccount[]
+  payments                 Payment[]
+  paymentAllocations       PaymentAllocation[]
+  creditApplications       CreditApplication[]
+  refunds                  Refund[]
+  accountTransfers         AccountTransfer[]
+  bankStatements           BankStatement[]
+  bankStatementLines       BankStatementLine[]
+  vendors                  Vendor[]
+  expenseCategories        ExpenseCategory[]
+  expenses                 Expense[]
+  expenseApprovals         ExpenseApproval[]
+  authSessions             AuthSession[]
+  invitations              Invitation[]
+  schoolMemberships        SchoolMembership[]
+  schoolRoles              SchoolRole[]
+  membershipRoles          MembershipRole[]
+  membershipBranches       MembershipBranch[]
+  staff                    Staff[]
+  staffBranches            StaffBranch[]
+  staffQualifications      StaffQualification[]
+  staffDocuments           StaffDocument[]
+  guardians                Guardian[]
+  students                 Student[]
+  studentGuardians         StudentGuardian[]
+  studentDocuments         StudentDocument[]
+  admissionApplications    AdmissionApplication[]
+  enrollments              Enrollment[]
+  subscription             Subscription?
+  platformInvoices         PlatformInvoice[]
+  supportSessions          SupportSession[]
+  resultSheets             ResultSheet[]
+  resultSheetEvents        ResultSheetEvent[]
+  resultEntries            ResultEntry[]
+  resultScores             ResultScore[]
+  scoreCorrections         ScoreCorrection[]
+  resultPublications       ResultPublication[]
+  reportCards              ReportCard[]
+  conductRatings           ConductRating[]
+  resultSheetReminders     ResultSheetReminder[]
+  promotionDecisions       PromotionDecision[]
+  settings                 SchoolSettings?
+  branches                 Branch[]
+  branchSections           BranchSection[]
+  departments              Department[]
+  positions                Position[]
+  positionHolders          PositionHolder[]
+  positionSuggestedRoles   PositionSuggestedRole[]
+  setupStepStates          SetupStepState[]
+  numberSequences          NumberSequence[]
+  importBatches            ImportBatch[]
+  supportTickets           SupportTicket[]
+  supportTicketMessages    SupportTicketMessage[]
+  supportTicketAttachments SupportTicketAttachment[]
+  supportTicketEvents      SupportTicketEvent[]
+  assignments              Assignment[]
+  assignmentAttachments    AssignmentAttachment[]
+  submissions              Submission[]
+  submissionFiles          SubmissionFile[]
+  materials                Material[]
+  materialViews            MaterialView[]
+  assessmentSchedules      AssessmentSchedule[]
+  lessonNotes              LessonNote[]
+  branchLevels             BranchLevel[]
+
+  @@index([status])
+  @@index([state])
+  @@index([createdAt])
+  @@map("schools")
+}
+
+/// School-wide configuration (Settings → School, Academic, Security). Every change is an
+/// AuditEvent with area set, which is the settings change history.
+model SchoolSettings {
+  schoolId                 String   @id @map("school_id") @db.Uuid
+  dateFormat               String   @default("DD/MM/YYYY") @map("date_format")
+  addressFormat            String   @default("street, city, LGA, state") @map("address_format")
+  /// e.g. STU-[YYYY]-[####]. Tokens: [YYYY] year, [BR] branch code, [#…] zero-padded counter.
+  admissionNumberPattern   String   @default("STU-[YYYY]-[####]") @map("admission_number_pattern")
+  staffNumberPattern       String   @default("STF-[####]") @map("staff_number_pattern")
+  /// Academic policy.
+  showPosition             Boolean  @default(false) @map("show_position")
+  /// Re-spread component weights when a student is exempt (EXM).
+  reweightExempt           Boolean  @default(true) @map("reweight_exempt")
+  promotionSuggestions     Boolean  @default(true) @map("promotion_suggestions")
+  blockPromotionOnFees     Boolean  @default(false) @map("block_promotion_on_fees")
+  /// One assessment scheme for every section (the UI's "same" switch).
+  sameSchemeForAllSections Boolean  @default(false) @map("same_scheme_for_all_sections")
+  /// Free-text promotion rule shown on the promotion screen.
+  promotionRule            String?  @map("promotion_rule")
+  /// Sign-in rules.
+  idleTimeoutMinutes       Int      @default(30) @map("idle_timeout_minutes")
+  lockoutAttempts          Int      @default(5) @map("lockout_attempts")
+  lockoutMinutes           Int      @default(15) @map("lockout_minutes")
+  /// 0 means passwords never expire.
+  passwordExpiryDays       Int      @default(90) @map("password_expiry_days")
+  /// Register edit window in school days (today plus N previous).
+  registerEditDays         Int      @default(5) @map("register_edit_days")
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@map("school_settings")
+}
+
+model Branch {
+  id            String       @id @default(uuid(7)) @db.Uuid
+  schoolId      String       @map("school_id") @db.Uuid
+  name          String
+  /// Used on admission numbers and receipts, e.g. GFA-MC.
+  code          String
+  street        String?
+  city          String?
+  lga           String?
+  state         String?
+  phone         String?
+  email         String?      @db.Citext
+  headStaffId   String?      @map("head_staff_id") @db.Uuid
+  hasStore      Boolean      @default(false) @map("has_store")
+  status        BranchStatus @default(ACTIVE)
+  /// Created at provisioning: can be deactivated but never deleted.
+  isOriginal    Boolean      @default(false) @map("is_original")
+  deactivatedAt DateTime?    @map("deactivated_at") @db.Timestamptz(3)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school                School                 @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  headStaff             Staff?                 @relation("BranchHead", fields: [schoolId, headStaffId], references: [schoolId, id], onDelete: Restrict)
+  staff                 StaffBranch[]
+  classArms             ClassArm[]
+  announcements         Announcement[]
+  feeStructures         FeeStructure[]
+  invoices              Invoice[]
+  bankAccounts          BankAccount[]
+  expenses              Expense[]
+  membershipBranches    MembershipBranch[]
+  students              Student[]
+  admissionApplications AdmissionApplication[]
+  enrollments           Enrollment[]
+  branchSections        BranchSection[]
+  payments              Payment[]
+  branchLevels          BranchLevel[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, code])
+  @@unique([schoolId, name])
+  @@index([schoolId, status])
+  @@map("branches")
+}
+
+/// Sections a branch offers (a subset of the school's sections).
+model BranchSection {
+  schoolId  String   @map("school_id") @db.Uuid
+  branchId  String   @map("branch_id") @db.Uuid
+  sectionId String   @map("section_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  branch  Branch  @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Cascade)
+  section Section @relation(fields: [schoolId, sectionId], references: [schoolId, id], onDelete: Restrict)
+
+  @@id([branchId, sectionId])
+  @@index([schoolId, sectionId])
+  @@map("branch_sections")
+}
+
+/// A department. Academic departments own subjects and route result sheets and lesson notes to
+/// their HOD; staff may belong to any department.
+model Department {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  schoolId   String   @map("school_id") @db.Uuid
+  name       String
+  isAcademic Boolean  @default(true) @map("is_academic")
+  /// Null when the post is vacant: reviews go to the academic office / Academic Head.
+  hodStaffId String?  @map("hod_staff_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school   School    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  hod      Staff?    @relation("DepartmentHod", fields: [schoolId, hodStaffId], references: [schoolId, id], onDelete: Restrict)
+  members  Staff[]   @relation("StaffDepartment")
+  subjects Subject[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, name])
+  @@index([schoolId, hodStaffId])
+  @@map("departments")
+}
+
+/// A post in the organogram.
+model Position {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  schoolId         String   @map("school_id") @db.Uuid
+  title            String
+  parentId         String?  @map("parent_id") @db.Uuid
+  responsibilities String   @default("")
+  /// Approvals this post gives, e.g. "Expenses above limit", "Refunds".
+  approvals        String[]
+  sortOrder        Int      @default(0) @map("sort_order")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school         School                  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  parent         Position?               @relation("PositionTree", fields: [schoolId, parentId], references: [schoolId, id], onDelete: Restrict)
+  children       Position[]              @relation("PositionTree")
+  holders        PositionHolder[]
+  suggestedRoles PositionSuggestedRole[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, title])
+  @@index([schoolId, parentId])
+  @@map("positions")
+}
+
+model PositionHolder {
+  schoolId   String   @map("school_id") @db.Uuid
+  positionId String   @map("position_id") @db.Uuid
+  staffId    String   @map("staff_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school   School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  position Position @relation(fields: [schoolId, positionId], references: [schoolId, id], onDelete: Cascade)
+  staff    Staff    @relation(fields: [schoolId, staffId], references: [schoolId, id], onDelete: Cascade)
+
+  @@id([positionId, staffId])
+  @@index([schoolId, staffId])
+  @@map("position_holders")
+}
+
+model PositionSuggestedRole {
+  schoolId   String   @map("school_id") @db.Uuid
+  positionId String   @map("position_id") @db.Uuid
+  roleId     String   @map("role_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school   School     @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  position Position   @relation(fields: [schoolId, positionId], references: [schoolId, id], onDelete: Cascade)
+  role     SchoolRole @relation(fields: [schoolId, roleId], references: [schoolId, id], onDelete: Cascade)
+
+  @@id([positionId, roleId])
+  @@index([schoolId, roleId])
+  @@map("position_suggested_roles")
+}
+
+/// Setup Center checklist state. Steps derive "done" from data where they can; this row records
+/// manual "Mark done" and the per-screen "confirmed" flags (sections, classes, subjects…).
+model SetupStepState {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  schoolId      String    @map("school_id") @db.Uuid
+  /// school-profile, branches, academic-sections, session, terms, classes, subjects, assessment,
+  /// organogram-roles, staff, assignments, students, guardians, fees, timetable, notifications.
+  stepKey       String    @map("step_key")
+  confirmedAt   DateTime? @map("confirmed_at") @db.Timestamptz(3)
+  confirmedById String?   @map("confirmed_by_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, stepKey])
+  @@map("setup_step_states")
+}
+
+/// Per-school counters behind human-facing numbers. Take the next value with
+/// UPDATE … SET next_value = next_value + 1 RETURNING inside the creating transaction.
+model NumberSequence {
+  id        String     @id @default(uuid(7)) @db.Uuid
+  schoolId  String     @map("school_id") @db.Uuid
+  kind      NumberKind
+  /// Counter scope: '' for a running counter, '2026' for yearly, a session name for per-session.
+  scope     String     @default("")
+  nextValue Int        @default(1) @map("next_value")
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+
+  @@unique([schoolId, kind, scope])
+  @@map("number_sequences")
+}
+
+/// A spreadsheet import, validated and waiting to be committed. Row data and issues are staging
+/// JSON; committing creates the real rows.
+model ImportBatch {
+  id          String       @id @default(uuid(7)) @db.Uuid
+  schoolId    String       @map("school_id") @db.Uuid
+  kind        ImportKind
+  status      ImportStatus @default(VALIDATED)
+  fileId      String?      @map("file_id") @db.Uuid
+  fileName    String       @map("file_name")
+  /// e.g. "JSS 1 · Main Campus" for students.
+  target      String?
+  rowCount    Int          @map("row_count")
+  validCount  Int          @map("valid_count")
+  /// Parsed rows as uploaded.
+  rows        Json
+  /// Validation issues: [{row, kind, code, message, suggestion}].
+  issues      Json         @default("[]")
+  /// Counts written on commit (imported, guardiansNew, guardiansLinked…).
+  result      Json?
+  createdById String?      @map("created_by_id") @db.Uuid
+  committedAt DateTime?    @map("committed_at") @db.Timestamptz(3)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School      @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  file   StoredFile? @relation(fields: [schoolId, fileId], references: [schoolId, id], onDelete: Restrict)
+
+  @@index([schoolId, kind, createdAt])
+  @@map("import_batches")
+}
