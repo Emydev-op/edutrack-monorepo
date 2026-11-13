@@ -2,7 +2,7 @@
 # Build from the repo root:
 #   docker build -f services/edutrack/parent-portal/Dockerfile --build-arg VITE_API_URL=https://api.example.com/api -t edutrack/parent-portal .
 
-FROM node:24-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /repo
 COPY . .
 RUN npm ci
