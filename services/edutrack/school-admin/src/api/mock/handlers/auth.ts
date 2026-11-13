@@ -3,21 +3,34 @@ import { mock, MockHttpError } from '@edutrack/web-core/mock';
 import type { AcceptInvitationPayload, LoginPayload } from '@/types';
 
 import { failedAttempts, passwords, users } from '../db';
+import { signInRulesFor } from '../settings-db';
 import { authUser, schoolOf, tokenFor } from './shared';
 
-const MAX_ATTEMPTS = 5;
+/** When each email's sign-in was paused. */
+const lockedAt = new Map<string, number>();
 
 mock.post('/v1/auth/login', ({ body }) => {
   const { email, password } = body as LoginPayload;
   const key = email.trim().toLowerCase();
   const account = users.find((u) => u.email.toLowerCase() === key);
+  // The school's own lockout rule (Settings → Security); unknown emails get the platform default.
+  const rules = account ? signInRulesFor(account.schoolId) : null;
+  const MAX_ATTEMPTS = rules?.lockoutAttempts ?? 5;
+  // The pause lifts after the school's lockout length.
+  const since = lockedAt.get(key);
+  if (since && Date.now() - since >= (rules?.lockoutMinutes ?? 15) * 60_000) {
+    lockedAt.delete(key);
+    failedAttempts.delete(key);
+  }
   if ((failedAttempts.get(key) ?? 0) >= MAX_ATTEMPTS)
     throw new MockHttpError(423, 'Sign-in is paused on this account', 'ACCOUNT_LOCKED');
   if (!account || passwords.get(account.email) !== password) {
     const attempts = (failedAttempts.get(key) ?? 0) + 1;
     failedAttempts.set(key, attempts);
-    if (attempts >= MAX_ATTEMPTS)
+    if (attempts >= MAX_ATTEMPTS) {
+      lockedAt.set(key, Date.now());
       throw new MockHttpError(423, 'Sign-in is paused on this account', 'ACCOUNT_LOCKED');
+    }
     const left = MAX_ATTEMPTS - attempts;
     throw new MockHttpError(
       401,

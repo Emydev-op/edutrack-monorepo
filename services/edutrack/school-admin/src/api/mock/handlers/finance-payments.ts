@@ -9,6 +9,7 @@ import type {
   RefundPayload,
 } from '@/types';
 
+import { paymentRejected, paymentsConfirmed, refundPaid } from '../comms-events';
 import { ALL_METHODS, nextId, nextNo, type PaymentRec, type RefundRec } from '../finance-db';
 import { addDays, allocateOldestFirst, isoToday, sum } from '../finance-ledger';
 import { fmtDate, plural } from './academics-shared';
@@ -272,7 +273,9 @@ mock.post('/v1/finance/payments', (req) => {
     );
   }
   ctx.log('finance', `${naira(v.amount)} recorded for ${v.s.name}`, `${p.no} · ${p.status}`);
-  return paymentDetail(ctx.refresh(), p);
+  const view = paymentDetail(ctx.refresh(), p);
+  if (p.status === 'Confirmed') paymentsConfirmed(ctx.schoolId, [p], ctx.actor);
+  return view;
 });
 
 /** On verification, money goes where it was meant to, capped at what is still owed; the rest is credit. */
@@ -324,7 +327,9 @@ mock.post('/v1/finance/payments/:id/verify', (req) => {
   const p = findPayment(ctx, req.params.id!);
   verify(ctx, p, 'matched on the bank statement');
   ctx.log('finance', `${p.no} verified`, naira(p.amount));
-  return paymentDetail(ctx.refresh(), p);
+  const view = paymentDetail(ctx.refresh(), p);
+  paymentsConfirmed(ctx.schoolId, [p], ctx.actor);
+  return view;
 });
 
 mock.post('/v1/finance/payments/verify-bulk', (req) => {
@@ -343,6 +348,7 @@ mock.post('/v1/finance/payments/verify-bulk', (req) => {
     `${plural(list.length, 'payment')} verified`,
     naira(sum(list.map((p) => p.amount))),
   );
+  paymentsConfirmed(ctx.schoolId, list, ctx.actor);
   return { verified: list.length, total: sum(list.map((p) => p.amount)) };
 });
 
@@ -361,7 +367,9 @@ mock.post('/v1/finance/payments/:id/reject', (req) => {
     historyEntry('Rejected', `${ctx.actor} · ${reason} · payer notified to resend proof`, 'error'),
   );
   ctx.log('finance', `${p.no} rejected`, reason);
-  return paymentDetail(ctx.refresh(), p);
+  const view = paymentDetail(ctx.refresh(), p);
+  paymentRejected(ctx.schoolId, p, ctx.actor);
+  return view;
 });
 
 /* ---------------- Refunds ---------------- */
@@ -530,7 +538,9 @@ mock.post('/v1/finance/refunds/:id/pay', (req) => {
     ),
   );
   ctx.log('finance', `${r.no} paid out`, `${naira(r.amount)} from ${account.name}`);
-  return refundDetail(ctx.refresh(), r);
+  const view = refundDetail(ctx.refresh(), r);
+  refundPaid(ctx.schoolId, r, ctx.actor);
+  return view;
 });
 
 export { branchNameOf };

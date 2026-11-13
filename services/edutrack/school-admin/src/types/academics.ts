@@ -618,6 +618,10 @@ export interface PromotionView {
   applied: boolean;
   /** No session to promote from (a new school). */
   empty: boolean;
+  /** Settings → Academic: eligibility is calculated and decisions are suggested. */
+  suggestions: boolean;
+  /** Settings → Academic: a student with fees outstanding can't be promoted. */
+  feesBlock: boolean;
 }
 
 export interface PromotionDecisionInput {

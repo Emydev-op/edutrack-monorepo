@@ -12,8 +12,10 @@ import type {
   TeacherRow,
 } from '@/types';
 
+import { staffInvited } from '../comms-events';
 import { academicsData, armLabel, branchLabel } from '../academics-db';
 import { groupOf, staffRecord, type SchoolData, type StaffRow, type UserRow } from '../school-db';
+import { nextNumberFor } from '../settings-db';
 import {
   allArms,
   currentTerm,
@@ -362,6 +364,13 @@ function inviteUser(data: SchoolData, s: StaffRow, role: string): UserRow {
   return user;
 }
 
+/** Creates the invitation and emails it, through Communication. */
+function inviteAndNotify(ctx: ReturnType<typeof ctxFor>, s: StaffRow, role: string) {
+  const user = inviteUser(ctx.data, s, role);
+  staffInvited(ctx.schoolId, s, role, ctx.actor, user.id);
+  return user;
+}
+
 /** Teaching changes ripple into Academics: clears assignments a teacher can no longer hold. */
 function stripTeaching(ctx: ReturnType<typeof ctxFor>, s: StaffRow, keepBranches: string[] | null) {
   let removed = 0;
@@ -389,15 +398,14 @@ mock.post('/v1/staff', (req) => {
   const { data, log, schoolId } = ctx;
   const p = req.body as StaffPayload;
   const { first, last, email, phone } = validate(data, p);
-  const prefix = data.staff[0]?.staffNumber.split('-ST-')[0] ?? 'ST';
   const next =
-    Math.max(0, ...data.staff.map((s) => Number(s.staffNumber.split('-ST-')[1]) || 0)) + 1;
+    Math.max(0, ...data.staff.map((s) => Number(/(\d+)$/.exec(s.staffNumber)?.[1] ?? 0))) + 1;
   const name = displayName(p.title, first, last);
   const s: StaffRow = staffRecord({
     id: `st${Date.now().toString(36)}`,
     name,
     position: p.position,
-    staffNumber: `${prefix}-ST-${String(next).padStart(4, '0')}`,
+    staffNumber: nextNumberFor(schoolId, 'staff', next),
     branch: branchLabel(schoolId, p.branchIds),
     branchIds: p.branchIds,
     branches: [],
@@ -419,7 +427,7 @@ mock.post('/v1/staff', (req) => {
     documents: [],
   });
   data.staff.push(s);
-  if (p.access) inviteUser(data, s, p.role);
+  if (p.access) inviteAndNotify(ctx, s, p.role);
   log(
     `Staff:${s.id}`,
     `Added as ${s.position}`,
@@ -480,7 +488,7 @@ mock.put('/v1/staff/:id', (req) => {
     changes.push(`New invitation sent to ${email}`);
   }
   if (p.access && !u && !isYou) {
-    inviteUser(data, s, p.role);
+    inviteAndNotify(ctx, s, p.role);
     changes.push(`Invitation sent to ${email}`);
   }
   if (!p.access && u?.status === 'Invited') {
@@ -554,13 +562,14 @@ mock.post('/v1/staff/invite', (req) => {
     const u = userOf(data, s.id);
     if (u?.status === 'Invited') {
       u.invited = 'Today';
+      staffInvited(ctx.schoolId, s, u.roles.join(', '), ctx.actor, u.id);
       invited.push(s.name);
     } else {
       const role = defaultRole(s.position, s.kind);
       // No email, already has an account, or no obvious role: invite them from their profile.
       if (u || !s.email || !role) skipped.push(s.name);
       else {
-        inviteUser(data, s, role);
+        inviteAndNotify(ctx, s, role);
         invited.push(s.name);
       }
     }
@@ -717,8 +726,7 @@ mock.post('/v1/staff/import/:id/commit', (req) => {
     batches.get(req.params.id!) ?? fail('This import has expired. Upload the file again.', 404);
   const ok = batch.rows.filter((r) => !r.errors.length);
   if (!ok.length) fail('Every row has an error. Fix the file and upload it again.');
-  const prefix = data.staff[0]?.staffNumber.split('-ST-')[0] ?? 'ST';
-  let next = Math.max(0, ...data.staff.map((s) => Number(s.staffNumber.split('-ST-')[1]) || 0));
+  let next = Math.max(0, ...data.staff.map((s) => Number(/(\d+)$/.exec(s.staffNumber)?.[1] ?? 0)));
   let invites = 0;
   for (const r of ok) {
     const branch = data.branches.find((b) => b.name.toLowerCase() === r.branch.toLowerCase())!;
@@ -727,7 +735,7 @@ mock.post('/v1/staff/import/:id/commit', (req) => {
       id: `st${Date.now().toString(36)}${next}`,
       name: r.name,
       position: r.position,
-      staffNumber: `${prefix}-ST-${String(++next).padStart(4, '0')}`,
+      staffNumber: nextNumberFor(schoolId, 'staff', ++next),
       branch: branchLabel(schoolId, [branch.id]),
       branchIds: [branch.id],
       branches: [],

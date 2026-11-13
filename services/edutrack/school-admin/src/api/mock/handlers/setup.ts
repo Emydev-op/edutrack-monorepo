@@ -4,6 +4,7 @@ import { routesPath } from '@/router/routes-path';
 import type { SetupProgress, SetupStep } from '@/types';
 
 import { academicsData } from '../academics-db';
+import { smsCreditOf } from '../comms-db';
 import { setup, setupConfirmed, type AutoStep } from '../db';
 import { schoolData } from '../school-db';
 import {
@@ -74,6 +75,7 @@ export function setupView(req: Pick<MockRequest, 'headers'>): SetupProgress {
       const id = s.id as AutoStep;
       if (isAcademicStep(s.id)) return { ...s, ...academic[s.id], auto: true };
       if (s.id === 'fees') return { ...s, ...feesStep(schoolId), auto: true };
+      if (s.id === 'notifications') return { ...s, ...notificationsStep(schoolId), auto: true };
       return id in live
         ? { ...s, ...live[id], done: confirmed[id], auto: true }
         : { ...s, auto: false };
@@ -94,6 +96,15 @@ mock.post('/v1/setup/steps/:id/complete', (req) => {
   }
   if (id === 'school-profile')
     throw new MockHttpError(409, 'Save the school profile to complete this step.');
+  if (id === 'notifications') {
+    const { senderId } = smsCreditOf(schoolId);
+    if (senderId.status === 'Not requested' || senderId.status === 'Rejected')
+      throw new MockHttpError(
+        422,
+        'Request an SMS sender ID in Settings › Notifications first. Until it is approved, SMS goes out as “EDUTRACK”.',
+      );
+    return setupView(req).steps.find((s) => s.id === id);
+  }
   if (id === 'fees') {
     completeFeesStep(schoolId);
     return setupView(req).steps.find((s) => s.id === id);
@@ -141,6 +152,25 @@ mock.post('/v1/setup/finish', (req) => {
   setup[currentUser(req).schoolId]!.finished = true;
   return { ...view, finished: true };
 });
+
+/* ---------------- Notifications (Communication) ---------------- */
+
+/** Done once the school has asked for its own SMS sender ID; the event channels have defaults. */
+function notificationsStep(schoolId: string): Pick<SetupStep, 'description' | 'to' | 'done'> {
+  const { senderId } = smsCreditOf(schoolId);
+  const to = { name: routesPath.settings.name, query: { tab: 'notifications' } };
+  const description = {
+    'Not requested': 'Request your SMS sender ID and choose which events notify parents',
+    'Pending approval': `SMS sender ID “${senderId.name}” awaiting approval`,
+    Approved: `SMS sender ID “${senderId.name}” approved`,
+    Rejected: `SMS sender ID “${senderId.name}” was rejected · request another`,
+  }[senderId.status];
+  return {
+    description,
+    to,
+    done: senderId.status === 'Pending approval' || senderId.status === 'Approved',
+  };
+}
 
 /* ---------------- Fees (Finance) ---------------- */
 

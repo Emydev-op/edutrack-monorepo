@@ -34,6 +34,12 @@ const BUILT = new Set<string>([
   routesPath.students.admissions.name,
   routesPath.students.enrollment.name,
   routesPath.students.parents.name,
+  routesPath.communication.announcements.name,
+  routesPath.communication.notifications.name,
+  routesPath.communication.delivery.name,
+  routesPath.reports.name,
+  routesPath.settings.name,
+  routesPath.support.name,
 ]);
 
 /** Paths for every route name in routesPath, so planned screens keep their final URLs. */

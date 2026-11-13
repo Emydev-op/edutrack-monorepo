@@ -4,12 +4,14 @@ import { routesPath } from '@/router/routes-path';
 import type { SearchResult } from '@/types';
 
 import { academicsData } from '../academics-db';
-import { contextOptions, notifications, searchIndex } from '../db';
+import { contextOptions, searchIndex } from '../db';
 import { currentSession, currentTerm } from './academics-shared';
 import { schoolData } from '../school-db';
 import { setupView } from './setup';
 import { financeSnapshot } from './finance-shared';
+import { tickets } from '../support-db';
 import { currentUser } from './shared';
+import { needsYou } from './support';
 
 /** Branch, session and term choices. Branches come from School → Branches, so they stay current. */
 mock.get('/v1/context-options', (req) => {
@@ -59,14 +61,9 @@ mock.get('/v1/nav-counts', (req) => {
       (p) => p.status === 'Pending verification',
     ).length,
     ...(school === 'greenfield' && { [routesPath.inventory.requests.name]: 1 }),
+    // Tickets waiting on the school's reply or confirmation.
+    [routesPath.support.name]: tickets.filter((t) => t.schoolId === school && needsYou(t)).length,
   };
-});
-
-mock.get('/v1/notifications', (req) => notifications[currentUser(req).schoolId] ?? []);
-
-mock.post('/v1/notifications/read-all', (req) => {
-  for (const n of notifications[currentUser(req).schoolId] ?? []) n.unread = false;
-  return { ok: true };
 });
 
 mock.get('/v1/search', (req) => {
