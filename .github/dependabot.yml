@@ -8,6 +8,11 @@ updates:
     open-pull-requests-limit: 10
     commit-message:
       prefix: 'chore(deps)'
+    ignore:
+      # TypeScript 7.0 ships the native `tsc` only, without the compiler API that vue-tsc,
+      # typescript-eslint and the Nest CLI load. 7.1 is expected to bring it back.
+      - dependency-name: typescript
+        versions: ['7.0.x']
     groups:
       vue:
         patterns:
