@@ -66,6 +66,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
       statusCode: error.status,
       message: error.message,
       error: error.code,
+      ...(error.fields && { fields: error.fields }),
     });
     throw new AxiosError(
       error.message,

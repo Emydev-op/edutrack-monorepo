@@ -1,5 +1,6 @@
 import { mock, MockHttpError } from '@edutrack/web-core/mock';
 
+import { CONDUCT_TRAITS } from '@/types';
 import type {
   AssessmentScheme,
   Correction,
@@ -18,6 +19,8 @@ import {
   academicsData,
   armLabel,
   armStudents,
+  departmentOf,
+  hodFor,
   offeredSubjects,
   seeded,
   type AcademicsData,
@@ -25,12 +28,14 @@ import {
   type SheetRec,
 } from '../academics-db';
 import { resultsPublished } from '../comms-events';
+import { armAttendance, registersFor, schoolDays } from '../register-db';
 import { schoolData } from '../school-db';
 import { studentsData, type StudentRecord } from '../students-db';
 import {
   acadFor,
   activeBranches,
   allArms,
+  currentTerm,
   findArm,
   nowLabel,
   plural,
@@ -146,6 +151,30 @@ function sheetRows(schoolId: string, acad: AcademicsData, sheet: SheetRec): Shee
   });
 }
 
+/** Who a sheet goes through before the academic office: its HOD, unless there is none. */
+export function reviewChain(schoolId: string, acad: AcademicsData, sheet: SheetRec) {
+  const teacherId =
+    acad.assignments.find((a) => a.armId === sheet.armId && a.subject === sheet.subject)
+      ?.teacherId ?? null;
+  const hod = hodFor(schoolId, sheet.subject, teacherId);
+  const hodName = hod ? teacherName(acad, hod.id) : null;
+  return {
+    teacherId,
+    department: departmentOf(schoolId, sheet.subject)?.name ?? null,
+    hod: hod && hodName ? `${hodName} (HOD ${hod.department})` : null,
+    hodName,
+  };
+}
+
+/** Submitted and waiting on an HOD: the office can't act on it yet. */
+export const isWithHod = (schoolId: string, acad: AcademicsData, sheet: SheetRec) =>
+  sheet.status === 'Submitted' && !!reviewChain(schoolId, acad, sheet).hod;
+
+/** With the academic office: Under review, or Submitted from a department with no HOD. */
+export const isWithOffice = (schoolId: string, acad: AcademicsData, sheet: SheetRec) =>
+  sheet.status === 'Under review' ||
+  (sheet.status === 'Submitted' && !reviewChain(schoolId, acad, sheet).hod);
+
 export function sheetView(schoolId: string, acad: AcademicsData, sheet: SheetRec): ResultSheet {
   ensureScores(schoolId, acad, sheet);
   const { level, arm } = findArm(acad, sheet.armId);
@@ -155,11 +184,14 @@ export function sheetView(schoolId: string, acad: AcademicsData, sheet: SheetRec
   const term = academicsData[schoolId]!.sessions.flatMap((s) => s.terms).find(
     (t) => t.id === sheet.termId,
   );
-  const teacher = teacherName(
-    acad,
-    acad.assignments.find((a) => a.armId === arm.id && a.subject === sheet.subject)?.teacherId ??
-      null,
-  );
+  const chain = reviewChain(schoolId, acad, sheet);
+  const teacher = teacherName(acad, chain.teacherId);
+  const published = acad.published.includes(`${sheet.termId}|${arm.id}`);
+  const submittedTo = chain.hod
+    ? `to ${chain.hod}`
+    : departmentOf(schoolId, sheet.subject)?.hodId
+      ? `· their own ${chain.department} sheet, so straight to the academic office`
+      : `· straight to the academic office${chain.department ? ` (${chain.department} has no HOD)` : ''}`;
   return {
     armId: arm.id,
     arm: armLabel(level.name, arm.arm),
@@ -167,7 +199,7 @@ export function sheetView(schoolId: string, acad: AcademicsData, sheet: SheetRec
     subjectName: subjectName(acad, sheet.subject),
     teacher,
     term: term?.name ?? '',
-    status: acad.published.includes(`${sheet.termId}|${arm.id}`) ? 'Published' : sheet.status,
+    status: published ? 'Published' : sheet.status,
     submittedAt: sheet.submittedAt,
     components: scheme.components,
     rows,
@@ -184,6 +216,16 @@ export function sheetView(schoolId: string, acad: AcademicsData, sheet: SheetRec
       missing: rows.filter((r) => r.scores.includes(null)).length,
     },
     returnNote: sheet.returnNote,
+    returnedBy:
+      sheet.status !== 'Returned'
+        ? null
+        : sheet.returnedBy === 'hod'
+          ? (chain.hod ?? 'the HOD')
+          : 'the academic office',
+    department: chain.department,
+    hod: chain.hod,
+    withHod: !published && sheet.status === 'Submitted' && !!chain.hod,
+    canDecide: !published && isWithOffice(schoolId, acad, sheet),
     passMark: acad.assessment.passMark,
     history: [
       ...sheet.history,
@@ -191,7 +233,7 @@ export function sheetView(schoolId: string, acad: AcademicsData, sheet: SheetRec
         ? [
             {
               id: 'sub',
-              title: `Submitted by ${teacher ?? 'the teacher'}`,
+              title: `Submitted by ${teacher ?? 'the teacher'} ${submittedTo}`,
               detail: plural(rows.length, 'student'),
               when: sheet.submittedAt,
               tone: 'info' as const,
@@ -319,8 +361,13 @@ mock.post('/v1/academics/results/sheets/:armId/:subject/:action', (req) => {
   const view = sheetView(schoolId, acad, sheet);
   if (view.status === 'Published')
     fail('Published results are locked. Use a correction request.', 409);
-  if (!['Submitted', 'Under review'].includes(sheet.status))
-    fail('Only a submitted sheet can be approved or returned.', 409);
+  if (isWithHod(schoolId, acad, sheet))
+    fail(
+      `This sheet is with ${view.hod} for review. You can approve or return it once the HOD forwards it to the academic office.`,
+      409,
+    );
+  if (!isWithOffice(schoolId, acad, sheet))
+    fail('Only a sheet under review can be approved or returned.', 409);
   if (req.params.action === 'approve') {
     if (view.stats.missing)
       fail(
@@ -339,6 +386,7 @@ mock.post('/v1/academics/results/sheets/:armId/:subject/:action', (req) => {
     const note = requireText((req.body as { note?: string }).note, 'Tell the teacher what to fix.');
     sheet.status = 'Returned';
     sheet.returnNote = note;
+    sheet.returnedBy = 'office';
     sheet.history.unshift({
       id: `h${Date.now()}`,
       title: `Returned by ${actor}`,
@@ -355,6 +403,61 @@ mock.post('/v1/academics/results/sheets/:armId/:subject/:action', (req) => {
   return sheetView(schoolId, acad, sheet);
 });
 
+/**
+ * The HOD's decision on a sheet waiting with them. HODs decide in the Teacher Workspace (Reviews);
+ * the mock exposes it so School Admin's data can move through the same chain.
+ */
+export function hodDecision(
+  schoolId: string,
+  sheetRef: { armId: string; subject: string; termId: string },
+  action: 'forward' | 'return',
+  note = '',
+) {
+  const acad = academicsData[schoolId]!;
+  const sheet = findSheet(acad, sheetRef.armId, sheetRef.subject, sheetRef.termId);
+  const chain = reviewChain(schoolId, acad, sheet);
+  if (!isWithHod(schoolId, acad, sheet)) fail('This sheet isn’t waiting on an HOD.', 409);
+  if (action === 'forward') {
+    sheet.status = 'Under review';
+    sheet.history.unshift({
+      id: `h${Date.now()}f`,
+      title: `Forwarded by HOD ${chain.hodName}`,
+      detail: `${chain.department} · sent to the academic office`,
+      when: nowLabel(),
+      tone: 'info',
+    });
+  } else {
+    if (note.trim().length < 10) fail('Tell the teacher what to fix (10 characters or more).');
+    sheet.status = 'Returned';
+    sheet.returnNote = note.trim();
+    sheet.returnedBy = 'hod';
+    sheet.history.unshift({
+      id: `h${Date.now()}r`,
+      title: `Returned by HOD ${chain.hodName}`,
+      detail: note.trim(),
+      when: nowLabel(),
+      tone: 'error',
+    });
+  }
+  return sheetView(schoolId, acad, sheet);
+}
+
+/** Unpublished sheets this term waiting on the office and on HODs, for a branch or all. */
+export function reviewCounts(schoolId: string, branchId: string | null = null) {
+  const acad = academicsData[schoolId]!;
+  const term = currentTerm(acad);
+  const out = { office: 0, hod: 0 };
+  if (!term) return out;
+  for (const s of acad.sheets) {
+    if (s.termId !== term.id || acad.published.includes(`${term.id}|${s.armId}`)) continue;
+    const level = acad.levels.find((l) => l.arms.some((a) => a.id === s.armId));
+    if (!level || (branchId && level.branchId !== branchId)) continue;
+    if (isWithOffice(schoolId, acad, s)) out.office++;
+    else if (isWithHod(schoolId, acad, s)) out.hod++;
+  }
+  return out;
+}
+
 /* ---------------- Publish ---------------- */
 
 function publishCheck(
@@ -370,18 +473,30 @@ function publishCheck(
   for (const code of offered) {
     const sheet = findSheet(acad, armId, code, termId);
     if (sheet.status !== 'Approved')
-      notApproved.push(`${subjectName(acad, code)} (${sheet.status.toLowerCase()})`);
+      notApproved.push(
+        `${subjectName(acad, code)} (${isWithHod(schoolId, acad, sheet) ? 'with HOD' : sheet.status.toLowerCase()})`,
+      );
     else
       for (const r of sheetView(schoolId, acad, sheet).rows)
         if (r.flag) flags.push(`${r.name} · ${subjectName(acad, code)}: ${r.flag}`);
   }
+  const name = armLabel(level.name, arm.arm);
+  const { records } = armStudents(schoolId, level, arm);
+  const remarks = registersFor(schoolId).remarks;
+  const missingRemarks = records.filter((s) => !remarks[`${termId}|${s.id}`]?.remark).length;
   return {
     armId,
-    arm: armLabel(level.name, arm.arm),
+    arm: name,
     students: armStudents(schoolId, level, arm).count,
     subjects: offered.length,
     notApproved,
     flags,
+    missingRemarks,
+    warnings: missingRemarks
+      ? [
+          `${name}: ${plural(missingRemarks, 'report card')} ${missingRemarks === 1 ? 'has' : 'have'} no class teacher’s remark yet${arm.classTeacherId ? ` (${teacherName(acad, arm.classTeacherId)})` : ' · the arm has no class teacher'}.`,
+        ]
+      : [],
   };
 }
 
@@ -483,6 +598,9 @@ mock.get('/v1/academics/results/report-card/:studentId', (req): ReportCard => {
   };
   const session = acad.sessions.find((s) => s.terms.some((t) => t.id === term.id))!;
   const next = session.terms[session.terms.findIndex((t) => t.id === term.id) + 1];
+  const entry = registersFor(schoolId).remarks[`${term.id}|${student.id}`];
+  const days = schoolDays(acad, term);
+  const att = armAttendance(schoolId, level, arm, days).byStudent.get(student.id);
   return {
     school: {
       name: profile.name,
@@ -515,6 +633,17 @@ mock.get('/v1/academics/results/report-card/:studentId', (req): ReportCard => {
       ? `${next.name} begins ${new Date(`${next.start}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
       : 'End of session',
     classmates: classmates.map((s) => ({ id: s.id, name: nameOf(s) })),
+    classTeacherRemark: entry?.remark || null,
+    conduct: CONDUCT_TRAITS.map((trait) => ({ trait, rating: entry?.ratings[trait] ?? null })),
+    attendance: days.length
+      ? {
+          present: (att?.present ?? 0) + (att?.late ?? 0),
+          late: att?.late ?? 0,
+          absent: att?.absent ?? 0,
+          excused: att?.excused ?? 0,
+          schoolDays: days.length,
+        }
+      : null,
   };
 });
 

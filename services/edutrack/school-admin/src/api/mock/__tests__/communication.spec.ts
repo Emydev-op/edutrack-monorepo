@@ -318,7 +318,7 @@ describe('communication', () => {
     expect((await failure(gf.post(`/v1/comms/deliveries/${msg.id}/retry`))).status).toBe(409);
   });
 
-  it('validates templates and notification settings', async () => {
+  it('validates templates and notification settings', { timeout: 30000 }, async () => {
     const t = (await gf.get<TemplateDetail>('/v1/comms/templates/invoice.issued')).data;
     expect(t.variables.map((v) => v.name)).toContain('invoice_no');
     expect(

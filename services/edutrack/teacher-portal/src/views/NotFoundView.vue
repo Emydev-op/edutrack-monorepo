@@ -1,14 +1,24 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { RouterLink } from 'vue-router';
+
+import EmptyState from '@edutrack/app-kit/components/common/EmptyState.vue';
+import { routesPath } from '@/router/routes-path';
 </script>
 
 <template>
-  <main class="flex min-h-svh flex-col items-center justify-center gap-4 p-6 text-center">
-    <h1 class="text-3xl font-semibold">Page not found</h1>
-    <p class="text-muted-foreground">The page you are looking for does not exist.</p>
-    <Button as-child variant="outline">
-      <RouterLink :to="{ name: 'home' }">Back home</RouterLink>
-    </Button>
+  <main class="flex min-h-svh items-center justify-center bg-background p-6">
+    <EmptyState
+      title="Page not found"
+      description="The page you are looking for doesn't exist or has moved."
+      illustrated
+      class="w-full max-w-md"
+    >
+      <Button as-child
+        ><RouterLink :to="{ name: routesPath.dashboard.name }"
+          >Back to dashboard</RouterLink
+        ></Button
+      >
+    </EmptyState>
   </main>
 </template>

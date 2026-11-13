@@ -23,7 +23,13 @@ import type {
 
 import { eventDef } from '../comms-catalog';
 import { commsFor, processDue } from '../comms-db';
-import { armLabel, offeredSubjects, type AcademicsData, type LevelRec } from '../academics-db';
+import {
+  armLabel,
+  armStudents,
+  offeredSubjects,
+  type AcademicsData,
+  type LevelRec,
+} from '../academics-db';
 import type { FinStudent, TermRef } from '../finance-db';
 import { isoToday, sum } from '../finance-ledger';
 import { studentsData } from '../students-db';
@@ -36,7 +42,8 @@ import {
   subjectName,
   teacherLoad,
 } from './academics-shared';
-import { schemeFor, sheetView } from './academics-results';
+import { isWithHod, isWithOffice, schemeFor, sheetView } from './academics-results';
+import { armAttendance, attendanceRate, schoolDays } from '../register-db';
 import { financeReport } from './finance-overview';
 import { branchNameOf, branchScope, finFor, naira, type FinCtx } from './finance-shared';
 
@@ -70,6 +77,13 @@ const CATALOG: ReportCatalogItem[] = [
     title: 'Enrollment by class',
     description: 'Active students per class arm by gender, new this session and capacity used.',
     filters: ['section'],
+  },
+  {
+    id: 'attendance',
+    group: 'Students',
+    title: 'Attendance by class',
+    description: 'Attendance rate per class arm for the term, with registers not taken.',
+    filters: ['term', 'section'],
   },
   {
     id: 'admissions',
@@ -534,14 +548,21 @@ function completionReport(ctx: FinCtx, q: Q, branchId: string | null, term: Term
     SHEET_STATUSES.map((s) => [s, cells.filter((c) => c.status === s).length]),
   );
   const done = (totalCounts.Approved ?? 0) + (totalCounts.Published ?? 0);
-  const waiting = (totalCounts.Submitted ?? 0) + (totalCounts['Under review'] ?? 0);
+  // Submitted = with the HOD; Under review = with the academic office.
+  const office = cells.filter((c) => c.sheet && isWithOffice(ctx.schoolId, ctx.acad, c.sheet));
+  const atHod = cells.filter((c) => c.sheet && isWithHod(ctx.schoolId, ctx.acad, c.sheet));
   return {
     scope: `${term.session} · ${term.name} · ${branchNameOf(ctx, branchId)}${section === ALL ? '' : ` · ${section}`}`,
     filters: [termFilter(ctx, term, 'session'), sectionFilter(sections, section)],
     metrics: [
       metric('Result sheets', count(cells.length)),
       metric('Approved or published', `${pct(done, cells.length)}%`, plural(done, 'sheet')),
-      metric('Waiting for review', count(waiting), undefined, waiting ? 'warning' : undefined),
+      metric(
+        'Awaiting your review',
+        count(office.length),
+        atHod.length ? `${plural(atHod.length, 'more sheet')} with HODs` : undefined,
+        office.length ? 'warning' : undefined,
+      ),
       metric(
         'Not started',
         count(totalCounts['Not started'] ?? 0),
@@ -552,14 +573,18 @@ function completionReport(ctx: FinCtx, q: Q, branchId: string | null, term: Term
     columns: [
       { key: 'group', label: section === ALL ? 'Section' : 'Class' },
       { key: 'sheets', label: 'Sheets', align: 'right' },
-      ...SHEET_STATUSES.map((s) => ({ key: s, label: s, align: 'right' as const })),
+      ...SHEET_STATUSES.map((s) => ({
+        key: s,
+        label: s === 'Submitted' ? 'With HOD' : s,
+        align: 'right' as const,
+      })),
       { key: 'done', label: 'Complete', align: 'right', percent: true },
     ],
     rows,
     totals: rows.length
       ? { group: 'Total', sheets: cells.length, ...totalCounts, done: pct(done, cells.length) }
       : null,
-    note: 'One sheet per subject per class arm. Complete means approved or published.',
+    note: 'One sheet per subject per class arm. With HOD sheets are waiting on the department’s HOD; Under review sheets are with the academic office. Complete means approved or published.',
     emptyText: 'No classes with subjects in this scope yet.',
   };
 }
@@ -714,6 +739,80 @@ function gradeReport(ctx: FinCtx, q: Q, branchId: string | null, term: TermRef):
 
 function levelOf(acad: AcademicsData, s: FinStudent) {
   return acad.levels.find((l) => l.branchId === s.branchId && l.name === s.level) ?? null;
+}
+
+function attendanceReport(ctx: FinCtx, q: Q, branchId: string | null, term: TermRef): Built {
+  const sections = sectionsIn(ctx.acad, branchId);
+  const section = sections.includes(q.section ?? '') ? q.section! : ALL;
+  const rec = ctx.acad.sessions.flatMap((s) => s.terms).find((t) => t.id === term.id)!;
+  const days = schoolDays(ctx.acad, rec);
+  const rows: ReportRow[] = allArms(ctx.acad)
+    .filter(
+      ({ level }) =>
+        (!branchId || level.branchId === branchId) &&
+        (section === ALL || level.section === section),
+    )
+    .map(({ level, arm }) => {
+      const a = armAttendance(ctx.schoolId, level, arm, days);
+      const hasStudents = armStudents(ctx.schoolId, level, arm).count > 0;
+      return {
+        cells: {
+          class: a.name,
+          classTeacher:
+            ctx.acad.teachers.find((t) => t.id === arm.classTeacherId)?.name ?? 'No class teacher',
+          taken: a.taken.length,
+          notTaken: hasStudents ? days.length - a.taken.length : 0,
+          present: a.counts.present + a.counts.late,
+          absent: a.counts.absent,
+          excused: a.counts.excused,
+          rate: attendanceRate(a.counts),
+        },
+        to: { name: routesPath.academics.attendanceArm.name, params: { armId: arm.id } },
+      };
+    });
+  const n = (k: string) => sum(rows.map((r) => (r.cells[k] as number) ?? 0));
+  const marked = n('present') + n('absent') + n('excused');
+  const rate = marked ? Math.round((n('present') / marked) * 1000) / 10 : null;
+  const missing = rows.filter((r) => (r.cells.notTaken as number) > 0).length;
+  return {
+    scope: `${term.session} · ${term.name} · ${branchNameOf(ctx, branchId)}${section === ALL ? '' : ` · ${section}`}`,
+    filters: [termFilter(ctx, term, 'session'), sectionFilter(sections, section)],
+    metrics: [
+      metric('Attendance', rate === null ? '—' : `${rate}%`, 'Present or late'),
+      metric('School days so far', count(days.length)),
+      metric(
+        'Registers not taken',
+        count(n('notTaken')),
+        missing ? `in ${plural(missing, 'class', 'classes')}` : undefined,
+        missing ? 'warning' : undefined,
+      ),
+    ],
+    columns: [
+      { key: 'class', label: 'Class' },
+      { key: 'classTeacher', label: 'Class teacher' },
+      { key: 'taken', label: 'Days taken', align: 'right' },
+      { key: 'notTaken', label: 'Not taken', align: 'right' },
+      { key: 'present', label: 'Present', align: 'right' },
+      { key: 'absent', label: 'Absent', align: 'right' },
+      { key: 'excused', label: 'Excused', align: 'right' },
+      { key: 'rate', label: 'Attendance', align: 'right', percent: true },
+    ],
+    rows,
+    totals: rows.length
+      ? {
+          class: 'Total',
+          classTeacher: '',
+          taken: n('taken'),
+          notTaken: n('notTaken'),
+          present: n('present'),
+          absent: n('absent'),
+          excused: n('excused'),
+          rate,
+        }
+      : null,
+    note: 'From the class teachers’ daily registers. Present includes late arrivals. Weekends, public holidays, the mid-term break and no-class days are not school days.',
+    emptyText: 'No classes in this scope yet.',
+  };
 }
 
 function enrollmentReport(ctx: FinCtx, q: Q, branchId: string | null): Built {
@@ -1221,6 +1320,7 @@ function workloadReport(ctx: FinCtx, q: Q, branchId: string | null): Built {
 /* ---------------- One report ---------------- */
 
 const ACADEMIC = new Set<SchoolReportId>([
+  'attendance',
   'result-completion',
   'subject-performance',
   'grade-distribution',
@@ -1283,6 +1383,8 @@ export function schoolReport(
         return gradeReport(ctx, q, branchId, sessionTerm!);
       case 'enrollment':
         return enrollmentReport(ctx, q, branchId);
+      case 'attendance':
+        return attendanceReport(ctx, q, branchId, sessionTerm!);
       case 'admissions':
         return admissionsReport(ctx, q);
       case 'movements':

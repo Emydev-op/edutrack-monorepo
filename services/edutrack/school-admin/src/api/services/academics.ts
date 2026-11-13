@@ -9,6 +9,8 @@ import type {
   AssignmentInput,
   AssignmentsView,
   AssignmentWarning,
+  AttendanceArmDetail,
+  AttendanceOverview,
   CalendarEvent,
   CalendarEventInput,
   CalendarView,
@@ -340,6 +342,27 @@ export const useCorrectionActionMutation = () =>
     ({ id, action, note }: { id: string; action: 'approve' | 'reject'; note: string }) =>
       postRequest<Correction>(`${A}/results/corrections/${id}/${action}`, { note }),
   );
+
+/* ---------------- Attendance (read-only) ---------------- */
+
+export const useAttendanceQuery = (params: MaybeRefOrGetter<{ term?: string; branch?: string }>) =>
+  useQuery({
+    queryKey: computed(() => k.attendance(cleanParams(toValue(params)))),
+    queryFn: () =>
+      getRequest<AttendanceOverview>(`${A}/attendance`, { params: cleanParams(toValue(params)) }),
+  });
+
+export const useAttendanceArmQuery = (
+  armId: MaybeRefOrGetter<string>,
+  params: MaybeRefOrGetter<{ term?: string }>,
+) =>
+  useQuery({
+    queryKey: computed(() => k.attendanceArm(toValue(armId), cleanParams(toValue(params)))),
+    queryFn: () =>
+      getRequest<AttendanceArmDetail>(`${A}/attendance/${toValue(armId)}`, {
+        params: cleanParams(toValue(params)),
+      }),
+  });
 
 /* ---------------- Promotion ---------------- */
 

@@ -47,6 +47,8 @@ export const routesPath = {
     classSubjects: { name: 'class-subjects', path: 'subjects' },
     classTimetable: { name: 'class-timetable', path: 'timetable' },
     classResults: { name: 'class-results', path: 'results' },
+    attendance: { name: 'attendance', path: '/academics/attendance' },
+    attendanceArm: { name: 'attendance-arm', path: '/academics/attendance/:armId' },
     subjects: { name: 'subjects', path: '/academics/subjects' },
     curriculum: { name: 'curriculum', path: 'curriculum' },
     groups: { name: 'elective-groups', path: 'groups' },

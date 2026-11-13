@@ -16,6 +16,7 @@ import { initials } from '@edutrack/app-kit/lib/format';
 import { useReportCardQuery } from '@/api/services/academics';
 import { routesPath } from '@/router/routes-path';
 import { useLayoutStore } from '@/stores/layout';
+import { CONDUCT_SCALE } from '@/types';
 
 const route = useRoute();
 const router = useRouter();
@@ -29,6 +30,7 @@ watch(card, (c) => layout.setRecordLabel(c ? `Report card · ${c.student.name}` 
 });
 
 const printCard = () => window.print();
+
 const classic = computed(() => template.value === 'classic');
 const pickStudent = (id: string) =>
   router.push({
@@ -252,6 +254,58 @@ const pickStudent = (id: string) =>
           <span class="text-lg font-semibold">{{ card.position ?? 'Not shown' }}</span>
         </div>
       </div>
+
+      <div class="mt-4 grid gap-4 text-[13px] sm:grid-cols-2 print:grid-cols-2">
+        <section aria-labelledby="rc-attendance" class="flex flex-col gap-1.5">
+          <h3 id="rc-attendance" class="text-xs font-semibold tracking-[0.04em] uppercase">
+            Attendance
+          </h3>
+          <template v-if="card.attendance">
+            <p>
+              <span class="text-lg font-semibold tabular-nums">{{ card.attendance.present }}</span>
+              <span class="text-muted-foreground">
+                of {{ card.attendance.schoolDays }} school days present</span
+              >
+            </p>
+            <p class="text-xs text-muted-foreground">
+              Late {{ card.attendance.late }} · Absent {{ card.attendance.absent }} · Excused
+              {{ card.attendance.excused }}
+            </p>
+          </template>
+          <p v-else class="text-muted-foreground">No school days yet this term.</p>
+        </section>
+        <section aria-labelledby="rc-conduct" class="flex flex-col gap-1.5">
+          <h3 id="rc-conduct" class="text-xs font-semibold tracking-[0.04em] uppercase">Conduct</h3>
+          <dl class="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1">
+            <template v-for="c in card.conduct" :key="c.trait">
+              <dt class="text-body">{{ c.trait }}</dt>
+              <dd class="text-right tabular-nums">
+                <template v-if="c.rating !== null"
+                  ><span class="font-semibold">{{ c.rating }}</span
+                  ><span class="text-muted-foreground">
+                    / 5 · {{ CONDUCT_SCALE[c.rating] }}</span
+                  ></template
+                >
+                <span v-else class="text-faint">Not rated</span>
+              </dd>
+            </template>
+          </dl>
+        </section>
+      </div>
+
+      <section aria-labelledby="rc-remark" class="mt-4 flex flex-col gap-1.5 text-[13px]">
+        <h3 id="rc-remark" class="text-xs font-semibold tracking-[0.04em] uppercase">
+          Class teacher’s remark
+        </h3>
+        <p v-if="card.classTeacherRemark" class="rounded-md bg-muted px-3 py-2 italic">
+          “{{ card.classTeacherRemark }}”
+        </p>
+        <p v-else class="rounded-md border border-dashed px-3 py-2 text-warning-strong">
+          Not written yet{{
+            card.classTeacher ? ` · ${card.classTeacher} adds it in the Teacher Workspace` : ''
+          }}
+        </p>
+      </section>
 
       <footer
         :class="

@@ -3,6 +3,7 @@ import type { AxiosInstance } from 'axios';
 
 import './handlers/academics';
 import './handlers/academics-results';
+import './handlers/attendance';
 import './handlers/auth';
 import './handlers/dashboard';
 import './handlers/finance-fees';

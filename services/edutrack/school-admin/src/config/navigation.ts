@@ -30,6 +30,7 @@ export const navigation: NavGroup[] = [
       item('Sessions & Terms', r.academics.sessions),
       item('Academic Calendar', r.academics.calendar),
       item('Classes & Arms', r.academics.classes),
+      item('Attendance', r.academics.attendance),
       item('Subjects & Curriculum', r.academics.subjects),
       item('Teacher Assignments', r.academics.assignments),
       item('Timetable', r.academics.timetable),

@@ -15,6 +15,7 @@ export type SchoolReportId =
   | 'subject-performance'
   | 'grade-distribution'
   | 'enrollment'
+  | 'attendance'
   | 'admissions'
   | 'movements'
   | 'staff'

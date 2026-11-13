@@ -4,6 +4,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type { DashboardSummary, LoginResponse, SetupProgress } from '@/types';
 
 import { installMockApi } from '..';
+import { academicsData } from '../academics-db';
+import { currentTerm } from '../handlers/academics-shared';
 
 const PASSWORD = 'Edutrack2026!';
 
@@ -89,6 +91,36 @@ describe('school admin mock API', () => {
     expect(found.filter((r) => r.type === 'Invoice').map((r) => r.title)).toContain(
       'INV-2026-0418',
     );
+  });
+
+  it('counts result sheets not yet submitted from the sheets themselves', async () => {
+    const acad = academicsData.greenfield!;
+    const term = currentTerm(acad)!;
+    const open = () =>
+      acad.sheets.filter(
+        (s) =>
+          s.termId === term.id &&
+          !acad.published.includes(`${term.id}|${s.armId}`) &&
+          ['Not started', 'Draft', 'Returned'].includes(s.status),
+      );
+    const due = async () =>
+      (
+        await greenfield.get<DashboardSummary>('/v1/dashboard', {
+          params: { branch: 'All branches' },
+        })
+      ).data.attention.find((a) => a.id === 'results-due');
+    const n = open().length;
+    expect(n).toBeGreaterThan(0);
+    expect((await due())?.text).toBe(
+      `${n} result sheet${n === 1 ? '' : 's'} not yet submitted · entry closes Fri 11 Dec`,
+    );
+    expect((await due())?.to).toMatchObject({ name: 'results' });
+    // Submitting one drops the count by one.
+    const sheet = open()[0]!;
+    const before = sheet.status;
+    sheet.status = 'Submitted';
+    expect((await due())?.text).toMatch(new RegExp(`^${n - 1} result sheet`));
+    sheet.status = before;
   });
 
   it('only finishes setup once every required step is done', { timeout: 20_000 }, async () => {

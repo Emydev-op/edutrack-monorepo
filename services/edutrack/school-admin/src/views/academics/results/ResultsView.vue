@@ -29,12 +29,14 @@ import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import type { ClassDetail, ResultsMatrix, SheetStatus } from '@/types';
 
+import { sheetStatusLabel } from './sheet-status';
+
 const WORKFLOW: SheetStatus[] = ['Draft', 'Submitted', 'Under review', 'Approved', 'Published'];
 const LEGEND: SheetStatus[] = [...WORKFLOW, 'Returned', 'Not started'];
 const SHORT: Record<SheetStatus, string> = {
   'Not started': '—',
   Draft: 'Draft',
-  Submitted: 'Sub.',
+  Submitted: 'HOD',
   'Under review': 'Rev.',
   Returned: 'Ret.',
   Approved: '✓',
@@ -130,12 +132,24 @@ async function startPublish(row: Row) {
         ['Students', String(check.students)],
         ['Subjects', `${check.subjects} · all approved`],
         ['Flags', check.flags.length ? check.flags.join(' · ') : 'None'],
+        [
+          'Class teacher remarks',
+          check.warnings.length ? check.warnings.join(' ') : 'Written for every report card',
+        ],
         ['Notifies', 'Guardians and students in the portals'],
         ['After publishing', 'Scores are locked. Changes need a correction request.'],
       ],
-      acknowledgement: check.flags.length
-        ? 'I have checked the absent and exempt flags above. Affected subjects show the flag on the report card.'
-        : undefined,
+      acknowledgement:
+        check.flags.length || check.missingRemarks
+          ? [
+              check.flags.length &&
+                'I have checked the absent and exempt flags above. Affected subjects show the flag on the report card.',
+              check.missingRemarks &&
+                `${check.missingRemarks} report card${check.missingRemarks === 1 ? '' : 's'} will go out without the class teacher’s remark.`,
+            ]
+              .filter(Boolean)
+              .join(' ')
+          : undefined,
       confirmLabel: 'Publish results',
       action: async () => {
         await publish.mutateAsync({ armId: row.armId, acknowledged: check.flags.length > 0 });
@@ -190,13 +204,15 @@ async function startPublish(row: Row) {
       </div>
       <ol class="flex flex-wrap items-center gap-1.5 text-xs">
         <template v-for="(s, i) in WORKFLOW" :key="s">
-          <li><StatusBadge :label="s" :tone="TONES[s]" /></li>
+          <li><StatusBadge :label="sheetStatusLabel(s)" :tone="TONES[s]" /></li>
           <li v-if="i < WORKFLOW.length - 1" aria-hidden="true" class="text-faint">→</li>
         </template>
       </ol>
       <p class="text-xs text-muted-foreground">
-        Teachers enter and submit scores in the Teacher Workspace. You review, approve and publish
-        here. A sheet sent back to the teacher shows as Returned.
+        Teachers enter and submit scores in the Teacher Workspace. Sheets from a department with an
+        HOD go to the HOD first (With HOD) and reach you as Under review once forwarded; departments
+        without an HOD come straight to you. You approve and publish here. A sheet sent back to the
+        teacher shows as Returned.
       </p>
     </section>
 
@@ -270,8 +286,8 @@ async function startPublish(row: Row) {
             <RouterLink
               v-else
               :to="sheetTo(row.armId, s.code)"
-              :title="`${row.arm} · ${s.name}: ${row.cells[s.code]}`"
-              :aria-label="`${row.arm} ${s.name}: ${row.cells[s.code]}`"
+              :title="`${row.arm} · ${s.name}: ${sheetStatusLabel(row.cells[s.code]!)}`"
+              :aria-label="`${row.arm} ${s.name}: ${sheetStatusLabel(row.cells[s.code]!)}`"
               :class="
                 cn(
                   'flex h-7 items-center justify-center rounded-sm text-[11px] font-medium hover:ring-1 hover:ring-primary',
@@ -318,7 +334,7 @@ async function startPublish(row: Row) {
           <LockIcon v-if="s === 'Published'" class="size-3" />
           <template v-else>{{ SHORT[s] }}</template>
         </span>
-        {{ s }} · {{ data.counts[s] ?? 0 }}
+        {{ sheetStatusLabel(s) }} · {{ data.counts[s] ?? 0 }}
       </li>
     </ul>
   </template>

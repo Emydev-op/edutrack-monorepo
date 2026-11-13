@@ -24,6 +24,7 @@ import type {
 } from '@/types';
 
 import { installMockApi } from '..';
+import { hodDecision } from '../handlers/academics-results';
 
 async function signIn(email: string): Promise<AxiosInstance> {
   const client = axios.create({ baseURL: '/api' });
@@ -206,10 +207,22 @@ describe('Academics · established school (Greenfield)', () => {
       const sheet = await api.get<ResultSheet>('/v1/academics/results/sheets/arm-mc-jss2b/MTH');
       expect(sheet.data.stats.absent).toBe(1);
       expect(sheet.data.rows.length).toBeGreaterThan(10);
+      // Mathematics is a Sciences subject: the sheet is with the HOD until he forwards it.
+      expect(sheet.data).toMatchObject({ withHod: true, canDecide: false });
+      expect(
+        (await failure(api.post('/v1/academics/results/sheets/arm-mc-jss2b/MTH/approve'))).status,
+      ).toBe(409);
+      hodDecision(
+        'greenfield',
+        { armId: 'arm-mc-jss2b', subject: 'MTH', termId: 't-2026-1' },
+        'forward',
+      );
       await api.post('/v1/academics/results/sheets/arm-mc-jss2b/MTH/approve');
       const check = await api.get<PublishCheck>('/v1/academics/results/publish/arm-mc-jss2b');
       expect(check.data.notApproved).toEqual([]);
       expect(check.data.flags.length).toBeGreaterThan(0);
+      // Three JSS 2B report cards have no class teacher's remark yet: a warning, not a blocker.
+      expect(check.data.missingRemarks).toBe(3);
       expect(
         (
           await failure(

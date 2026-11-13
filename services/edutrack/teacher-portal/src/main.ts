@@ -1,17 +1,26 @@
 import './assets/main.css';
 
+import { configureUnsavedChanges } from '@edutrack/app-kit/composables/useUnsavedChanges';
 import { createVueQueryOptions } from '@edutrack/web-core/query';
 import { VueQueryPlugin } from '@tanstack/vue-query';
 import { createPinia } from 'pinia';
 import { createApp } from 'vue';
 
 import App from './App.vue';
+import { queryClient } from './api/query-client';
 import router from './router';
+import { useAuthStore } from './stores/auth';
 
-const app = createApp(App);
+async function bootstrap() {
+  const app = createApp(App);
+  app.use(createPinia());
+  app.use(router);
+  app.use(VueQueryPlugin, createVueQueryOptions(queryClient));
+  // Signing out already warns about unsaved work, so leaving must not ask again.
+  configureUnsavedChanges({ shouldAsk: () => useAuthStore().isAuthenticated });
 
-app.use(createPinia());
-app.use(router);
-app.use(VueQueryPlugin, createVueQueryOptions());
+  await router.isReady();
+  app.mount('#app');
+}
 
-app.mount('#app');
+void bootstrap();

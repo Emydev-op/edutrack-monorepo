@@ -7,6 +7,7 @@ import DataTable, { type Column } from '@edutrack/app-kit/components/common/Data
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import type { ClassDetail } from '@/types';
+import { sheetStatusLabel } from '@/views/academics/results/sheet-status';
 
 defineProps<{ detail: ClassDetail }>();
 const context = useContextStore();
@@ -43,6 +44,10 @@ const columns: Column[] = [
     <template #cell-average="{ row }">{{
       row.average === null ? '—' : `${row.average}%`
     }}</template>
-    <template #cell-status="{ row }"><StatusBadge :label="row.status" /></template>
+    <template #cell-status="{ row }"
+      ><StatusBadge
+        :label="sheetStatusLabel(row.status)"
+        :tone="row.status === 'Submitted' ? 'info' : undefined"
+    /></template>
   </DataTable>
 </template>

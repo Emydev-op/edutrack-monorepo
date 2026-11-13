@@ -15,6 +15,7 @@ const BUILT = new Set<string>([
   routesPath.academics.sessions.name,
   routesPath.academics.calendar.name,
   routesPath.academics.classes.name,
+  routesPath.academics.attendance.name,
   routesPath.academics.subjects.name,
   routesPath.academics.assignments.name,
   routesPath.academics.timetable.name,

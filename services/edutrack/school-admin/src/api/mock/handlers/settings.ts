@@ -239,7 +239,11 @@ const MODULES: [string, string, PlanName[] | 'soon'][] = [
     'Teachers share notes and files with their classes',
     ['Growth', 'Premium'],
   ],
-  ['Attendance', 'Daily and lesson attendance', 'soon'],
+  [
+    'Attendance',
+    'Daily registers by class teachers, attendance on report cards',
+    ['Starter', 'Growth', 'Premium'],
+  ],
   ['Transport', 'Routes, buses and transport fees', 'soon'],
   ['Library', 'Catalogue and lending', 'soon'],
   ['ID cards', 'Card design and printing', 'soon'],

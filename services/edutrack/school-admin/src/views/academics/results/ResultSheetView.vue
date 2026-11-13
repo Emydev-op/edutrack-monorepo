@@ -19,6 +19,8 @@ import { useContextStore } from '@/stores/context';
 import { useLayoutStore } from '@/stores/layout';
 import type { ScoreValue, SheetRow } from '@/types';
 
+import { sheetStatusLabel } from './sheet-status';
+
 const route = useRoute();
 const confirm = useConfirm();
 const context = useContextStore();
@@ -33,7 +35,7 @@ watch(sheet, (s) => layout.setRecordLabel(s ? `${s.arm} · ${s.subjectName}` : n
 });
 
 const passMark = computed(() => sheet.value?.passMark ?? 40);
-const canDecide = computed(() => ['Submitted', 'Under review'].includes(sheet.value?.status ?? ''));
+const canDecide = computed(() => !!sheet.value?.canDecide);
 const teacher = computed(() => sheet.value?.teacher ?? 'the teacher');
 
 const columns = computed<Column[]>(() => [
@@ -131,8 +133,8 @@ function returnSheet() {
   <template v-else-if="sheet">
     <PageHeader
       :title="`${sheet.arm} · ${sheet.subjectName}`"
-      :status="sheet.status"
-      :description="`Results · ${sheet.term} · ${context.current.session} · ${sheet.teacher ?? 'No teacher assigned'}${sheet.submittedAt ? ` · submitted ${sheet.submittedAt}` : ''}`"
+      :status="sheetStatusLabel(sheet.status)"
+      :description="`Results · ${sheet.term} · ${context.current.session} · ${sheet.teacher ?? 'No teacher assigned'}${sheet.department ? ` · ${sheet.department}` : ''}${sheet.submittedAt ? ` · submitted ${sheet.submittedAt}` : ''}`"
     >
       <template v-if="canDecide" #actions>
         <Button variant="outline" @click="returnSheet">Return to teacher</Button>
@@ -146,12 +148,22 @@ function returnSheet() {
     </PageHeader>
 
     <InlineNotice
+      v-if="sheet.withHod"
+      tone="info"
+      :title="`With ${sheet.hod} for review`"
+      :description="`${teacher} submitted this sheet to their HOD. You can view it here; approve or return it once the HOD forwards it to the academic office as Under review.`"
+    />
+    <InlineNotice
       v-if="
         sheet.status === 'Draft' || sheet.status === 'Not started' || sheet.status === 'Returned'
       "
       tone="neutral"
-      :title="sheet.status === 'Returned' ? 'Returned to the teacher' : 'Not submitted yet'"
-      :description="`${sheet.status === 'Returned' && sheet.returnNote ? `Your comment: “${sheet.returnNote}”. ` : ''}You can view the draft, but it can only be approved after ${teacher} submits it in the Teacher Workspace.`"
+      :title="
+        sheet.status === 'Returned'
+          ? `Returned to the teacher by ${sheet.returnedBy ?? 'a reviewer'}`
+          : 'Not submitted yet'
+      "
+      :description="`${sheet.status === 'Returned' && sheet.returnNote ? `${sheet.returnedBy === 'the academic office' ? 'Your comment' : 'Comment'}: “${sheet.returnNote}”. ` : ''}You can view the draft, but it can only be approved after ${teacher} ${sheet.status === 'Returned' ? 'resubmits' : 'submits'} it in the Teacher Workspace${sheet.hod && sheet.returnedBy !== 'the academic office' ? ` and ${sheet.hod} forwards it` : ''}.`"
     />
     <InlineNotice
       v-if="sheet.status === 'Published'"
