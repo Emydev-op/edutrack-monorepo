@@ -20,11 +20,11 @@
     "@edutrack/shared": "*",
     "@edutrack/ui": "*",
     "@edutrack/web-core": "*",
-    "@tanstack/vue-query": "^5.105.3",
+    "@tanstack/vue-query": "^5.107.1",
     "@vee-validate/yup": "^4.15.1",
     "pinia": "^4.1.0",
     "vee-validate": "^4.15.1",
-    "vue": "^3.5.44",
+    "vue": "^3.5.45",
     "vue-router": "^5.4.0",
     "yup": "^1.7.1"
   },
