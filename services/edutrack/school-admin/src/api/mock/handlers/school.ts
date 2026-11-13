@@ -7,6 +7,10 @@ import type { BranchPayload, SchoolProfilePayload } from '@/types';
 import { academicsData, armStudents } from '../academics-db';
 import { setupConfirmed } from '../db';
 import { schoolData, type BranchRow, type SchoolData } from '../school-db';
+import { addDays } from '../finance-ledger';
+import { currentTerm } from './academics-shared';
+import { termFigures } from './finance-overview';
+import { financeSnapshot, millions } from './finance-shared';
 import { EMAIL, historyOf, isPhone, requireText, schoolDataFor } from './shared';
 
 /* ---------------- School profile ---------------- */
@@ -165,13 +169,34 @@ mock.get('/v1/branches', (req) => {
   };
 });
 
-const FINANCE: Record<
-  string,
-  { billed: string; collected: string; outstanding: string; expenses: string }
-> = {
-  mc: { billed: '₦142.6M', collected: '₦96.4M', outstanding: '₦46.2M', expenses: '₦21.8M' },
-  lk: { billed: '₦62.1M', collected: '₦44.1M', outstanding: '₦18.0M', expenses: '₦9.4M' },
-};
+/** A branch's figures for the current term, from Finance; null until anything is billed there. */
+function branchFinance(schoolId: string, branchId: string) {
+  const snap = financeSnapshot(schoolId);
+  const acad = academicsData[schoolId]!;
+  const termId = currentTerm(acad)?.id;
+  const term = snap.terms.find((t) => t.id === termId);
+  if (!term) return null;
+  const f = termFigures(snap.fin, snap.ledger, term.id, branchId);
+  if (!f.invoices) return null;
+  const from = addDays(term.start, -30);
+  const expenses = snap.fin.expenses
+    .filter(
+      (e) =>
+        e.status === 'Paid' &&
+        e.branchId === branchId &&
+        e.paidOn &&
+        e.paidOn >= from &&
+        e.paidOn <= term.end,
+    )
+    .reduce((n, e) => n + e.amount, 0);
+  return {
+    term: `${term.name} ${term.session}`,
+    billed: millions(f.billed),
+    collected: `${millions(f.collected)} · ${f.rate}%`,
+    outstanding: `${millions(f.outstanding)} · ${f.owingStudents.toLocaleString('en-NG')} students`,
+    expenses: millions(expenses),
+  };
+}
 
 mock.get('/v1/branches/:id', (req) => {
   const { data } = schoolDataFor(req);
@@ -196,7 +221,7 @@ mock.get('/v1/branches/:id', (req) => {
             account: data.users.find((u) => u.staffId === s.id)?.status ?? 'No account',
           }))
       : [],
-    finance: FINANCE[b.id] ?? null,
+    finance: branchFinance(schoolDataFor(req).schoolId, b.id),
     history: historyOf(data, `Branch:${b.id}`),
   };
 });

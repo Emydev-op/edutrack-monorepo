@@ -148,13 +148,14 @@ const guardianLabel = computed(() =>
 );
 const className = computed(() => (d.arm ? `${d.level}${d.arm}` : d.level));
 
+/** This term's fees for the chosen branch and class, from Finance's published structure. */
+const classFees = computed(() => options.value?.feeLines?.[`${d.branch}|${d.level}`] ?? null);
 const feeLines = computed(() => {
-  const o = options.value;
-  if (!o) return [];
-  const lines: [string, number][] = d.billing === 'full' ? [...o.feeItems] : [];
-  lines.push(['Admission fee (one-time)', o.admissionFee]);
-  if (showSibling.value && d.siblingDiscount)
-    lines.push(['Sibling discount · 2nd child (rule)', -o.siblingDiscount]);
+  const f = classFees.value;
+  if (!f || d.billing !== 'full') return [];
+  const lines: [string, number][] = [...f.items, ...f.once];
+  if (showSibling.value && d.siblingDiscount && f.sibling)
+    lines.push(['Sibling discount · 2nd child (rule)', -f.sibling]);
   return lines;
 });
 const showSibling = computed(
@@ -353,7 +354,11 @@ const chip = (on: boolean, full = false) =>
             ? `Portal invitation sent to ${result.guardianName}.`
             : 'No portal invitation sent.'
         }}
-        A draft invoice of {{ formatNaira(result.invoiceTotal) }} is waiting for finance.
+        {{
+          result.invoiceTotal
+            ? `A draft invoice of ${formatNaira(result.invoiceTotal)} is waiting for finance.`
+            : 'No invoice yet; Finance bills them when fees apply.'
+        }}
       </p>
       <div class="mt-2 flex flex-wrap justify-center gap-2">
         <Button as-child
@@ -732,7 +737,21 @@ const chip = (on: boolean, full = false) =>
               { value: 'defer', label: 'Start billing from Second Term' },
             ]"
           />
-          <dl class="flex flex-col divide-y divide-divider rounded-lg border text-[13px]">
+          <p
+            v-if="d.billing === 'full' && !classFees"
+            class="rounded-lg border border-dashed px-3.5 py-3 text-[13px] text-muted-foreground"
+          >
+            {{ options.term }} fees for {{ d.level }} at {{ d.branch }} aren’t published yet. The
+            student is admitted without an invoice; Finance bills them once fees are published.
+          </p>
+          <p
+            v-else-if="d.billing === 'defer'"
+            class="rounded-lg border border-dashed px-3.5 py-3 text-[13px] text-muted-foreground"
+          >
+            No invoice now. The student is billed with everyone else when Second Term invoices are
+            generated.
+          </p>
+          <dl v-else class="flex flex-col divide-y divide-divider rounded-lg border text-[13px]">
             <div
               v-for="[label, amount] in feeLines"
               :key="label"
@@ -748,12 +767,15 @@ const chip = (on: boolean, full = false) =>
               <dd class="tabular-nums">{{ formatNaira(total) }}</dd>
             </div>
           </dl>
-          <label v-if="showSibling" class="flex items-center gap-2.5 text-[13px]">
+          <label
+            v-if="showSibling && classFees?.sibling"
+            class="flex items-center gap-2.5 text-[13px]"
+          >
             <Switch v-model="d.siblingDiscount" />
-            Apply sibling discount (rule: 2nd child, {{ formatNaira(options.siblingDiscount) }} off
+            Apply sibling discount (rule: 2nd child, {{ formatNaira(classFees.sibling) }} off
             tuition). Finance can still override it.
           </label>
-          <p class="text-xs text-muted-foreground">
+          <p v-if="feeLines.length" class="text-xs text-muted-foreground">
             The invoice is created as Draft. Finance reviews and issues it.
           </p>
         </template>

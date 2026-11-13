@@ -40,6 +40,7 @@ export interface StudentGuardianLink {
 }
 
 export interface StudentInvoice {
+  id: string;
   number: string;
   period: string;
   total: number;
@@ -78,6 +79,10 @@ export interface StudentDetail extends StudentRow {
   subjects: { name: string; type: string; teacher: string; since: string }[];
   invoices: StudentInvoice[];
   payments: TimelineEntry[];
+  /** Key of the student's account in Finance. */
+  financeKey: string;
+  /** Credit on account (overpayments), available to apply or refund. */
+  credit: number;
   guardians: StudentGuardianLink[];
   documents: { name: string; required: string; uploaded: string; status: string }[];
   activity: TimelineEntry[];
@@ -129,6 +134,13 @@ export interface AdmissionOptions {
   feeItems: [label: string, amount: number][];
   admissionFee: number;
   siblingDiscount: number;
+  /** Per "branch|level": this term's compulsory fees, one-time fees for new students, sibling discount. */
+  feeLines: Record<
+    string,
+    { items: [string, number][]; once: [string, number][]; sibling: number }
+  >;
+  /** A published fee structure exists for the current term. */
+  feesReady: boolean;
   requiredDocuments: { key: string; label: string; required: 'always' | 'transfer' | 'optional' }[];
 }
 

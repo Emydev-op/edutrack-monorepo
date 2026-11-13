@@ -7,7 +7,6 @@ import { routesPath as r } from '@/router/routes-path';
 import type {
   AttentionItem,
   ContextOptions,
-  DashboardFinance,
   DashboardSummary,
   NotificationItem,
   SchoolSummary,
@@ -314,31 +313,6 @@ export const dashboards: Record<string, Omit<DashboardSummary, 'metrics'>> = {
   },
 };
 
-export const finance: Record<string, DashboardFinance> = {
-  greenfield: {
-    weekly: [
-      ['19 Oct', 4.1],
-      ['26 Oct', 3.2],
-      ['2 Nov', 6.8],
-      ['9 Nov', 5.1],
-      ['16 Nov', 7.4],
-      ['23 Nov', 9.6],
-      ['30 Nov', 12.3],
-      ['7 Dec', 4.2],
-    ].map(([label, millions]) => ({
-      label: label as string,
-      value: Math.round((millions as number) * 1_000_000),
-    })),
-    sections: [
-      { label: 'Nursery', percent: 82 },
-      { label: 'Primary', percent: 71 },
-      { label: 'Junior Secondary', percent: 64 },
-      { label: 'Senior Secondary', percent: 59 },
-    ],
-  },
-  crestview: { weekly: [], sections: [] },
-};
-
 /* ---------------- Setup Center ---------------- */
 
 type StepSeed = [
@@ -626,27 +600,6 @@ export const searchIndex: Record<string, SearchResult[]> = {
       r.academics.classes,
     ),
     result('mth', 'Mathematics', 'Subject', 'MTH · Core · Primary – SSS', r.academics.subjects),
-    result(
-      'inv-0418',
-      'INV-2026-0418',
-      'Invoice',
-      'Emmanuel Adeyemi · ₦185,000 · Partially paid',
-      r.finance.invoices,
-    ),
-    result(
-      'rcp-0291',
-      'RCP-2026-0291',
-      'Payment',
-      '₦105,000 · Bank transfer · 8 Sep 2026',
-      r.finance.payments,
-    ),
-    result(
-      'lekki-stationers',
-      'Lekki Stationers Ltd',
-      'Vendor',
-      'Stationery · ₦340,000 outstanding',
-      r.finance.vendors,
-    ),
     result(
       'exb40',
       'Exercise books (40 leaves)',

@@ -19,6 +19,18 @@ import {
   type StudentRecord,
   type StudentsData,
 } from '../students-db';
+import { academicsData } from '../academics-db';
+import {
+  buildInvoice,
+  chargedIn,
+  financeData,
+  recordStudents,
+  structureFor,
+  termsOf,
+} from '../finance-db';
+import { isoToday, siblingPositions, totalOf } from '../finance-ledger';
+import { schoolData } from '../school-db';
+import { financeSnapshot, invoiceRowFor, naira } from './finance-shared';
 import { currentUser, EMAIL, isPhone, requireText } from './shared';
 
 const SESSION = '2026/2027';
@@ -209,51 +221,7 @@ mock.get('/v1/students/:id', (req): StudentDetail => {
           },
         ]
       : [],
-    invoices: isE
-      ? [
-          {
-            number: 'INV-2026-0418',
-            period: '2026/2027 · First Term',
-            total: 185000,
-            paid: 105000,
-            pending: 0,
-            balance: 80000,
-            status: 'Partially paid',
-          },
-          {
-            number: 'INV-2025-1187',
-            period: '2025/2026 · Third Term',
-            total: 175000,
-            paid: 160000,
-            pending: 0,
-            balance: 15000,
-            status: 'Overdue',
-          },
-        ]
-      : s.balance
-        ? [
-            {
-              number: `INV-2026-${s.admissionNo.slice(-4)}`,
-              period: '2026/2027 · First Term',
-              total: 185000,
-              paid: 185000 - s.balance,
-              pending: 0,
-              balance: s.balance,
-              status: s.balance === 185000 ? 'Overdue' : 'Partially paid',
-            },
-          ]
-        : [],
-    payments: isE
-      ? [
-          {
-            id: 'p1',
-            title: '₦105,000 · Bank transfer · RCP-2026-0291',
-            detail: 'INV-2026-0418 ₦105,000 · Confirmed',
-            when: '8 Sep 2026',
-            tone: 'success',
-          },
-        ]
-      : [],
+    ...studentFees(currentUser(req).schoolId, s.id),
     guardians: guardiansOf(data, s.id).map((g) => ({
       guardianId: g.id,
       name: g.name,
@@ -428,6 +396,7 @@ mock.get('/v1/admissions/options', (req) => {
     feeItems: FEE_ITEMS,
     admissionFee: 25000,
     siblingDiscount: 10000,
+    ...admissionFees(currentUser(req).schoolId),
     requiredDocuments: REQUIRED_DOCS,
   };
 });
@@ -515,10 +484,7 @@ mock.post('/v1/admissions', (req) => {
 
   const admissionNo = `STU-2026-${String(data.nextAdmission++).padStart(4, '0')}`;
   const id = `${firstName.toLowerCase().replace(/[^a-z]+/g, '-')}-${admissionNo.slice(-4)}`;
-  const items = p.billing === 'full' ? FEE_ITEMS.map(([, a]) => a) : [];
-  const discount =
-    p.siblingDiscount && p.guardian.mode === 'link' && p.billing === 'full' ? 10000 : 0;
-  const invoiceTotal = items.reduce((a, b) => a + b, 0) + 25000 - discount;
+  let invoiceTotal = 0;
   const record: StudentRecord = {
     id,
     firstName,
@@ -541,7 +507,7 @@ mock.post('/v1/admissions', (req) => {
     enrolledSince: 'Today',
     religious: p.religious,
     elective: p.elective,
-    balance: invoiceTotal,
+    balance: 0,
     admittedToday: true,
     activity: [
       {
@@ -564,6 +530,16 @@ mock.post('/v1/admissions', (req) => {
     guardian.children[id] = { relationship: p.relationship, paysFees: p.paysFees, primary: true };
     if (p.invite && guardian.portal === 'No account') guardian.portal = 'Invited';
   }
+  invoiceTotal = draftAdmissionInvoice(
+    currentUser(req).schoolId,
+    id,
+    p.billing === 'full',
+    !!p.siblingDiscount,
+    actor,
+  );
+  record.activity[1]!.detail = invoiceTotal
+    ? `₦${invoiceTotal.toLocaleString('en-NG')} · waiting for finance to issue`
+    : 'Billing starts next term';
   const app = p.applicationId ? data.applications.find((a) => a.id === p.applicationId) : null;
   if (app)
     Object.assign(app, { stage: 'Admitted', stageNote: 'Now an active student', studentId: id });
@@ -904,3 +880,118 @@ mock.post('/v1/guardians/merge', (req) => {
   data.guardians = data.guardians.filter((g) => g !== merge);
   return guardianRow(data, keep);
 });
+
+/** A student's invoices and payment history, from Finance. */
+function studentFees(schoolId: string, studentId: string) {
+  const snap = financeSnapshot(schoolId);
+  const invoices = snap.fin.invoices
+    .filter((i) => i.studentKey === studentId && i.status !== 'Cancelled')
+    .sort((a, b) => (b.issuedOn ?? b.createdOn).localeCompare(a.issuedOn ?? a.createdOn))
+    .map((i) => {
+      const row = invoiceRowFor(snap, i);
+      return {
+        id: i.id,
+        number: row.no,
+        period: `${row.session} · ${row.term}`,
+        total: row.total,
+        paid: row.paid,
+        pending: row.pending,
+        balance: row.balance,
+        status: row.status,
+      };
+    });
+  const payments = snap.fin.payments
+    .filter((p) => p.studentKey === studentId)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map((p) => ({
+      id: p.id,
+      title: `${naira(p.amount)} · ${p.method} · ${p.no}`,
+      detail: `${p.allocations.map((a) => `${snap.fin.invoices.find((i) => i.id === a.invoiceId)?.no} ${naira(a.amount)}`).join(' + ') || 'Credit on account'} · ${p.status}`,
+      when: new Date(`${p.date}T00:00:00`).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }),
+      tone: (p.status === 'Confirmed'
+        ? 'success'
+        : p.status === 'Rejected'
+          ? 'error'
+          : 'warning') as 'success' | 'error' | 'warning',
+    }));
+  return { invoices, payments, financeKey: studentId, credit: snap.ledger.credit(studentId) };
+}
+
+/** Fee lines the admission wizard shows, per "branch|level", from the current term's structure. */
+function admissionFees(schoolId: string) {
+  const fin = financeData[schoolId]!;
+  const term = currentFinanceTerm(schoolId);
+  const branches = schoolData[schoolId]!.branches;
+  const sib = fin.discounts.find((d) => d.basis === 'Sibling' && d.status === 'Active');
+  const feeLines: Record<
+    string,
+    { items: [string, number][]; once: [string, number][]; sibling: number }
+  > = {};
+  if (!term) return { feeLines, feesReady: false };
+  for (const st of fin.structures.filter((x) => x.termId === term.id && x.status === 'Published')) {
+    const branch = branches.find((b) => b.id === st.branchId)?.name ?? '';
+    for (const [level, amounts] of Object.entries(st.amounts)) {
+      const pick = (once: boolean) =>
+        fin.items
+          .filter(
+            (i) =>
+              i.status === 'Active' &&
+              i.type === 'Compulsory' &&
+              (once ? i.charged === 'New students only' : chargedIn(i, term.index, false)),
+          )
+          .filter((i) => amounts[i.id])
+          .map((i): [string, number] => [`${i.name}${once ? ' (one-time)' : ''}`, amounts[i.id]!]);
+      const tuition = fin.items
+        .filter((i) => i.category === 'Tuition')
+        .reduce((n, i) => n + (amounts[i.id] ?? 0), 0);
+      feeLines[`${branch}|${level}`] = {
+        items: pick(false),
+        once: pick(true),
+        sibling: !sib
+          ? 0
+          : sib.kind === 'Percentage'
+            ? Math.round((tuition * sib.value) / 100)
+            : Math.min(sib.value, tuition),
+      };
+    }
+  }
+  return { feeLines, feesReady: Object.keys(feeLines).length > 0 };
+}
+
+function currentFinanceTerm(schoolId: string) {
+  const acad = academicsData[schoolId]!;
+  const session =
+    acad.sessions.find((s) => s.status === 'Active') ??
+    acad.sessions.find((s) => s.status === 'Upcoming');
+  const term = session?.terms.find((t) => t.status === 'Active') ?? session?.terms[0];
+  return termsOf(schoolId).find((t) => t.id === term?.id) ?? null;
+}
+
+/** Creates the new student's first invoice as a draft for finance to review and issue. */
+function draftAdmissionInvoice(
+  schoolId: string,
+  studentId: string,
+  billNow: boolean,
+  sibling: boolean,
+  actor: string,
+) {
+  if (!billNow) return 0;
+  const fin = financeData[schoolId]!;
+  const term = currentFinanceTerm(schoolId);
+  const all = recordStudents(schoolId);
+  const student = all.find((s) => s.key === studentId);
+  if (!term || !student) return 0;
+  student.isNew = true;
+  if (!structureFor(fin, term.id, student.branchId)) return 0;
+  const siblings = siblingPositions([...fin.studentIndex().values()].filter((s) => s.active));
+  const inv = buildInvoice(fin, student, term, { siblings, on: isoToday(), by: actor });
+  if (!inv) return 0;
+  if (!sibling) inv.discounts = inv.discounts.filter((d) => !d.by.startsWith('Automatic'));
+  inv.history[0]!.title = 'Draft invoice created at admission';
+  fin.invoices.push(inv);
+  return totalOf(inv);
+}
