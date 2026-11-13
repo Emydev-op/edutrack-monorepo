@@ -10,7 +10,7 @@ ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build-only -w @edutrack/parent-portal
 
-FROM nginx:1.30-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 COPY infrastructure/docker/nginx/spa.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/services/edutrack/parent-portal/dist /usr/share/nginx/html
 EXPOSE 80
