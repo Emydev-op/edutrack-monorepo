@@ -19,7 +19,7 @@
     "@edutrack/ui": "*",
     "@lucide/vue": "^1.67.0",
     "@vueuse/core": "^15.0.0",
-    "chroma-js": "^3.2.0",
+    "chroma-js": "^3.3.0",
     "vee-validate": "^4.15.1",
     "vue-sonner": "^2.0.9"
   },
