@@ -1,9 +1,9 @@
 # Infrastructure
 
-| Path                        | Purpose                                               |
-| --------------------------- | ----------------------------------------------------- |
-| `docker/docker-compose.yml` | Local Postgres 18, Redis 8 and RustFS (S3-compatible) |
-| `docker/nginx/spa.conf`     | nginx config baked into every portal image            |
+| Path                        | Purpose                                                        |
+| --------------------------- | -------------------------------------------------------------- |
+| `docker/docker-compose.yml` | Local Postgres 18, Redis 8, RustFS (S3-compatible) and Mailpit |
+| `docker/nginx/spa.conf`     | nginx config baked into every portal image                     |
 
 Per-app Dockerfiles live next to each app (`services/edutrack/<app>/Dockerfile`) and are built from the repo root.
 
@@ -23,3 +23,7 @@ npm run infra:down   # stop (data volumes are kept)
 | Redis    | `localhost:6379`        | none                           |
 | RustFS   | `http://localhost:9000` | `edutrack` / `edutrack-secret` |
 | Console  | `http://localhost:9001` | same as RustFS                 |
+| Mailpit  | SMTP `localhost:1025`   | none (any login accepted)      |
+| Inbox    | `http://localhost:8025` | none                           |
+
+Every email the API sends locally (invitations, password resets, sign-in alerts) lands in the Mailpit inbox; nothing leaves your machine.

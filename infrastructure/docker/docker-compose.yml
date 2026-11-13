@@ -1,4 +1,4 @@
-# Local backing services for development. Start with `npm run infra:up` from the repo root.
+# Local backing services for development (Postgres, Redis, S3 storage, Mailpit). Start with `npm run infra:up` from the repo root.
 # Credentials match services/edutrack/backend/.env.example and are for local use only.
 name: edutrack
 
@@ -47,6 +47,23 @@ services:
       - '9001:9001'
     volumes:
       - storage-data:/data
+
+  # Catches every email the API sends locally. SMTP on :1025, inbox UI on :8025.
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_SMTP_AUTH_ACCEPT_ANY: 'true'
+      MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   postgres-data:
