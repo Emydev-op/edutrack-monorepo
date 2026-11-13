@@ -1,0 +1,313 @@
+// Platform back office: EduTrack staff, their roles, plans, school subscriptions, platform
+// billing, support sessions and platform-wide reference data.
+
+/// Platform staff account status (Invited · Active · Suspended · Deactivated).
+enum PlatformStaffStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+
+  @@map("platform_staff_status")
+}
+
+enum PlanStatus {
+  ACTIVE
+  DRAFT
+  ARCHIVED
+
+  @@map("plan_status")
+}
+
+/// flat: fixed price per period. per_student: price per enrolled student. custom: quoted by sales.
+enum PricingModel {
+  FLAT
+  PER_STUDENT
+  CUSTOM
+
+  @@map("pricing_model")
+}
+
+enum BillingPeriod {
+  ANNUAL
+  TERM
+  MONTH
+
+  @@map("billing_period")
+}
+
+enum SupportTier {
+  STANDARD
+  PRIORITY
+
+  @@map("support_tier")
+}
+
+/// The subscription half of the back office's school status. The school's displayed status is
+/// School.status when ONBOARDING or SUSPENDED, else this.
+enum SubscriptionStatus {
+  ACTIVE
+  /// Renewal date within the warning window (set by the daily job).
+  EXPIRING
+  GRACE_PERIOD
+  /// Renewal overdue: creating records is paused in the school portals.
+  RESTRICTED
+  EXPIRED
+  CANCELLED
+
+  @@map("subscription_status")
+}
+
+enum PlatformInvoiceKind {
+  NEW_SCHOOL
+  RENEWAL
+  UPGRADE
+  SETUP_FEE
+  ADJUSTMENT
+
+  @@map("platform_invoice_kind")
+}
+
+/// Paid · Overdue in the UI; overdue = ISSUED and past dueOn.
+enum PlatformInvoiceStatus {
+  ISSUED
+  PAID
+  VOID
+
+  @@map("platform_invoice_status")
+}
+
+enum SupportSessionMode {
+  READ_ONLY
+
+  @@map("support_session_mode")
+}
+
+model PlatformRole {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  /// Stable code for predefined roles (admin, ops, support, agent, finance).
+  key         String?  @unique
+  name        String   @unique
+  description String   @default("")
+  /// Area -> permissions, e.g. {"Schools": ["View", "Edit"]}.
+  permissions Json     @default("{}")
+  predefined  Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  staff PlatformStaff[]
+
+  @@map("platform_roles")
+}
+
+/// A user's EduTrack-staff access to the back office (separate from any school membership).
+model PlatformStaff {
+  id              String              @id @default(uuid(7)) @db.Uuid
+  userId          String              @unique @map("user_id") @db.Uuid
+  roleId          String              @map("role_id") @db.Uuid
+  status          PlatformStaffStatus @default(INVITED)
+  invitedById     String?             @map("invited_by_id") @db.Uuid
+  invitedAt       DateTime?           @map("invited_at") @db.Timestamptz(3)
+  activatedAt     DateTime?           @map("activated_at") @db.Timestamptz(3)
+  lastActiveAt    DateTime?           @map("last_active_at") @db.Timestamptz(3)
+  /// Email a sign-in from a new device.
+  newDeviceAlerts Boolean             @default(true) @map("new_device_alerts")
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  role        PlatformRole @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  invitations Invitation[]
+
+  @@index([roleId])
+  @@index([status])
+  @@map("platform_staff")
+}
+
+/// A plan schools subscribe to. Edits bump `version` and write a PlanVersion snapshot;
+/// subscriptions record the version they were sold on.
+model Plan {
+  id                 String       @id @default(uuid(7)) @db.Uuid
+  name               String       @unique
+  description        String       @default("")
+  status             PlanStatus   @default(DRAFT)
+  pricingModel       PricingModel @map("pricing_model")
+  annualPriceKobo    BigInt?      @map("annual_price_kobo")
+  termPriceKobo      BigInt?      @map("term_price_kobo")
+  monthPriceKobo     BigInt?      @map("month_price_kobo")
+  perStudentKobo     BigInt?      @map("per_student_kobo")
+  /// Per-student plans: the least a school pays in a term.
+  minimumPerTermKobo BigInt?      @map("minimum_per_term_kobo")
+  trialDays          Int          @default(0) @map("trial_days")
+  setupFeeKobo       BigInt       @default(0) @map("setup_fee_kobo")
+  /// Null means unlimited.
+  studentLimit       Int?         @map("student_limit")
+  branchLimit        Int?         @map("branch_limit")
+  userLimit          Int?         @map("user_limit")
+  storageLimitGb     Int?         @map("storage_limit_gb")
+  smsCreditsPerTerm  Int          @default(0) @map("sms_credits_per_term")
+  /// Module keys switched on by the plan (see platform-backoffice config/plan-modules).
+  modules            String[]
+  supportTier        SupportTier  @default(STANDARD) @map("support_tier")
+  version            Int          @default(1)
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  versions      PlanVersion[]
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+/// Plan change history: who changed what, with the full definition at that version.
+model PlanVersion {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  planId      String   @map("plan_id") @db.Uuid
+  version     Int
+  summary     String
+  /// The PlanDefinition as saved.
+  snapshot    Json
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@unique([planId, version])
+  @@map("plan_versions")
+}
+
+/// A school's current subscription (one row per school). Changes are AuditEvents
+/// (subscription.change_plan, .extend, .enter_grace, .restrict, .cancel, .reactivate).
+model Subscription {
+  id                  String             @id @default(uuid(7)) @db.Uuid
+  schoolId            String             @unique @map("school_id") @db.Uuid
+  planId              String             @map("plan_id") @db.Uuid
+  planVersion         Int                @map("plan_version")
+  status              SubscriptionStatus @default(ACTIVE)
+  billingPeriod       BillingPeriod      @default(ANNUAL) @map("billing_period")
+  /// Agreed price per period (custom plans are quoted per school).
+  priceKobo           BigInt             @map("price_kobo")
+  startedOn           DateTime           @map("started_on") @db.Date
+  renewsOn            DateTime           @map("renews_on") @db.Date
+  trialEndsOn         DateTime?          @map("trial_ends_on") @db.Date
+  graceEndsOn         DateTime?          @map("grace_ends_on") @db.Date
+  restrictedAt        DateTime?          @map("restricted_at") @db.Timestamptz(3)
+  cancelledAt         DateTime?          @map("cancelled_at") @db.Timestamptz(3)
+  /// Reason given for the last restrict / cancel / extend.
+  statusReason        String?            @map("status_reason")
+  billingContactName  String?            @map("billing_contact_name")
+  billingContactEmail String?            @map("billing_contact_email") @db.Citext
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school   School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  plan     Plan              @relation(fields: [planId], references: [id], onDelete: Restrict)
+  invoices PlatformInvoice[]
+
+  @@index([planId])
+  @@index([status, renewsOn])
+  @@map("subscriptions")
+}
+
+/// EduTrack's invoice to a school for its subscription. Revenue reports read these.
+model PlatformInvoice {
+  id               String                @id @default(uuid(7)) @db.Uuid
+  /// Platform-wide number, e.g. ET-2026-00042.
+  number           String                @unique
+  schoolId         String                @map("school_id") @db.Uuid
+  subscriptionId   String                @map("subscription_id") @db.Uuid
+  kind             PlatformInvoiceKind
+  status           PlatformInvoiceStatus @default(ISSUED)
+  periodStart      DateTime              @map("period_start") @db.Date
+  periodEnd        DateTime              @map("period_end") @db.Date
+  amountKobo       BigInt                @map("amount_kobo")
+  currency         String                @default("NGN") @db.Char(3)
+  issuedOn         DateTime              @map("issued_on") @db.Date
+  dueOn            DateTime              @map("due_on") @db.Date
+  paidAt           DateTime?             @map("paid_at") @db.Timestamptz(3)
+  paymentReference String?               @map("payment_reference")
+  createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+
+  @@index([schoolId, issuedOn])
+  @@index([status, dueOn])
+  @@index([issuedOn])
+  @@map("platform_invoices")
+}
+
+/// Time-boxed, read-only access by platform staff to a school's portal, for support. Every
+/// request made under it is audited with supportSessionId.
+model SupportSession {
+  id           String             @id @default(uuid(7)) @db.Uuid
+  schoolId     String             @map("school_id") @db.Uuid
+  staffUserId  String             @map("staff_user_id") @db.Uuid
+  ticketId     String?            @map("ticket_id") @db.Uuid
+  mode         SupportSessionMode @default(READ_ONLY)
+  reason       String
+  approvedById String?            @map("approved_by_id") @db.Uuid
+  startedAt    DateTime           @default(now()) @map("started_at") @db.Timestamptz(3)
+  expiresAt    DateTime           @map("expires_at") @db.Timestamptz(3)
+  endedAt      DateTime?          @map("ended_at") @db.Timestamptz(3)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school    School         @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  staffUser User           @relation(fields: [staffUserId], references: [id], onDelete: Restrict)
+  ticket    SupportTicket? @relation(fields: [schoolId, ticketId], references: [schoolId, id], onDelete: Restrict)
+
+  @@index([schoolId, startedAt])
+  @@index([staffUserId, startedAt])
+  @@map("support_sessions")
+}
+
+/// Platform-wide settings (security toggles, defaults), one row per key.
+model PlatformSetting {
+  key         String   @id
+  value       Json
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("platform_settings")
+}
+
+/// National public holidays, maintained by EduTrack. Schools add their own closures as
+/// calendar events.
+model PublicHoliday {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  /// ISO 3166-1 alpha-2.
+  country   String   @default("NG") @db.Char(2)
+  date      DateTime @db.Date
+  name      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([country, date, name])
+  @@index([date])
+  @@map("public_holidays")
+}
+
+/// Platform-wide human numbers (support tickets SUP-1042, platform invoices). School numbers use
+/// NumberSequence.
+enum PlatformNumberKind {
+  TICKET
+  PLATFORM_INVOICE
+
+  @@map("platform_number_kind")
+}
+
+model PlatformSequence {
+  id        String             @id @default(uuid(7)) @db.Uuid
+  kind      PlatformNumberKind
+  /// '' for a running counter, '2026' for yearly.
+  scope     String             @default("")
+  nextValue Int                @default(1) @map("next_value")
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([kind, scope])
+  @@map("platform_sequences")
+}

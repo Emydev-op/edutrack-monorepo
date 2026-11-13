@@ -1,0 +1,364 @@
+// Results: score sheets with the HOD → academic office review chain, scores, corrections, class
+// publication, report cards (class teacher remarks and conduct ratings) and promotion.
+
+/// Not started → Draft → Submitted (with HOD) → Under review (academic office) → Approved →
+/// Published, plus Returned (to the teacher with a comment).
+enum SheetStatus {
+  NOT_STARTED
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  RETURNED
+  APPROVED
+  PUBLISHED
+
+  @@map("sheet_status")
+}
+
+/// Who returned a sheet.
+enum ReviewerKind {
+  HOD
+  OFFICE
+
+  @@map("reviewer_kind")
+}
+
+enum SheetAction {
+  SAVED
+  SUBMITTED
+  FORWARDED
+  RETURNED
+  APPROVED
+  PUBLISHED
+  REOPENED
+  CORRECTION_APPLIED
+
+  @@map("sheet_action")
+}
+
+/// A score cell: a number, ABS (absent) or EXM (exempt). A missing score has no row: missing is
+/// never zero.
+enum ScoreState {
+  SCORED
+  ABSENT
+  EXEMPT
+
+  @@map("score_state")
+}
+
+/// Under review · Applied · Rejected.
+enum CorrectionStatus {
+  UNDER_REVIEW
+  APPLIED
+  REJECTED
+
+  @@map("correction_status")
+}
+
+enum ConductTrait {
+  PUNCTUALITY
+  NEATNESS
+  ATTENTIVENESS
+  RELATIONSHIP_WITH_OTHERS
+  LEADERSHIP
+
+  @@map("conduct_trait")
+}
+
+/// One subject's scores for one arm in one term.
+model ResultSheet {
+  id                   String        @id @default(uuid(7)) @db.Uuid
+  schoolId             String        @map("school_id") @db.Uuid
+  /// Copied from the term; with levelId it ties the sheet to the session's curriculum.
+  sessionId            String        @map("session_id") @db.Uuid
+  termId               String        @map("term_id") @db.Uuid
+  /// Copied from the arm.
+  levelId              String        @map("level_id") @db.Uuid
+  armId                String        @map("arm_id") @db.Uuid
+  subjectId            String        @map("subject_id") @db.Uuid
+  schemeId             String        @map("scheme_id") @db.Uuid
+  teachingAssignmentId String?       @map("teaching_assignment_id") @db.Uuid
+  /// The teacher who owns the sheet (kept if the assignment later changes).
+  teacherStaffId       String?       @map("teacher_staff_id") @db.Uuid
+  status               SheetStatus   @default(NOT_STARTED)
+  /// The HOD it was routed to; null = straight to the academic office. Kept for resubmission.
+  reviewerStaffId      String?       @map("reviewer_staff_id") @db.Uuid
+  savedAt              DateTime?     @map("saved_at") @db.Timestamptz(3)
+  submittedAt          DateTime?     @map("submitted_at") @db.Timestamptz(3)
+  forwardedAt          DateTime?     @map("forwarded_at") @db.Timestamptz(3)
+  returnedAt           DateTime?     @map("returned_at") @db.Timestamptz(3)
+  returnedBy           ReviewerKind? @map("returned_by")
+  returnNote           String?       @map("return_note")
+  approvedAt           DateTime?     @map("approved_at") @db.Timestamptz(3)
+  approvedById         String?       @map("approved_by_id") @db.Uuid
+  publishedAt          DateTime?     @map("published_at") @db.Timestamptz(3)
+  /// The academic office reopened entry after the term deadline, until this time.
+  entryReopenedUntil   DateTime?     @map("entry_reopened_until") @db.Timestamptz(3)
+  /// Optimistic concurrency for autosave (compare-and-set on save).
+  revision             Int           @default(0)
+  createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school             School                @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  term               Term                  @relation(fields: [schoolId, sessionId, termId], references: [schoolId, sessionId, id], onDelete: Restrict)
+  arm                ClassArm              @relation(fields: [schoolId, levelId, armId], references: [schoolId, levelId, id], onDelete: Restrict)
+  subject            Subject               @relation(fields: [schoolId, subjectId], references: [schoolId, id], onDelete: Restrict)
+  // The subject was offered at this level in this session.
+  curriculumEntry    CurriculumEntry       @relation(fields: [schoolId, sessionId, levelId, subjectId], references: [schoolId, sessionId, levelId, subjectId], onDelete: Restrict)
+  scheme             AssessmentScheme      @relation(fields: [schoolId, schemeId], references: [schoolId, id], onDelete: Restrict)
+  teachingAssignment TeachingAssignment?   @relation(fields: [schoolId, teachingAssignmentId], references: [schoolId, id], onDelete: Restrict)
+  teacher            Staff?                @relation("SheetTeacher", fields: [schoolId, teacherStaffId], references: [schoolId, id], onDelete: Restrict)
+  reviewer           Staff?                @relation("SheetReviewer", fields: [schoolId, reviewerStaffId], references: [schoolId, id], onDelete: Restrict)
+  entries            ResultEntry[]
+  events             ResultSheetEvent[]
+  corrections        ScoreCorrection[]
+  reminders          ResultSheetReminder[]
+
+  @@unique([schoolId, id])
+  // One sheet per term × arm × subject.
+  @@unique([termId, armId, subjectId])
+  @@index([schoolId, termId, status])
+  @@index([schoolId, termId, teacherStaffId])
+  @@index([schoolId, reviewerStaffId, status])
+  @@map("result_sheets")
+}
+
+/// The sheet's workflow timeline. Purpose-built (not only AuditEvent) because the portals query
+/// it: an HOD's "recently decided by me", the sheet history, and the returned-by details.
+model ResultSheetEvent {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  schoolId     String       @map("school_id") @db.Uuid
+  sheetId      String       @map("sheet_id") @db.Uuid
+  action       SheetAction
+  fromStatus   SheetStatus? @map("from_status")
+  toStatus     SheetStatus  @map("to_status")
+  actorUserId  String?      @map("actor_user_id") @db.Uuid
+  /// The actor's staff record, for reviewer queries.
+  actorStaffId String?      @map("actor_staff_id") @db.Uuid
+  /// Return comment, reason for reopening, correction summary.
+  note         String?
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  school School      @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  sheet  ResultSheet @relation(fields: [schoolId, sheetId], references: [schoolId, id], onDelete: Restrict)
+
+  @@index([schoolId, sheetId, createdAt])
+  @@index([schoolId, actorStaffId, createdAt])
+  @@map("result_sheet_events")
+}
+
+/// One student's row on a sheet. total/grade are computed from the scores on every save and
+/// stored for reports, rankings and promotion.
+model ResultEntry {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  schoolId      String   @map("school_id") @db.Uuid
+  sheetId       String   @map("sheet_id") @db.Uuid
+  studentId     String   @map("student_id") @db.Uuid
+  /// Weighted total out of 100; null while any score is missing.
+  total         Decimal? @db.Decimal(5, 2)
+  grade         String?
+  /// Descriptive schemes: the rating given instead of scores.
+  ratingId      String?  @map("rating_id") @db.Uuid
+  /// The teacher's own remark (up to 300 chars), separate from the grade band remark.
+  teacherRemark String?  @map("teacher_remark")
+  /// Position in the arm for the subject, when the school shows positions.
+  position      Int?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School             @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  sheet   ResultSheet        @relation(fields: [schoolId, sheetId], references: [schoolId, id], onDelete: Restrict)
+  student Student            @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  rating  DescriptiveRating? @relation(fields: [schoolId, ratingId], references: [schoolId, id], onDelete: Restrict)
+  scores  ResultScore[]
+
+  @@unique([schoolId, id])
+  @@unique([sheetId, studentId])
+  @@index([schoolId, studentId])
+  @@map("result_entries")
+}
+
+/// One cell. score is set only when state is SCORED (enforced by a check constraint).
+model ResultScore {
+  id          String     @id @default(uuid(7)) @db.Uuid
+  schoolId    String     @map("school_id") @db.Uuid
+  entryId     String     @map("entry_id") @db.Uuid
+  componentId String     @map("component_id") @db.Uuid
+  state       ScoreState
+  score       Decimal?   @db.Decimal(5, 2)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school    School              @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  entry     ResultEntry         @relation(fields: [schoolId, entryId], references: [schoolId, id], onDelete: Cascade)
+  component AssessmentComponent @relation(fields: [schoolId, componentId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([entryId, componentId])
+  @@index([schoolId, componentId])
+  @@map("result_scores")
+}
+
+/// A request to change a published numeric score. Only one open request per student × component.
+model ScoreCorrection {
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  schoolId           String           @map("school_id") @db.Uuid
+  sheetId            String           @map("sheet_id") @db.Uuid
+  studentId          String           @map("student_id") @db.Uuid
+  componentId        String           @map("component_id") @db.Uuid
+  originalScore      Decimal          @map("original_score") @db.Decimal(5, 2)
+  proposedScore      Decimal          @map("proposed_score") @db.Decimal(5, 2)
+  reason             String
+  evidenceFileId     String?          @map("evidence_file_id") @db.Uuid
+  status             CorrectionStatus @default(UNDER_REVIEW)
+  requestedById      String           @map("requested_by_id") @db.Uuid
+  /// The requesting teacher's staff record.
+  requestedByStaffId String?          @map("requested_by_staff_id") @db.Uuid
+  requestedAt        DateTime         @default(now()) @map("requested_at") @db.Timestamptz(3)
+  decidedById        String?          @map("decided_by_id") @db.Uuid
+  decidedAt          DateTime?        @map("decided_at") @db.Timestamptz(3)
+  decisionNote       String?          @map("decision_note")
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school       School              @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  sheet        ResultSheet         @relation(fields: [schoolId, sheetId], references: [schoolId, id], onDelete: Restrict)
+  student      Student             @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  component    AssessmentComponent @relation(fields: [schoolId, componentId], references: [schoolId, id], onDelete: Restrict)
+  evidenceFile StoredFile?         @relation(fields: [schoolId, evidenceFileId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([sheetId, studentId, componentId], map: "score_corrections_one_open_key", where: raw("status = 'UNDER_REVIEW'"))
+  @@index([schoolId, status, requestedAt])
+  @@index([schoolId, sheetId])
+  @@map("score_corrections")
+}
+
+/// An arm's results published for a term. Republishing after a correction bumps version.
+model ResultPublication {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  schoolId      String   @map("school_id") @db.Uuid
+  termId        String   @map("term_id") @db.Uuid
+  armId         String   @map("arm_id") @db.Uuid
+  version       Int      @default(1)
+  publishedAt   DateTime @map("published_at") @db.Timestamptz(3)
+  publishedById String?  @map("published_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  term   Term     @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Restrict)
+  arm    ClassArm @relation(fields: [schoolId, armId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([termId, armId])
+  @@index([schoolId, termId])
+  @@map("result_publications")
+}
+
+/// A student's report card for a term: the class teacher's remark and conduct ratings while
+/// open, and a frozen snapshot once published (what parents and students see).
+model ReportCard {
+  id                  String    @id @default(uuid(7)) @db.Uuid
+  schoolId            String    @map("school_id") @db.Uuid
+  termId              String    @map("term_id") @db.Uuid
+  studentId           String    @map("student_id") @db.Uuid
+  armId               String    @map("arm_id") @db.Uuid
+  /// The class teacher who held the arm for this card (writes the remark; printed on the card).
+  classTeacherStaffId String?   @map("class_teacher_staff_id") @db.Uuid
+  /// 20–400 characters.
+  classTeacherRemark  String?   @map("class_teacher_remark")
+  remarkById          String?   @map("remark_by_id") @db.Uuid
+  remarkUpdatedAt     DateTime? @map("remark_updated_at") @db.Timestamptz(3)
+  /// Overall average and position, computed at publish.
+  average             Decimal?  @db.Decimal(5, 2)
+  grade               String?
+  position            Int?
+  /// Bumps each time the card is republished.
+  version             Int       @default(0)
+  publishedAt         DateTime? @map("published_at") @db.Timestamptz(3)
+  /// The rendered report card at publish (school header, subjects, attendance, remarks).
+  snapshot            Json?
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school       School          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  term         Term            @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Restrict)
+  student      Student         @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  arm          ClassArm        @relation(fields: [schoolId, armId], references: [schoolId, id], onDelete: Restrict)
+  classTeacher Staff?          @relation("ReportCardClassTeacher", fields: [schoolId, classTeacherStaffId], references: [schoolId, id], onDelete: Restrict)
+  conduct      ConductRating[]
+
+  @@unique([schoolId, id])
+  @@unique([termId, studentId])
+  @@index([schoolId, termId, armId])
+  @@map("report_cards")
+}
+
+/// A 1–5 conduct rating (5 Excellent … 1 Needs improvement).
+model ConductRating {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  schoolId     String       @map("school_id") @db.Uuid
+  reportCardId String       @map("report_card_id") @db.Uuid
+  trait        ConductTrait
+  rating       Int          @db.SmallInt
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school     School     @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  reportCard ReportCard @relation(fields: [schoolId, reportCardId], references: [schoolId, id], onDelete: Cascade)
+
+  @@unique([reportCardId, trait])
+  @@index([schoolId])
+  @@map("conduct_ratings")
+}
+
+/// "Remind teacher" from Class progress: at most once per sheet per day.
+model ResultSheetReminder {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @map("school_id") @db.Uuid
+  sheetId   String   @map("sheet_id") @db.Uuid
+  sentById  String   @map("sent_by_id") @db.Uuid
+  /// The school-local day it was sent.
+  sentOn    DateTime @map("sent_on") @db.Date
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School      @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  sheet  ResultSheet @relation(fields: [schoolId, sheetId], references: [schoolId, id], onDelete: Cascade)
+
+  @@unique([sheetId, sentOn])
+  @@index([schoolId])
+  @@map("result_sheet_reminders")
+}
+
+/// End-of-session decision for one enrollment. Applying it closes the enrollment and creates the
+/// next session's.
+model PromotionDecision {
+  id           String            @id @default(uuid(7)) @db.Uuid
+  schoolId     String            @map("school_id") @db.Uuid
+  enrollmentId String            @map("enrollment_id") @db.Uuid
+  toSessionId  String            @map("to_session_id") @db.Uuid
+  /// Computed suggestion from the promotion rule (when suggestions are on).
+  suggestion   PromotionOutcome?
+  /// Session average the suggestion used.
+  average      Decimal?          @db.Decimal(5, 2)
+  eligible     Boolean?
+  decision     PromotionOutcome?
+  reason       String?
+  /// Level and arm the decision places the student in next session.
+  nextLevelId  String?           @map("next_level_id") @db.Uuid
+  nextArmId    String?           @map("next_arm_id") @db.Uuid
+  decidedById  String?           @map("decided_by_id") @db.Uuid
+  decidedAt    DateTime?         @map("decided_at") @db.Timestamptz(3)
+  appliedAt    DateTime?         @map("applied_at") @db.Timestamptz(3)
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school     School          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  enrollment Enrollment      @relation(fields: [schoolId, enrollmentId], references: [schoolId, id], onDelete: Restrict)
+  toSession  AcademicSession @relation("PromotionTarget", fields: [schoolId, toSessionId], references: [schoolId, id], onDelete: Restrict)
+  nextLevel  ClassLevel?     @relation("PromotionNextLevel", fields: [schoolId, nextLevelId], references: [schoolId, id], onDelete: Restrict)
+  nextArm    ClassArm?       @relation("PromotionNextArm", fields: [schoolId, nextArmId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([enrollmentId])
+  @@index([schoolId, toSessionId])
+  @@map("promotion_decisions")
+}

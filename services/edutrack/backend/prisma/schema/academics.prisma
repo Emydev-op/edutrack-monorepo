@@ -1,0 +1,750 @@
+// Academic structure and calendar: sections, sessions, terms, calendar, class levels and arms,
+// subjects and curriculum, teacher assignments, timetable, and assessment schemes.
+//
+// Structure (sections, levels, arms, subjects, curriculum) is school-wide and current. What
+// changes over time is recorded per session or term: enrollments, class teachers, teaching
+// assignments, timetables, assessment schemes, result sheets.
+
+/// Upcoming · Active · Closing · Closed · Archived.
+enum SessionStatus {
+  UPCOMING
+  ACTIVE
+  CLOSING
+  CLOSED
+  ARCHIVED
+
+  @@map("session_status")
+}
+
+/// 3 terms · 2 semesters · Custom.
+enum SessionStructure {
+  THREE_TERMS
+  TWO_SEMESTERS
+  CUSTOM
+
+  @@map("session_structure")
+}
+
+/// Upcoming · Active · Ended · Closed.
+enum TermStatus {
+  UPCOMING
+  ACTIVE
+  ENDED
+  CLOSED
+
+  @@map("term_status")
+}
+
+enum TermEventType {
+  RESUMPTION
+  MIDTERM
+  CA
+  EXAMS
+  PTA
+  RESULTS
+  CUSTOM
+
+  @@map("term_event_type")
+}
+
+/// Calendar event types: Term · Break · Exam · Holiday · Meeting · Event.
+enum CalendarEventType {
+  TERM
+  BREAK
+  EXAM
+  HOLIDAY
+  MEETING
+  EVENT
+
+  @@map("calendar_event_type")
+}
+
+enum SubjectCategory {
+  CORE
+  SCIENCE
+  ARTS
+  COMMERCIAL
+  TECHNICAL
+  LANGUAGE
+  RELIGIOUS
+  EARLY_YEARS
+
+  @@map("subject_category")
+}
+
+enum SubjectStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("subject_status")
+}
+
+/// C (compulsory) or E (elective) for a level.
+enum Offering {
+  COMPULSORY
+  ELECTIVE
+
+  @@map("offering")
+}
+
+/// Subject teacher · Temporary · Part-time.
+enum TeachingAssignmentType {
+  SUBJECT_TEACHER
+  TEMPORARY
+  PART_TIME
+
+  @@map("teaching_assignment_type")
+}
+
+enum Weekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+
+  @@map("weekday")
+}
+
+/// Draft · Reviewed · Published.
+enum TimetableStatus {
+  DRAFT
+  REVIEWED
+  PUBLISHED
+
+  @@map("timetable_status")
+}
+
+/// The working copy and the copy the portals read. Publishing replaces PUBLISHED with DRAFT.
+enum TimetableLayer {
+  DRAFT
+  PUBLISHED
+
+  @@map("timetable_layer")
+}
+
+enum AssessmentMode {
+  SCORES
+  DESCRIPTIVE
+
+  @@map("assessment_mode")
+}
+
+/// A section the school runs. sortOrder is the promotion path between sections.
+model Section {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  schoolId    String   @map("school_id") @db.Uuid
+  name        String
+  /// 2–5 capitals, e.g. JSS.
+  code        String
+  description String   @default("")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school           School             @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  branches         BranchSection[]
+  levels           ClassLevel[]
+  electiveGroups   ElectiveGroup[]
+  schemes          AssessmentScheme[]
+  timetablePeriods TimetablePeriod[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, code])
+  @@unique([schoolId, name])
+  @@map("sections")
+}
+
+model AcademicSession {
+  id           String           @id @default(uuid(7)) @db.Uuid
+  schoolId     String           @map("school_id") @db.Uuid
+  /// e.g. 2026/2027.
+  name         String
+  startsOn     DateTime         @map("starts_on") @db.Date
+  endsOn       DateTime         @map("ends_on") @db.Date
+  status       SessionStatus    @default(UPCOMING)
+  structure    SessionStructure @default(THREE_TERMS)
+  /// "Configuration copied from 2025/2026", "First session on Edutrack".
+  note         String?
+  copiedFromId String?          @map("copied_from_id") @db.Uuid
+  closedAt     DateTime?        @map("closed_at") @db.Timestamptz(3)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school                School                   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  copiedFrom            AcademicSession?         @relation("SessionCopy", fields: [schoolId, copiedFromId], references: [schoolId, id], onDelete: Restrict)
+  copies                AcademicSession[]        @relation("SessionCopy")
+  terms                 Term[]
+  calendarEvents        CalendarEvent[]
+  classTeachers         ClassTeacherAssignment[]
+  schemes               AssessmentScheme[]
+  promotionsInto        PromotionDecision[]      @relation("PromotionTarget")
+  studentSubjects       StudentSubject[]
+  admissionApplications AdmissionApplication[]
+  enrollments           Enrollment[]
+  curriculumEntries     CurriculumEntry[]
+  electiveGroups        ElectiveGroup[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, name])
+  // One active session per school.
+  @@unique([schoolId, status], map: "academic_sessions_one_active_key", where: raw("status = 'ACTIVE'"))
+  @@index([schoolId, startsOn])
+  @@map("academic_sessions")
+}
+
+model Term {
+  id                  String     @id @default(uuid(7)) @db.Uuid
+  schoolId            String     @map("school_id") @db.Uuid
+  sessionId           String     @map("session_id") @db.Uuid
+  name                String
+  /// 1-based order within the session.
+  sequence            Int
+  startsOn            DateTime   @map("starts_on") @db.Date
+  endsOn              DateTime   @map("ends_on") @db.Date
+  status              TermStatus @default(UPCOMING)
+  /// Result entry closes (teachers' drafts lock after this).
+  resultEntryClosesAt DateTime?  @map("result_entry_closes_at") @db.Timestamptz(3)
+  /// When fees for the term are due (Finance → Billing settings).
+  feesDueOn           DateTime?  @map("fees_due_on") @db.Date
+  closedAt            DateTime?  @map("closed_at") @db.Timestamptz(3)
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school                School                 @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  session               AcademicSession        @relation(fields: [schoolId, sessionId], references: [schoolId, id], onDelete: Restrict)
+  events                TermEvent[]
+  teachingAssignments   TeachingAssignment[]
+  timetables            Timetable[]
+  timetableSlots        TimetableSlot[]
+  attendanceRegisters   AttendanceRegister[]
+  attendanceEntries     AttendanceEntry[]
+  smsCreditTransactions SmsCreditTransaction[]
+  feeStructures         FeeStructure[]
+  invoices              Invoice[]
+  resultSheets          ResultSheet[]
+  resultPublications    ResultPublication[]
+  reportCards           ReportCard[]
+  assignments           Assignment[]
+  materials             Material[]
+  assessmentSchedules   AssessmentSchedule[]
+  lessonNotes           LessonNote[]
+
+  @@unique([schoolId, id])
+  // Target for foreign keys that also pin the session (sheets, teaching assignments).
+  @@unique([schoolId, sessionId, id])
+  @@unique([sessionId, sequence])
+  @@unique([sessionId, name])
+  // One active term per school.
+  @@unique([schoolId, status], map: "terms_one_active_key", where: raw("status = 'ACTIVE'"))
+  @@index([schoolId, startsOn])
+  @@map("terms")
+}
+
+/// Dated events inside a term (edited from Sessions & Terms).
+model TermEvent {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  schoolId     String        @map("school_id") @db.Uuid
+  termId       String        @map("term_id") @db.Uuid
+  type         TermEventType
+  name         String
+  startsOn     DateTime      @map("starts_on") @db.Date
+  endsOn       DateTime      @map("ends_on") @db.Date
+  /// No classes on these days (mid-term break): the register can't be taken.
+  closesSchool Boolean       @default(false) @map("closes_school")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  term   Term   @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Cascade)
+
+  @@index([schoolId, termId, startsOn])
+  @@map("term_events")
+}
+
+/// Custom calendar events and school closures (Academics → Calendar).
+model CalendarEvent {
+  id           String            @id @default(uuid(7)) @db.Uuid
+  schoolId     String            @map("school_id") @db.Uuid
+  sessionId    String            @map("session_id") @db.Uuid
+  title        String
+  type         CalendarEventType
+  startsOn     DateTime          @map("starts_on") @db.Date
+  endsOn       DateTime          @map("ends_on") @db.Date
+  /// "Everyone", "Staff", "Parents", or a section name.
+  audience     String            @default("Everyone")
+  notes        String            @default("")
+  /// No classes (school holiday, staff development day).
+  closesSchool Boolean           @default(false) @map("closes_school")
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  session AcademicSession @relation(fields: [schoolId, sessionId], references: [schoolId, id], onDelete: Cascade)
+
+  @@index([schoolId, sessionId, startsOn])
+  @@map("calendar_events")
+}
+
+/// A class level, e.g. JSS 2. School-wide; branches offer it by having arms of it.
+model ClassLevel {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  schoolId    String   @map("school_id") @db.Uuid
+  sectionId   String   @map("section_id") @db.Uuid
+  name        String
+  /// Order within the section.
+  sortOrder   Int      @default(0) @map("sort_order")
+  /// Promotes to; null for the final class (students graduate).
+  nextLevelId String?  @map("next_level_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school                School                 @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  section               Section                @relation(fields: [schoolId, sectionId], references: [schoolId, id], onDelete: Restrict)
+  nextLevel             ClassLevel?            @relation("LevelPromotion", fields: [schoolId, nextLevelId], references: [schoolId, id], onDelete: Restrict)
+  previousLevels        ClassLevel[]           @relation("LevelPromotion")
+  arms                  ClassArm[]
+  curriculum            CurriculumEntry[]
+  promotionsInto        PromotionDecision[]    @relation("PromotionNextLevel")
+  feeStructureAmounts   FeeStructureAmount[]
+  invoices              Invoice[]
+  students              Student[]
+  admissionApplications AdmissionApplication[]
+  enrollments           Enrollment[]
+  lessonNotes           LessonNote[]
+  branchLevels          BranchLevel[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, name])
+  @@index([schoolId, sectionId, sortOrder])
+  @@map("class_levels")
+}
+
+/// A class level a branch (campus) runs. Arms can only exist for these (composite FK).
+model BranchLevel {
+  schoolId  String   @map("school_id") @db.Uuid
+  branchId  String   @map("branch_id") @db.Uuid
+  levelId   String   @map("level_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School     @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  branch Branch     @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+  level  ClassLevel @relation(fields: [schoolId, levelId], references: [schoolId, id], onDelete: Restrict)
+  arms   ClassArm[]
+
+  @@id([branchId, levelId])
+  @@unique([schoolId, branchId, levelId])
+  @@index([schoolId, levelId])
+  @@map("branch_levels")
+}
+
+/// An arm of a level at a branch, e.g. JSS 2B at Main Campus. Archived (not deleted) once it has
+/// history.
+model ClassArm {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  schoolId   String    @map("school_id") @db.Uuid
+  branchId   String    @map("branch_id") @db.Uuid
+  levelId    String    @map("level_id") @db.Uuid
+  /// The arm letter or name, "B" (label is level + arm: "JSS 2B").
+  name       String
+  capacity   Int       @default(35)
+  room       String?
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school              School                   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  branch              Branch                   @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+  level               ClassLevel               @relation(fields: [schoolId, levelId], references: [schoolId, id], onDelete: Restrict)
+  // The branch must run the level.
+  branchLevel         BranchLevel              @relation(fields: [schoolId, branchId, levelId], references: [schoolId, branchId, levelId], onDelete: Restrict)
+  classTeachers       ClassTeacherAssignment[]
+  promotionsInto      PromotionDecision[]      @relation("PromotionNextArm")
+  teachingAssignments TeachingAssignment[]
+  timetables          Timetable[]
+  attendanceRegisters AttendanceRegister[]
+  announcementArms    AnnouncementArm[]
+  invoices            Invoice[]
+  enrollments         Enrollment[]
+  resultSheets        ResultSheet[]
+  resultPublications  ResultPublication[]
+  reportCards         ReportCard[]
+  assignments         Assignment[]
+  materials           Material[]
+  assessmentSchedules AssessmentSchedule[]
+
+  @@unique([schoolId, id])
+  // Target for foreign keys that also pin the level (sheets, teaching assignments).
+  @@unique([schoolId, levelId, id])
+  @@unique([branchId, levelId, name])
+  @@index([schoolId, levelId])
+  @@map("class_arms")
+}
+
+/// The class teacher of an arm for a session.
+model ClassTeacherAssignment {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  schoolId  String    @map("school_id") @db.Uuid
+  sessionId String    @map("session_id") @db.Uuid
+  armId     String    @map("arm_id") @db.Uuid
+  staffId   String    @map("staff_id") @db.Uuid
+  /// First day in charge.
+  startsOn  DateTime  @map("starts_on") @db.Date
+  /// Last day in charge; null while current. A mid-year change ends this row and opens a new one.
+  endsOn    DateTime? @map("ends_on") @db.Date
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  session AcademicSession @relation(fields: [schoolId, sessionId], references: [schoolId, id], onDelete: Restrict)
+  arm     ClassArm        @relation(fields: [schoolId, armId], references: [schoolId, id], onDelete: Restrict)
+  staff   Staff           @relation(fields: [schoolId, staffId], references: [schoolId, id], onDelete: Restrict)
+
+  // One current class teacher per session × arm; ended rows are the history.
+  @@unique([sessionId, armId], map: "class_teacher_assignments_one_current_key", where: raw("ends_on IS NULL"))
+  @@index([schoolId, sessionId, armId, startsOn])
+  @@index([schoolId, sessionId, staffId])
+  @@map("class_teacher_assignments")
+}
+
+model Subject {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  schoolId       String          @map("school_id") @db.Uuid
+  /// e.g. MTH. The portals address subjects by code.
+  code           String
+  name           String
+  category       SubjectCategory
+  status         SubjectStatus   @default(ACTIVE)
+  /// Default lessons per week; timetables place this many.
+  periodsPerWeek Int             @default(4) @map("periods_per_week")
+  departmentId   String?         @map("department_id") @db.Uuid
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school              School                 @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  department          Department?            @relation(fields: [schoolId, departmentId], references: [schoolId, id], onDelete: Restrict)
+  qualifiedStaff      StaffQualification[]
+  curriculum          CurriculumEntry[]
+  electiveGroups      ElectiveGroupSubject[]
+  studentSubjects     StudentSubject[]
+  teachingAssignments TeachingAssignment[]
+  timetableSlots      TimetableSlot[]
+  resultSheets        ResultSheet[]
+  assignments         Assignment[]
+  materials           Material[]
+  assessmentSchedules AssessmentSchedule[]
+  lessonNotes         LessonNote[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, code])
+  @@index([schoolId, departmentId])
+  @@map("subjects")
+}
+
+/// Which subjects a level offers, compulsory or elective.
+model CurriculumEntry {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @map("school_id") @db.Uuid
+  /// Each session keeps what it offered, so past report cards and transcripts list the right
+  /// subjects. Copied into a new session and edited there.
+  sessionId String   @map("session_id") @db.Uuid
+  levelId   String   @map("level_id") @db.Uuid
+  subjectId String   @map("subject_id") @db.Uuid
+  offering  Offering
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school              School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  session             AcademicSession      @relation(fields: [schoolId, sessionId], references: [schoolId, id], onDelete: Restrict)
+  level               ClassLevel           @relation(fields: [schoolId, levelId], references: [schoolId, id], onDelete: Restrict)
+  subject             Subject              @relation(fields: [schoolId, subjectId], references: [schoolId, id], onDelete: Restrict)
+  teachingAssignments TeachingAssignment[]
+  resultSheets        ResultSheet[]
+
+  @@unique([sessionId, levelId, subjectId])
+  // Target for sheets and teaching assignments: the subject was offered at that level that session.
+  @@unique([schoolId, sessionId, levelId, subjectId])
+  @@index([schoolId, subjectId])
+  @@map("curriculum_entries")
+}
+
+/// A choose-n-of group in a section, e.g. Religious Studies (CRS or IRS), pick 1.
+model ElectiveGroup {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @map("school_id") @db.Uuid
+  /// Per session, like the curriculum.
+  sessionId String   @map("session_id") @db.Uuid
+  sectionId String   @map("section_id") @db.Uuid
+  name      String
+  minPicks  Int      @default(1) @map("min_picks")
+  maxPicks  Int      @default(1) @map("max_picks")
+  /// e.g. "Requires Academic Head approval".
+  note      String   @default("")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school          School                 @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  session         AcademicSession        @relation(fields: [schoolId, sessionId], references: [schoolId, id], onDelete: Restrict)
+  section         Section                @relation(fields: [schoolId, sectionId], references: [schoolId, id], onDelete: Restrict)
+  subjects        ElectiveGroupSubject[]
+  studentSubjects StudentSubject[]
+
+  @@unique([schoolId, id])
+  @@unique([sessionId, sectionId, name])
+  @@map("elective_groups")
+}
+
+model ElectiveGroupSubject {
+  schoolId  String   @map("school_id") @db.Uuid
+  groupId   String   @map("group_id") @db.Uuid
+  subjectId String   @map("subject_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School        @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  group   ElectiveGroup @relation(fields: [schoolId, groupId], references: [schoolId, id], onDelete: Cascade)
+  subject Subject       @relation(fields: [schoolId, subjectId], references: [schoolId, id], onDelete: Restrict)
+
+  @@id([groupId, subjectId])
+  @@index([schoolId, subjectId])
+  @@map("elective_group_subjects")
+}
+
+/// A student's elective (and religious) choices for a session. Compulsory subjects come from the
+/// curriculum and are not stored per student.
+model StudentSubject {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  schoolId  String    @map("school_id") @db.Uuid
+  studentId String    @map("student_id") @db.Uuid
+  sessionId String    @map("session_id") @db.Uuid
+  subjectId String    @map("subject_id") @db.Uuid
+  groupId   String?   @map("group_id") @db.Uuid
+  startedOn DateTime? @map("started_on") @db.Date
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student Student         @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Cascade)
+  session AcademicSession @relation(fields: [schoolId, sessionId], references: [schoolId, id], onDelete: Restrict)
+  subject Subject         @relation(fields: [schoolId, subjectId], references: [schoolId, id], onDelete: Restrict)
+  group   ElectiveGroup?  @relation(fields: [schoolId, groupId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([studentId, sessionId, subjectId])
+  @@index([schoolId, sessionId, subjectId])
+  @@map("student_subjects")
+}
+
+/// Who teaches a subject in an arm for a term. Everything a teacher sees is scoped by these.
+model TeachingAssignment {
+  id             String                 @id @default(uuid(7)) @db.Uuid
+  schoolId       String                 @map("school_id") @db.Uuid
+  /// Copied from the term so the curriculum foreign key can check the subject was offered.
+  sessionId      String                 @map("session_id") @db.Uuid
+  termId         String                 @map("term_id") @db.Uuid
+  /// Copied from the arm, for the same reason.
+  levelId        String                 @map("level_id") @db.Uuid
+  armId          String                 @map("arm_id") @db.Uuid
+  subjectId      String                 @map("subject_id") @db.Uuid
+  staffId        String                 @map("staff_id") @db.Uuid
+  type           TeachingAssignmentType @default(SUBJECT_TEACHER)
+  /// Lessons per week for this arm (defaults to the subject's periods).
+  periodsPerWeek Int                    @map("periods_per_week")
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school              School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  term                Term                 @relation(fields: [schoolId, sessionId, termId], references: [schoolId, sessionId, id], onDelete: Restrict)
+  arm                 ClassArm             @relation(fields: [schoolId, levelId, armId], references: [schoolId, levelId, id], onDelete: Restrict)
+  subject             Subject              @relation(fields: [schoolId, subjectId], references: [schoolId, id], onDelete: Restrict)
+  curriculumEntry     CurriculumEntry      @relation(fields: [schoolId, sessionId, levelId, subjectId], references: [schoolId, sessionId, levelId, subjectId], onDelete: Restrict)
+  staff               Staff                @relation(fields: [schoolId, staffId], references: [schoolId, id], onDelete: Restrict)
+  resultSheets        ResultSheet[]
+  assessmentSchedules AssessmentSchedule[]
+
+  @@unique([schoolId, id])
+  // One teacher per subject per arm per term.
+  @@unique([termId, armId, subjectId])
+  @@index([schoolId, termId, staffId])
+  @@index([schoolId, termId, subjectId])
+  @@map("teaching_assignments")
+}
+
+/// A section's bell schedule (Nursery can end earlier than Senior Secondary). A timetable uses
+/// the periods of its arm's section (app rule).
+model TimetablePeriod {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @map("school_id") @db.Uuid
+  sectionId String   @map("section_id") @db.Uuid
+  label     String
+  startsAt  DateTime @map("starts_at") @db.Time(0)
+  endsAt    DateTime @map("ends_at") @db.Time(0)
+  /// Break and lunch can't hold lessons.
+  isBreak   Boolean  @default(false) @map("is_break")
+  sortOrder Int      @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school         School          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  section        Section         @relation(fields: [schoolId, sectionId], references: [schoolId, id], onDelete: Restrict)
+  timetableSlots TimetableSlot[]
+
+  @@unique([schoolId, id])
+  @@unique([sectionId, sortOrder])
+  @@index([schoolId, sectionId])
+  @@map("timetable_periods")
+}
+
+/// An arm's timetable for a term.
+model Timetable {
+  id               String          @id @default(uuid(7)) @db.Uuid
+  schoolId         String          @map("school_id") @db.Uuid
+  termId           String          @map("term_id") @db.Uuid
+  armId            String          @map("arm_id") @db.Uuid
+  status           TimetableStatus @default(DRAFT)
+  /// Bumps on every save of the draft.
+  version          Int             @default(1)
+  /// The draft version that is live in the portals; null until first published.
+  publishedVersion Int?            @map("published_version")
+  publishedAt      DateTime?       @map("published_at") @db.Timestamptz(3)
+  maxConsecutive   Int             @default(2) @map("max_consecutive")
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  term   Term            @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Restrict)
+  arm    ClassArm        @relation(fields: [schoolId, armId], references: [schoolId, id], onDelete: Restrict)
+  slots  TimetableSlot[]
+
+  @@unique([schoolId, id])
+  @@unique([termId, armId])
+  @@map("timetables")
+}
+
+/// One lesson in a timetable grid. termId is copied from the timetable so teacher clashes and
+/// "my week" can be read without a join.
+model TimetableSlot {
+  id          String         @id @default(uuid(7)) @db.Uuid
+  schoolId    String         @map("school_id") @db.Uuid
+  timetableId String         @map("timetable_id") @db.Uuid
+  termId      String         @map("term_id") @db.Uuid
+  layer       TimetableLayer
+  day         Weekday
+  periodId    String         @map("period_id") @db.Uuid
+  subjectId   String         @map("subject_id") @db.Uuid
+  /// The teacher at the time it was placed (from the teaching assignment).
+  staffId     String?        @map("staff_id") @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school    School          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  timetable Timetable       @relation(fields: [schoolId, timetableId], references: [schoolId, id], onDelete: Cascade)
+  term      Term            @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Restrict)
+  period    TimetablePeriod @relation(fields: [schoolId, periodId], references: [schoolId, id], onDelete: Restrict)
+  subject   Subject         @relation(fields: [schoolId, subjectId], references: [schoolId, id], onDelete: Restrict)
+  staff     Staff?          @relation(fields: [schoolId, staffId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([timetableId, layer, day, periodId])
+  @@index([schoolId, termId, staffId, layer, day])
+  @@map("timetable_slots")
+}
+
+/// The assessment scheme for a section in a session: components, grade scale, ratings. Per
+/// session so past results keep the scheme they were scored on; copied into each new session.
+model AssessmentScheme {
+  id        String         @id @default(uuid(7)) @db.Uuid
+  schoolId  String         @map("school_id") @db.Uuid
+  sessionId String         @map("session_id") @db.Uuid
+  sectionId String         @map("section_id") @db.Uuid
+  mode      AssessmentMode @default(SCORES)
+  /// e.g. "WAEC 9-point".
+  scaleName String         @default("") @map("scale_name")
+  passMark  Decimal        @default(40) @map("pass_mark") @db.Decimal(5, 2)
+  rounding  ScoreRounding  @default(WHOLE_NUMBER)
+  /// Set once any sheet on it is published; components and weights are then frozen.
+  lockedAt  DateTime?      @map("locked_at") @db.Timestamptz(3)
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school       School                @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  session      AcademicSession       @relation(fields: [schoolId, sessionId], references: [schoolId, id], onDelete: Restrict)
+  section      Section               @relation(fields: [schoolId, sectionId], references: [schoolId, id], onDelete: Restrict)
+  components   AssessmentComponent[]
+  gradeBands   GradeBand[]
+  ratings      DescriptiveRating[]
+  resultSheets ResultSheet[]
+
+  @@unique([schoolId, id])
+  @@unique([sessionId, sectionId])
+  @@map("assessment_schemes")
+}
+
+model AssessmentComponent {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  schoolId    String   @map("school_id") @db.Uuid
+  schemeId    String   @map("scheme_id") @db.Uuid
+  /// Stable key the portals use: CA1, CA2, EXAM.
+  key         String
+  name        String
+  maxScore    Decimal  @map("max_score") @db.Decimal(5, 2)
+  /// Percent of the total; a scheme's weights sum to 100.
+  weight      Decimal  @db.Decimal(5, 2)
+  /// When it usually happens, e.g. "Week 5".
+  typicalWhen String   @default("") @map("typical_when")
+  sortOrder   Int      @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school              School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  scheme              AssessmentScheme     @relation(fields: [schoolId, schemeId], references: [schoolId, id], onDelete: Restrict)
+  resultScores        ResultScore[]
+  scoreCorrections    ScoreCorrection[]
+  assessmentSchedules AssessmentSchedule[]
+
+  @@unique([schoolId, id])
+  @@unique([schemeId, key])
+  @@unique([schemeId, sortOrder])
+  @@map("assessment_components")
+}
+
+model GradeBand {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @map("school_id") @db.Uuid
+  schemeId  String   @map("scheme_id") @db.Uuid
+  grade     String
+  minScore  Decimal  @map("min_score") @db.Decimal(5, 2)
+  maxScore  Decimal  @map("max_score") @db.Decimal(5, 2)
+  remark    String
+  points    Decimal  @default(0) @db.Decimal(4, 2)
+  isPass    Boolean  @map("is_pass")
+  sortOrder Int      @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  scheme AssessmentScheme @relation(fields: [schoolId, schemeId], references: [schoolId, id], onDelete: Cascade)
+
+  @@unique([schemeId, grade])
+  @@index([schoolId, schemeId])
+  @@map("grade_bands")
+}
+
+/// Descriptive ratings for DESCRIPTIVE schemes (e.g. Nursery), highest first.
+model DescriptiveRating {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  schoolId    String   @map("school_id") @db.Uuid
+  schemeId    String   @map("scheme_id") @db.Uuid
+  name        String
+  description String   @default("")
+  sortOrder   Int      @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school        School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  scheme        AssessmentScheme @relation(fields: [schoolId, schemeId], references: [schoolId, id], onDelete: Restrict)
+  resultEntries ResultEntry[]
+
+  @@unique([schoolId, id])
+  @@unique([schemeId, name])
+  @@map("descriptive_ratings")
+}

@@ -1,0 +1,423 @@
+// Communication: announcements, automatic event messages, per-recipient per-channel deliveries,
+// templates, event settings, SMS credit and sender ID, in-app notifications and preferences.
+
+/// In-app · Email · SMS.
+enum Channel {
+  IN_APP
+  EMAIL
+  SMS
+
+  @@map("channel")
+}
+
+/// Queued · Sent · Delivered · Read · Failed.
+enum DeliveryStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+
+  @@map("delivery_status")
+}
+
+/// Automatic messages the system sends, plus announcements written by staff. Values are the
+/// event keys with dots as underscores (fee.reminder → FEE_REMINDER).
+enum CommsEvent {
+  ADMISSION
+  PARENT_INVITATION
+  STAFF_INVITATION
+  INVOICE_ISSUED
+  FEE_REMINDER
+  FEE_OVERDUE
+  INSTALLMENT_DUE
+  PAYMENT_DETAILS
+  PAYMENT_CONFIRMED
+  PAYMENT_REJECTED
+  REFUND_PAID
+  ASSIGNMENT_PUBLISHED
+  RESULT_PUBLISHED
+  STUDENT_EXIT
+  GRADUATION
+  TIMETABLE_PUBLISHED
+  ATTENDANCE_ABSENT
+  ANNOUNCEMENT
+
+  @@map("comms_event")
+}
+
+enum RecipientRole {
+  PARENT
+  STUDENT
+  TEACHER
+  STAFF
+
+  @@map("recipient_role")
+}
+
+/// Draft · Scheduled · Sent · Withdrawn · Expired (Expired = Sent and past expiresOn).
+enum AnnouncementStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+  WITHDRAWN
+
+  @@map("announcement_status")
+}
+
+enum AudienceKind {
+  EVERYONE
+  PARENTS
+  STUDENTS
+  TEACHERS
+  STAFF
+  CLASSES
+
+  @@map("audience_kind")
+}
+
+/// Not requested · Pending approval · Approved · Rejected.
+enum SenderIdStatus {
+  NOT_REQUESTED
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+
+  @@map("sender_id_status")
+}
+
+enum SmsCreditKind {
+  /// Units included in the plan each term.
+  PLAN_ALLOWANCE
+  PURCHASE
+  /// Units used by a message (negative).
+  USAGE
+  /// Units returned for failed sends.
+  REFUND
+  ADJUSTMENT
+
+  @@map("sms_credit_kind")
+}
+
+/// Communication settings for a school (one row per school).
+model CommunicationSettings {
+  schoolId            String         @id @map("school_id") @db.Uuid
+  quietHoursEnabled   Boolean        @default(true) @map("quiet_hours_enabled")
+  /// School-local time; SMS is held until quietHoursEnd.
+  quietHoursStart     DateTime       @default(dbgenerated("'21:00:00'::time without time zone")) @map("quiet_hours_start") @db.Time(0)
+  quietHoursEnd       DateTime       @default(dbgenerated("'07:00:00'::time without time zone")) @map("quiet_hours_end") @db.Time(0)
+  /// Current SMS sender ID and its approval state (requests are in SenderIdRequest).
+  senderId            String?        @map("sender_id")
+  senderIdStatus      SenderIdStatus @default(NOT_REQUESTED) @map("sender_id_status")
+  /// Denormalised balance of SmsCreditTransaction, updated in the same transaction.
+  smsBalanceUnits     Int            @default(0) @map("sms_balance_units")
+  lowCreditNotifiedAt DateTime?      @map("low_credit_notified_at") @db.Timestamptz(3)
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@map("communication_settings")
+}
+
+model SenderIdRequest {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  schoolId      String         @map("school_id") @db.Uuid
+  /// Up to 11 characters, e.g. GREENFIELD.
+  name          String         @db.VarChar(11)
+  status        SenderIdStatus @default(PENDING_APPROVAL)
+  requestedById String?        @map("requested_by_id") @db.Uuid
+  decidedAt     DateTime?      @map("decided_at") @db.Timestamptz(3)
+  note          String         @default("")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+
+  @@index([schoolId, createdAt])
+  @@index([status])
+  @@map("sender_id_requests")
+}
+
+/// Append-only SMS unit ledger. Balance = sum(units).
+model SmsCreditTransaction {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  schoolId    String        @map("school_id") @db.Uuid
+  kind        SmsCreditKind
+  /// Signed: positive adds credit, negative uses it.
+  units       Int
+  messageId   String?       @map("message_id") @db.Uuid
+  termId      String?       @map("term_id") @db.Uuid
+  /// Purchases: amount paid and reference.
+  amountKobo  BigInt?       @map("amount_kobo")
+  reference   String?
+  note        String        @default("")
+  createdById String?       @map("created_by_id") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  school  School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  message Message? @relation(fields: [schoolId, messageId], references: [schoolId, id], onDelete: Restrict)
+  term    Term?    @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Restrict)
+
+  @@index([schoolId, createdAt])
+  @@index([schoolId, termId, kind])
+  @@map("sms_credit_transactions")
+}
+
+/// Whether an event sends, and on which channels (Settings → Notifications). No row = defaults.
+model CommsEventSetting {
+  id          String     @id @default(uuid(7)) @db.Uuid
+  schoolId    String     @map("school_id") @db.Uuid
+  event       CommsEvent
+  active      Boolean    @default(true)
+  channels    Channel[]
+  updatedById String?    @map("updated_by_id") @db.Uuid
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+
+  @@unique([schoolId, event])
+  @@map("comms_event_settings")
+}
+
+/// A school's customised wording for an event on a channel. No row = the built-in default.
+model MessageTemplate {
+  id          String     @id @default(uuid(7)) @db.Uuid
+  schoolId    String     @map("school_id") @db.Uuid
+  event       CommsEvent
+  channel     Channel
+  /// Email subject / in-app title; empty for SMS.
+  subject     String     @default("")
+  /// Body with {{variables}}.
+  body        String
+  updatedById String?    @map("updated_by_id") @db.Uuid
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+
+  @@unique([schoolId, event, channel])
+  @@map("message_templates")
+}
+
+model Announcement {
+  id               String             @id @default(uuid(7)) @db.Uuid
+  schoolId         String             @map("school_id") @db.Uuid
+  title            String
+  body             String
+  /// Short version for SMS; required when SMS is chosen.
+  smsText          String             @default("") @map("sms_text")
+  audienceKind     AudienceKind       @map("audience_kind")
+  /// Null = all branches.
+  audienceBranchId String?            @map("audience_branch_id") @db.Uuid
+  channels         Channel[]
+  status           AnnouncementStatus @default(DRAFT)
+  scheduledFor     DateTime?          @map("scheduled_for") @db.Timestamptz(3)
+  /// Last day it shows in the portals.
+  expiresOn        DateTime?          @map("expires_on") @db.Date
+  createdById      String?            @map("created_by_id") @db.Uuid
+  sentAt           DateTime?          @map("sent_at") @db.Timestamptz(3)
+  withdrawnAt      DateTime?          @map("withdrawn_at") @db.Timestamptz(3)
+  withdrawReason   String?            @map("withdraw_reason")
+  /// Filled when sent.
+  recipientCount   Int?               @map("recipient_count")
+  smsUnits         Int                @default(0) @map("sms_units")
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school         School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  audienceBranch Branch?           @relation(fields: [schoolId, audienceBranchId], references: [schoolId, id], onDelete: Restrict)
+  audienceArms   AnnouncementArm[]
+  message        Message?
+
+  @@unique([schoolId, id])
+  @@index([schoolId, status, createdAt])
+  @@index([status, scheduledFor])
+  @@map("announcements")
+}
+
+/// Arms an announcement goes to when audienceKind is CLASSES.
+model AnnouncementArm {
+  schoolId       String   @map("school_id") @db.Uuid
+  announcementId String   @map("announcement_id") @db.Uuid
+  armId          String   @map("arm_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  announcement Announcement @relation(fields: [schoolId, announcementId], references: [schoolId, id], onDelete: Cascade)
+  arm          ClassArm     @relation(fields: [schoolId, armId], references: [schoolId, id], onDelete: Restrict)
+
+  @@id([announcementId, armId])
+  @@index([schoolId, armId])
+  @@map("announcement_arms")
+}
+
+/// One send: an announcement going out, or an automatic event message (invoice issued, absence
+/// alert…). The delivery log lists these by channel.
+model Message {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  schoolId       String     @map("school_id") @db.Uuid
+  event          CommsEvent
+  title          String
+  /// "JSS 2B parents", "Mrs. Funke Adeyemi".
+  audienceLabel  String     @map("audience_label")
+  /// SMS sender used, e.g. GREENFIELD or EduTrack.
+  sender         String
+  channels       Channel[]
+  /// Rendered content per channel for the first recipient: {"EMAIL": {"subject", "body"}, …}.
+  content        Json
+  /// The record that caused it, e.g. ("Invoice", id), for the "source" link.
+  sourceType     String?    @map("source_type")
+  sourceId       String?    @map("source_id") @db.Uuid
+  announcementId String?    @map("announcement_id") @db.Uuid
+  /// Null for system-triggered messages.
+  createdById    String?    @map("created_by_id") @db.Uuid
+  recipientCount Int        @default(0) @map("recipient_count")
+  smsUnits       Int        @default(0) @map("sms_units")
+  /// Retention: after 1 year the purge job deletes recipients and deliveries and empties content;
+  /// the message row stays with its counts for reports and SMS credit history.
+  purgedAt       DateTime?  @map("purged_at") @db.Timestamptz(3)
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school       School                 @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  announcement Announcement?          @relation(fields: [schoolId, announcementId], references: [schoolId, id], onDelete: Restrict)
+  recipients   MessageRecipient[]
+  deliveries   MessageDelivery[]
+  smsCredits   SmsCreditTransaction[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, announcementId])
+  @@index([schoolId, createdAt])
+  @@index([schoolId, event, createdAt])
+  @@index([schoolId, sourceType, sourceId])
+  @@index([createdAt], map: "messages_purge_idx", where: raw("purged_at IS NULL"))
+  @@map("messages")
+}
+
+/// A person a message was addressed to, with the contact details used at send time.
+model MessageRecipient {
+  id         String        @id @default(uuid(7)) @db.Uuid
+  schoolId   String        @map("school_id") @db.Uuid
+  messageId  String        @map("message_id") @db.Uuid
+  role       RecipientRole
+  name       String
+  userId     String?       @map("user_id") @db.Uuid
+  guardianId String?       @map("guardian_id") @db.Uuid
+  studentId  String?       @map("student_id") @db.Uuid
+  staffId    String?       @map("staff_id") @db.Uuid
+  email      String?
+  phone      String?
+  /// Per-recipient template variables (child's name, balance…).
+  variables  Json?
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school     School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  message    Message           @relation(fields: [schoolId, messageId], references: [schoolId, id], onDelete: Cascade)
+  guardian   Guardian?         @relation(fields: [schoolId, guardianId], references: [schoolId, id], onDelete: Restrict)
+  student    Student?          @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  staff      Staff?            @relation(fields: [schoolId, staffId], references: [schoolId, id], onDelete: Restrict)
+  deliveries MessageDelivery[]
+
+  @@unique([schoolId, id])
+  @@index([schoolId, messageId])
+  @@index([schoolId, guardianId])
+  // Retention purge (1 year).
+  @@index([createdAt])
+  @@map("message_recipients")
+}
+
+/// One recipient on one channel: the unit providers report on.
+model MessageDelivery {
+  id                String         @id @default(uuid(7)) @db.Uuid
+  schoolId          String         @map("school_id") @db.Uuid
+  messageId         String         @map("message_id") @db.Uuid
+  recipientId       String         @map("recipient_id") @db.Uuid
+  channel           Channel
+  /// Email address, phone number, or user id for in-app.
+  address           String         @default("")
+  status            DeliveryStatus @default(QUEUED)
+  /// Failure reason or provider note.
+  detail            String         @default("")
+  retryable         Boolean        @default(false)
+  attempts          Int            @default(0)
+  /// SMS pages charged.
+  smsUnits          Int            @default(0) @map("sms_units")
+  providerMessageId String?        @map("provider_message_id")
+  /// Held for quiet hours until then.
+  releaseAt         DateTime?      @map("release_at") @db.Timestamptz(3)
+  /// Held until the school has SMS credit.
+  waitingForCredit  Boolean        @default(false) @map("waiting_for_credit")
+  sentAt            DateTime?      @map("sent_at") @db.Timestamptz(3)
+  deliveredAt       DateTime?      @map("delivered_at") @db.Timestamptz(3)
+  readAt            DateTime?      @map("read_at") @db.Timestamptz(3)
+  failedAt          DateTime?      @map("failed_at") @db.Timestamptz(3)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school    School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  message   Message          @relation(fields: [schoolId, messageId], references: [schoolId, id], onDelete: Cascade)
+  recipient MessageRecipient @relation(fields: [schoolId, recipientId], references: [schoolId, id], onDelete: Cascade)
+
+  @@unique([recipientId, channel])
+  @@index([schoolId, messageId, channel, status])
+  @@index([schoolId, status, createdAt])
+  @@index([status, releaseAt])
+  @@index([providerMessageId])
+  // Retention purge (1 year).
+  @@index([createdAt])
+  @@map("message_deliveries")
+}
+
+/// A user's in-app inbox item (all portals). schoolId is null for platform notifications.
+model Notification {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  schoolId   String?   @map("school_id") @db.Uuid
+  /// results, reviews, assignments, register, finance, support, account…
+  category   String
+  title      String
+  body       String    @default("")
+  /// Portal route to open, e.g. /results/<sheetId>.
+  link       String?
+  entityType String?   @map("entity_type")
+  entityId   String?   @map("entity_id") @db.Uuid
+  /// The delivery this came from, when sent as an IN_APP message.
+  deliveryId String?   @map("delivery_id") @db.Uuid
+  readAt     DateTime? @map("read_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([userId, schoolId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+/// A user's channel choices for one notification event. In-app may be locked on by the app.
+model NotificationPreference {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  /// Null for platform-staff preferences.
+  schoolId  String?  @map("school_id") @db.Uuid
+  /// Event key, e.g. results.returned, issue.assigned.
+  event     String
+  inApp     Boolean  @default(true) @map("in_app")
+  email     Boolean  @default(true)
+  sms       Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, schoolId, event], map: "notification_preferences_school_key", where: raw("school_id IS NOT NULL"))
+  @@unique([userId, event], map: "notification_preferences_platform_key", where: raw("school_id IS NULL"))
+  @@index([schoolId])
+  @@map("notification_preferences")
+}

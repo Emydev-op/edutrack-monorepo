@@ -1,0 +1,300 @@
+// Teacher Workspace records: assignments and submissions, materials, assessment schedules and
+// weekly lesson notes. All are scoped to a term and (except lesson notes) an arm × subject.
+
+/// Draft · Published · Closed.
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+
+  @@map("assignment_status")
+}
+
+/// Not submitted · Submitted · Late · Graded · Returned · Excused.
+enum SubmissionStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+  LATE
+  GRADED
+  RETURNED
+  EXCUSED
+
+  @@map("submission_status")
+}
+
+/// PDF · Document · Presentation · Image · Video link.
+enum MaterialType {
+  PDF
+  DOCUMENT
+  PRESENTATION
+  IMAGE
+  VIDEO_LINK
+
+  @@map("material_type")
+}
+
+/// Published · Archived.
+enum MaterialStatus {
+  PUBLISHED
+  ARCHIVED
+
+  @@map("material_status")
+}
+
+/// Draft · Submitted · Approved · Returned ("Not written" = no row).
+enum LessonNoteStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  RETURNED
+
+  @@map("lesson_note_status")
+}
+
+/// Homework/classwork a teacher sets for an arm in a subject.
+model Assignment {
+  id             String           @id @default(uuid(7)) @db.Uuid
+  schoolId       String           @map("school_id") @db.Uuid
+  termId         String           @map("term_id") @db.Uuid
+  armId          String           @map("arm_id") @db.Uuid
+  subjectId      String           @map("subject_id") @db.Uuid
+  teacherStaffId String           @map("teacher_staff_id") @db.Uuid
+  title          String
+  instructions   String           @default("")
+  /// Null on drafts without a date yet.
+  dueAt          DateTime?        @map("due_at") @db.Timestamptz(3)
+  /// 1–100; can't drop below a score already given.
+  maxScore       Int?             @map("max_score") @db.SmallInt
+  allowLate      Boolean          @default(false) @map("allow_late")
+  status         AssignmentStatus @default(DRAFT)
+  publishedAt    DateTime?        @map("published_at") @db.Timestamptz(3)
+  closedAt       DateTime?        @map("closed_at") @db.Timestamptz(3)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school      School                 @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  term        Term                   @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Restrict)
+  arm         ClassArm               @relation(fields: [schoolId, armId], references: [schoolId, id], onDelete: Restrict)
+  subject     Subject                @relation(fields: [schoolId, subjectId], references: [schoolId, id], onDelete: Restrict)
+  teacher     Staff                  @relation(fields: [schoolId, teacherStaffId], references: [schoolId, id], onDelete: Restrict)
+  attachments AssignmentAttachment[]
+  submissions Submission[]
+
+  @@unique([schoolId, id])
+  @@index([schoolId, termId, teacherStaffId, status])
+  @@index([schoolId, termId, armId, subjectId])
+  @@index([schoolId, status, dueAt])
+  @@map("assignments")
+}
+
+/// A file on an assignment, either uploaded or one of the teacher's materials (shown as
+/// unavailable while that material is archived).
+model AssignmentAttachment {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  schoolId     String   @map("school_id") @db.Uuid
+  assignmentId String   @map("assignment_id") @db.Uuid
+  fileId       String?  @map("file_id") @db.Uuid
+  materialId   String?  @map("material_id") @db.Uuid
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school     School      @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  assignment Assignment  @relation(fields: [schoolId, assignmentId], references: [schoolId, id], onDelete: Cascade)
+  file       StoredFile? @relation(fields: [schoolId, fileId], references: [schoolId, id], onDelete: Restrict)
+  material   Material?   @relation(fields: [schoolId, materialId], references: [schoolId, id], onDelete: Restrict)
+
+  @@index([schoolId, assignmentId])
+  @@index([schoolId, materialId])
+  @@map("assignment_attachments")
+}
+
+/// A student's work on an assignment. A row exists for every student in the class once the
+/// assignment is published (NOT_SUBMITTED until they hand in).
+model Submission {
+  id           String           @id @default(uuid(7)) @db.Uuid
+  schoolId     String           @map("school_id") @db.Uuid
+  assignmentId String           @map("assignment_id") @db.Uuid
+  studentId    String           @map("student_id") @db.Uuid
+  status       SubmissionStatus @default(NOT_SUBMITTED)
+  submittedAt  DateTime?        @map("submitted_at") @db.Timestamptz(3)
+  /// Handed in after the due date.
+  isLate       Boolean          @default(false) @map("is_late")
+  /// The student's note with the work.
+  note         String?
+  score        Decimal?         @db.Decimal(5, 2)
+  /// Visible to the student and guardian once Returned.
+  feedback     String           @default("")
+  gradedAt     DateTime?        @map("graded_at") @db.Timestamptz(3)
+  gradedById   String?          @map("graded_by_id") @db.Uuid
+  returnedAt   DateTime?        @map("returned_at") @db.Timestamptz(3)
+  excuseReason String?          @map("excuse_reason")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school     School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  assignment Assignment       @relation(fields: [schoolId, assignmentId], references: [schoolId, id], onDelete: Cascade)
+  student    Student          @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  files      SubmissionFile[]
+
+  @@unique([schoolId, id])
+  @@unique([assignmentId, studentId])
+  @@index([schoolId, assignmentId, status])
+  @@index([schoolId, studentId])
+  @@map("submissions")
+}
+
+model SubmissionFile {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  schoolId     String   @map("school_id") @db.Uuid
+  submissionId String   @map("submission_id") @db.Uuid
+  fileId       String   @map("file_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school     School     @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  submission Submission @relation(fields: [schoolId, submissionId], references: [schoolId, id], onDelete: Cascade)
+  file       StoredFile @relation(fields: [schoolId, fileId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([submissionId, fileId])
+  @@index([schoolId])
+  @@map("submission_files")
+}
+
+/// A learning material for an arm × subject: an uploaded file or a video link.
+model Material {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  schoolId       String         @map("school_id") @db.Uuid
+  termId         String         @map("term_id") @db.Uuid
+  armId          String         @map("arm_id") @db.Uuid
+  subjectId      String         @map("subject_id") @db.Uuid
+  teacherStaffId String         @map("teacher_staff_id") @db.Uuid
+  type           MaterialType
+  title          String
+  description    String         @default("")
+  /// Set for every type except VIDEO_LINK.
+  fileId         String?        @map("file_id") @db.Uuid
+  /// https link on an allowed host (YouTube, Vimeo, Google Drive) for VIDEO_LINK.
+  linkUrl        String?        @map("link_url")
+  status         MaterialStatus @default(PUBLISHED)
+  publishedAt    DateTime       @map("published_at") @db.Timestamptz(3)
+  archivedAt     DateTime?      @map("archived_at") @db.Timestamptz(3)
+  /// Total opens (denormalised from MaterialView).
+  viewCount      Int            @default(0) @map("view_count")
+  lastViewedAt   DateTime?      @map("last_viewed_at") @db.Timestamptz(3)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school     School                 @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  term       Term                   @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Restrict)
+  arm        ClassArm               @relation(fields: [schoolId, armId], references: [schoolId, id], onDelete: Restrict)
+  subject    Subject                @relation(fields: [schoolId, subjectId], references: [schoolId, id], onDelete: Restrict)
+  teacher    Staff                  @relation(fields: [schoolId, teacherStaffId], references: [schoolId, id], onDelete: Restrict)
+  file       StoredFile?            @relation(fields: [schoolId, fileId], references: [schoolId, id], onDelete: Restrict)
+  views      MaterialView[]
+  attachedTo AssignmentAttachment[]
+
+  @@unique([schoolId, id])
+  @@index([schoolId, termId, teacherStaffId, status])
+  @@index([schoolId, termId, armId, subjectId])
+  @@map("materials")
+}
+
+/// Distinct students who opened a material.
+model MaterialView {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  schoolId      String   @map("school_id") @db.Uuid
+  materialId    String   @map("material_id") @db.Uuid
+  studentId     String   @map("student_id") @db.Uuid
+  viewCount     Int      @default(1) @map("view_count")
+  firstViewedAt DateTime @default(now()) @map("first_viewed_at") @db.Timestamptz(3)
+  lastViewedAt  DateTime @default(now()) @map("last_viewed_at") @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school   School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  material Material @relation(fields: [schoolId, materialId], references: [schoolId, id], onDelete: Cascade)
+  student  Student  @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Cascade)
+
+  @@unique([materialId, studentId])
+  @@index([schoolId, studentId])
+  @@map("material_views")
+}
+
+/// When a scheme component (CA 1, CA 2, Exam) is taken by an arm in a subject. Status
+/// (Scheduled · Done · Scored) is computed from the date and the sheet's scores.
+model AssessmentSchedule {
+  id                   String   @id @default(uuid(7)) @db.Uuid
+  schoolId             String   @map("school_id") @db.Uuid
+  termId               String   @map("term_id") @db.Uuid
+  armId                String   @map("arm_id") @db.Uuid
+  subjectId            String   @map("subject_id") @db.Uuid
+  componentId          String   @map("component_id") @db.Uuid
+  teachingAssignmentId String?  @map("teaching_assignment_id") @db.Uuid
+  scheduledOn          DateTime @map("scheduled_on") @db.Date
+  topics               String   @default("")
+  instructions         String   @default("")
+  createdById          String?  @map("created_by_id") @db.Uuid
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school             School              @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  term               Term                @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Restrict)
+  arm                ClassArm            @relation(fields: [schoolId, armId], references: [schoolId, id], onDelete: Restrict)
+  subject            Subject             @relation(fields: [schoolId, subjectId], references: [schoolId, id], onDelete: Restrict)
+  component          AssessmentComponent @relation(fields: [schoolId, componentId], references: [schoolId, id], onDelete: Restrict)
+  teachingAssignment TeachingAssignment? @relation(fields: [schoolId, teachingAssignmentId], references: [schoolId, id], onDelete: Restrict)
+
+  // A component can be scheduled once per class per term.
+  @@unique([termId, armId, subjectId, componentId])
+  @@index([schoolId, termId, scheduledOn])
+  @@map("assessment_schedules")
+}
+
+/// A weekly lesson note: one per teacher × subject × class level × week of the term.
+model LessonNote {
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  schoolId           String           @map("school_id") @db.Uuid
+  termId             String           @map("term_id") @db.Uuid
+  teacherStaffId     String           @map("teacher_staff_id") @db.Uuid
+  subjectId          String           @map("subject_id") @db.Uuid
+  levelId            String           @map("level_id") @db.Uuid
+  /// 1-based week of the term.
+  week               Int              @db.SmallInt
+  /// Monday of the week.
+  weekStartsOn       DateTime         @map("week_starts_on") @db.Date
+  /// Due on the Friday before the week (school default).
+  dueOn              DateTime         @map("due_on") @db.Date
+  topic              String
+  /// 1–5 objectives.
+  objectives         String[]
+  content            String
+  schemeTopic        String           @default("") @map("scheme_topic")
+  attachmentFileId   String?          @map("attachment_file_id") @db.Uuid
+  status             LessonNoteStatus @default(DRAFT)
+  /// HOD or Academic Head it goes to; null = the academic office. Kept for resubmission.
+  reviewerStaffId    String?          @map("reviewer_staff_id") @db.Uuid
+  /// The Academic Head's own note: filed as Approved on submit with no review.
+  filedWithoutReview Boolean          @default(false) @map("filed_without_review")
+  submittedAt        DateTime?        @map("submitted_at") @db.Timestamptz(3)
+  decidedAt          DateTime?        @map("decided_at") @db.Timestamptz(3)
+  decidedByStaffId   String?          @map("decided_by_staff_id") @db.Uuid
+  returnComment      String?          @map("return_comment")
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school         School      @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  term           Term        @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Restrict)
+  teacher        Staff       @relation("LessonNoteTeacher", fields: [schoolId, teacherStaffId], references: [schoolId, id], onDelete: Restrict)
+  subject        Subject     @relation(fields: [schoolId, subjectId], references: [schoolId, id], onDelete: Restrict)
+  level          ClassLevel  @relation(fields: [schoolId, levelId], references: [schoolId, id], onDelete: Restrict)
+  reviewer       Staff?      @relation("LessonNoteReviewer", fields: [schoolId, reviewerStaffId], references: [schoolId, id], onDelete: Restrict)
+  decidedBy      Staff?      @relation("LessonNoteDecider", fields: [schoolId, decidedByStaffId], references: [schoolId, id], onDelete: Restrict)
+  attachmentFile StoredFile? @relation(fields: [schoolId, attachmentFileId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([termId, teacherStaffId, subjectId, levelId, week])
+  @@index([schoolId, termId, teacherStaffId, status])
+  @@index([schoolId, reviewerStaffId, status])
+  @@index([schoolId, decidedByStaffId, decidedAt])
+  @@map("lesson_notes")
+}

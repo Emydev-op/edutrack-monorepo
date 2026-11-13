@@ -1,0 +1,203 @@
+// Support desk: tickets raised by schools (School Admin) and worked by platform staff (back
+// office). One ticket table serves both views.
+
+/// What the school picked when raising the ticket (School Admin's categories).
+enum TicketTopic {
+  RESULTS_AND_REPORT_CARDS
+  FEES_AND_PAYMENTS
+  COMMUNICATION
+  STUDENTS_AND_ADMISSIONS
+  ACCOUNT_AND_BILLING
+  SOMETHING_ELSE
+
+  @@map("ticket_topic")
+}
+
+/// The support desk's triage category.
+enum TicketCategory {
+  ACCOUNT
+  BILLING
+  SUBSCRIPTION
+  TECHNICAL
+  ACADEMIC
+  FINANCE
+  ACCESS
+  OTHER
+
+  @@map("ticket_category")
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+
+  @@map("ticket_priority")
+}
+
+/// The desk's statuses. The school sees Open · In progress · Waiting for School · Resolved ·
+/// Closed (Assigned/Escalated/On Hold/Reopened show as In progress or Open).
+enum TicketStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_FOR_SCHOOL
+  ON_HOLD
+  ESCALATED
+  RESOLVED
+  CLOSED
+  REOPENED
+
+  @@map("ticket_status")
+}
+
+enum SupportTeam {
+  TIER_1_SUPPORT
+  TECHNICAL
+  BILLING
+  ONBOARDING
+  ENGINEERING
+
+  @@map("support_team")
+}
+
+/// school: from the school. agent: support's reply. note: internal, never shown to the school.
+enum TicketMessageKind {
+  SCHOOL
+  AGENT
+  NOTE
+
+  @@map("ticket_message_kind")
+}
+
+enum Tone {
+  SUCCESS
+  INFO
+  WARNING
+  ERROR
+  NEUTRAL
+
+  @@map("tone")
+}
+
+model SupportTicket {
+  id                  String         @id @default(uuid(7)) @db.Uuid
+  schoolId            String         @map("school_id") @db.Uuid
+  /// Platform-wide ticket number, e.g. SUP-1042 (PlatformSequence kind TICKET).
+  number              String         @unique
+  subject             String         @db.VarChar(120)
+  description         String
+  topic               TicketTopic?
+  category            TicketCategory
+  priority            TicketPriority @default(NORMAL)
+  status              TicketStatus   @default(OPEN)
+  team                SupportTeam    @default(TIER_1_SUPPORT)
+  /// Null when platform staff raised it on the school's behalf (requesterName is then free text).
+  requesterUserId     String?        @map("requester_user_id") @db.Uuid
+  requesterName       String         @map("requester_name")
+  /// Platform staff user who owns it.
+  assigneeUserId      String?        @map("assignee_user_id") @db.Uuid
+  /// The specialist team/role it was escalated to, and who had it before.
+  escalatedTo         String?        @map("escalated_to")
+  escalatedFromUserId String?        @map("escalated_from_user_id") @db.Uuid
+  holdReason          String?        @map("hold_reason")
+  resolution          String?
+  /// Chosen resolution type, or the close reason.
+  resolutionType      String?        @map("resolution_type")
+  firstReplyAt        DateTime?      @map("first_reply_at") @db.Timestamptz(3)
+  resolvedAt          DateTime?      @map("resolved_at") @db.Timestamptz(3)
+  /// A resolved ticket closes by itself at this time if the school doesn't respond.
+  autoCloseAt         DateTime?      @map("auto_close_at") @db.Timestamptz(3)
+  closedAt            DateTime?      @map("closed_at") @db.Timestamptz(3)
+  /// SLA bookkeeping: the resolution clock pauses while waiting for the school or on hold.
+  pausedSince         DateTime?      @map("paused_since") @db.Timestamptz(3)
+  pausedSeconds       Int            @default(0) @map("paused_seconds")
+  /// Resolved after its resolution target.
+  slaMissed           Boolean        @default(false) @map("sla_missed")
+  reopenCount         Int            @default(0) @map("reopen_count")
+  /// 1–5 from the school once resolved.
+  ratingScore         Int?           @map("rating_score") @db.SmallInt
+  ratingComment       String?        @map("rating_comment")
+  followUpOfId        String?        @map("follow_up_of_id") @db.Uuid
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school          School                 @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  requester       User?                  @relation("TicketRequester", fields: [requesterUserId], references: [id], onDelete: Restrict)
+  assignee        User?                  @relation("TicketAssignee", fields: [assigneeUserId], references: [id], onDelete: Restrict)
+  followUpOf      SupportTicket?         @relation("TicketFollowUp", fields: [schoolId, followUpOfId], references: [schoolId, id], onDelete: Restrict)
+  followUps       SupportTicket[]        @relation("TicketFollowUp")
+  messages        SupportTicketMessage[]
+  events          SupportTicketEvent[]
+  supportSessions SupportSession[]
+
+  @@unique([schoolId, id])
+  @@index([schoolId, status, updatedAt])
+  @@index([status, priority, createdAt])
+  @@index([assigneeUserId, status])
+  @@index([createdAt])
+  @@map("support_tickets")
+}
+
+model SupportTicketMessage {
+  id           String            @id @default(uuid(7)) @db.Uuid
+  schoolId     String            @map("school_id") @db.Uuid
+  ticketId     String            @map("ticket_id") @db.Uuid
+  kind         TicketMessageKind
+  authorUserId String?           @map("author_user_id") @db.Uuid
+  authorName   String            @map("author_name")
+  /// "Bursar", "Support Agent".
+  authorRole   String            @map("author_role")
+  body         String
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school      School                    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  ticket      SupportTicket             @relation(fields: [schoolId, ticketId], references: [schoolId, id], onDelete: Restrict)
+  attachments SupportTicketAttachment[]
+
+  @@unique([schoolId, id])
+  @@index([schoolId, ticketId, createdAt])
+  @@map("support_ticket_messages")
+}
+
+/// Up to 3 files (PNG, JPEG, PDF, 10 MB) per message.
+model SupportTicketAttachment {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @map("school_id") @db.Uuid
+  messageId String   @map("message_id") @db.Uuid
+  fileId    String   @map("file_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  message SupportTicketMessage @relation(fields: [schoolId, messageId], references: [schoolId, id], onDelete: Cascade)
+  file    StoredFile           @relation(fields: [schoolId, fileId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([messageId, fileId])
+  @@index([schoolId])
+  @@map("support_ticket_attachments")
+}
+
+/// The ticket timeline. Purpose-built because both portals render it and the school must only
+/// see events marked visibleToSchool.
+model SupportTicketEvent {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  schoolId        String        @map("school_id") @db.Uuid
+  ticketId        String        @map("ticket_id") @db.Uuid
+  title           String
+  detail          String?
+  tone            Tone          @default(NEUTRAL)
+  fromStatus      TicketStatus? @map("from_status")
+  toStatus        TicketStatus? @map("to_status")
+  actorUserId     String?       @map("actor_user_id") @db.Uuid
+  visibleToSchool Boolean       @default(true) @map("visible_to_school")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  school School        @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  ticket SupportTicket @relation(fields: [schoolId, ticketId], references: [schoolId, id], onDelete: Restrict)
+
+  @@index([schoolId, ticketId, createdAt])
+  @@map("support_ticket_events")
+}

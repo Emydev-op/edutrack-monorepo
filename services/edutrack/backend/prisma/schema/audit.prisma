@@ -1,0 +1,48 @@
+// Append-only audit trail for every portal: settings change history, record timelines,
+// subscription actions, support sessions. Never updated or deleted by the app.
+
+enum ActorKind {
+  USER
+  /// Platform staff acting in the back office or through a support session.
+  PLATFORM_STAFF
+  /// Jobs and automatic rules.
+  SYSTEM
+
+  @@map("actor_kind")
+}
+
+model AuditEvent {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  /// Null for platform-only events (plans, platform users).
+  schoolId         String?   @map("school_id") @db.Uuid
+  actorKind        ActorKind @default(USER) @map("actor_kind")
+  actorUserId      String?   @map("actor_user_id") @db.Uuid
+  /// Display name at the time, so history survives renames.
+  actorName        String?   @map("actor_name")
+  /// Dotted verb, e.g. school.reactivate, invoice.cancel, settings.update.
+  action           String
+  /// Settings area for the change-history screen (School, Academic, Finance, Security,
+  /// Notifications) or a module name; null otherwise.
+  area             String?
+  entityType       String    @map("entity_type")
+  entityId         String?   @map("entity_id")
+  /// One line for timelines ("Invoice INV-2026-0042 cancelled").
+  summary          String
+  detail           String?
+  before           Json?
+  after            Json?
+  ip               String?   @db.Inet
+  userAgent        String?   @map("user_agent")
+  requestId        String?   @map("request_id")
+  supportSessionId String?   @map("support_session_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  school School? @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+
+  @@index([schoolId, createdAt(sort: Desc)])
+  @@index([schoolId, entityType, entityId, createdAt])
+  @@index([schoolId, area, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([createdAt])
+  @@map("audit_events")
+}

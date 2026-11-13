@@ -1,0 +1,474 @@
+// People records owned by a school: staff, students, guardians, admissions and enrollments.
+// Portal access for any of them is a SchoolMembership (identity.prisma).
+
+enum Gender {
+  FEMALE
+  MALE
+
+  @@map("gender")
+}
+
+enum StaffKind {
+  TEACHING
+  NON_TEACHING
+
+  @@map("staff_kind")
+}
+
+enum StaffGroup {
+  TEACHING
+  ADMINISTRATIVE
+  FINANCE
+  OPERATIONS
+
+  @@map("staff_group")
+}
+
+enum Employment {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+
+  @@map("employment")
+}
+
+enum StaffStatus {
+  ACTIVE
+  DEACTIVATED
+
+  @@map("staff_status")
+}
+
+/// Verified · Pending · Missing · Optional.
+enum DocumentStatus {
+  VERIFIED
+  PENDING
+  MISSING
+  OPTIONAL
+
+  @@map("document_status")
+}
+
+/// Active · Incomplete profile · Transferred · Withdrawn · Graduated.
+enum StudentStatus {
+  ACTIVE
+  INCOMPLETE_PROFILE
+  TRANSFERRED
+  WITHDRAWN
+  GRADUATED
+
+  @@map("student_status")
+}
+
+enum AdmissionType {
+  NEW_INTAKE
+  TRANSFER_IN
+
+  @@map("admission_type")
+}
+
+enum StudentExitKind {
+  TRANSFER
+  WITHDRAWAL
+
+  @@map("student_exit_kind")
+}
+
+/// Pending · Under review · Offer accepted · Admitted · Rejected.
+enum ApplicationStage {
+  PENDING
+  UNDER_REVIEW
+  OFFER_ACCEPTED
+  ADMITTED
+  REJECTED
+
+  @@map("application_stage")
+}
+
+enum EnrollmentStatus {
+  /// In the session (awaiting an arm when armId is null).
+  ACTIVE
+  /// Session closed; outcome set by promotion.
+  COMPLETED
+  /// Left during the session (transfer, withdrawal).
+  LEFT
+
+  @@map("enrollment_status")
+}
+
+/// Promote · Repeat · Graduate · Transfer · Withdraw.
+enum PromotionOutcome {
+  PROMOTE
+  REPEAT
+  GRADUATE
+  TRANSFER
+  WITHDRAW
+
+  @@map("promotion_outcome")
+}
+
+model Staff {
+  id                           String      @id @default(uuid(7)) @db.Uuid
+  schoolId                     String      @map("school_id") @db.Uuid
+  /// Per-school number from the staff numbering format.
+  staffNumber                  String      @map("staff_number")
+  title                        String?
+  firstName                    String      @map("first_name")
+  lastName                     String      @map("last_name")
+  gender                       Gender?
+  phone                        String?
+  email                        String?     @db.Citext
+  address                      String?
+  emergencyContactName         String?     @map("emergency_contact_name")
+  emergencyContactPhone        String?     @map("emergency_contact_phone")
+  emergencyContactRelationship String?     @map("emergency_contact_relationship")
+  /// Job title shown everywhere ("Mathematics Teacher", "Bursar"). Organogram posts are in
+  /// PositionHolder.
+  positionTitle                String?     @map("position_title")
+  departmentId                 String?     @map("department_id") @db.Uuid
+  kind                         StaffKind
+  group                        StaffGroup
+  employment                   Employment  @default(FULL_TIME)
+  startedOn                    DateTime?   @map("started_on") @db.Date
+  /// Works at every branch (the UI's "All branches"); otherwise StaffBranch rows.
+  allBranches                  Boolean     @default(false) @map("all_branches")
+  /// Teaching load cap per week.
+  maxPeriodsPerWeek            Int         @default(30) @map("max_periods_per_week")
+  photoFileId                  String?     @map("photo_file_id") @db.Uuid
+  status                       StaffStatus @default(ACTIVE)
+  leftOn                       DateTime?   @map("left_on") @db.Date
+  createdAt                    DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                    DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school                    School                   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  department                Department?              @relation("StaffDepartment", fields: [schoolId, departmentId], references: [schoolId, id], onDelete: Restrict)
+  photoFile                 StoredFile?              @relation("StaffPhoto", fields: [schoolId, photoFileId], references: [schoolId, id], onDelete: Restrict)
+  membership                SchoolMembership?
+  branches                  StaffBranch[]
+  headOf                    Branch[]                 @relation("BranchHead")
+  hodOf                     Department[]             @relation("DepartmentHod")
+  qualifications            StaffQualification[]
+  documents                 StaffDocument[]
+  positions                 PositionHolder[]
+  sheetsOwned               ResultSheet[]            @relation("SheetTeacher")
+  sheetsToReview            ResultSheet[]            @relation("SheetReviewer")
+  lessonNotes               LessonNote[]             @relation("LessonNoteTeacher")
+  lessonNotesToReview       LessonNote[]             @relation("LessonNoteReviewer")
+  lessonNotesDecided        LessonNote[]             @relation("LessonNoteDecider")
+  reportCardsAsClassTeacher ReportCard[]             @relation("ReportCardClassTeacher")
+  registersTaken            AttendanceRegister[]     @relation("RegisterTakenBy")
+  classTeacherAssignments   ClassTeacherAssignment[]
+  teachingAssignments       TeachingAssignment[]
+  timetableSlots            TimetableSlot[]
+  messageRecipients         MessageRecipient[]
+  assignments               Assignment[]
+  materials                 Material[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, staffNumber])
+  @@index([schoolId, status, group])
+  @@index([schoolId, lastName, firstName])
+  @@index([leftOn], map: "staff_left_on_idx", where: raw("left_on IS NOT NULL"))
+  @@index([schoolId, departmentId])
+  @@index([schoolId, email])
+  @@map("staff")
+}
+
+model StaffBranch {
+  schoolId  String   @map("school_id") @db.Uuid
+  staffId   String   @map("staff_id") @db.Uuid
+  branchId  String   @map("branch_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  staff  Staff  @relation(fields: [schoolId, staffId], references: [schoolId, id], onDelete: Cascade)
+  branch Branch @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+
+  @@id([staffId, branchId])
+  @@index([schoolId, branchId])
+  @@map("staff_branches")
+}
+
+/// Subjects a teacher is qualified to teach (checked when assigning).
+model StaffQualification {
+  schoolId  String   @map("school_id") @db.Uuid
+  staffId   String   @map("staff_id") @db.Uuid
+  subjectId String   @map("subject_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  staff   Staff   @relation(fields: [schoolId, staffId], references: [schoolId, id], onDelete: Cascade)
+  subject Subject @relation(fields: [schoolId, subjectId], references: [schoolId, id], onDelete: Restrict)
+
+  @@id([staffId, subjectId])
+  @@index([schoolId, subjectId])
+  @@map("staff_qualifications")
+}
+
+model StaffDocument {
+  id           String         @id @default(uuid(7)) @db.Uuid
+  schoolId     String         @map("school_id") @db.Uuid
+  staffId      String         @map("staff_id") @db.Uuid
+  name         String
+  /// e.g. "CV", "Teaching licence (TRCN)", "Guarantor form".
+  kind         String
+  status       DocumentStatus @default(PENDING)
+  fileId       String?        @map("file_id") @db.Uuid
+  verifiedById String?        @map("verified_by_id") @db.Uuid
+  verifiedAt   DateTime?      @map("verified_at") @db.Timestamptz(3)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz(3)
+
+  school School      @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  staff  Staff       @relation(fields: [schoolId, staffId], references: [schoolId, id], onDelete: Restrict)
+  file   StoredFile? @relation(fields: [schoolId, fileId], references: [schoolId, id], onDelete: Restrict)
+
+  @@index([schoolId, staffId])
+  @@map("staff_documents")
+}
+
+/// A parent or guardian. One record per person per school (merge duplicates with mergedIntoId).
+model Guardian {
+  id                        String         @id @default(uuid(7)) @db.Uuid
+  schoolId                  String         @map("school_id") @db.Uuid
+  title                     String?
+  fullName                  String         @map("full_name")
+  /// E.164. Used to spot duplicates and siblings at admission.
+  phone                     String?
+  email                     String?        @db.Citext
+  address                   String?
+  occupation                String?
+  /// Preferred way to pay, shown on the guardian page.
+  preferredPaymentMethod    PaymentMethod? @map("preferred_payment_method")
+  /// NDPR basics: consent to be contacted about the child.
+  contactConsentAt          DateTime?      @map("contact_consent_at") @db.Timestamptz(3)
+  /// Where consent was captured: admission_form, parent_portal, import.
+  contactConsentSource      String?        @map("contact_consent_source")
+  /// The guardian opted out of fee reminders by SMS (FEE_REMINDER, FEE_OVERDUE, INSTALLMENT_DUE
+  /// on the SMS channel only). Receipts, absence alerts and urgent announcements still go out.
+  /// Null = receives them; the timestamp is the consent record.
+  smsFeeRemindersOptedOutAt DateTime?      @map("sms_fee_reminders_opted_out_at") @db.Timestamptz(3)
+  /// The guardian opted out of non-essential school email (announcements that aren't urgent, fee
+  /// reminders, newsletters). Account and security email (invitations, password resets), receipts,
+  /// invoices, absence alerts, results and urgent announcements still go out. Null = receives them;
+  /// the timestamp is the consent record.
+  emailOptedOutAt           DateTime?      @map("email_opted_out_at") @db.Timestamptz(3)
+  /// Set when this record was merged into another; the row is kept for history.
+  mergedIntoId              String?        @map("merged_into_id") @db.Uuid
+  createdAt                 DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                 DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt                 DateTime?      @map("deleted_at") @db.Timestamptz(3)
+
+  school            School             @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  mergedInto        Guardian?          @relation("GuardianMerge", fields: [schoolId, mergedIntoId], references: [schoolId, id], onDelete: Restrict)
+  mergedFrom        Guardian[]         @relation("GuardianMerge")
+  membership        SchoolMembership?
+  students          StudentGuardian[]
+  messageRecipients MessageRecipient[]
+  payments          Payment[]
+
+  @@unique([schoolId, id])
+  @@index([schoolId, phone])
+  @@index([schoolId, email])
+  @@index([schoolId, fullName])
+  @@map("guardians")
+}
+
+model Student {
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  schoolId           String           @map("school_id") @db.Uuid
+  /// Per-school number from the admission numbering format.
+  admissionNo        String           @map("admission_no")
+  firstName          String           @map("first_name")
+  surname            String
+  otherNames         String?          @map("other_names")
+  gender             Gender
+  dateOfBirth        DateTime?        @map("date_of_birth") @db.Date
+  stateOfOrigin      String?          @map("state_of_origin")
+  address            String?
+  /// Sensitive: shown only to roles with student-medical access.
+  medicalNotes       String?          @map("medical_notes")
+  previousSchool     String?          @map("previous_school")
+  photoFileId        String?          @map("photo_file_id") @db.Uuid
+  status             StudentStatus    @default(ACTIVE)
+  admissionType      AdmissionType    @default(NEW_INTAKE) @map("admission_type")
+  admittedOn         DateTime         @map("admitted_on") @db.Date
+  /// Level admitted into (for admission reports).
+  admittedLevelId    String?          @map("admitted_level_id") @db.Uuid
+  /// Current branch; the current class is on the session's Enrollment.
+  branchId           String           @map("branch_id") @db.Uuid
+  /// Default installment plan for invoices, when not the school default.
+  paymentPlanId      String?          @map("payment_plan_id") @db.Uuid
+  exitKind           StudentExitKind? @map("exit_kind")
+  exitOn             DateTime?        @map("exit_on") @db.Date
+  exitReason         String?          @map("exit_reason")
+  exitDestination    String?          @map("exit_destination")
+  exitNotes          String?          @map("exit_notes")
+  exitDocumentFileId String?          @map("exit_document_file_id") @db.Uuid
+  graduatedOn        DateTime?        @map("graduated_on") @db.Date
+  /// Last day on the roll for any reason (transfer, withdrawal, graduation). Starts the 2-year
+  /// clock on the student's documents and files.
+  leftOn             DateTime?        @map("left_on") @db.Date
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt          DateTime?        @map("deleted_at") @db.Timestamptz(3)
+
+  school               School                @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  branch               Branch                @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+  admittedLevel        ClassLevel?           @relation(fields: [schoolId, admittedLevelId], references: [schoolId, id], onDelete: Restrict)
+  paymentPlan          PaymentPlan?          @relation(fields: [schoolId, paymentPlanId], references: [schoolId, id], onDelete: Restrict)
+  photoFile            StoredFile?           @relation("StudentPhoto", fields: [schoolId, photoFileId], references: [schoolId, id], onDelete: Restrict)
+  exitDocumentFile     StoredFile?           @relation("StudentExitDocument", fields: [schoolId, exitDocumentFileId], references: [schoolId, id], onDelete: Restrict)
+  membership           SchoolMembership?
+  guardians            StudentGuardian[]
+  documents            StudentDocument[]
+  enrollments          Enrollment[]
+  studentSubjects      StudentSubject[]
+  attendanceEntries    AttendanceEntry[]
+  messageRecipients    MessageRecipient[]
+  invoices             Invoice[]
+  payments             Payment[]
+  creditApplications   CreditApplication[]
+  refunds              Refund[]
+  admissionApplication AdmissionApplication?
+  resultEntries        ResultEntry[]
+  scoreCorrections     ScoreCorrection[]
+  reportCards          ReportCard[]
+  submissions          Submission[]
+  materialViews        MaterialView[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, admissionNo])
+  @@index([schoolId, status])
+  @@index([schoolId, branchId, status])
+  @@index([schoolId, surname, firstName])
+  @@index([schoolId, admittedOn])
+  @@index([leftOn], map: "students_left_on_idx", where: raw("left_on IS NOT NULL"))
+  @@map("students")
+}
+
+model StudentGuardian {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  schoolId     String   @map("school_id") @db.Uuid
+  studentId    String   @map("student_id") @db.Uuid
+  guardianId   String   @map("guardian_id") @db.Uuid
+  /// Mother, Father, Aunt, Guardian…
+  relationship String
+  isPrimary    Boolean  @default(false) @map("is_primary")
+  /// Invoices and fee reminders go to the fee payer.
+  paysFees     Boolean  @default(false) @map("pays_fees")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school   School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student  Student  @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Cascade)
+  guardian Guardian @relation(fields: [schoolId, guardianId], references: [schoolId, id], onDelete: Cascade)
+
+  @@unique([studentId, guardianId])
+  // One primary guardian per student.
+  @@unique([studentId, isPrimary], map: "student_guardians_one_primary_key", where: raw("is_primary"))
+  @@index([schoolId, guardianId])
+  @@map("student_guardians")
+}
+
+model StudentDocument {
+  id           String         @id @default(uuid(7)) @db.Uuid
+  schoolId     String         @map("school_id") @db.Uuid
+  studentId    String         @map("student_id") @db.Uuid
+  /// Key from the school's required-documents list, e.g. birth_certificate, transfer_letter.
+  key          String
+  label        String
+  status       DocumentStatus @default(PENDING)
+  fileId       String?        @map("file_id") @db.Uuid
+  verifiedById String?        @map("verified_by_id") @db.Uuid
+  verifiedAt   DateTime?      @map("verified_at") @db.Timestamptz(3)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz(3)
+
+  school  School      @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student Student     @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  file    StoredFile? @relation(fields: [schoolId, fileId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([studentId, key], where: raw("deleted_at IS NULL"))
+  @@index([schoolId, studentId])
+  @@map("student_documents")
+}
+
+model AdmissionApplication {
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  schoolId           String           @map("school_id") @db.Uuid
+  /// Per-school number, e.g. APP-2026-0042.
+  number             String
+  sessionId          String           @map("session_id") @db.Uuid
+  branchId           String?          @map("branch_id") @db.Uuid
+  applyingForLevelId String           @map("applying_for_level_id") @db.Uuid
+  type               AdmissionType    @default(NEW_INTAKE)
+  firstName          String           @map("first_name")
+  surname            String
+  otherNames         String?          @map("other_names")
+  gender             Gender?
+  dateOfBirth        DateTime?        @map("date_of_birth") @db.Date
+  /// Short note on the applicant ("Sibling of Favour Okeke").
+  note               String?
+  guardianName       String?          @map("guardian_name")
+  guardianPhone      String?          @map("guardian_phone")
+  guardianEmail      String?          @map("guardian_email") @db.Citext
+  appliedOn          DateTime         @map("applied_on") @db.Date
+  stage              ApplicationStage @default(PENDING)
+  stageNote          String?          @map("stage_note")
+  /// Set once admitted.
+  studentId          String?          @map("student_id") @db.Uuid
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school           School          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  session          AcademicSession @relation(fields: [schoolId, sessionId], references: [schoolId, id], onDelete: Restrict)
+  branch           Branch?         @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+  applyingForLevel ClassLevel      @relation(fields: [schoolId, applyingForLevelId], references: [schoolId, id], onDelete: Restrict)
+  student          Student?        @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([schoolId, number])
+  @@unique([schoolId, studentId])
+  @@index([schoolId, sessionId, stage])
+  @@map("admission_applications")
+}
+
+/// A student's place in one session: branch, level and (once placed) arm. The class history on
+/// the student page is these rows. Arm moves within a session update armId (audited).
+model Enrollment {
+  id         String            @id @default(uuid(7)) @db.Uuid
+  schoolId   String            @map("school_id") @db.Uuid
+  studentId  String            @map("student_id") @db.Uuid
+  sessionId  String            @map("session_id") @db.Uuid
+  branchId   String            @map("branch_id") @db.Uuid
+  levelId    String            @map("level_id") @db.Uuid
+  /// Null while admitted but awaiting placement in an arm.
+  armId      String?           @map("arm_id") @db.Uuid
+  status     EnrollmentStatus  @default(ACTIVE)
+  enrolledOn DateTime          @map("enrolled_on") @db.Date
+  /// Last day on the roll when the student left mid-session.
+  leftOn     DateTime?         @map("left_on") @db.Date
+  /// Set when promotion is applied.
+  outcome    PromotionOutcome?
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school             School              @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student            Student             @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  session            AcademicSession     @relation(fields: [schoolId, sessionId], references: [schoolId, id], onDelete: Restrict)
+  branch             Branch              @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+  level              ClassLevel          @relation(fields: [schoolId, levelId], references: [schoolId, id], onDelete: Restrict)
+  arm                ClassArm?           @relation(fields: [schoolId, armId], references: [schoolId, id], onDelete: Restrict)
+  promotionDecisions PromotionDecision[]
+
+  @@unique([schoolId, id])
+  @@unique([studentId, sessionId])
+  @@index([schoolId, sessionId, armId, status])
+  @@index([schoolId, sessionId, levelId])
+  @@index([schoolId, sessionId, branchId])
+  @@map("enrollments")
+}

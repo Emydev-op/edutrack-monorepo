@@ -1,0 +1,847 @@
+// Finance: fee items and structures → invoices → payments, with credit, refunds, bank and cash
+// accounts, statement matching, expenses and vendors. Money is integer kobo (BigInt).
+// EduTrack never holds money: payments are recorded by the school, or claimed by a parent and
+// verified against the bank statement.
+//
+// Ledger rules (from the School Admin finance ledger):
+// - Only CONFIRMED payments reduce balances; PENDING_VERIFICATION shows as pending.
+// - A payment is allocated to invoices; anything left is credit on the student's account.
+// - An invoice is paid by allocations plus applied credit, capped at its total; any excess
+//   (total dropped, invoice cancelled) becomes credit. Refunds come out of credit.
+// - Balances, credit and account balances are computed from these rows. Invoice money columns
+//   are denormalised and updated in the same transaction as the rows they summarise.
+
+enum FeeCategory {
+  TUITION
+  LEVY
+  EXAMS
+  ICT
+  BOOKS
+  UNIFORM
+  TRANSPORT
+  FEEDING
+  BOARDING
+  ACTIVITIES
+  ADMISSION
+  OTHER
+
+  @@map("fee_category")
+}
+
+/// Fee categories plus invoice-only line kinds.
+enum InvoiceLineCategory {
+  TUITION
+  LEVY
+  EXAMS
+  ICT
+  BOOKS
+  UNIFORM
+  TRANSPORT
+  FEEDING
+  BOARDING
+  ACTIVITIES
+  ADMISSION
+  OTHER
+  ADJUSTMENT
+  LATE_FEE
+
+  @@map("invoice_line_category")
+}
+
+/// Every term · Once a session · New students only.
+enum FeeCharged {
+  EVERY_TERM
+  ONCE_A_SESSION
+  NEW_STUDENTS_ONLY
+
+  @@map("fee_charged")
+}
+
+enum FeeType {
+  COMPULSORY
+  OPTIONAL
+
+  @@map("fee_type")
+}
+
+enum ActiveStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("active_status")
+}
+
+enum FeeItemStatus {
+  ACTIVE
+  ARCHIVED
+
+  @@map("fee_item_status")
+}
+
+/// Draft · Published ("Not created" = no row).
+enum FeeStructureStatus {
+  DRAFT
+  PUBLISHED
+
+  @@map("fee_structure_status")
+}
+
+enum DiscountBasis {
+  SIBLING
+  STAFF_CHILD
+  SCHOLARSHIP
+  CUSTOM
+
+  @@map("discount_basis")
+}
+
+enum DiscountKind {
+  PERCENTAGE
+  FIXED_AMOUNT
+
+  @@map("discount_kind")
+}
+
+/// Tuition only · All compulsory items.
+enum DiscountAppliesTo {
+  TUITION_ONLY
+  ALL_COMPULSORY
+
+  @@map("discount_applies_to")
+}
+
+/// TERM_FEES: the term's bill from the fee structure (one live per student per term). AD_HOC:
+/// any number of extra bills (excursion, uniform, exam fees).
+enum InvoiceKind {
+  TERM_FEES
+  AD_HOC
+
+  @@map("invoice_kind")
+}
+
+/// Stored lifecycle. The UI's Partially paid / Paid come from paidKobo; Overdue = open and past
+/// dueOn (or an installment past due).
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+
+  @@map("invoice_status")
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  POS
+  CASH
+  CHEQUE
+  OTHER
+
+  @@map("payment_method")
+}
+
+/// Pending verification · Confirmed · Rejected.
+enum PaymentStatus {
+  PENDING_VERIFICATION
+  CONFIRMED
+  REJECTED
+
+  @@map("payment_status")
+}
+
+/// School (recorded by staff) · Parent claim ("I've made a payment") · Statement (from a bank
+/// statement line).
+enum PaymentSource {
+  SCHOOL
+  PARENT_CLAIM
+  STATEMENT
+
+  @@map("payment_source")
+}
+
+/// Awaiting approval · Approved · Paid · Rejected.
+enum RefundStatus {
+  AWAITING_APPROVAL
+  APPROVED
+  PAID
+  REJECTED
+
+  @@map("refund_status")
+}
+
+enum ApproverLevel {
+  PRINCIPAL
+  PROPRIETOR
+
+  @@map("approver_level")
+}
+
+enum BankAccountKind {
+  BANK
+  CASH
+
+  @@map("bank_account_kind")
+}
+
+/// Matched · Possible match · Already recorded · No match · Ignored · Confirmed.
+enum StatementMatch {
+  MATCHED
+  POSSIBLE_MATCH
+  ALREADY_RECORDED
+  NO_MATCH
+  IGNORED
+  CONFIRMED
+
+  @@map("statement_match")
+}
+
+/// Draft · Submitted · Approved · Paid · Rejected.
+enum ExpenseStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PAID
+  REJECTED
+
+  @@map("expense_status")
+}
+
+enum ExpenseApprovalRole {
+  BURSAR
+  PRINCIPAL
+
+  @@map("expense_approval_role")
+}
+
+enum LateFeeKind {
+  NONE
+  FIXED_AMOUNT
+  PERCENTAGE
+
+  @@map("late_fee_kind")
+}
+
+/// What parents use as the transfer narration.
+enum TransferReference {
+  ADMISSION_NUMBER
+  INVOICE_NUMBER
+
+  @@map("transfer_reference")
+}
+
+/// Finance → Billing settings (one row per school). Term due dates are Term.feesDueOn.
+model FinanceSettings {
+  schoolId          String            @id @map("school_id") @db.Uuid
+  allowPartial      Boolean           @default(true) @map("allow_partial")
+  /// Apply the sibling discount automatically when invoicing.
+  autoSibling       Boolean           @default(true) @map("auto_sibling")
+  /// Bank transfers stay pending until matched on a statement.
+  verifyTransfers   Boolean           @default(true) @map("verify_transfers")
+  lateFeeKind       LateFeeKind       @default(NONE) @map("late_fee_kind")
+  /// Kobo for FIXED_AMOUNT, basis points (1/100 %) for PERCENTAGE.
+  lateFeeValue      BigInt            @default(0) @map("late_fee_value")
+  enabledMethods    PaymentMethod[]   @map("enabled_methods")
+  invoicePrefix     String            @default("INV") @map("invoice_prefix")
+  receiptPrefix     String            @default("RCT") @map("receipt_prefix")
+  transferReference TransferReference @default(ADMISSION_NUMBER) @map("transfer_reference")
+  /// Expenses above this need the Principal after the Bursar.
+  expenseLimitKobo  BigInt            @default(0) @map("expense_limit_kobo")
+  /// Refunds above this need the Proprietor instead of the Principal.
+  refundLimitKobo   BigInt            @default(0) @map("refund_limit_kobo")
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@map("finance_settings")
+}
+
+model FeeItem {
+  id          String        @id @default(uuid(7)) @db.Uuid
+  schoolId    String        @map("school_id") @db.Uuid
+  name        String
+  category    FeeCategory
+  charged     FeeCharged
+  type        FeeType
+  status      FeeItemStatus @default(ACTIVE)
+  description String        @default("")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  amounts FeeStructureAmount[]
+  lines   InvoiceLine[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, name])
+  @@map("fee_items")
+}
+
+/// Fee amounts for one branch in one term.
+model FeeStructure {
+  id            String             @id @default(uuid(7)) @db.Uuid
+  schoolId      String             @map("school_id") @db.Uuid
+  termId        String             @map("term_id") @db.Uuid
+  branchId      String             @map("branch_id") @db.Uuid
+  status        FeeStructureStatus @default(DRAFT)
+  publishedAt   DateTime?          @map("published_at") @db.Timestamptz(3)
+  publishedById String?            @map("published_by_id") @db.Uuid
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  term    Term                 @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Restrict)
+  branch  Branch               @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+  amounts FeeStructureAmount[]
+
+  @@unique([schoolId, id])
+  @@unique([termId, branchId])
+  @@index([schoolId, termId])
+  @@map("fee_structures")
+}
+
+/// One cell of a fee structure: a level's amount for a fee item. No row = blank / not offered.
+model FeeStructureAmount {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  schoolId    String   @map("school_id") @db.Uuid
+  structureId String   @map("structure_id") @db.Uuid
+  levelId     String   @map("level_id") @db.Uuid
+  feeItemId   String   @map("fee_item_id") @db.Uuid
+  amountKobo  BigInt   @map("amount_kobo")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school    School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  structure FeeStructure @relation(fields: [schoolId, structureId], references: [schoolId, id], onDelete: Cascade)
+  level     ClassLevel   @relation(fields: [schoolId, levelId], references: [schoolId, id], onDelete: Restrict)
+  feeItem   FeeItem      @relation(fields: [schoolId, feeItemId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([structureId, levelId, feeItemId])
+  @@index([schoolId, feeItemId])
+  @@map("fee_structure_amounts")
+}
+
+model Discount {
+  id            String            @id @default(uuid(7)) @db.Uuid
+  schoolId      String            @map("school_id") @db.Uuid
+  name          String
+  basis         DiscountBasis
+  kind          DiscountKind
+  /// Basis points (1/100 %) for PERCENTAGE, kobo for FIXED_AMOUNT.
+  value         BigInt
+  appliesTo     DiscountAppliesTo @default(TUITION_ONLY) @map("applies_to")
+  /// Sibling rule: from which child onwards (2 or 3).
+  fromChild     Int?              @map("from_child") @db.SmallInt
+  needsApproval Boolean           @default(false) @map("needs_approval")
+  /// Applied by invoicing rules (sibling) rather than by hand.
+  isAutomatic   Boolean           @default(false) @map("is_automatic")
+  status        ActiveStatus      @default(ACTIVE)
+  description   String            @default("")
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school           School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  invoiceDiscounts InvoiceDiscount[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, name])
+  @@map("discounts")
+}
+
+/// An installment plan, e.g. 60% at term start, 40% after 6 weeks.
+model PaymentPlan {
+  id        String       @id @default(uuid(7)) @db.Uuid
+  schoolId  String       @map("school_id") @db.Uuid
+  name      String
+  isDefault Boolean      @default(false) @map("is_default")
+  status    ActiveStatus @default(ACTIVE)
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school       School                   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  installments PaymentPlanInstallment[]
+  invoices     Invoice[]
+  students     Student[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, name])
+  @@unique([schoolId, isDefault], map: "payment_plans_one_default_key", where: raw("is_default"))
+  @@map("payment_plans")
+}
+
+model PaymentPlanInstallment {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  schoolId   String   @map("school_id") @db.Uuid
+  planId     String   @map("plan_id") @db.Uuid
+  sequence   Int      @db.SmallInt
+  /// Share of the invoice in basis points; a plan's shares sum to 10000.
+  shareBp    Int      @map("share_bp")
+  /// Days after term start this installment is due.
+  offsetDays Int      @map("offset_days")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School      @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  plan   PaymentPlan @relation(fields: [schoolId, planId], references: [schoolId, id], onDelete: Cascade)
+
+  @@unique([planId, sequence])
+  @@index([schoolId])
+  @@map("payment_plan_installments")
+}
+
+/// A student's bill in a term: one live TERM_FEES invoice per student per term, plus any number
+/// of AD_HOC invoices.
+model Invoice {
+  id            String        @id @default(uuid(7)) @db.Uuid
+  schoolId      String        @map("school_id") @db.Uuid
+  /// Per-school number from the invoice prefix, e.g. INV-2026-00042.
+  number        String
+  studentId     String        @map("student_id") @db.Uuid
+  termId        String        @map("term_id") @db.Uuid
+  branchId      String        @map("branch_id") @db.Uuid
+  levelId       String        @map("level_id") @db.Uuid
+  armId         String?       @map("arm_id") @db.Uuid
+  kind          InvoiceKind   @default(TERM_FEES)
+  /// What an AD_HOC invoice is for ("JSS 2 excursion to Abuja").
+  title         String?
+  status        InvoiceStatus @default(DRAFT)
+  /// Denormalised: sum of lines, sum of discounts, max(0, subtotal - discounts).
+  subtotalKobo  BigInt        @default(0) @map("subtotal_kobo")
+  discountKobo  BigInt        @default(0) @map("discount_kobo")
+  totalKobo     BigInt        @default(0) @map("total_kobo")
+  /// Denormalised: confirmed allocations + applied credit, capped at totalKobo.
+  paidKobo      BigInt        @default(0) @map("paid_kobo")
+  issuedOn      DateTime?     @map("issued_on") @db.Date
+  dueOn         DateTime      @map("due_on") @db.Date
+  paymentPlanId String?       @map("payment_plan_id") @db.Uuid
+  /// The payer was told (invoice.issued message sent).
+  notifiedAt    DateTime?     @map("notified_at") @db.Timestamptz(3)
+  cancelledAt   DateTime?     @map("cancelled_at") @db.Timestamptz(3)
+  cancelledById String?       @map("cancelled_by_id") @db.Uuid
+  cancelReason  String?       @map("cancel_reason")
+  createdById   String?       @map("created_by_id") @db.Uuid
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school             School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student            Student              @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  term               Term                 @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Restrict)
+  branch             Branch               @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+  level              ClassLevel           @relation(fields: [schoolId, levelId], references: [schoolId, id], onDelete: Restrict)
+  arm                ClassArm?            @relation(fields: [schoolId, armId], references: [schoolId, id], onDelete: Restrict)
+  paymentPlan        PaymentPlan?         @relation(fields: [schoolId, paymentPlanId], references: [schoolId, id], onDelete: Restrict)
+  lines              InvoiceLine[]
+  discounts          InvoiceDiscount[]
+  installments       InvoiceInstallment[]
+  allocations        PaymentAllocation[]
+  creditApplications CreditApplication[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, number])
+  @@unique([studentId, termId], map: "invoices_one_live_per_term_key", where: raw("status <> 'CANCELLED' AND kind = 'TERM_FEES'"))
+  @@index([schoolId, kind, termId])
+  @@index([schoolId, termId, status])
+  @@index([schoolId, branchId, termId])
+  @@index([schoolId, status, dueOn])
+  @@index([schoolId, studentId])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id         String              @id @default(uuid(7)) @db.Uuid
+  schoolId   String              @map("school_id") @db.Uuid
+  invoiceId  String              @map("invoice_id") @db.Uuid
+  /// Null for adjustments and late fees.
+  feeItemId  String?             @map("fee_item_id") @db.Uuid
+  label      String
+  category   InvoiceLineCategory
+  amountKobo BigInt              @map("amount_kobo")
+  isOptional Boolean             @default(false) @map("is_optional")
+  addedById  String?             @map("added_by_id") @db.Uuid
+  createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  invoice Invoice  @relation(fields: [schoolId, invoiceId], references: [schoolId, id], onDelete: Cascade)
+  feeItem FeeItem? @relation(fields: [schoolId, feeItemId], references: [schoolId, id], onDelete: Restrict)
+
+  @@index([schoolId, invoiceId])
+  @@index([schoolId, feeItemId])
+  @@map("invoice_lines")
+}
+
+model InvoiceDiscount {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  schoolId     String    @map("school_id") @db.Uuid
+  invoiceId    String    @map("invoice_id") @db.Uuid
+  /// Null for a one-off discount.
+  discountId   String?   @map("discount_id") @db.Uuid
+  label        String
+  amountKobo   BigInt    @map("amount_kobo")
+  appliedById  String?   @map("applied_by_id") @db.Uuid
+  approvedById String?   @map("approved_by_id") @db.Uuid
+  approvedAt   DateTime? @map("approved_at") @db.Timestamptz(3)
+  reason       String    @default("")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school   School    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  invoice  Invoice   @relation(fields: [schoolId, invoiceId], references: [schoolId, id], onDelete: Cascade)
+  discount Discount? @relation(fields: [schoolId, discountId], references: [schoolId, id], onDelete: Restrict)
+
+  @@index([schoolId, invoiceId])
+  @@index([schoolId, discountId])
+  @@map("invoice_discounts")
+}
+
+/// The invoice's installment schedule (from its payment plan). Paid / Overdue state is computed
+/// by applying paidKobo to installments in order.
+model InvoiceInstallment {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  schoolId   String   @map("school_id") @db.Uuid
+  invoiceId  String   @map("invoice_id") @db.Uuid
+  sequence   Int      @db.SmallInt
+  label      String
+  amountKobo BigInt   @map("amount_kobo")
+  dueOn      DateTime @map("due_on") @db.Date
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  invoice Invoice @relation(fields: [schoolId, invoiceId], references: [schoolId, id], onDelete: Cascade)
+
+  @@unique([invoiceId, sequence])
+  @@index([schoolId, dueOn])
+  @@map("invoice_installments")
+}
+
+/// A school bank or cash account money is paid into and out of.
+model BankAccount {
+  id                 String          @id @default(uuid(7)) @db.Uuid
+  schoolId           String          @map("school_id") @db.Uuid
+  name               String
+  kind               BankAccountKind
+  bankName           String?         @map("bank_name")
+  accountNumber      String?         @map("account_number")
+  accountName        String?         @map("account_name")
+  /// Null = school-wide.
+  branchId           String?         @map("branch_id") @db.Uuid
+  /// Shown to parents as payment details.
+  showToParents      Boolean         @default(false) @map("show_to_parents")
+  status             ActiveStatus    @default(ACTIVE)
+  openingBalanceKobo BigInt          @default(0) @map("opening_balance_kobo")
+  openingOn          DateTime        @map("opening_on") @db.Date
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school       School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  branch       Branch?           @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+  payments     Payment[]
+  transfersOut AccountTransfer[] @relation("TransferFrom")
+  transfersIn  AccountTransfer[] @relation("TransferTo")
+  statements   BankStatement[]
+  refundsPaid  Refund[]
+  expensesPaid Expense[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, name])
+  @@map("bank_accounts")
+}
+
+/// Money received for a student. Receipt number is per school.
+model Payment {
+  id                  String        @id @default(uuid(7)) @db.Uuid
+  schoolId            String        @map("school_id") @db.Uuid
+  /// Receipt number from the receipt prefix.
+  number              String
+  studentId           String        @map("student_id") @db.Uuid
+  paidOn              DateTime      @map("paid_on") @db.Date
+  payerName           String        @map("payer_name")
+  method              PaymentMethod
+  /// Bank/POS reference or narration.
+  reference           String        @default("")
+  bankAccountId       String        @map("bank_account_id") @db.Uuid
+  /// The student's branch when paid, for branch filters and reports.
+  branchId            String        @map("branch_id") @db.Uuid
+  amountKobo          BigInt        @map("amount_kobo")
+  status              PaymentStatus
+  source              PaymentSource
+  recordedById        String?       @map("recorded_by_id") @db.Uuid
+  /// The guardian who claimed it in the Parent Portal.
+  claimedByGuardianId String?       @map("claimed_by_guardian_id") @db.Uuid
+  verifiedById        String?       @map("verified_by_id") @db.Uuid
+  verifiedAt          DateTime?     @map("verified_at") @db.Timestamptz(3)
+  rejectReason        String?       @map("reject_reason")
+  note                String        @default("")
+  proofFileId         String?       @map("proof_file_id") @db.Uuid
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school            School              @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student           Student             @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  bankAccount       BankAccount         @relation(fields: [schoolId, bankAccountId], references: [schoolId, id], onDelete: Restrict)
+  branch            Branch              @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+  claimedByGuardian Guardian?           @relation(fields: [schoolId, claimedByGuardianId], references: [schoolId, id], onDelete: Restrict)
+  proofFile         StoredFile?         @relation(fields: [schoolId, proofFileId], references: [schoolId, id], onDelete: Restrict)
+  allocations       PaymentAllocation[]
+  refunds           Refund[]
+  statementLines    BankStatementLine[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, number])
+  @@index([schoolId, status, paidOn])
+  @@index([schoolId, studentId])
+  @@index([schoolId, bankAccountId, paidOn])
+  @@index([schoolId, branchId, paidOn])
+  @@index([schoolId, reference])
+  @@map("payments")
+}
+
+/// The part of a payment applied to an invoice.
+model PaymentAllocation {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  schoolId   String   @map("school_id") @db.Uuid
+  paymentId  String   @map("payment_id") @db.Uuid
+  invoiceId  String   @map("invoice_id") @db.Uuid
+  amountKobo BigInt   @map("amount_kobo")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  payment Payment @relation(fields: [schoolId, paymentId], references: [schoolId, id], onDelete: Restrict)
+  invoice Invoice @relation(fields: [schoolId, invoiceId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([paymentId, invoiceId])
+  @@index([schoolId, invoiceId])
+  @@map("payment_allocations")
+}
+
+/// Credit on a student's account applied to an invoice.
+model CreditApplication {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  schoolId    String   @map("school_id") @db.Uuid
+  studentId   String   @map("student_id") @db.Uuid
+  invoiceId   String   @map("invoice_id") @db.Uuid
+  amountKobo  BigInt   @map("amount_kobo")
+  appliedOn   DateTime @map("applied_on") @db.Date
+  appliedById String?  @map("applied_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student Student @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  invoice Invoice @relation(fields: [schoolId, invoiceId], references: [schoolId, id], onDelete: Restrict)
+
+  @@index([schoolId, studentId])
+  @@index([schoolId, invoiceId])
+  @@map("credit_applications")
+}
+
+/// Money paid back to a payer out of the student's credit.
+model Refund {
+  id                String        @id @default(uuid(7)) @db.Uuid
+  schoolId          String        @map("school_id") @db.Uuid
+  number            String
+  studentId         String        @map("student_id") @db.Uuid
+  paymentId         String?       @map("payment_id") @db.Uuid
+  amountKobo        BigInt        @map("amount_kobo")
+  reason            String
+  /// Where it goes: "GTBank 0123456789 · Funke Adeyemi".
+  payTo             String        @map("pay_to")
+  status            RefundStatus  @default(AWAITING_APPROVAL)
+  /// Principal up to the refund limit, Proprietor above it.
+  approverLevel     ApproverLevel @map("approver_level")
+  requestedById     String?       @map("requested_by_id") @db.Uuid
+  requestedAt       DateTime      @default(now()) @map("requested_at") @db.Timestamptz(3)
+  approvedById      String?       @map("approved_by_id") @db.Uuid
+  approvedAt        DateTime?     @map("approved_at") @db.Timestamptz(3)
+  paidAt            DateTime?     @map("paid_at") @db.Timestamptz(3)
+  paidFromAccountId String?       @map("paid_from_account_id") @db.Uuid
+  paidReference     String?       @map("paid_reference")
+  rejectReason      String?       @map("reject_reason")
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school          School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student         Student      @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  payment         Payment?     @relation(fields: [schoolId, paymentId], references: [schoolId, id], onDelete: Restrict)
+  paidFromAccount BankAccount? @relation(fields: [schoolId, paidFromAccountId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([schoolId, number])
+  @@index([schoolId, status, requestedAt])
+  @@index([schoolId, studentId])
+  @@map("refunds")
+}
+
+/// Money moved between two of the school's accounts.
+model AccountTransfer {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  schoolId      String   @map("school_id") @db.Uuid
+  number        String
+  transferredOn DateTime @map("transferred_on") @db.Date
+  fromAccountId String   @map("from_account_id") @db.Uuid
+  toAccountId   String   @map("to_account_id") @db.Uuid
+  amountKobo    BigInt   @map("amount_kobo")
+  reference     String   @default("")
+  note          String   @default("")
+  createdById   String?  @map("created_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school      School      @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  fromAccount BankAccount @relation("TransferFrom", fields: [schoolId, fromAccountId], references: [schoolId, id], onDelete: Restrict)
+  toAccount   BankAccount @relation("TransferTo", fields: [schoolId, toAccountId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([schoolId, number])
+  @@index([schoolId, fromAccountId, transferredOn])
+  @@index([schoolId, toAccountId, transferredOn])
+  @@map("account_transfers")
+}
+
+/// An uploaded bank statement for matching transfers.
+model BankStatement {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  schoolId      String   @map("school_id") @db.Uuid
+  bankAccountId String   @map("bank_account_id") @db.Uuid
+  fileId        String?  @map("file_id") @db.Uuid
+  fileName      String   @map("file_name")
+  uploadedById  String?  @map("uploaded_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school      School              @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  bankAccount BankAccount         @relation(fields: [schoolId, bankAccountId], references: [schoolId, id], onDelete: Restrict)
+  file        StoredFile?         @relation(fields: [schoolId, fileId], references: [schoolId, id], onDelete: Restrict)
+  lines       BankStatementLine[]
+
+  @@unique([schoolId, id])
+  @@index([schoolId, bankAccountId, createdAt])
+  @@map("bank_statements")
+}
+
+model BankStatementLine {
+  id          String         @id @default(uuid(7)) @db.Uuid
+  schoolId    String         @map("school_id") @db.Uuid
+  statementId String         @map("statement_id") @db.Uuid
+  lineNo      Int            @map("line_no")
+  postedOn    DateTime       @map("posted_on") @db.Date
+  description String
+  reference   String         @default("")
+  creditKobo  BigInt         @default(0) @map("credit_kobo")
+  debitKobo   BigInt         @default(0) @map("debit_kobo")
+  match       StatementMatch @default(NO_MATCH)
+  paymentId   String?        @map("payment_id") @db.Uuid
+  note        String         @default("")
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school    School        @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  statement BankStatement @relation(fields: [schoolId, statementId], references: [schoolId, id], onDelete: Cascade)
+  payment   Payment?      @relation(fields: [schoolId, paymentId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([statementId, lineNo])
+  @@index([schoolId, paymentId])
+  @@map("bank_statement_lines")
+}
+
+model Vendor {
+  id            String       @id @default(uuid(7)) @db.Uuid
+  schoolId      String       @map("school_id") @db.Uuid
+  name          String
+  category      String       @default("")
+  contactName   String?      @map("contact_name")
+  phone         String?
+  email         String?      @db.Citext
+  address       String?
+  bankName      String?      @map("bank_name")
+  accountNumber String?      @map("account_number")
+  accountName   String?      @map("account_name")
+  notes         String       @default("")
+  status        ActiveStatus @default(ACTIVE)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school   School    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  expenses Expense[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, name])
+  @@map("vendors")
+}
+
+model ExpenseCategory {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  schoolId   String    @map("school_id") @db.Uuid
+  name       String
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school   School    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  expenses Expense[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, name])
+  @@map("expense_categories")
+}
+
+/// Money spent. Bursar approves up to the expense limit; above it the Principal approves too.
+model Expense {
+  id                String        @id @default(uuid(7)) @db.Uuid
+  schoolId          String        @map("school_id") @db.Uuid
+  number            String
+  spentOn           DateTime      @map("spent_on") @db.Date
+  categoryId        String        @map("category_id") @db.Uuid
+  description       String
+  vendorId          String?       @map("vendor_id") @db.Uuid
+  branchId          String        @map("branch_id") @db.Uuid
+  amountKobo        BigInt        @map("amount_kobo")
+  method            PaymentMethod
+  status            ExpenseStatus @default(DRAFT)
+  submittedById     String?       @map("submitted_by_id") @db.Uuid
+  submittedAt       DateTime?     @map("submitted_at") @db.Timestamptz(3)
+  paidFromAccountId String?       @map("paid_from_account_id") @db.Uuid
+  paidAt            DateTime?     @map("paid_at") @db.Timestamptz(3)
+  paidReference     String?       @map("paid_reference")
+  rejectReason      String?       @map("reject_reason")
+  notes             String        @default("")
+  /// The vendor's invoice/receipt (required above the expense limit).
+  attachmentFileId  String?       @map("attachment_file_id") @db.Uuid
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school          School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  category        ExpenseCategory   @relation(fields: [schoolId, categoryId], references: [schoolId, id], onDelete: Restrict)
+  vendor          Vendor?           @relation(fields: [schoolId, vendorId], references: [schoolId, id], onDelete: Restrict)
+  branch          Branch            @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+  paidFromAccount BankAccount?      @relation(fields: [schoolId, paidFromAccountId], references: [schoolId, id], onDelete: Restrict)
+  attachmentFile  StoredFile?       @relation(fields: [schoolId, attachmentFileId], references: [schoolId, id], onDelete: Restrict)
+  approvals       ExpenseApproval[]
+
+  @@unique([schoolId, id])
+  @@unique([schoolId, number])
+  @@index([schoolId, status, spentOn])
+  @@index([schoolId, branchId, spentOn])
+  @@index([schoolId, vendorId])
+  @@index([schoolId, categoryId])
+  @@map("expenses")
+}
+
+model ExpenseApproval {
+  id           String              @id @default(uuid(7)) @db.Uuid
+  schoolId     String              @map("school_id") @db.Uuid
+  expenseId    String              @map("expense_id") @db.Uuid
+  role         ExpenseApprovalRole
+  approvedById String              @map("approved_by_id") @db.Uuid
+  approvedAt   DateTime            @default(now()) @map("approved_at") @db.Timestamptz(3)
+  createdAt    DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  expense Expense @relation(fields: [schoolId, expenseId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([expenseId, role])
+  @@index([schoolId])
+  @@map("expense_approvals")
+}
