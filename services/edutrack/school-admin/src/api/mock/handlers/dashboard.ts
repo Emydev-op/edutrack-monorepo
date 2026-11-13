@@ -9,6 +9,7 @@ import { smsCreditOf } from '../comms-db';
 import { tickets } from '../support-db';
 import { branchFigures, dashboards } from '../db';
 import { schoolData } from '../school-db';
+import { reviewCounts } from './academics-results';
 import { currentTerm } from './academics-shared';
 import { sectionFigures, termFigures, weekly } from './finance-overview';
 import { financeSnapshot, millions } from './finance-shared';
@@ -80,7 +81,12 @@ mock.get('/v1/dashboard', (req) => {
       ...feeMetrics(school, branch, [collected, collectedHint, outstanding, outstandingHint]),
     ],
     attention: [
-      ...base.attention.flatMap((a) => liveAttention(school, branch, a)),
+      // Sheets waiting on the office sit next to the result-entry reminder.
+      ...base.attention.flatMap((a) =>
+        a.id === 'results-due'
+          ? [...resultsDue(school, branch, a), ...resultsAttention(school, branch)]
+          : liveAttention(school, branch, a),
+      ),
       ...opsAttention(school),
     ],
   };
@@ -124,6 +130,56 @@ function feeMetrics(school: string, branch: string, fallback: string[]) {
       `${f.owingStudents.toLocaleString('en-NG')} students · ${millions(f.overdue)} overdue`,
       f.overdue ? 'error' : 'neutral',
     ),
+  ];
+}
+
+/**
+ * Result sheets teachers haven't submitted yet for the current term (Not started, Draft or
+ * Returned), counted from the sheets themselves. Drops off once every sheet is in.
+ */
+function resultsDue(
+  school: string,
+  branch: string,
+  a: (typeof dashboards)[string]['attention'][number],
+): (typeof dashboards)[string]['attention'] {
+  const acad = academicsData[school]!;
+  const term = currentTerm(acad);
+  if (!term) return [];
+  const branchId = branch === 'All branches' ? null : schoolBranchId(school, branch);
+  const open = acad.sheets.filter((s) => {
+    if (s.termId !== term.id || acad.published.includes(`${term.id}|${s.armId}`)) return false;
+    if (!['Not started', 'Draft', 'Returned'].includes(s.status)) return false;
+    const level = acad.levels.find((l) => l.arms.some((x) => x.id === s.armId));
+    return Boolean(level) && (!branchId || level!.branchId === branchId);
+  }).length;
+  if (!open) return [];
+  // The deadline part of the seeded text ("entry closes Fri 11 Dec") stays as it is.
+  const deadline = a.text.split(' · ').slice(1).join(' · ');
+  return [
+    {
+      ...a,
+      text: `${open} result sheet${open === 1 ? '' : 's'} not yet submitted${deadline ? ` · ${deadline}` : ''}`,
+    },
+  ];
+}
+
+/** Result sheets the academic office can act on now; sheets still with HODs are only mentioned. */
+function resultsAttention(
+  school: string,
+  branch: string,
+): (typeof dashboards)[string]['attention'] {
+  const branchId = branch === 'All branches' ? null : schoolBranchId(school, branch);
+  const { office, hod } = reviewCounts(school, branchId);
+  if (!office) return [];
+  return [
+    {
+      id: 'results-review',
+      badge: { label: 'Review', tone: 'info' },
+      text: `${office} result sheet${office === 1 ? '' : 's'} awaiting your review${hod ? ` · ${hod} more with HODs` : ''}`,
+      area: `Academics · Results · ${currentTerm(academicsData[school]!)?.name ?? ''}`,
+      action: 'Review',
+      to: { name: routesPath.academics.results.name },
+    },
   ];
 }
 

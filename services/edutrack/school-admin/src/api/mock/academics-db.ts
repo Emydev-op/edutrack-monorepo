@@ -97,6 +97,8 @@ export interface SheetRec {
   status: SheetStatus;
   submittedAt: string | null;
   returnNote: string;
+  /** Who sent it back to the teacher: the department's HOD or the academic office. */
+  returnedBy?: 'hod' | 'office';
   /** studentId → one value per assessment component. */
   scores: Record<string, ScoreValue[]>;
   history: TimelineEntry[];
@@ -382,6 +384,48 @@ export const PUBLIC_HOLIDAYS: [string, string][] = [
   ['2027-12-26', 'Boxing Day'],
   ['2028-01-01', 'New Year’s Day'],
 ];
+
+/* ---------------- Departments and HODs ---------------- */
+
+export interface DepartmentRec {
+  name: string;
+  /** Staff id of the HOD, or null when the post is vacant. */
+  hodId: string | null;
+  subjects: string[];
+}
+
+/**
+ * Subject departments per school, the one place the review chain is read from. A sheet from a
+ * department with an HOD goes to the HOD first (Submitted), then to the academic office (Under
+ * review). With no HOD, or when the HOD is the sheet's own teacher, it goes straight to the office.
+ * Subjects outside every department (nursery and primary subjects) have no HOD.
+ */
+export const DEPARTMENTS: Record<string, DepartmentRec[]> = {
+  greenfield: [
+    {
+      name: 'Sciences',
+      hodId: 'bello',
+      subjects: ['MTH', 'FMT', 'PHY', 'CHE', 'BIO', 'BSC', 'AGR'],
+    },
+    { name: 'Languages', hodId: null, subjects: ['ENG', 'LIE', 'FRE', 'YOR'] },
+    {
+      name: 'Humanities',
+      hodId: 'ajayi',
+      subjects: ['SOS', 'CIV', 'CRS', 'IRS', 'GEO', 'GOV'],
+    },
+    { name: 'Vocational', hodId: null, subjects: ['BTE', 'CMP', 'HEC', 'CCA', 'PHE'] },
+  ],
+};
+
+export const departmentOf = (schoolId: string, subject: string) =>
+  DEPARTMENTS[schoolId]?.find((d) => d.subjects.includes(subject)) ?? null;
+
+/** The HOD a subject's sheets go to first, or null when they go straight to the office. */
+export function hodFor(schoolId: string, subject: string, teacherId: string | null) {
+  const dept = departmentOf(schoolId, subject);
+  if (!dept?.hodId || dept.hodId === teacherId) return null;
+  return { id: dept.hodId, department: dept.name };
+}
 
 /* ---------------- Helpers ---------------- */
 
@@ -959,18 +1003,51 @@ function seedSheets(data: AcademicsData) {
                 : code === 'CHE'
                   ? 'Not started'
                   : SHEET_STATUSES[Math.floor(r * SHEET_STATUSES.length)]!;
+        const teacherId =
+          data.assignments.find((a) => a.armId === arm.id && a.subject === code)?.teacherId ?? null;
+        const hod = hodFor('greenfield', code, teacherId);
+        // No HOD to pass through (or the HOD's own sheet): a submitted sheet is with the office.
+        if (status === 'Submitted' && !hod) status = 'Under review';
         if (lv.section === 'Primary' && status === 'Under review') status = 'Approved';
         if (name === 'SSS 2A' && code === 'ENG') status = 'Returned';
+        // The HOD sent this one back before it reached the office.
+        const byHod = name === 'JSS 1C' && code === 'AGR';
+        if (byHod) status = 'Returned';
+        const hodName = hod && data.teachers.find((t) => t.id === hod.id)?.name;
+        const history: TimelineEntry[] = [];
+        if (byHod && hodName)
+          history.push({
+            id: 'hod',
+            title: `Returned by HOD ${hodName}`,
+            detail:
+              'CA 1 is blank for three students who sat it. Please enter it before I forward.',
+            when: '8 Dec, 13:20',
+            tone: 'error',
+          });
+        else if (hodName && ['Under review', 'Approved', 'Published'].includes(status))
+          history.push({
+            id: 'hod',
+            title: `Forwarded by HOD ${hodName}`,
+            detail: `${hod.department} · sent to the academic office`,
+            when: '8 Dec, 14:05',
+            tone: 'info',
+          });
         data.sheets.push({
           armId: arm.id,
           subject: code,
           termId: term,
           status,
           submittedAt: ['Draft', 'Not started'].includes(status) ? null : '8 Dec, 10:14',
-          returnNote:
-            status === 'Returned' ? 'Two students have CA 2 above the maximum. Please check.' : '',
+          returnNote: byHod
+            ? 'CA 1 is blank for three students who sat it. Please enter it before I forward.'
+            : status === 'Returned'
+              ? 'Two students have CA 2 above the maximum. Please check.'
+              : '',
+          ...(status === 'Returned' && {
+            returnedBy: byHod ? ('hod' as const) : ('office' as const),
+          }),
           scores: {},
-          history: [],
+          history,
         });
       }
     }

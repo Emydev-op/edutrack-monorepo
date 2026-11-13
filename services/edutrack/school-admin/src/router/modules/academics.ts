@@ -7,6 +7,7 @@ const ACADEMICS = { label: 'Academics', to: a.sessions.name };
 const SESSIONS = { label: 'Sessions & Terms', to: a.sessions.name };
 const CLASSES = { label: 'Classes & Arms', to: a.classes.name };
 const RESULTS = { label: 'Results', to: a.results.name };
+const ATTENDANCE = { label: 'Attendance', to: a.attendance.name };
 
 export const academicsRoutes: RouteRecordRaw[] = [
   {
@@ -87,6 +88,20 @@ export const academicsRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/academics/classes/tabs/ClassResultsTab.vue'),
       },
     ],
+  },
+  {
+    ...a.attendance,
+    component: () => import('@/views/academics/attendance/AttendanceView.vue'),
+    meta: { title: 'Attendance', breadcrumb: [ACADEMICS, { label: 'Attendance' }] },
+  },
+  {
+    ...a.attendanceArm,
+    component: () => import('@/views/academics/attendance/AttendanceArmView.vue'),
+    meta: {
+      title: 'Class attendance',
+      nav: a.attendance.name,
+      breadcrumb: [ACADEMICS, ATTENDANCE],
+    },
   },
   {
     path: a.subjects.path,

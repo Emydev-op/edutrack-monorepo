@@ -5,6 +5,7 @@ import type { SearchResult } from '@/types';
 
 import { academicsData } from '../academics-db';
 import { contextOptions, searchIndex } from '../db';
+import { reviewCounts } from './academics-results';
 import { currentSession, currentTerm } from './academics-shared';
 import { schoolData } from '../school-db';
 import { setupView } from './setup';
@@ -61,6 +62,8 @@ mock.get('/v1/nav-counts', (req) => {
       (p) => p.status === 'Pending verification',
     ).length,
     ...(school === 'greenfield' && { [routesPath.inventory.requests.name]: 1 }),
+    // Result sheets with the academic office (not the ones still with an HOD).
+    [routesPath.academics.results.name]: reviewCounts(school).office,
     // Tickets waiting on the school's reply or confirmation.
     [routesPath.support.name]: tickets.filter((t) => t.schoolId === school && needsYou(t)).length,
   };

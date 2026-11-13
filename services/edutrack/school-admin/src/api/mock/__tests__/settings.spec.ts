@@ -168,7 +168,9 @@ describe('Settings', () => {
     expect(empty.data.usage.students).toBe(0);
     const modules = await crestview.get<ModuleRow[]>('/v1/settings/modules');
     expect(modules.data.find((m) => m.name === 'Inventory')?.status).toBe('Not on plan');
-    expect(modules.data.find((m) => m.name === 'Attendance')?.status).toBe('Coming soon');
+    // Attendance is live on every plan now that class teachers take registers.
+    expect(modules.data.find((m) => m.name === 'Attendance')?.status).toBe('Active');
+    expect(modules.data.find((m) => m.name === 'Transport')?.status).toBe('Coming soon');
 
     expect(subscriptionStatus(60)).toBe('Active');
     expect(subscriptionStatus(10)).toBe('Renewal due');

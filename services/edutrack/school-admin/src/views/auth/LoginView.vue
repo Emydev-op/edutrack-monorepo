@@ -3,6 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Checkbox } from '@edutrack/ui/components/checkbox';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { useQueryClient } from '@tanstack/vue-query';
 import { isAxiosError } from 'axios';
 import { useForm } from 'vee-validate';
 import { computed, ref } from 'vue';
@@ -24,6 +25,7 @@ import AuthHeading from './AuthHeading.vue';
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+const queryClient = useQueryClient();
 const login = useLoginMutation();
 
 const { handleSubmit, defineField } = useForm({
@@ -106,6 +108,9 @@ const onSubmit = handleSubmit(async (values) => {
   error.value = '';
   try {
     const session = await login.mutateAsync(values);
+    // A session can end by expiring, without the sign-out menu: never show the previous
+    // person's cached data to whoever signs in next on this device.
+    queryClient.clear();
     auth.setSession(
       { token: session.accessToken, user: session.user, school: session.school },
       values.remember,

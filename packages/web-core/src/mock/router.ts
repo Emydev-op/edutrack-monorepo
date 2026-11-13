@@ -15,6 +15,8 @@ export class MockHttpError extends Error {
     readonly status: number,
     message: string,
     readonly code?: string,
+    /** Per-field messages for 422s, sent as `fields` in the body (e.g. `{ reason: 'Too short' }`). */
+    readonly fields?: Record<string, string>,
   ) {
     super(message);
   }

@@ -519,6 +519,16 @@ export interface ResultSheet {
     missing: number;
   };
   returnNote: string;
+  /** Who returned it: "Mr. Ibrahim Bello (HOD Sciences)" or "the academic office". */
+  returnedBy: string | null;
+  /** The subject's department, if it belongs to one. */
+  department: string | null;
+  /** The HOD this sheet goes through before the office, e.g. "Mr. Ibrahim Bello (HOD Sciences)". */
+  hod: string | null;
+  /** Submitted and waiting on the HOD: the office can only view it. */
+  withHod: boolean;
+  /** The academic office can approve or return it now. */
+  canDecide: boolean;
   history: TimelineEntry[];
   passMark: number;
 }
@@ -530,7 +540,29 @@ export interface PublishCheck {
   subjects: number;
   notApproved: string[];
   flags: string[];
+  /** Report cards in the arm with no class teacher's remark yet (a warning, not a blocker). */
+  missingRemarks: number;
+  /** Plain-language warnings that don't block publishing. */
+  warnings: string[];
 }
+
+export const CONDUCT_TRAITS = [
+  'Punctuality',
+  'Neatness',
+  'Attentiveness',
+  'Relationship with others',
+  'Leadership',
+] as const;
+export type ConductTrait = (typeof CONDUCT_TRAITS)[number];
+
+/** 1–5, highest first. */
+export const CONDUCT_SCALE: Record<number, string> = {
+  5: 'Excellent',
+  4: 'Very good',
+  3: 'Good',
+  2: 'Fair',
+  1: 'Needs improvement',
+};
 
 export interface ReportCard {
   school: { name: string; motto: string; address: string; logoUrl: string | null };
@@ -552,6 +584,19 @@ export interface ReportCard {
   version: number;
   nextTerm: string;
   classmates: { id: string; name: string }[];
+  /** The class teacher's remark for the term; null until they write it. */
+  classTeacherRemark: string | null;
+  /** Conduct ratings 1–5 from the class teacher; null rating = not rated yet. */
+  conduct: { trait: ConductTrait; rating: number | null }[];
+  /** From the daily register. Present includes late arrivals. */
+  attendance: {
+    present: number;
+    late: number;
+    absent: number;
+    excused: number;
+    /** School days so far this term (all of them once the term ends). */
+    schoolDays: number;
+  } | null;
 }
 
 export type CorrectionStatus = 'Under review' | 'Applied' | 'Rejected';
@@ -576,6 +621,83 @@ export interface Correction {
   status: CorrectionStatus;
   decisionNote: string;
   history: TimelineEntry[];
+}
+
+/* ---------------- Attendance ---------------- */
+
+export type AttendanceMark = 'Present' | 'Late' | 'Absent' | 'Excused';
+
+export interface AttendanceCounts {
+  present: number;
+  late: number;
+  absent: number;
+  excused: number;
+}
+
+export interface AttendanceArmRow extends AttendanceCounts {
+  armId: string;
+  arm: string;
+  branch: string;
+  section: string;
+  classTeacher: string | null;
+  students: number;
+  schoolDays: number;
+  daysTaken: number;
+  notTaken: number;
+  /** Present or late ÷ marks on days taken; null when nothing has been marked. */
+  rate: number | null;
+  todayTaken: boolean | null;
+}
+
+export interface AttendanceOverview {
+  term: string;
+  termId: string;
+  session: string;
+  /** Today's date as the register sees it. */
+  today: string;
+  isSchoolDay: boolean;
+  schoolDays: number;
+  /** Weekdays in the term with no school, and why. */
+  closures: { date: string; name: string }[];
+  rows: AttendanceArmRow[];
+  totals: (AttendanceCounts & { rate: number | null; daysTaken: number; possible: number }) | null;
+  /** Why there is nothing to show: no session yet, or no classes. */
+  empty: 'no-session' | 'no-classes' | null;
+}
+
+export interface AttendanceDay extends AttendanceCounts {
+  date: string;
+  /** School day, a closure (holiday, break), or a school day still ahead. */
+  kind: 'school' | 'closed' | 'upcoming';
+  note: string;
+  taken: boolean;
+  takenBy: string | null;
+  takenAt: string | null;
+  rate: number | null;
+}
+
+export interface AttendanceStudent extends AttendanceCounts {
+  id: string;
+  name: string;
+  admissionNo: string;
+  marked: number;
+  rate: number | null;
+  /** date → mark on days taken. */
+  marks: Record<string, { status: AttendanceMark; reason: string } | undefined>;
+}
+
+export interface AttendanceArmDetail {
+  armId: string;
+  arm: string;
+  branch: string;
+  classTeacher: string | null;
+  term: string;
+  today: string;
+  summary: AttendanceArmRow;
+  days: AttendanceDay[];
+  students: AttendanceStudent[];
+  /** Students counted in the arm without a record on EduTrack; included in the day totals. */
+  others: number;
 }
 
 /* ---------------- Promotion ---------------- */

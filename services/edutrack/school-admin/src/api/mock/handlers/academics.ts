@@ -75,6 +75,7 @@ import {
   toArm,
   today,
 } from './academics-shared';
+import { isWithHod, isWithOffice } from './academics-results';
 import { requireText } from './shared';
 
 const fail = (msg: string, status = 422): never => {
@@ -204,7 +205,10 @@ function copyAreas(acad: AcademicsData) {
   return rows.map(([id, label, detail]) => ({ id, label, detail }));
 }
 
-function termChecklist(acad: AcademicsData): (Checklist & { termId: string }) | null {
+function termChecklist(
+  schoolId: string,
+  acad: AcademicsData,
+): (Checklist & { termId: string }) | null {
   const session = currentSession(acad);
   const term = session?.terms.find((t) => t.status === 'Active');
   if (!session || !term) return null;
@@ -213,6 +217,9 @@ function termChecklist(acad: AcademicsData): (Checklist & { termId: string }) | 
   const waiting = sheets.filter((s) =>
     ['Submitted', 'Under review', 'Returned'].includes(s.status),
   ).length;
+  const withOffice = sheets.filter((s) => isWithOffice(schoolId, acad, s)).length;
+  const withHod = sheets.filter((s) => isWithHod(schoolId, acad, s)).length;
+  const returned = sheets.filter((s) => s.status === 'Returned').length;
   const armIds = [...new Set(sheets.map((s) => s.armId))];
   const pub = armIds.filter((id) => acad.published.includes(`${term.id}|${id}`)).length;
   const absent = sheets.reduce(
@@ -231,7 +238,13 @@ function termChecklist(acad: AcademicsData): (Checklist & { termId: string }) | 
     {
       label: 'Results approved',
       detail: waiting
-        ? `${plural(waiting, 'sheet')} awaiting approval`
+        ? [
+            withOffice && `${plural(withOffice, 'sheet')} awaiting your review`,
+            withHod && `${plural(withHod, 'sheet')} with HODs`,
+            returned && `${plural(returned, 'sheet')} returned to teachers`,
+          ]
+            .filter(Boolean)
+            .join(' · ')
         : 'All submitted sheets approved',
       status: waiting || notIn ? 'Blocking' : 'Complete',
       to: { name: r.results.name },
@@ -281,7 +294,7 @@ function sessionsView(schoolId: string, acad: AcademicsData): SessionsView {
       .sort((a, b) => b.start.localeCompare(a.start))
       .map((s) => ({ ...s, students: sessionStudents(schoolId, s) })),
     currentId: cur?.id ?? null,
-    termChecklist: termChecklist(acad),
+    termChecklist: termChecklist(schoolId, acad),
     copyAreas: copyAreas(acad),
     confirmed: { session: acad.confirmed.session, terms: acad.confirmed.terms },
   };
@@ -564,8 +577,8 @@ mock.post('/v1/academics/sessions/:id/close', (req) => {
 });
 
 mock.post('/v1/academics/terms/:id/close', (req) => {
-  const { acad, log } = acadFor(req);
-  const c = termChecklist(acad);
+  const { acad, schoolId, log } = acadFor(req);
+  const c = termChecklist(schoolId, acad);
   if (!c || c.termId !== req.params.id) fail('Only the active term can be closed.', 409);
   if (!c!.canClose) fail(c!.reason, 409);
   const session = currentSession(acad)!;
