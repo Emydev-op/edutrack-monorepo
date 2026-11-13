@@ -373,7 +373,7 @@ useSettingsDirtyGuard(() => pwDirty.value || rulesDirty.value);
               v-model="pw.next"
               type="password"
               autocomplete="new-password"
-              placeholder="At least 10 characters"
+              placeholder="At least 8 characters"
               :aria-invalid="!!pwErr('next')"
             />
           </FieldShell>

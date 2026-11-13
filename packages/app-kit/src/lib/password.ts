@@ -6,7 +6,7 @@ export interface PasswordRule {
 /** The platform password policy, shown live while the user types. */
 export function passwordRules(password: string): PasswordRule[] {
   return [
-    { label: 'At least 10 characters', met: password.length >= 10 },
+    { label: 'At least 8 characters', met: password.length >= 8 },
     {
       label: 'An uppercase and a lowercase letter',
       met: /[a-z]/.test(password) && /[A-Z]/.test(password),

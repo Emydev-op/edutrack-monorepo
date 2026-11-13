@@ -14,7 +14,8 @@ import { deviceLabel, randomToken, sha256 } from './tokens.js';
 describe('password policy', () => {
   it.each([
     ['Edutrack2026!', true],
-    ['short1A!', false], // 8 characters: the portals require 10
+    ['shrt1A!', false], // 7 characters: the minimum is 8
+    ['short1A!', true], // exactly 8 characters
     ['edutrack2026!', false],
     ['EDUTRACK2026!', false],
     ['Edutrackkkk!', false],

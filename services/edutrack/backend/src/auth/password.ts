@@ -10,15 +10,15 @@ const OPTIONS = { type: argon2.argon2id, memoryCost: 19_456, timeCost: 2, parall
 export const PASSWORD_MAX_LENGTH = 128;
 
 export const PASSWORD_POLICY_MESSAGE =
-  'Use at least 10 characters with an uppercase and a lowercase letter, a number and a symbol.';
+  'Use at least 8 characters with an uppercase and a lowercase letter, a number and a symbol.';
 
 /**
  * The platform password policy, identical to the portals' (`@edutrack/app-kit/lib/password`):
- * 10+ characters, upper and lower case, a number and a symbol.
+ * 8+ characters, upper and lower case, a number and a symbol.
  */
 export function meetsPasswordPolicy(password: string): boolean {
   return (
-    password.length >= 10 &&
+    password.length >= 8 &&
     password.length <= PASSWORD_MAX_LENGTH &&
     /[a-z]/.test(password) &&
     /[A-Z]/.test(password) &&

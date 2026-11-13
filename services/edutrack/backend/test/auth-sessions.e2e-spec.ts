@@ -288,7 +288,7 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
       const weak = await api
         .post('/api/v1/auth/password/change')
         .send({ current: PASSWORD, next: 'weakpass' });
-      expect(weak.body.fields.next).toContain('at least 10 characters');
+      expect(weak.body.fields.next).toContain('at least 8 characters');
       const same = await api
         .post('/api/v1/auth/password/change')
         .send({ current: PASSWORD, next: PASSWORD });

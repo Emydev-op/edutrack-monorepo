@@ -48,7 +48,7 @@ describe('Forgot, reset and expired passwords (e2e)', () => {
 
     const weak = await reset(tokenOf(link), 'weak');
     expect(weak.status).toBe(422);
-    expect(weak.body.fields.password).toContain('at least 10 characters');
+    expect(weak.body.fields.password).toContain('at least 8 characters');
 
     const ok = await reset(tokenOf(link));
     expect(ok.status).toBe(200);
