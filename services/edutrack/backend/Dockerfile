@@ -4,14 +4,14 @@
 # Run migrations as a release step with the same image:
 #   docker run --rm -e DATABASE_URL=... edutrack/backend npx prisma migrate deploy
 
-FROM node:24-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /repo
 COPY . .
 RUN npm ci
 RUN npm run build -w @edutrack/backend
 RUN npm prune --omit=dev
 
-FROM node:24-alpine AS runtime
+FROM node:25-alpine AS runtime
 ENV NODE_ENV=production
 WORKDIR /repo
 # Workspace packages are symlinked from node_modules, so keep the repo layout.
