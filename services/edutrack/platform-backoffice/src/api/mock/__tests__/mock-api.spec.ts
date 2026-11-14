@@ -38,26 +38,43 @@ describe('mock platform API', () => {
     ).toMatchObject({ status: 401 });
   });
 
+  it('restores the session from the refresh "cookie" until sign-out, like the API', async () => {
+    await api.post('/v1/auth/login', {
+      email: 'tolu@edutrack.ng',
+      password: 'Edutrack2026!',
+      remember: false,
+    });
+    const { data } = await api.post('/v1/auth/refresh');
+    expect(data.user.email).toBe('tolu@edutrack.ng');
+    expect(data.accessToken).toBeTruthy();
+
+    await api.post('/v1/auth/logout', { allDevices: false });
+    expect(await errorOf(api.post('/v1/auth/refresh'))).toMatchObject({
+      status: 401,
+      code: 'SESSION_ENDED',
+    });
+  });
+
   it('filters and paginates schools', async () => {
-    const { data } = await api.get('/v1/schools', { params: { status: 'Onboarding' } });
+    const { data } = await api.get('/v1/platform/schools', { params: { status: 'Onboarding' } });
     expect(data.data.every((s: { status: string }) => s.status === 'Onboarding')).toBe(true);
     expect(data.meta).toMatchObject({ page: 1, total: data.data.length });
   });
 
   it('records a suspension in the activity feed and audit log', async () => {
-    await api.post('/v1/schools/kings/suspend', { reason: 'Proprietor request' });
-    const { data: school } = await api.get('/v1/schools/kings');
+    await api.post('/v1/platform/schools/kings/suspend', { reason: 'Proprietor request' });
+    const { data: school } = await api.get('/v1/platform/schools/kings');
     expect(school.status).toBe('Suspended');
 
-    const { data: audit } = await api.get('/v1/audit', { params: { search: 'kings' } });
+    const { data: audit } = await api.get('/v1/platform/audit', { params: { search: 'kings' } });
     expect(audit.data[0]).toMatchObject({
       action: 'school.suspend',
       previousValue: 'Active',
       newValue: 'Suspended',
     });
 
-    await api.post('/v1/schools/kings/reactivate');
-    expect((await api.get('/v1/schools/kings')).data.status).toBe('Active');
+    await api.post('/v1/platform/schools/kings/reactivate');
+    expect((await api.get('/v1/platform/schools/kings')).data.status).toBe('Active');
   });
 
   it('provisions a school with several administrators, one of them school-wide', async () => {
@@ -87,23 +104,23 @@ describe('mock platform API', () => {
       plan: 'Growth',
     };
 
-    expect(await errorOf(api.post('/v1/schools', { ...base, admins, lga: 'Bwari' }))).toMatchObject(
-      {
-        status: 422,
-        message: 'Bwari isn’t an LGA in Lagos',
-      },
-    );
+    expect(
+      await errorOf(api.post('/v1/platform/schools', { ...base, admins, lga: 'Bwari' })),
+    ).toMatchObject({
+      status: 422,
+      message: 'Bwari isn’t an LGA in Lagos',
+    });
 
     const noSchoolWide = await errorOf(
-      api.post('/v1/schools', { ...base, admins: [{ ...admins[1] }] }),
+      api.post('/v1/platform/schools', { ...base, admins: [{ ...admins[1] }] }),
     );
     expect(noSchoolWide).toMatchObject({
       status: 422,
       message: 'At least one administrator must manage all branches',
     });
 
-    const { data: school } = await api.post('/v1/schools', { ...base, admins });
-    const { data: invited } = await api.get(`/v1/schools/${school.id}/administrators`);
+    const { data: school } = await api.post('/v1/platform/schools', { ...base, admins });
+    const { data: invited } = await api.get(`/v1/platform/schools/${school.id}/administrators`);
     expect(invited.map((a: { email: string; scope: string }) => `${a.email}:${a.scope}`)).toEqual([
       'e.osegbo@crestview.ng:All branches',
       'a.bello@crestview.ng:Lekki Campus',
@@ -112,7 +129,7 @@ describe('mock platform API', () => {
 
   it('rejects provisioning a duplicate school name', async () => {
     const error = await errorOf(
-      api.post('/v1/schools', {
+      api.post('/v1/platform/schools', {
         name: 'Greenfield Academy',
         admins: [{ email: 'a@b.ng', scope: 'All branches' }],
       }),
@@ -132,16 +149,20 @@ describe('mock platform API', () => {
       modules: ['timetable'],
       support: 'Standard',
     };
-    expect(await errorOf(api.post('/v1/plans', { ...definition, status: 'Draft' }))).toMatchObject({
+    expect(
+      await errorOf(api.post('/v1/platform/plans', { ...definition, status: 'Draft' })),
+    ).toMatchObject({
       status: 422,
       message: expect.stringContaining('Timetable needs'),
     });
-    expect(await errorOf(api.post('/v1/plans', { ...definition, name: 'growth' }))).toMatchObject({
+    expect(
+      await errorOf(api.post('/v1/platform/plans', { ...definition, name: 'growth' })),
+    ).toMatchObject({
       status: 409,
     });
 
     const modules = ['subjects', 'assign', 'timetable'];
-    const { data: draft } = await api.post('/v1/plans', {
+    const { data: draft } = await api.post('/v1/platform/plans', {
       ...definition,
       modules,
       status: 'Draft',
@@ -149,16 +170,18 @@ describe('mock platform API', () => {
     expect(draft).toMatchObject({ id: 'campus-plus', status: 'Draft', version: 1 });
     expect(draft.modules).toEqual(expect.arrayContaining(['profile', 'students', 'timetable']));
 
-    const { data: edited } = await api.patch(`/v1/plans/${draft.id}`, {
+    const { data: edited } = await api.patch(`/v1/platform/plans/${draft.id}`, {
       ...draft,
       limits: { ...draft.limits, students: null },
     });
     expect(edited).toMatchObject({ version: 2, limits: { students: null } });
     expect(edited.history[0].summary).toBe('Students changed');
 
-    await api.post(`/v1/plans/${draft.id}/status`, { status: 'Active' });
-    expect(await errorOf(api.delete(`/v1/plans/${draft.id}`))).toMatchObject({ status: 409 });
-    const { data: archived } = await api.post(`/v1/plans/${draft.id}/status`, {
+    await api.post(`/v1/platform/plans/${draft.id}/status`, { status: 'Active' });
+    expect(await errorOf(api.delete(`/v1/platform/plans/${draft.id}`))).toMatchObject({
+      status: 409,
+    });
+    const { data: archived } = await api.post(`/v1/platform/plans/${draft.id}/status`, {
       status: 'Archived',
     });
     expect(archived.history.map((h: { summary: string }) => h.summary)).toEqual([
@@ -168,13 +191,15 @@ describe('mock platform API', () => {
       'Created as draft',
     ]);
 
-    const { data: second } = await api.post('/v1/plans', {
+    const { data: second } = await api.post('/v1/platform/plans', {
       ...definition,
       name: 'Scratch',
       modules,
       status: 'Draft',
     });
-    await api.delete(`/v1/plans/${second.id}`);
-    expect(await errorOf(api.get(`/v1/plans/${second.id}`))).toMatchObject({ status: 404 });
+    await api.delete(`/v1/platform/plans/${second.id}`);
+    expect(await errorOf(api.get(`/v1/platform/plans/${second.id}`))).toMatchObject({
+      status: 404,
+    });
   });
 });

@@ -7,9 +7,9 @@ import { installMockApi } from '..';
 
 const api = axios.create({ baseURL: '/api' });
 const get = async (id: string) =>
-  (await api.get<SupportIssueDetail>(`/v1/support/issues/${id}`)).data;
+  (await api.get<SupportIssueDetail>(`/v1/platform/support/issues/${id}`)).data;
 const move = (id: string, body: object) =>
-  api.post<SupportIssue>(`/v1/support/issues/${id}/transitions`, body);
+  api.post<SupportIssue>(`/v1/platform/support/issues/${id}/transitions`, body);
 const statusOf = async (request: Promise<unknown>) => {
   try {
     await request;
@@ -32,7 +32,7 @@ describe('support desk workflow', () => {
     });
     expect((await get('SUP-1163')).sla.resolution.state).toBe('met');
 
-    const { data } = await api.get<SupportSummary>('/v1/support/summary');
+    const { data } = await api.get<SupportSummary>('/v1/platform/support/summary');
     expect(data.overdue).toBeGreaterThan(0);
     expect(data.escalated).toBe(1);
     expect(data.satisfaction).toBe(4.5);
@@ -40,7 +40,7 @@ describe('support desk workflow', () => {
 
   it('lists views: unassigned, overdue and waiting / on hold', async () => {
     const ids = async (view: string) =>
-      (await api.get('/v1/support/issues', { params: { view } })).data.data.map(
+      (await api.get('/v1/platform/support/issues', { params: { view } })).data.data.map(
         (i: SupportIssue) => i.id,
       );
     expect(await ids('unassigned')).toEqual(['SUP-1174', 'SUP-1171']);
@@ -52,15 +52,17 @@ describe('support desk workflow', () => {
     'runs a ticket from assignment to escalation, resolution, reopening and closing',
     { timeout: 30_000 },
     async () => {
-      await api.patch('/v1/support/issues/SUP-1171', { assignee: 'Tolu Bamidele' });
+      await api.patch('/v1/platform/support/issues/SUP-1171', { assignee: 'Tolu Bamidele' });
       let t = await get('SUP-1171');
       expect(t).toMatchObject({ status: 'Assigned', team: 'Tier 1 Support' });
 
       // Reassigning needs a reason; the new owner's team follows.
       expect(
-        await statusOf(api.patch('/v1/support/issues/SUP-1171', { assignee: 'Chidi Eze' })),
+        await statusOf(
+          api.patch('/v1/platform/support/issues/SUP-1171', { assignee: 'Chidi Eze' }),
+        ),
       ).toBe(422);
-      await api.patch('/v1/support/issues/SUP-1171', {
+      await api.patch('/v1/platform/support/issues/SUP-1171', {
         assignee: 'Chidi Eze',
         reason: 'Needs a permissions fix',
       });
@@ -107,7 +109,10 @@ describe('support desk workflow', () => {
       expect((await get('SUP-1171')).status).toBe('Closed');
       expect(
         await statusOf(
-          api.post('/v1/support/issues/SUP-1171/messages', { kind: 'agent', text: 'Hello' }),
+          api.post('/v1/platform/support/issues/SUP-1171/messages', {
+            kind: 'agent',
+            text: 'Hello',
+          }),
         ),
       ).toBe(409);
     },
@@ -120,7 +125,10 @@ describe('support desk workflow', () => {
   });
 
   it('picks up an unowned ticket on the first reply', async () => {
-    await api.post('/v1/support/issues/SUP-1174/messages', { kind: 'agent', text: 'On it.' });
+    await api.post('/v1/platform/support/issues/SUP-1174/messages', {
+      kind: 'agent',
+      text: 'On it.',
+    });
     expect(await get('SUP-1174')).toMatchObject({
       status: 'In Progress',
       assignee: 'Tolu Bamidele',

@@ -18,6 +18,8 @@ export interface LoginPayload {
 
 export interface LoginResponse {
   accessToken: string;
+  /** Seconds until the access token expires. */
+  expiresIn?: number;
   user: AuthUser;
 }
 

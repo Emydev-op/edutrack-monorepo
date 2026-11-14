@@ -38,6 +38,7 @@ const STATUS_TONES: Record<string, StatusTone> = {
   'In progress': 'warning',
   'In Progress': 'info',
   Pending: 'warning',
+  Due: 'warning',
   Expiring: 'warning',
   'Grace period': 'warning',
   Open: 'warning',

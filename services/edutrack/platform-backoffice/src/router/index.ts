@@ -38,8 +38,14 @@ const router = createRouter({
   ],
 });
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore();
+  // First navigation of a page load: turn the refresh cookie back into a session. Loaded lazily
+  // because the API client itself imports the router.
+  if (!auth.isAuthenticated) {
+    const { refreshSession } = await import('@/api/client');
+    await auth.restore(refreshSession);
+  }
   if (to.matched.some((r) => r.meta.requiresAuth) && !auth.isAuthenticated) {
     return {
       name: routesPath.auth.login.name,

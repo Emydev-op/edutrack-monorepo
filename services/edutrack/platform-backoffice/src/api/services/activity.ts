@@ -11,7 +11,9 @@ export function useActivityQuery(params: MaybeRefOrGetter<ActivityQuery>) {
   return useQuery({
     queryKey: computed(() => queryKeys.activity.list(cleanParams(toValue(params)))),
     queryFn: () =>
-      getRequest<Paginated<ActivityItem>>('/v1/activity', { params: cleanParams(toValue(params)) }),
+      getRequest<Paginated<ActivityItem>>('/v1/platform/activity', {
+        params: cleanParams(toValue(params)),
+      }),
     placeholderData: keepPreviousData,
   });
 }
@@ -20,7 +22,9 @@ export function useAuditQuery(params: MaybeRefOrGetter<ActivityQuery>) {
   return useQuery({
     queryKey: computed(() => queryKeys.audit.list(cleanParams(toValue(params)))),
     queryFn: () =>
-      getRequest<Paginated<AuditEntry>>('/v1/audit', { params: cleanParams(toValue(params)) }),
+      getRequest<Paginated<AuditEntry>>('/v1/platform/audit', {
+        params: cleanParams(toValue(params)),
+      }),
     placeholderData: keepPreviousData,
   });
 }
@@ -28,7 +32,7 @@ export function useAuditQuery(params: MaybeRefOrGetter<ActivityQuery>) {
 export function useAuditEntryQuery(id: MaybeRefOrGetter<string | undefined>) {
   return useQuery({
     queryKey: computed(() => queryKeys.audit.detail(toValue(id) ?? '')),
-    queryFn: () => getRequest<AuditEntry>(`/v1/audit/${toValue(id)}`),
+    queryFn: () => getRequest<AuditEntry>(`/v1/platform/audit/${toValue(id)}`),
     enabled: computed(() => !!toValue(id)),
   });
 }

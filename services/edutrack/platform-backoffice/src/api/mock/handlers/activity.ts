@@ -1,7 +1,7 @@
 import { activity, auditLog } from '../db';
 import { inDateRange, mock, MockHttpError, paginate } from '@edutrack/web-core/mock';
 
-mock.get('/v1/activity', ({ query }) => {
+mock.get('/v1/platform/activity', ({ query }) => {
   const rows = activity.filter(
     (a) =>
       (!query.actor || a.actor === query.actor) &&
@@ -12,9 +12,9 @@ mock.get('/v1/activity', ({ query }) => {
   return paginate(rows, query, (a) => `${a.summary} ${a.actor} ${a.schoolName}`);
 });
 
-mock.get('/v1/activity/recent', () => activity.slice(0, 6));
+mock.get('/v1/platform/activity/recent', () => activity.slice(0, 6));
 
-mock.get('/v1/audit', ({ query }) => {
+mock.get('/v1/platform/audit', ({ query }) => {
   const rows = auditLog.filter(
     (e) =>
       (!query.actor || e.actor === query.actor) &&
@@ -24,7 +24,7 @@ mock.get('/v1/audit', ({ query }) => {
   return paginate(rows, query, (e) => `${e.actor} ${e.action} ${e.entityId}`);
 });
 
-mock.get('/v1/audit/:id', ({ params }) => {
+mock.get('/v1/platform/audit/:id', ({ params }) => {
   const entry = auditLog.find((e) => e.id === params.id);
   if (!entry) throw new MockHttpError(404, 'Audit entry not found');
   return entry;

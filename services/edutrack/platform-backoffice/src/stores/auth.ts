@@ -1,35 +1,22 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 
-import type { AuthUser } from '@/types';
+import type { AuthUser, LoginResponse } from '@/types';
 
-const STORAGE_KEY = 'edutrack.platform.session';
-
-interface StoredSession {
+interface Session {
   token: string;
   user: AuthUser;
 }
 
-function readSession(): StoredSession | null {
-  for (const storage of [sessionStorage, localStorage]) {
-    try {
-      const raw = storage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw) as StoredSession;
-    } catch {
-      storage.removeItem(STORAGE_KEY);
-    }
-  }
-  return null;
-}
-
 /**
- * The signed-in platform user. "Remember this device" keeps the session in localStorage;
- * otherwise it lives in sessionStorage and ends with the browser tab.
+ * The signed-in platform user. The access token lives only in memory; the API keeps the session in
+ * an HttpOnly refresh cookie ("Remember this device" makes it last 30 days), and `restore()` turns
+ * that cookie back into a session when the page loads.
  */
 export const useAuthStore = defineStore('auth', () => {
-  const initial = readSession();
-  const token = ref<string | null>(initial?.token ?? null);
-  const user = ref<AuthUser | null>(initial?.user ?? null);
+  const token = ref<string | null>(null);
+  const user = ref<AuthUser | null>(null);
+  let restoring: Promise<boolean> | null = null;
 
   const isAuthenticated = computed(() => token.value !== null);
   const fullName = computed(() =>
@@ -41,25 +28,46 @@ export const useAuthStore = defineStore('auth', () => {
       : '',
   );
 
-  function setSession(session: StoredSession, remember: boolean) {
+  /** `remember` is decided by the API's cookie at sign-in; kept for callers that pass it. */
+  function setSession(session: Session, _remember?: boolean) {
     token.value = session.token;
     user.value = session.user;
-    (remember ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(session));
   }
 
   function updateUser(patch: Partial<AuthUser>) {
-    if (!user.value || !token.value) return;
+    if (!user.value) return;
     user.value = { ...user.value, ...patch };
-    const storage = localStorage.getItem(STORAGE_KEY) ? localStorage : sessionStorage;
-    storage.setItem(STORAGE_KEY, JSON.stringify({ token: token.value, user: user.value }));
   }
 
   function clear() {
     token.value = null;
     user.value = null;
-    localStorage.removeItem(STORAGE_KEY);
-    sessionStorage.removeItem(STORAGE_KEY);
   }
 
-  return { token, user, isAuthenticated, fullName, initials, setSession, updateUser, clear };
+  /**
+   * Restores the session from the refresh cookie, once per page load (later calls share the first
+   * answer). Resolves to whether someone is signed in.
+   */
+  function restore(refresh: () => Promise<LoginResponse>): Promise<boolean> {
+    if (isAuthenticated.value) return Promise.resolve(true);
+    restoring ??= refresh()
+      .then((session) => {
+        setSession({ token: session.accessToken, user: session.user });
+        return true;
+      })
+      .catch(() => false);
+    return restoring;
+  }
+
+  return {
+    token,
+    user,
+    isAuthenticated,
+    fullName,
+    initials,
+    setSession,
+    updateUser,
+    clear,
+    restore,
+  };
 });

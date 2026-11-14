@@ -18,8 +18,39 @@ const authUser = (u: (typeof users)[number]) => ({
   avatarUrl: null,
 });
 
+/**
+ * Stands in for the API's HttpOnly refresh cookie: which user is "signed in" on this device.
+ * Remember-me keeps it in localStorage, otherwise in sessionStorage (like a session cookie).
+ */
+const COOKIE = 'edutrack.platform.mock-refresh';
+function readCookie(): string | null {
+  try {
+    return sessionStorage.getItem(COOKIE) ?? localStorage.getItem(COOKIE);
+  } catch {
+    return null;
+  }
+}
+function writeCookie(id: string | null, remember = false) {
+  try {
+    sessionStorage.removeItem(COOKIE);
+    localStorage.removeItem(COOKIE);
+    if (id) (remember ? localStorage : sessionStorage).setItem(COOKIE, id);
+  } catch {
+    // Storage blocked (private window): the session lasts until the page reloads.
+  }
+}
+
+mock.post('/v1/auth/refresh', () => {
+  const account = users.find((u) => u.id === readCookie());
+  if (!account || account.status !== 'Active') {
+    writeCookie(null);
+    throw new MockHttpError(401, 'Your session has ended. Sign in again.', 'SESSION_ENDED');
+  }
+  return { accessToken: tokenFor(account.id), expiresIn: 900, user: authUser(account) };
+});
+
 mock.post('/v1/auth/login', ({ body }) => {
-  const { email, password } = body as LoginPayload;
+  const { email, password, remember } = body as LoginPayload;
   const account = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
   if (account?.status === 'Suspended')
     throw new MockHttpError(403, 'This account is suspended', 'ACCOUNT_SUSPENDED');
@@ -31,10 +62,14 @@ mock.post('/v1/auth/login', ({ body }) => {
     throw new MockHttpError(401, 'The email or password you entered is incorrect.');
   }
   account.lastSeen = 'Just now';
-  return { accessToken: tokenFor(account.id), user: authUser(account) };
+  writeCookie(account.id, remember);
+  return { accessToken: tokenFor(account.id), expiresIn: 900, user: authUser(account) };
 });
 
-mock.post('/v1/auth/logout', () => ({ ok: true }));
+mock.post('/v1/auth/logout', () => {
+  writeCookie(null);
+  return { ok: true };
+});
 
 mock.get('/v1/auth/me', () => authUser(users.find((u) => u.id === ME.id)!));
 

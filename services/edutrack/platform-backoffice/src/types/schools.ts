@@ -71,14 +71,16 @@ export interface SchoolUsage {
   smsSent: number;
   smsNote?: string;
   storageUsedGb: number;
-  storageLimitGb: number;
+  /** `null`: the plan has unlimited storage. */
+  storageLimitGb: number | null;
 }
 
 export interface PlatformInvoice {
   id: string;
   period: string;
   amount: string;
-  status: 'Paid' | 'Overdue';
+  /** Due: issued and not yet past its due date. */
+  status: 'Paid' | 'Due' | 'Overdue';
 }
 
 export interface ProvisionSchoolPayload {

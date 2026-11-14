@@ -15,7 +15,7 @@ import {
 import { mock } from '@edutrack/web-core/mock';
 import { fullName, requireText, roleName, toIssue } from './shared';
 
-mock.get('/v1/me/profile', () => ({
+mock.get('/v1/platform/me/profile', () => ({
   ...profile,
   email: 'tolu.bamidele@edutrack.ng',
   roleName: 'Platform Administrator',
@@ -24,7 +24,7 @@ mock.get('/v1/me/profile', () => ({
   lastSignIn: 'Today, 08:14 · Chrome on macOS, Lagos',
 }));
 
-mock.patch('/v1/me/profile', ({ body }) => {
+mock.patch('/v1/platform/me/profile', ({ body }) => {
   const p = body as UpdateProfilePayload;
   Object.assign(profile, {
     firstName: requireText(p.firstName, 'Enter your first name'),
@@ -46,7 +46,7 @@ mock.patch('/v1/me/profile', ({ body }) => {
   return profile;
 });
 
-mock.put('/v1/me/avatar', ({ body }) => {
+mock.put('/v1/platform/me/avatar', ({ body }) => {
   profile.avatarUrl = (body as { avatarUrl: string | null }).avatarUrl;
   audit({
     summary: profile.avatarUrl ? 'Updated profile photo' : 'Removed profile photo',
@@ -66,9 +66,9 @@ const preferences = (): NotificationPreference[] =>
     locked: event === 'Security alert' ? ['email'] : [],
   }));
 
-mock.get('/v1/settings/notifications', preferences);
+mock.get('/v1/platform/settings/notifications', preferences);
 
-mock.put('/v1/settings/notifications', ({ body }) => {
+mock.put('/v1/platform/settings/notifications', ({ body }) => {
   const { event, channel, enabled } = body as {
     event: string;
     channel: (typeof NOTIFICATION_CHANNELS)[number];
@@ -80,9 +80,9 @@ mock.put('/v1/settings/notifications', ({ body }) => {
   return preferences();
 });
 
-mock.get('/v1/settings/security', () => securityToggles);
+mock.get('/v1/platform/settings/security', () => securityToggles);
 
-mock.put('/v1/settings/security', ({ body }) => {
+mock.put('/v1/platform/settings/security', ({ body }) => {
   const before = { ...securityToggles };
   Object.assign(securityToggles, body as Partial<SecuritySettings>);
   audit({
@@ -96,7 +96,7 @@ mock.put('/v1/settings/security', ({ body }) => {
   return securityToggles;
 });
 
-mock.get('/v1/search', ({ query }) => {
+mock.get('/v1/platform/search', ({ query }) => {
   const q = (query.q ?? '').trim().toLowerCase();
   const results = [
     ...schools.map((s) => ({
@@ -124,9 +124,9 @@ mock.get('/v1/search', ({ query }) => {
   return results.filter((r) => !q || `${r.title} ${r.meta}`.toLowerCase().includes(q)).slice(0, 9);
 });
 
-mock.get('/v1/notifications', () => notifications);
+mock.get('/v1/platform/notifications', () => notifications);
 
-mock.post('/v1/notifications/read-all', () => {
+mock.post('/v1/platform/notifications/read-all', () => {
   notifications.forEach((n) => (n.unread = false));
   return notifications;
 });

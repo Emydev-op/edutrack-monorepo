@@ -28,14 +28,14 @@ function useInvalidateSupport() {
 export const useSupportSummaryQuery = () =>
   useQuery({
     queryKey: queryKeys.support.summary(),
-    queryFn: () => getRequest<SupportSummary>('/v1/support/summary'),
+    queryFn: () => getRequest<SupportSummary>('/v1/platform/support/summary'),
   });
 
 export function useIssuesQuery(params: MaybeRefOrGetter<IssueQuery>) {
   return useQuery({
     queryKey: computed(() => queryKeys.support.list(cleanParams(toValue(params)))),
     queryFn: () =>
-      getRequest<Paginated<SupportIssue>>('/v1/support/issues', {
+      getRequest<Paginated<SupportIssue>>('/v1/platform/support/issues', {
         params: cleanParams(toValue(params)),
       }),
     placeholderData: keepPreviousData,
@@ -45,14 +45,14 @@ export function useIssuesQuery(params: MaybeRefOrGetter<IssueQuery>) {
 export const useIssueQuery = (id: MaybeRefOrGetter<string>) =>
   useQuery({
     queryKey: computed(() => queryKeys.support.detail(toValue(id))),
-    queryFn: () => getRequest<SupportIssueDetail>(`/v1/support/issues/${toValue(id)}`),
+    queryFn: () => getRequest<SupportIssueDetail>(`/v1/platform/support/issues/${toValue(id)}`),
   });
 
 export function useCreateIssueMutation() {
   const invalidate = useInvalidateSupport();
   return useMutation({
     mutationFn: (payload: CreateIssuePayload) =>
-      postRequest<SupportIssue>('/v1/support/issues', payload),
+      postRequest<SupportIssue>('/v1/platform/support/issues', payload),
     onSuccess: invalidate,
   });
 }
@@ -61,7 +61,7 @@ export function useUpdateIssueMutation(id: MaybeRefOrGetter<string>) {
   const invalidate = useInvalidateSupport();
   return useMutation({
     mutationFn: (payload: UpdateIssuePayload) =>
-      patchRequest<SupportIssue>(`/v1/support/issues/${toValue(id)}`, payload),
+      patchRequest<SupportIssue>(`/v1/platform/support/issues/${toValue(id)}`, payload),
     onSuccess: invalidate,
   });
 }
@@ -70,7 +70,7 @@ export function useIssueMessageMutation(id: MaybeRefOrGetter<string>) {
   const invalidate = useInvalidateSupport();
   return useMutation({
     mutationFn: (payload: { kind: 'agent' | 'note'; text: string }) =>
-      postRequest(`/v1/support/issues/${toValue(id)}/messages`, payload),
+      postRequest(`/v1/platform/support/issues/${toValue(id)}/messages`, payload),
     onSuccess: invalidate,
   });
 }
@@ -79,7 +79,7 @@ export function useIssueTransitionMutation(id: MaybeRefOrGetter<string>) {
   const invalidate = useInvalidateSupport();
   return useMutation({
     mutationFn: (payload: IssueTransitionPayload) =>
-      postRequest<SupportIssue>(`/v1/support/issues/${toValue(id)}/transitions`, payload),
+      postRequest<SupportIssue>(`/v1/platform/support/issues/${toValue(id)}/transitions`, payload),
     onSuccess: invalidate,
   });
 }

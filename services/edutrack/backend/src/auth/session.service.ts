@@ -4,7 +4,7 @@ import type { Redis } from 'ioredis';
 import { Clock, DAY, HOUR } from '../common/clock/clock.js';
 import { AppException } from '../common/errors/app.exception.js';
 import type { Env } from '../config/env.validation.js';
-import type { AuthSession, Portal } from '../generated/prisma/client.js';
+import type { AuthSession, Portal, Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { REDIS_CLIENT } from '../redis/redis.constants.js';
 import { deviceLabel, randomToken, sha256 } from './tokens.js';
@@ -17,6 +17,7 @@ export type RevokeReason =
   | 'password_reset'
   | 'reuse_detected'
   | 'access_lost'
+  | 'school_suspended'
   | 'admin';
 
 /** The session facts the auth guard needs on every request (cached briefly in Redis). */
@@ -164,14 +165,21 @@ export class SessionService {
 
   /** Ends every live session of a user (optionally keeping one); returns how many ended. */
   async revokeAllForUser(userId: string, reason: RevokeReason, keepSessionId?: string) {
+    return this.revokeWhere(
+      { userId, ...(keepSessionId && { id: { not: keepSessionId } }) },
+      reason,
+    );
+  }
+
+  /** Ends every live session opened on a school (e.g. when the school is suspended). */
+  async revokeAllForSchool(schoolId: string, reason: RevokeReason) {
+    return this.revokeWhere({ schoolId }, reason);
+  }
+
+  private async revokeWhere(where: Prisma.AuthSessionWhereInput, reason: RevokeReason) {
     const now = this.clock.now();
     const live = await this.prisma.authSession.findMany({
-      where: {
-        userId,
-        revokedAt: null,
-        expiresAt: { gt: now },
-        ...(keepSessionId && { id: { not: keepSessionId } }),
-      },
+      where: { ...where, revokedAt: null, expiresAt: { gt: now } },
       select: { id: true },
     });
     if (live.length === 0) return 0;

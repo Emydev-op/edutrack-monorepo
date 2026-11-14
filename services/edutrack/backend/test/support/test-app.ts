@@ -173,6 +173,8 @@ export function authed(t: TestApp, token: string, o: { host?: string; tenant?: s
   return {
     get: (path: string) => wrap(t.http().get(path)),
     post: (path: string) => wrap(t.http().post(path)),
+    patch: (path: string) => wrap(t.http().patch(path)),
+    put: (path: string) => wrap(t.http().put(path)),
     delete: (path: string) => wrap(t.http().delete(path)),
   };
 }

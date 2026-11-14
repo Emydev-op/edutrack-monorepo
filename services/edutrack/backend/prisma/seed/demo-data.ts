@@ -16,6 +16,7 @@ import { hashPassword } from '../../src/auth/password.js';
 import { PREDEFINED_PLATFORM_ROLES } from '../../src/auth/permissions/platform-permissions.js';
 import { PREDEFINED_SCHOOL_ROLES } from '../../src/auth/permissions/school-permissions.js';
 import { sha256 } from '../../src/auth/tokens.js';
+import { demoUuid, PLAN_SEEDS, seedPlans, seedPlatformData } from './platform-data.js';
 
 export const DEMO_PASSWORD = 'Edutrack2026!';
 const DAY = 86_400_000;
@@ -365,30 +366,6 @@ const SCHOOLS = {
   },
 } as const;
 
-const PLANS = [
-  {
-    name: 'Starter',
-    annualPriceKobo: 65_000_000n,
-    studentLimit: 500,
-    branchLimit: 2,
-    userLimit: 25,
-  },
-  {
-    name: 'Growth',
-    annualPriceKobo: 185_000_000n,
-    studentLimit: 1500,
-    branchLimit: 5,
-    userLimit: 100,
-  },
-] as const;
-
-/** A stable UUID (v4 layout) derived from a name, for demo rows that must keep their id. */
-function demoUuid(name: string): string {
-  const h = sha256(`edutrack-demo:${name}`);
-  const variant = ((parseInt(h[16]!, 16) & 0x3) | 0x8).toString(16);
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${variant}${h.slice(17, 20)}-${h.slice(20, 32)}`;
-}
-
 export interface SeedSummary {
   schools: Record<string, string>;
   users: number;
@@ -462,24 +439,7 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
 
   /* ---------- Plans and schools ---------- */
 
-  const planIds = new Map<string, string>();
-  for (const plan of PLANS) {
-    const data = {
-      status: 'ACTIVE' as const,
-      pricingModel: 'FLAT' as const,
-      annualPriceKobo: plan.annualPriceKobo,
-      studentLimit: plan.studentLimit,
-      branchLimit: plan.branchLimit,
-      userLimit: plan.userLimit,
-      modules: [],
-    };
-    const row = await prisma.plan.upsert({
-      where: { name: plan.name },
-      create: { name: plan.name, ...data },
-      update: data,
-    });
-    planIds.set(plan.name, row.id);
-  }
+  const planIds = await seedPlans(prisma, { now, passwordHash, tolu });
 
   const schoolIds: Record<string, string> = {};
   const roleIds = new Map<string, string>(); // `${school}:${key}`
@@ -512,13 +472,13 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
       create: { schoolId: school.id },
       update: { lockoutAttempts: 5, lockoutMinutes: 15, passwordExpiryDays: 90 },
     });
-    const plan = PLANS.find((p) => p.name === s.plan)!;
+    const plan = PLAN_SEEDS.find((p) => p.name === s.plan)!;
     const subscription = {
       planId: planIds.get(s.plan)!,
       planVersion: 1,
       status: 'ACTIVE' as const,
       billingPeriod: 'ANNUAL' as const,
-      priceKobo: plan.annualPriceKobo,
+      priceKobo: plan.annualPriceKobo ?? 0n,
       startedOn: new Date('2026-09-01'),
       renewsOn: new Date('2027-08-31'),
     };
@@ -718,6 +678,13 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
       update: { tokenHash, sendCount: 1, ...data },
     });
   }
+
+  /* ---------- Back office ---------- */
+
+  await seedPlatformData(prisma, { now, passwordHash, tolu }, planIds, {
+    greenfield: schoolIds.greenfield!,
+    crestview: schoolIds.crestview!,
+  });
 
   return { schools: schoolIds, users: userIds.size };
 }
