@@ -11,6 +11,7 @@ import type {
   PlatformStaffStatus,
   StaffGroup,
   StaffKind,
+  SupportTeam,
 } from '../../src/generated/prisma/enums.js';
 import { hashPassword } from '../../src/auth/password.js';
 import { PREDEFINED_PLATFORM_ROLES } from '../../src/auth/permissions/platform-permissions.js';
@@ -23,6 +24,7 @@ import {
   seedPlatformAccount,
   seedPlatformData,
 } from './platform-data.js';
+import { seedSupportDesk } from './support-data.js';
 
 export const DEMO_PASSWORD = 'Edutrack2026!';
 const DAY = 86_400_000;
@@ -67,6 +69,7 @@ interface StaffSeed extends PersonSeed {
 interface PlatformSeed extends PersonSeed {
   role: string;
   status: PlatformStaffStatus;
+  supportTeam?: SupportTeam;
 }
 
 const PLATFORM_STAFF: PlatformSeed[] = [
@@ -77,6 +80,7 @@ const PLATFORM_STAFF: PlatformSeed[] = [
     phone: '+2348034127781',
     role: 'admin',
     status: 'ACTIVE',
+    supportTeam: 'TIER_1_SUPPORT',
   },
   {
     email: 'ngozi@edutrack.ng',
@@ -85,6 +89,25 @@ const PLATFORM_STAFF: PlatformSeed[] = [
     phone: '+2348055550122',
     role: 'support',
     status: 'ACTIVE',
+    supportTeam: 'TIER_1_SUPPORT',
+  },
+  {
+    email: 'ibrahim@edutrack.ng',
+    firstName: 'Ibrahim',
+    lastName: 'Yusuf',
+    phone: '+2348062210431',
+    role: 'agent',
+    status: 'ACTIVE',
+    supportTeam: 'TECHNICAL',
+  },
+  {
+    email: 'funmi@edutrack.ng',
+    firstName: 'Funmi',
+    lastName: 'Adebayo',
+    phone: '+2348062210432',
+    role: 'agent',
+    status: 'ACTIVE',
+    supportTeam: 'BILLING',
   },
   {
     email: 'kemi@edutrack.ng',
@@ -92,6 +115,7 @@ const PLATFORM_STAFF: PlatformSeed[] = [
     lastName: 'Adewale',
     role: 'ops',
     status: 'SUSPENDED',
+    supportTeam: 'ONBOARDING',
   },
   {
     email: 'bayo@edutrack.ng',
@@ -432,6 +456,7 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
     const data = {
       roleId: platformRoles.get(p.role)!,
       status: p.status,
+      supportTeam: p.supportTeam ?? null,
       invitedAt: now,
       activatedAt: p.status === 'INVITED' ? null : now,
     };
@@ -692,6 +717,7 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
     crestview: schoolIds.crestview!,
   });
   await seedPlatformAccount(prisma, { now, passwordHash, tolu });
+  await seedSupportDesk(prisma, now);
 
   return { schools: schoolIds, users: userIds.size };
 }

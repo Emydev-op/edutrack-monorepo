@@ -8,6 +8,8 @@ export default defineConfig((env) =>
     defineConfig({
       test: {
         environment: 'jsdom',
+        // Unit tests run against the in-browser mock API (demo data, demo sign-in).
+        env: { VITE_USE_MOCKS: 'true' },
         exclude: [...configDefaults.exclude, 'e2e/**'],
         root: fileURLToPath(new URL('./', import.meta.url)),
       },

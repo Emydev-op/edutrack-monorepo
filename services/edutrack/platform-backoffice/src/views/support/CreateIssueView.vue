@@ -8,12 +8,11 @@ import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
 import { useSchoolsQuery } from '@/api/services/schools';
-import { useCreateIssueMutation } from '@/api/services/support';
+import { useCreateIssueMutation, useSupportAgentsQuery } from '@/api/services/support';
 import PageHeader from '@edutrack/app-kit/components/common/PageHeader.vue';
 import FormInput from '@edutrack/app-kit/components/form/FormInput.vue';
 import FormSelect from '@edutrack/app-kit/components/form/FormSelect.vue';
 import FormTextarea from '@edutrack/app-kit/components/form/FormTextarea.vue';
-import { SUPPORT_AGENT_NAMES } from '@/config/support-desk';
 import { useUnsavedChanges } from '@edutrack/app-kit/composables/useUnsavedChanges';
 import { routesPath } from '@/router/routes-path';
 import { createIssueSchema } from '@/schema/support';
@@ -25,6 +24,14 @@ const route = useRoute();
 const router = useRouter();
 const { data: schools } = useSchoolsQuery({ pageSize: 100 });
 const create = useCreateIssueMutation();
+const { data: agents } = useSupportAgentsQuery();
+const ownerOptions = computed(() => [
+  { value: 'Unassigned', label: 'Unassigned · goes to the team’s queue' },
+  ...(agents.value ?? []).map((a) => ({
+    value: a.id,
+    label: `${a.name} · ${a.team ?? 'No team'} · ${a.open} open`,
+  })),
+]);
 
 const preselected = (route.query.school as string | undefined) ?? '';
 const { handleSubmit, setFieldValue, values, meta } = useForm({
@@ -63,12 +70,25 @@ function pickFile(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0];
   attachmentError.value = '';
   if (!file) return;
+  if (!['image/png', 'image/jpeg', 'application/pdf'].includes(file.type)) {
+    attachmentError.value = `“${file.name}” isn’t a PNG, JPG or PDF.`;
+    return;
+  }
   if (file.size > MAX_ATTACHMENT) {
     attachmentError.value = `“${file.name}” is ${(file.size / 1048576).toFixed(1)} MB. The limit is 10 MB.`;
     return;
   }
   attachment.value = file;
 }
+
+/** The API takes the file as a data URL. */
+const readAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error('Couldn’t read the file.'));
+    reader.readAsDataURL(file);
+  });
 
 const submitted = ref(false);
 useUnsavedChanges(() => meta.value.dirty && !submitted.value);
@@ -82,7 +102,8 @@ const submit = handleSubmit(async (v) => {
     category: v.category,
     priority: v.priority,
     assignee: v.assignee === 'Unassigned' ? null : (v.assignee ?? null),
-    attachment: attachment.value?.name ?? null,
+    attachment: attachment.value ? await readAsDataUrl(attachment.value) : null,
+    attachmentName: attachment.value?.name,
   });
   submitted.value = true;
   toast.success(`${issue.id} created.`);
@@ -124,7 +145,7 @@ const submit = handleSubmit(async (v) => {
         :options="ISSUE_PRIORITIES"
         hint="Urgent: a school-wide outage or a deadline today"
       />
-      <FormSelect name="assignee" label="Owner" :options="['Unassigned', ...SUPPORT_AGENT_NAMES]" />
+      <FormSelect name="assignee" label="Owner" :options="ownerOptions" />
       <FormTextarea
         name="description"
         label="Description"
@@ -141,7 +162,7 @@ const submit = handleSubmit(async (v) => {
         {{
           attachment
             ? `${attachment.name} · ${Math.max(1, Math.round(attachment.size / 1024))} KB`
-            : 'Attach screenshots or files · up to 10 MB each'
+            : 'Attach one screenshot or PDF · PNG, JPG or PDF up to 10 MB'
         }}
       </span>
       <Button
@@ -157,7 +178,7 @@ const submit = handleSubmit(async (v) => {
           >Attach<input
             type="file"
             class="sr-only"
-            accept="image/*,application/pdf"
+            accept="image/png,image/jpeg,application/pdf"
             @change="pickFile"
         /></label>
       </Button>

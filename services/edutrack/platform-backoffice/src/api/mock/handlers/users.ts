@@ -50,6 +50,7 @@ mock.post('/v1/platform/users/invitations', ({ body }) => {
     email,
     phone: p.phone,
     roleId: p.roleId,
+    supportTeam: p.supportTeam || null,
     status: 'Invited' as const,
     invitation: 'Pending' as const,
     invitedBy: ME.name,
@@ -77,6 +78,7 @@ mock.patch('/v1/platform/users/:id', ({ params, body }) => {
     email: requireText(p.email, 'Enter a valid email'),
     phone: p.phone,
     roleId: p.roleId,
+    ...(p.supportTeam !== undefined && { supportTeam: p.supportTeam || null }),
   });
   if (previousRole !== roleName(p.roleId)) {
     audit({

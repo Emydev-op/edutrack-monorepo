@@ -1,15 +1,15 @@
 import {
   CLOSE_REASONS,
   ESCALATION_TARGETS,
+  escalationOwner,
   HOLD_REASONS,
   isDone,
   PAUSED_STATUSES,
   RESOLUTION_TYPES,
-  SUPPORT_AGENT_NAMES,
-  teamOfAgent,
 } from '@/config/support-desk';
 import type {
   CreateIssuePayload,
+  SupportAgent,
   IssueCategory,
   IssueMessage,
   IssueStatus,
@@ -21,10 +21,31 @@ import type {
   UpdateIssuePayload,
 } from '@/types';
 
-import { audit, conversations, issueEvents, issues, ME, type IssueRow } from '../db';
+import { audit, conversations, issueEvents, issues, ME, users, type IssueRow } from '../db';
 import { inDateRange, mock, MockHttpError, paginate } from '@edutrack/web-core/mock';
 import { findSchool, requireText, toIssue } from './shared';
 import { isOverdue, setStatus } from './support-sla';
+
+const AGENT_ROLES = ['admin', 'support', 'agent'];
+
+/** Active staff whose role can work tickets (the API checks Support.Edit). */
+export function agents(): SupportAgent[] {
+  return users
+    .filter((u) => u.status === 'Active' && AGENT_ROLES.includes(u.roleId))
+    .map((u) => {
+      const name = `${u.firstName} ${u.lastName}`;
+      return {
+        id: u.id,
+        name,
+        team: u.supportTeam,
+        open: issues.filter((i) => i.assignee === name && !isDone(i.status)).length,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+const agentById = (id: string | null | undefined) => agents().find((a) => a.id === id);
+const teamOfAgent = (name: string | null) =>
+  agents().find((a) => a.name === name)?.team ?? undefined;
 
 const findIssue = (id: string) => {
   const issue = issues.find((i) => i.id === id);
@@ -146,12 +167,6 @@ mock.get('/v1/platform/support/summary', () => {
       mine: issues.filter(VIEWS.mine).length,
       overdue: issues.filter(VIEWS.overdue).length,
     },
-    agentLoad: Object.fromEntries(
-      SUPPORT_AGENT_NAMES.map((name) => [
-        name,
-        issues.filter((i) => i.assignee === name && !isDone(i.status)).length,
-      ]),
-    ),
     weeklyVolume: [
       ['Wk 45', 18],
       ['Wk 46', 22],
@@ -176,6 +191,8 @@ mock.get('/v1/platform/support/summary', () => {
     ].map(([label, value]) => ({ label, value })),
   };
 });
+
+mock.get('/v1/platform/support/agents', () => agents());
 
 mock.get('/v1/platform/support/issues', ({ query }) => {
   const inView = VIEWS[(query.view as IssueView) ?? 'open'] ?? VIEWS.open;
@@ -215,7 +232,10 @@ mock.post('/v1/platform/support/issues', ({ body }) => {
   const p = body as CreateIssuePayload;
   const school = findSchool(p.schoolId);
   const id = `SUP-${1183 + issues.filter((i) => i.createdAt === 'Just now').length}`;
-  const team = teamOfAgent(p.assignee) ?? routeTeam(p.category);
+  const owner = p.assignee ? agentById(p.assignee) : undefined;
+  if (p.assignee && !owner)
+    throw new MockHttpError(422, 'Choose someone who can work support tickets.');
+  const team = owner?.team ?? routeTeam(p.category);
   issues.unshift({
     id,
     schoolId: school.id,
@@ -223,8 +243,8 @@ mock.post('/v1/platform/support/issues', ({ body }) => {
     description: requireText(p.description, 'Describe the issue'),
     category: p.category,
     priority: p.priority,
-    status: p.assignee ? 'Assigned' : 'Open',
-    assignee: p.assignee,
+    status: owner ? 'Assigned' : 'Open',
+    assignee: owner?.name ?? null,
     team,
     requester: p.requester,
     createdAt: 'Just now',
@@ -260,22 +280,22 @@ mock.patch('/v1/platform/support/issues/:id', ({ params, body }) => {
   if (isDone(row.status) && p.assignee !== undefined)
     throw new MockHttpError(409, `${row.id} is ${row.status.toLowerCase()}. Reopen it first.`);
 
-  if (p.assignee !== undefined && p.assignee !== row.assignee) {
-    if (!p.assignee || !SUPPORT_AGENT_NAMES.includes(p.assignee))
-      throw new MockHttpError(422, 'Choose who should own the ticket');
+  const owner = p.assignee ? agentById(p.assignee) : undefined;
+  if (p.assignee !== undefined && owner?.name !== row.assignee) {
+    if (!owner) throw new MockHttpError(422, 'Choose someone who can work support tickets.');
     const from = row.assignee;
     if (from) requireText(p.reason, 'Say why it’s being reassigned');
-    const team = teamOfAgent(p.assignee) ?? row.team;
-    row.assignee = p.assignee;
+    const team = owner.team ?? row.team;
+    row.assignee = owner.name;
     row.team = team;
     if (row.status === 'Open' || row.status === 'Reopened') setStatus(row, 'Assigned');
-    const self = p.assignee === ME.name && !from ? ' (self-assigned)' : '';
+    const self = owner.name === ME.name && !from ? ' (self-assigned)' : '';
     addEvent(
       row.id,
       (from ? `Reassigned from ${from} to ` : 'Assigned to ') +
-        `${p.assignee} · ${team}${self}${p.reason?.trim() ? ` · ${p.reason.trim()}` : ''}`,
+        `${owner.name} · ${team}${self}${p.reason?.trim() ? ` · ${p.reason.trim()}` : ''}`,
     );
-    logIssue(row, from ? 'Ticket reassigned' : 'Ticket assigned', from ?? 'Unassigned', p.assignee);
+    logIssue(row, from ? 'Ticket reassigned' : 'Ticket assigned', from ?? 'Unassigned', owner.name);
   }
   if (p.priority && p.priority !== row.priority) {
     addEvent(row.id, `Priority ${row.priority} → ${p.priority}`, {
@@ -355,11 +375,16 @@ mock.post('/v1/platform/support/issues/:id/transitions', ({ params, body }) => {
       const target = ESCALATION_TARGETS.find((t) => t.team === option);
       if (!target) throw new MockHttpError(422, 'Choose who to escalate to');
       const why = requireText(note, 'Say why it needs escalating');
+      const owner = escalationOwner(
+        target.team,
+        agents(),
+        agents().find((a) => a.name === row.assignee)?.id ?? null,
+      );
       row.escalatedFrom = row.assignee;
       row.escalatedTo = target.label;
-      row.assignee = target.owner;
+      row.assignee = owner?.name ?? null;
       row.team = target.team;
-      title = `Escalated to ${target.label} (${target.owner}) by ${ME.name} · ${why}`;
+      title = `Escalated to ${target.label} (${owner?.name ?? `${target.team} queue`}) by ${ME.name} · ${why}`;
       tone = 'error';
       break;
     }

@@ -7,6 +7,7 @@ import type {
   IssueQuery,
   IssueTransitionPayload,
   SupportIssue,
+  SupportAgent,
   SupportIssueDetail,
   SupportSummary,
   UpdateIssuePayload,
@@ -29,6 +30,12 @@ export const useSupportSummaryQuery = () =>
   useQuery({
     queryKey: queryKeys.support.summary(),
     queryFn: () => getRequest<SupportSummary>('/v1/platform/support/summary'),
+  });
+
+export const useSupportAgentsQuery = () =>
+  useQuery({
+    queryKey: queryKeys.support.agents(),
+    queryFn: () => getRequest<SupportAgent[]>('/v1/platform/support/agents'),
   });
 
 export function useIssuesQuery(params: MaybeRefOrGetter<IssueQuery>) {

@@ -1,50 +1,42 @@
-import type { IssuePriority, IssueStatus, SupportTeam } from '@/types';
+import type { IssuePriority, IssueStatus, SupportAgent, SupportTeam } from '@/types';
 
-/** Support staff who can own tickets, with the team each one works in. */
-export const SUPPORT_AGENTS: { name: string; team: SupportTeam }[] = [
-  { name: 'Tolu Bamidele', team: 'Tier 1 Support' },
-  { name: 'Ngozi Okafor', team: 'Tier 1 Support' },
-  { name: 'Ibrahim Yusuf', team: 'Technical' },
-  { name: 'Chidi Eze', team: 'Technical' },
-  { name: 'Funmi Adebayo', team: 'Billing' },
-  { name: 'Kemi Lawal', team: 'Onboarding' },
-];
-export const SUPPORT_AGENT_NAMES = SUPPORT_AGENTS.map((a) => a.name);
-export const teamOfAgent = (name: string | null): SupportTeam | undefined =>
-  SUPPORT_AGENTS.find((a) => a.name === name)?.team;
-
-/** Where a ticket can be escalated, and to whom. */
+/** Where a ticket can be escalated. It goes to the least-busy person in that team. */
 export const ESCALATION_TARGETS: {
   team: SupportTeam;
-  owner: string;
   label: string;
   description: string;
 }[] = [
   {
     team: 'Technical',
-    owner: 'Chidi Eze',
     label: 'Tier 2 · Technical',
     description: 'Data fixes, integrations, anything Tier 1 can’t resolve',
   },
   {
     team: 'Engineering',
-    owner: 'Engineering on-call',
     label: 'Engineering',
     description: 'Confirmed bug that needs a code change',
   },
   {
     team: 'Billing',
-    owner: 'Funmi Adebayo',
     label: 'Billing specialist',
     description: 'Refunds, invoice disputes, plan changes',
   },
   {
     team: 'Tier 1 Support',
-    owner: 'Ngozi Okafor',
     label: 'Support lead',
     description: 'Unhappy school or SLA at risk',
   },
 ];
+
+/** Who an escalation to `team` would go to (the API picks the same person), or null for the queue. */
+export const escalationOwner = (
+  team: SupportTeam,
+  agents: SupportAgent[],
+  current: string | null,
+): SupportAgent | null =>
+  agents
+    .filter((a) => a.team === team && a.id !== current)
+    .sort((a, b) => a.open - b.open || a.name.localeCompare(b.name))[0] ?? null;
 
 /** SLA targets in working hours: [first reply, resolution]. */
 export const SLA_TARGETS: Record<IssuePriority, [firstReply: number, resolution: number]> = {

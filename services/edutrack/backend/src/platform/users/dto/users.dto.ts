@@ -12,6 +12,9 @@ import {
 import { PaginationQueryDto } from '../../../common/pagination/pagination.js';
 import { lower, trim } from '../../shared/params.js';
 import { STAFF_STATUS_LABEL } from '../../shared/staff.js';
+import { TEAM_LABEL } from '../../support/support-desk.js';
+
+const TEAMS = Object.values(TEAM_LABEL);
 
 const STATUS_LABELS = Object.values(STAFF_STATUS_LABEL);
 export const CREATED_WINDOWS = ['Last 30 days', 'Last 12 months'] as const;
@@ -80,6 +83,15 @@ export class UserDetailsDto {
   @IsString()
   @IsNotEmpty({ message: 'Choose a role.' })
   roleId!: string;
+
+  @ApiPropertyOptional({
+    enum: TEAMS,
+    nullable: true,
+    description: 'Support desk team; empty or null for none, left out to keep it',
+  })
+  @IsOptional()
+  @IsIn([...TEAMS, ''], { message: 'Unknown support team.' })
+  supportTeam?: string | null;
 }
 
 export class OptionalReasonDto {

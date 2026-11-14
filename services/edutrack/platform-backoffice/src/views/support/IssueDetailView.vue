@@ -5,7 +5,7 @@ import { Spinner } from '@edutrack/ui/components/spinner';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
 import { Textarea } from '@edutrack/ui/components/textarea';
 import { cn } from '@edutrack/ui/lib/utils';
-import { ArrowRightIcon, InfoIcon } from '@lucide/vue';
+import { ArrowRightIcon, InfoIcon, PaperclipIcon } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -180,6 +180,17 @@ const messageLabel = (kind: 'school' | 'agent' | 'note', role: string) =>
               <span class="text-xs text-faint">{{ m.when }}</span>
             </div>
             <p class="text-sm leading-relaxed text-pretty whitespace-pre-line">{{ m.text }}</p>
+            <ul v-if="m.attachments?.length" class="mt-1.5 flex flex-wrap gap-1.5">
+              <li v-for="a in m.attachments" :key="a.url">
+                <a
+                  :href="a.url"
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-primary hover:underline"
+                  ><PaperclipIcon class="size-3.5" aria-hidden="true" />{{ a.name }}</a
+                >
+              </li>
+            </ul>
           </div>
         </article>
 

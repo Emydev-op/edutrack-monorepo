@@ -41,6 +41,7 @@ export function toIssue(row: (typeof issues)[number]): SupportIssue {
   return {
     ...(issue as Omit<typeof row, (typeof INTERNAL_ISSUE_FIELDS)[number]>),
     schoolName: schools.find((s) => s.id === row.schoolId)?.name ?? row.schoolId,
+    assigneeId: users.find((u) => `${u.firstName} ${u.lastName}` === row.assignee)?.id ?? null,
     sla: slaOf(row),
   };
 }

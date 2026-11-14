@@ -39,6 +39,7 @@ export const queryKeys = {
   support: {
     all: ['support'] as const,
     summary: () => [...queryKeys.support.all, 'summary'] as const,
+    agents: () => [...queryKeys.support.all, 'agents'] as const,
     list: (params: object) => [...queryKeys.support.all, 'list', params] as const,
     detail: (id: string) => [...queryKeys.support.all, 'detail', id] as const,
   },

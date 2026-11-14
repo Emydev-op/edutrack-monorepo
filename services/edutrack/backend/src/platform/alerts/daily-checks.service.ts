@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Clock } from '../../common/clock/clock.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { SupportService } from '../support/support.service.js';
 import { overdueInvoice } from '../subscriptions/subscriptions.service.js';
 import { addDays, daysBetween, formatDay, formatNaira, lagosToday } from '../shared/format.js';
 import { PlatformAlertsService } from './platform-alerts.service.js';
@@ -10,7 +11,8 @@ export const EXPIRING_WINDOW_DAYS = 30;
 
 /**
  * The morning checks (run by `DailyChecksProcessor`): staff invitations that lapsed, subscriptions
- * renewing soon and overdue platform invoices. Each record alerts a person once.
+ * renewing soon and overdue platform invoices (each record alerts a person once), and resolved
+ * support tickets the school never answered, which close by themselves.
  */
 @Injectable()
 export class DailyChecksService {
@@ -19,6 +21,7 @@ export class DailyChecksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly alerts: PlatformAlertsService,
+    private readonly support: SupportService,
     private readonly clock: Clock,
   ) {}
 
@@ -27,6 +30,7 @@ export class DailyChecksService {
       invitationsExpired: await this.expireInvitations(),
       expiring: await this.subscriptionsExpiring(),
       overdue: await this.overdueInvoices(),
+      ticketsClosed: await this.support.autoClose(),
     };
     this.logger.log({ msg: 'Daily back-office checks', ...result });
     return result;

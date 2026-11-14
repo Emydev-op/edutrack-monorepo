@@ -4,20 +4,20 @@ import { toast } from 'vue-sonner';
 
 import {
   useIssueTransitionMutation,
-  useSupportSummaryQuery,
+  useSupportAgentsQuery,
   useUpdateIssueMutation,
 } from '@/api/services/support';
 import { useConfirm, type ConfirmOption } from '@edutrack/app-kit/composables/useConfirm';
 import {
   CLOSE_REASONS,
   ESCALATION_TARGETS,
+  escalationOwner,
   HOLD_REASONS,
   hoursText,
   isDone,
   PAUSED_STATUSES,
   RESOLUTION_TYPES,
   SLA_TARGETS,
-  SUPPORT_AGENTS,
 } from '@/config/support-desk';
 import { useAuthStore } from '@/stores/auth';
 import { ISSUE_PRIORITIES, type SupportIssue } from '@/types';
@@ -38,16 +38,16 @@ const choices = (list: [string, string][]): ConfirmOption[] =>
 export function useIssueActions() {
   const confirm = useConfirm();
   const auth = useAuthStore();
-  const me = () => auth.fullName;
-  const { data: summary } = useSupportSummaryQuery();
+  const myId = () => auth.user?.id ?? '';
+  const { data: agents } = useSupportAgentsQuery();
 
   const current = shallowRef<SupportIssue>();
   const id = () => current.value?.id ?? '';
   const update = useUpdateIssueMutation(id);
   const transition = useIssueTransitionMutation(id);
 
-  const openTickets = (team: string, n: number) =>
-    `${team} · ${n} open ticket${n === 1 ? '' : 's'}`;
+  const openTickets = (team: string | null, n: number) =>
+    `${team ?? 'No team'} · ${n} open ticket${n === 1 ? '' : 's'}`;
   const requesterOf = (i: SupportIssue) => i.requester.split(' · ')[0] ?? 'the requester';
 
   function assign(i: SupportIssue, reassign: boolean) {
@@ -56,11 +56,13 @@ export function useIssueActions() {
       description: reassign
         ? `Now with ${i.assignee} (${i.team}). The school is told who handles it next; the SLA clock keeps running.`
         : 'The owner’s team becomes the ticket’s team.',
-      options: SUPPORT_AGENTS.filter((a) => a.name !== i.assignee).map((a) => ({
-        value: a.name,
-        label: a.name + (a.name === me() ? ' (you)' : ''),
-        description: openTickets(a.team, summary.value?.agentLoad[a.name] ?? 0),
-      })),
+      options: (agents.value ?? [])
+        .filter((a) => a.id !== i.assigneeId)
+        .map((a) => ({
+          value: a.id,
+          label: a.name + (a.id === myId() ? ' (you)' : ''),
+          description: openTickets(a.team, a.open),
+        })),
       input: reassign
         ? {
             label: 'Reason (kept in the ticket history)',
@@ -70,14 +72,14 @@ export function useIssueActions() {
         : undefined,
       confirmLabel: reassign ? 'Reassign' : 'Assign',
       action: async ({ option, text }) => {
-        await update.mutateAsync({ assignee: option, reason: text || undefined });
-        toast.success(`${reassign ? 'Reassigned' : 'Assigned'} to ${option}.`);
+        const issue = await update.mutateAsync({ assignee: option, reason: text || undefined });
+        toast.success(`${reassign ? 'Reassigned' : 'Assigned'} to ${issue.assignee}.`);
       },
     });
   }
 
   async function assignToMe() {
-    await update.mutateAsync({ assignee: me() });
+    await update.mutateAsync({ assignee: myId() });
     toast.success(`Assigned to you.`);
   }
 
@@ -117,11 +119,12 @@ export function useIssueActions() {
   const escalate = (i: SupportIssue) =>
     void confirm({
       title: `Escalate ${i.id}?`,
-      description: 'Hands the ticket to a specialist owner. The school sees “With a specialist”.',
+      description:
+        'Hands the ticket to the least-busy person in that team, or the team’s queue if nobody is in it. The school sees “With a specialist”.',
       details: [['Current owner', `${i.assignee ?? 'Unassigned'} · ${i.team}`]],
       options: ESCALATION_TARGETS.map((t) => ({
         value: t.team,
-        label: `${t.label} · ${t.owner}`,
+        label: `${t.label} · ${escalationOwner(t.team, agents.value ?? [], i.assigneeId)?.name ?? `${t.team} queue`}`,
         description: t.description,
       })),
       input: {

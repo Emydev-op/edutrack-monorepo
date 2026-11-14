@@ -9,7 +9,7 @@ import { RequestContext } from '../../common/context/request-context.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import { paginated, toSkipTake } from '../../common/pagination/pagination.js';
 import type { Prisma } from '../../generated/prisma/client.js';
-import { Portal } from '../../generated/prisma/enums.js';
+import { Portal, type SupportTeam } from '../../generated/prisma/enums.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PlatformAlertsService } from '../alerts/platform-alerts.service.js';
 import { toneOf } from '../shared/audit-view.js';
@@ -25,7 +25,12 @@ import {
   USER_NOT_FOUND,
   withinPermissions,
 } from '../shared/staff.js';
+import { TEAM_BY_LABEL, TEAM_LABEL } from '../support/support-desk.js';
 import type { UserDetailsDto, UserListQuery } from './dto/users.dto.js';
+
+/** The DTO's team label: undefined keeps the current team, '' or null clears it. */
+const teamOf = (label: string | null | undefined): SupportTeam | null | undefined =>
+  label === undefined ? undefined : label ? TEAM_BY_LABEL[label]! : null;
 
 const staffInclude = {
   user: true,
@@ -112,6 +117,7 @@ export class UsersService {
         phone: displayPhone(s.user.phone),
         roleId: roleRef(s.role),
         roleName: s.role.name,
+        supportTeam: s.supportTeam ? TEAM_LABEL[s.supportTeam] : null,
         status: STAFF_STATUS_LABEL[s.status],
         invitation: this.invitationState(inv),
         invitedBy: inviter ? (names.get(inviter) ?? null) : null,
@@ -270,6 +276,7 @@ export class UsersService {
         }));
       const staffData = {
         roleId: role.id,
+        supportTeam: teamOf(dto.supportTeam) ?? null,
         status: 'INVITED' as const,
         invitedById: actorId,
         invitedAt: now,
@@ -331,12 +338,14 @@ export class UsersService {
     }
     const phone = await this.parsePhone(dto.phone, userId);
     const user = staff.user;
+    const team = teamOf(dto.supportTeam);
+    const teamChanged = team !== undefined && team !== staff.supportTeam;
     const detailsChanged =
       dto.firstName !== user.firstName ||
       dto.lastName !== user.lastName ||
       dto.email !== user.email ||
       phone !== user.phone;
-    if (!roleChanged && !detailsChanged) return this.get(userId);
+    if (!roleChanged && !detailsChanged && !teamChanged) return this.get(userId);
 
     const name = `${dto.firstName} ${dto.lastName}`;
     await this.prisma.$transaction(async (tx) => {
@@ -359,6 +368,21 @@ export class UsersService {
             summary: `User details updated · ${name}`,
             previous: `${fullName(user)} · ${user.email ?? ''} · ${displayPhone(user.phone)}`,
             next: `${name} · ${dto.email} · ${displayPhone(phone)}`,
+          },
+          tx,
+        );
+      }
+      if (teamChanged) {
+        await tx.platformStaff.update({ where: { id: staff.id }, data: { supportTeam: team } });
+        const label = (t: SupportTeam | null) => (t ? TEAM_LABEL[t] : 'No team');
+        await this.audit.record(
+          {
+            action: 'user.support_team',
+            entity: 'User',
+            entityId: userId,
+            summary: `Support team changed · ${name} to ${label(team)}`,
+            previous: label(staff.supportTeam),
+            next: label(team),
           },
           tx,
         );

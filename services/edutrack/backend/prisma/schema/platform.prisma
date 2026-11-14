@@ -112,6 +112,9 @@ model PlatformStaff {
   lastActiveAt    DateTime?           @map("last_active_at") @db.Timestamptz(3)
   /// Email a sign-in from a new device.
   newDeviceAlerts Boolean             @default(true) @map("new_device_alerts")
+  /// The support desk team they work in. Tickets they own move to this team; escalations go to
+  /// the least-busy member of the target team.
+  supportTeam     SupportTeam?        @map("support_team")
   createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -121,6 +124,7 @@ model PlatformStaff {
 
   @@index([roleId])
   @@index([status])
+  @@index([supportTeam])
   @@map("platform_staff")
 }
 
