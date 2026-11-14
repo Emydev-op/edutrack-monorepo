@@ -833,3 +833,69 @@ export async function seedPlatformData(
       });
   }
 }
+
+/**
+ * Back-office notifications, preferences and settings back to their demo state: a few unread
+ * alerts for Tolu (the daily checks add real ones), default channels, default security toggles.
+ * Custom roles from earlier runs are removed when nobody holds them.
+ */
+export async function seedPlatformAccount(prisma: PrismaClient, ctx: SeedContext) {
+  const { now } = ctx;
+  const staff = await prisma.platformStaff.findMany({ select: { userId: true } });
+  const userIds = staff.map((s) => s.userId);
+  await prisma.notification.deleteMany({ where: { userId: { in: userIds }, schoolId: null } });
+  await prisma.notificationPreference.deleteMany({
+    where: { userId: { in: userIds }, schoolId: null },
+  });
+  await prisma.platformSetting.deleteMany({ where: { key: 'security' } });
+  await prisma.platformRole.deleteMany({ where: { predefined: false, staff: { none: {} } } });
+
+  const schools = await prisma.school.findMany({
+    where: { slug: { in: ['unity', 'hillcrest'] } },
+    include: { subscription: true },
+  });
+  const bySlug = new Map(schools.map((s) => [s.slug, s]));
+  const unity = bySlug.get('unity')!;
+  const hillcrest = bySlug.get('hillcrest')!;
+  const chika = await prisma.user.findUniqueOrThrow({ where: { email: 'chika@edutrack.ng' } });
+  const ago = (hours: number) => new Date(now.getTime() - hours * 3_600_000);
+  const rows = [
+    {
+      key: 'unity-overdue',
+      category: 'subscription.overdue',
+      title: `${unity.name} has an overdue invoice`,
+      body: 'Grace period · renewal not paid',
+      link: `/schools/${unity.id}/billing`,
+      entityType: 'Subscription',
+      entityId: unity.subscription?.id ?? null,
+      createdAt: ago(3),
+      readAt: null,
+    },
+    {
+      key: 'hillcrest-expiring',
+      category: 'subscription.expiring',
+      title: `${hillcrest.name} renews in 12 days`,
+      body: 'Starter · send a renewal reminder',
+      link: `/schools/${hillcrest.id}/subscription`,
+      entityType: 'Subscription',
+      entityId: hillcrest.subscription?.id ?? null,
+      createdAt: ago(26),
+      readAt: null,
+    },
+    {
+      key: 'chika-expired',
+      category: 'user.invitation',
+      title: 'Chika Obi’s invitation expired',
+      body: 'Users · resend it from their profile',
+      link: `/users/${chika.id}`,
+      entityType: 'Invitation',
+      entityId: null,
+      createdAt: ago(24 * 5),
+      readAt: ago(24 * 4),
+    },
+  ];
+  for (const { key, ...row } of rows)
+    await prisma.notification.create({
+      data: { id: demoUuid(`notification:${key}`), userId: ctx.tolu, ...row },
+    });
+}

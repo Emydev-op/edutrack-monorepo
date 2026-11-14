@@ -45,12 +45,22 @@ export interface RenewalReminderData {
   amount: string;
 }
 
+/** A back-office notification sent by email or SMS (the staff member's channel preferences). */
+export interface PlatformAlertData {
+  firstName: string;
+  title: string;
+  detail: string;
+  /** Full back-office URL to open. */
+  link: string;
+}
+
 export interface TemplateDataMap {
   invitation: InvitationData;
   'password-reset': PasswordResetData;
   'password-changed': PasswordChangedData;
   'new-sign-in': NewSignInData;
   'renewal-reminder': RenewalReminderData;
+  'platform-alert': PlatformAlertData;
 }
 
 export type TemplateName = keyof TemplateDataMap;
@@ -159,6 +169,15 @@ export function renderEmail<T extends TemplateName>(
         html: layout(lines),
       };
     }
+    case 'platform-alert': {
+      const d = data as PlatformAlertData;
+      const lines = [`Hello ${d.firstName},`, d.title, ...(d.detail ? [d.detail] : [])];
+      return {
+        subject: d.title,
+        text: `${lines.join('\n\n')}\n\nOpen in the back office: ${d.link}`,
+        html: layout(lines, { label: 'Open in the back office', href: d.link }),
+      };
+    }
     default:
       throw new Error(`Unknown email template: ${String(template)}`);
   }
@@ -184,6 +203,10 @@ export function renderSms<T extends TemplateName>(template: T, data: TemplateDat
     case 'renewal-reminder': {
       const d = data as RenewalReminderData;
       return `${d.schoolName}: your EduTrack subscription renews on ${d.renewsOn} (${d.amount}).`;
+    }
+    case 'platform-alert': {
+      const d = data as PlatformAlertData;
+      return `EduTrack: ${d.title} ${d.link}`;
     }
     default:
       throw new Error(`Unknown SMS template: ${String(template)}`);

@@ -1,5 +1,6 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { Clock, DAY } from '../common/clock/clock.js';
+import { PLATFORM_SECURITY_KEY, readPlatformSecurity } from '../common/platform-settings.js';
 import { AppException } from '../common/errors/app.exception.js';
 import type { AuthSession, User } from '../generated/prisma/client.js';
 import { Portal } from '../generated/prisma/enums.js';
@@ -217,7 +218,13 @@ export class AuthService {
   /** Emails the user when they sign in from a device not seen in the last 90 days. */
   private async alertNewDevice(user: User, session: AuthSession, access: PortalAccess) {
     if (!user.email) return;
-    if (access.portal === 'PLATFORM' && !access.staff.newDeviceAlerts) return;
+    if (access.portal === 'PLATFORM') {
+      if (!access.staff.newDeviceAlerts) return;
+      const setting = await this.prisma.platformSetting.findUnique({
+        where: { key: PLATFORM_SECURITY_KEY },
+      });
+      if (!readPlatformSecurity(setting?.value).newDeviceAlerts) return;
+    }
     const since = new Date(this.clock.nowMs() - 90 * DAY);
     const previous = await this.prisma.authSession.findMany({
       where: { userId: user.id, id: { not: session.id }, createdAt: { gte: since } },

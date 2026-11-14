@@ -5,7 +5,7 @@ import { refDebounced } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 
-import { useActivityQuery } from '@/api/services/activity';
+import { useActivityQuery, useAuditActorsQuery } from '@/api/services/activity';
 import { useSchoolsQuery } from '@/api/services/schools';
 import DataTable, { type Column } from '@edutrack/app-kit/components/common/DataTable.vue';
 import DateRangeFilter, {
@@ -18,7 +18,7 @@ import { useRouteQuery } from '@edutrack/app-kit/composables/useRouteQuery';
 import { routesPath } from '@/router/routes-path';
 import type { ActivityQuery } from '@/types';
 
-import { ACTIVITY_ENTITIES, ACTORS } from './activity-filters';
+import { ACTIVITY_ENTITIES } from './activity-filters';
 
 const page = useRouteQuery<string>('page', '1');
 const pageSize = useRouteQuery<string>('pageSize', '10');
@@ -32,6 +32,7 @@ watch([debouncedSearch, actor, entity, schoolName, date], () => (page.value = '1
 
 const { data: schools } = useSchoolsQuery({ pageSize: 100 });
 const schoolNames = computed(() => (schools.value?.data ?? []).map((s) => s.name));
+const { data: actors } = useAuditActorsQuery();
 const { data, isPending } = useActivityQuery(() => ({
   search: debouncedSearch.value,
   page: Number(page.value),
@@ -76,7 +77,7 @@ const columns: Column[] = [
   >
     <template #search><SearchInput v-model="search" placeholder="Search activity" /></template>
     <template #filters>
-      <FilterMenu v-model="actor" label="Actor" :options="ACTORS" />
+      <FilterMenu v-model="actor" label="Actor" :options="actors ?? []" />
       <FilterMenu v-model="entity" label="Entity" :options="ACTIVITY_ENTITIES" />
       <FilterMenu v-model="schoolName" label="School" :options="schoolNames" />
       <DateRangeFilter v-model="date" label="Date range" />
