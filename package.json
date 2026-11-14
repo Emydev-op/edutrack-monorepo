@@ -33,6 +33,7 @@
     "infra:down": "docker compose -f infrastructure/docker/docker-compose.yml down",
     "infra:logs": "docker compose -f infrastructure/docker/docker-compose.yml logs -f",
     "db:migrate": "npm run prisma:migrate -w @edutrack/backend",
+    "db:seed": "npm run db:seed -w @edutrack/backend",
     "db:studio": "npm run prisma:studio -w @edutrack/backend"
   },
   "devDependencies": {
@@ -51,6 +52,8 @@
     "@prisma/engines": true,
     "vue-demi": true,
     "msgpackr-extract": true,
-    "@scarf/scarf": false
+    "@scarf/scarf": false,
+    "argon2": false,
+    "esbuild": false
   }
 }

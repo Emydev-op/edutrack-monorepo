@@ -80,7 +80,7 @@ const onSubmit = handleSubmit(async (form) => {
         label="New password"
         type="password"
         autocomplete="new-password"
-        placeholder="At least 10 characters"
+        placeholder="At least 8 characters"
       >
         <template #after><PasswordChecklist :password="values.password ?? ''" /></template>
       </FormInput>

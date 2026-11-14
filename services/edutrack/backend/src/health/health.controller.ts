@@ -8,6 +8,7 @@ import {
 } from '@nestjs/terminus';
 import type { Redis } from 'ioredis';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { Public } from '../auth/decorators/auth.decorators.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { REDIS_CLIENT } from '../redis/redis.constants.js';
 import { StorageService } from '../storage/storage.service.js';
@@ -16,6 +17,7 @@ import { StorageService } from '../storage/storage.service.js';
 const PROBE_TIMEOUT_MS = 3_000;
 
 @ApiTags('health')
+@Public()
 @Controller({ path: 'health', version: VERSION_NEUTRAL })
 export class HealthController {
   constructor(

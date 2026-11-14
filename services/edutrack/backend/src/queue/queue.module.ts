@@ -19,6 +19,8 @@ import type { Env } from '../config/env.validation.js';
             port: Number(url.port || 6379),
             username: url.username || undefined,
             password: url.password || undefined,
+            // redis://host:6379/15 selects database 15 (the e2e tests use their own).
+            db: Number(url.pathname.replace('/', '') || 0),
             tls: url.protocol === 'rediss:' ? {} : undefined,
           },
           prefix: 'edutrack',

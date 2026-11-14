@@ -94,6 +94,45 @@ jobs:
       - name: Build
         run: npm run build -w @edutrack/${{ matrix.workspace }}
 
+  # The backend's e2e suite runs the real API against Postgres and Redis service containers
+  # (its own `edutrack_test` database and Redis database 15, created by the test setup).
+  backend-e2e:
+    name: backend e2e
+    needs: changes
+    if: ${{ contains(fromJSON(needs.changes.outputs.workspaces), 'backend') }}
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: edutrack
+          POSTGRES_PASSWORD: edutrack
+          POSTGRES_DB: edutrack
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U edutrack -d edutrack"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8.8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://edutrack:edutrack@localhost:5432/edutrack
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run prisma:generate -w @edutrack/backend
+      - run: npm run test:e2e -w @edutrack/backend
+
   shared-packages:
     name: Shared packages
     needs: changes
@@ -137,7 +176,7 @@ jobs:
   ci-passed:
     name: CI passed
     if: ${{ always() }}
-    needs: [changes, format, verify, shared-packages, docker]
+    needs: [changes, format, verify, backend-e2e, shared-packages, docker]
     runs-on: ubuntu-latest
     steps:
       - name: Check job results

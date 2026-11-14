@@ -42,7 +42,7 @@ async function toggle(key: string, enabled: boolean) {
     <KeyValueCard
       title="Password policy"
       :rows="[
-        { label: 'Minimum length', value: '10 characters' },
+        { label: 'Minimum length', value: '8 characters' },
         { label: 'Complexity', value: 'Upper and lower case, a number, a symbol' },
         { label: 'Expiry', value: 'None (NIST guidance)' },
         { label: 'Reuse', value: 'Last 5 passwords blocked' },

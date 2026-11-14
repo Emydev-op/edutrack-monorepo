@@ -372,7 +372,7 @@ mock.post('/v1/settings/security/password', (req) => {
   const next = typeof p.next === 'string' ? p.next : '';
   if (!meetsPasswordPolicy(next))
     fail(
-      'Use at least 10 characters with an uppercase and a lowercase letter, a number and a symbol.',
+      'Use at least 8 characters with an uppercase and a lowercase letter, a number and a symbol.',
     );
   if (next === p.current) fail('Choose a password you haven’t just used.');
   passwords.set(user.email, next);
