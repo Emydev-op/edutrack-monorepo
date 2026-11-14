@@ -37,7 +37,9 @@ export function useSchoolsQuery(params: MaybeRefOrGetter<SchoolQuery>) {
   return useQuery({
     queryKey: computed(() => queryKeys.schools.list(cleanParams(toValue(params)))),
     queryFn: () =>
-      getRequest<Paginated<School>>('/v1/schools', { params: cleanParams(toValue(params)) }),
+      getRequest<Paginated<School>>('/v1/platform/schools', {
+        params: cleanParams(toValue(params)),
+      }),
     placeholderData: keepPreviousData,
   });
 }
@@ -45,14 +47,14 @@ export function useSchoolsQuery(params: MaybeRefOrGetter<SchoolQuery>) {
 export function useSchoolQuery(id: MaybeRefOrGetter<string>) {
   return useQuery({
     queryKey: computed(() => queryKeys.schools.detail(toValue(id))),
-    queryFn: () => getRequest<School>(`/v1/schools/${toValue(id)}`),
+    queryFn: () => getRequest<School>(`/v1/platform/schools/${toValue(id)}`),
   });
 }
 
 function useSchoolSection<T>(id: MaybeRefOrGetter<string>, section: string) {
   return useQuery({
     queryKey: computed(() => queryKeys.schools.section(toValue(id), section)),
-    queryFn: () => getRequest<T>(`/v1/schools/${toValue(id)}/${section}`),
+    queryFn: () => getRequest<T>(`/v1/platform/schools/${toValue(id)}/${section}`),
   });
 }
 
@@ -73,7 +75,7 @@ export function useUpdateSchoolMutation(id: MaybeRefOrGetter<string>) {
   const invalidate = useInvalidateSchools();
   return useMutation({
     mutationFn: (payload: UpdateSchoolPayload) =>
-      patchRequest<School>(`/v1/schools/${toValue(id)}`, payload),
+      patchRequest<School>(`/v1/platform/schools/${toValue(id)}`, payload),
     onSuccess: () => invalidate(),
   });
 }
@@ -83,8 +85,8 @@ export function useSuspendSchoolsMutation() {
   return useMutation({
     mutationFn: ({ ids, reason }: { ids: string[]; reason: string }) =>
       ids.length === 1
-        ? postRequest(`/v1/schools/${ids[0]}/suspend`, { reason })
-        : postRequest('/v1/schools/bulk-suspend', { ids, reason }),
+        ? postRequest(`/v1/platform/schools/${ids[0]}/suspend`, { reason })
+        : postRequest('/v1/platform/schools/bulk-suspend', { ids, reason }),
     onSuccess: () => invalidate(),
   });
 }
@@ -92,7 +94,7 @@ export function useSuspendSchoolsMutation() {
 export function useReactivateSchoolMutation() {
   const invalidate = useInvalidateSchools();
   return useMutation({
-    mutationFn: (id: string) => postRequest<School>(`/v1/schools/${id}/reactivate`),
+    mutationFn: (id: string) => postRequest<School>(`/v1/platform/schools/${id}/reactivate`),
     onSuccess: () => invalidate(),
   });
 }
@@ -100,14 +102,14 @@ export function useReactivateSchoolMutation() {
 export const useSendRenewalRemindersMutation = () =>
   useMutation({
     mutationFn: (ids: string[]) =>
-      postRequest<{ queued: number }>('/v1/schools/reminders', { ids }),
+      postRequest<{ queued: number }>('/v1/platform/schools/reminders', { ids }),
   });
 
 export function useStartSupportSessionMutation(id: MaybeRefOrGetter<string>) {
   const invalidate = useInvalidateSchools();
   return useMutation({
     mutationFn: (reason: string) =>
-      postRequest(`/v1/schools/${toValue(id)}/support-sessions`, { reason }),
+      postRequest(`/v1/platform/schools/${toValue(id)}/support-sessions`, { reason }),
     onSuccess: () => invalidate(),
   });
 }
@@ -116,7 +118,10 @@ export function useInviteSchoolAdminMutation(id: MaybeRefOrGetter<string>) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: InviteSchoolAdminPayload) =>
-      postRequest<SchoolAdministrator>(`/v1/schools/${toValue(id)}/administrators`, payload),
+      postRequest<SchoolAdministrator>(
+        `/v1/platform/schools/${toValue(id)}/administrators`,
+        payload,
+      ),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: queryKeys.schools.section(toValue(id), 'administrators') }),
   });
@@ -126,7 +131,7 @@ export function useResendSchoolAdminInviteMutation(id: MaybeRefOrGetter<string>)
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (adminId: string) =>
-      postRequest(`/v1/schools/${toValue(id)}/administrators/${adminId}/resend`),
+      postRequest(`/v1/platform/schools/${toValue(id)}/administrators/${adminId}/resend`),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: queryKeys.schools.section(toValue(id), 'administrators') }),
   });
@@ -136,7 +141,7 @@ export function useSubscriptionActionMutation(id: MaybeRefOrGetter<string>) {
   const invalidate = useInvalidateSchools();
   return useMutation({
     mutationFn: (action: SubscriptionAction) =>
-      postRequest<School>(`/v1/schools/${toValue(id)}/subscription/actions`, action),
+      postRequest<School>(`/v1/platform/schools/${toValue(id)}/subscription/actions`, action),
     onSuccess: () => invalidate(),
   });
 }
@@ -144,7 +149,8 @@ export function useSubscriptionActionMutation(id: MaybeRefOrGetter<string>) {
 export function useProvisionSchoolMutation() {
   const invalidate = useInvalidateSchools();
   return useMutation({
-    mutationFn: (payload: ProvisionSchoolPayload) => postRequest<School>('/v1/schools', payload),
+    mutationFn: (payload: ProvisionSchoolPayload) =>
+      postRequest<School>('/v1/platform/schools', payload),
     onSuccess: () => invalidate(),
   });
 }

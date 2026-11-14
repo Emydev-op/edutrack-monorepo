@@ -34,11 +34,23 @@ export interface NewSignInData {
   portalName: string;
 }
 
+export interface RenewalReminderData {
+  /** The billing contact, or the school's name when there is none. */
+  name: string;
+  schoolName: string;
+  plan: string;
+  /** `31 Aug 2027`. */
+  renewsOn: string;
+  /** `₦1,850,000`. */
+  amount: string;
+}
+
 export interface TemplateDataMap {
   invitation: InvitationData;
   'password-reset': PasswordResetData;
   'password-changed': PasswordChangedData;
   'new-sign-in': NewSignInData;
+  'renewal-reminder': RenewalReminderData;
 }
 
 export type TemplateName = keyof TemplateDataMap;
@@ -134,6 +146,19 @@ export function renderEmail<T extends TemplateName>(
         html: layout(lines, undefined, SECURITY_FOOTER),
       };
     }
+    case 'renewal-reminder': {
+      const d = data as RenewalReminderData;
+      const lines = [
+        `Hello ${d.name},`,
+        `${d.schoolName}’s EduTrack ${d.plan} subscription renews on ${d.renewsOn}. The renewal is ${d.amount}.`,
+        'Renew before that date to keep every feature running for your staff, parents and students. If you have already paid, thank you: you can ignore this reminder.',
+      ];
+      return {
+        subject: `${d.schoolName}: your EduTrack subscription renews on ${d.renewsOn}`,
+        text: lines.join('\n\n'),
+        html: layout(lines),
+      };
+    }
     default:
       throw new Error(`Unknown email template: ${String(template)}`);
   }
@@ -155,6 +180,10 @@ export function renderSms<T extends TemplateName>(template: T, data: TemplateDat
     case 'new-sign-in': {
       const d = data as NewSignInData;
       return `New EduTrack sign-in on ${d.device}. Not you? Change your password.`;
+    }
+    case 'renewal-reminder': {
+      const d = data as RenewalReminderData;
+      return `${d.schoolName}: your EduTrack subscription renews on ${d.renewsOn} (${d.amount}).`;
     }
     default:
       throw new Error(`Unknown SMS template: ${String(template)}`);

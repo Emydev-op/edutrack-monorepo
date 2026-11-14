@@ -69,18 +69,18 @@ const today = () =>
 const record = (plan: Plan, summary: string) =>
   plan.history.unshift({ version: plan.version, at: today(), by: ME.name, summary });
 
-mock.get('/v1/plans', () => plans);
+mock.get('/v1/platform/plans', () => plans);
 
-mock.get('/v1/plans/:id', ({ params }) => findPlan(params.id!));
+mock.get('/v1/platform/plans/:id', ({ params }) => findPlan(params.id!));
 
-mock.get('/v1/plans/:id/schools', ({ params }) => {
+mock.get('/v1/platform/plans/:id/schools', ({ params }) => {
   const plan = findPlan(params.id!);
   return schools
     .filter((s) => s.plan === plan.name)
     .map((s) => ({ schoolId: s.id, name: s.name, students: s.students, branches: s.branches }));
 });
 
-mock.post('/v1/plans', ({ body }) => {
+mock.post('/v1/platform/plans', ({ body }) => {
   const { status } = body as CreatePlanPayload;
   const definition = readDefinition(body);
   const slug = definition.name
@@ -107,7 +107,7 @@ mock.post('/v1/plans', ({ body }) => {
   return plan;
 });
 
-mock.patch('/v1/plans/:id', ({ params, body }) => {
+mock.patch('/v1/platform/plans/:id', ({ params, body }) => {
   const plan = findPlan(params.id!);
   const definition = readDefinition(body, plan.id);
   const changes = planChanges(plan, definition);
@@ -125,7 +125,7 @@ mock.patch('/v1/plans/:id', ({ params, body }) => {
   return plan;
 });
 
-mock.post('/v1/plans/:id/status', ({ params, body }) => {
+mock.post('/v1/platform/plans/:id/status', ({ params, body }) => {
   const plan = findPlan(params.id!);
   const next = (body as { status: PlanStatus }).status;
   if (next !== 'Active' && next !== 'Archived')
@@ -146,7 +146,7 @@ mock.post('/v1/plans/:id/status', ({ params, body }) => {
   return plan;
 });
 
-mock.delete('/v1/plans/:id', ({ params }) => {
+mock.delete('/v1/platform/plans/:id', ({ params }) => {
   const plan = findPlan(params.id!);
   if (plan.status !== 'Draft' || plan.schools > 0)
     throw new MockHttpError(409, 'Only drafts that no school uses can be deleted');

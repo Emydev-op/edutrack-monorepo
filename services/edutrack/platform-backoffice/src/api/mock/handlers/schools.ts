@@ -28,7 +28,7 @@ const limit = (plan: PlanName, key: 'students' | 'branches') =>
 
 /* ---------- Schools ---------- */
 
-mock.get('/v1/schools', ({ query }) => {
+mock.get('/v1/platform/schools', ({ query }) => {
   const rows = schools.filter(
     (s) =>
       (!query.status || s.status === query.status) &&
@@ -38,9 +38,9 @@ mock.get('/v1/schools', ({ query }) => {
   return paginate(rows, query, (s) => `${s.name} ${s.admin} ${s.state}`);
 });
 
-mock.get('/v1/schools/:id', ({ params }) => findSchool(params.id!));
+mock.get('/v1/platform/schools/:id', ({ params }) => findSchool(params.id!));
 
-mock.patch('/v1/schools/:id', ({ params, body }) => {
+mock.patch('/v1/platform/schools/:id', ({ params, body }) => {
   const school = findSchool(params.id!);
   const payload = body as UpdateSchoolPayload;
   const previous = school.name;
@@ -76,7 +76,7 @@ function suspend(school: School, reason: string) {
   school.status = 'Suspended';
 }
 
-mock.post('/v1/schools/:id/suspend', ({ params, body }) => {
+mock.post('/v1/platform/schools/:id/suspend', ({ params, body }) => {
   const school = findSchool(params.id!);
   suspend(
     school,
@@ -85,14 +85,14 @@ mock.post('/v1/schools/:id/suspend', ({ params, body }) => {
   return school;
 });
 
-mock.post('/v1/schools/bulk-suspend', ({ body }) => {
+mock.post('/v1/platform/schools/bulk-suspend', ({ body }) => {
   const { ids, reason } = body as { ids: string[]; reason: string };
   const text = requireText(reason, 'Give a reason for the suspension');
   ids.map(findSchool).forEach((s) => suspend(s, text));
   return { suspended: ids.length };
 });
 
-mock.post('/v1/schools/:id/reactivate', ({ params }) => {
+mock.post('/v1/platform/schools/:id/reactivate', ({ params }) => {
   const school = findSchool(params.id!);
   const next = statusBeforeSuspension.get(school.id) ?? 'Active';
   audit({
@@ -108,11 +108,11 @@ mock.post('/v1/schools/:id/reactivate', ({ params }) => {
   return school;
 });
 
-mock.post('/v1/schools/reminders', ({ body }) => ({
+mock.post('/v1/platform/schools/reminders', ({ body }) => ({
   queued: (body as { ids: string[] }).ids.length,
 }));
 
-mock.post('/v1/schools/:id/support-sessions', ({ params, body }) => {
+mock.post('/v1/platform/schools/:id/support-sessions', ({ params, body }) => {
   const school = findSchool(params.id!);
   const reason = requireText((body as { reason: string }).reason, 'Give a reason for the session');
   audit({
@@ -127,11 +127,11 @@ mock.post('/v1/schools/:id/support-sessions', ({ params, body }) => {
 });
 
 mock.get(
-  '/v1/schools/:id/administrators',
+  '/v1/platform/schools/:id/administrators',
   ({ params }) => schoolAdmins.get(findSchool(params.id!).id) ?? [],
 );
 
-mock.post('/v1/schools/:id/administrators', ({ params, body }) => {
+mock.post('/v1/platform/schools/:id/administrators', ({ params, body }) => {
   const school = findSchool(params.id!);
   const payload = body as InviteSchoolAdminPayload;
   const admin = {
@@ -155,7 +155,7 @@ mock.post('/v1/schools/:id/administrators', ({ params, body }) => {
   return admin;
 });
 
-mock.post('/v1/schools/:id/administrators/:adminId/resend', ({ params }) => {
+mock.post('/v1/platform/schools/:id/administrators/:adminId/resend', ({ params }) => {
   const school = findSchool(params.id!);
   const admin = schoolAdmins.get(school.id)?.find((a) => a.id === params.adminId);
   if (!admin) throw new MockHttpError(404, 'Administrator not found');
@@ -172,7 +172,7 @@ mock.post('/v1/schools/:id/administrators/:adminId/resend', ({ params }) => {
   return admin;
 });
 
-mock.get('/v1/schools/:id/usage', ({ params }) => {
+mock.get('/v1/platform/schools/:id/usage', ({ params }) => {
   const school = findSchool(params.id!);
   const fresh = school.status === 'Onboarding' && school.students === 0;
   return {
@@ -185,7 +185,7 @@ mock.get('/v1/schools/:id/usage', ({ params }) => {
   };
 });
 
-mock.get('/v1/schools/:id/billing', ({ params }) => {
+mock.get('/v1/platform/schools/:id/billing', ({ params }) => {
   const school = findSchool(params.id!);
   const price = PLAN_LIMITS[school.plan].price;
   return [
@@ -199,7 +199,7 @@ mock.get('/v1/schools/:id/billing', ({ params }) => {
   ];
 });
 
-mock.get('/v1/schools/:id/activity', ({ params }) => {
+mock.get('/v1/platform/schools/:id/activity', ({ params }) => {
   const school = findSchool(params.id!);
   const own = activity
     .filter((a) => a.schoolName === school.name)
@@ -229,7 +229,7 @@ mock.get('/v1/schools/:id/activity', ({ params }) => {
   ]);
 });
 
-mock.get('/v1/schools/:id/audit', ({ params }) => {
+mock.get('/v1/platform/schools/:id/audit', ({ params }) => {
   const school = findSchool(params.id!);
   return auditLog
     .filter((e) => e.entityId === school.id)
@@ -263,7 +263,7 @@ mock.get('/v1/schools/:id/audit', ({ params }) => {
 
 /* ---------- Provisioning ---------- */
 
-mock.post('/v1/schools', ({ body }) => {
+mock.post('/v1/platform/schools', ({ body }) => {
   const p = body as ProvisionSchoolPayload;
   const name = requireText(p.name, 'Enter the display name');
   if (schools.some((s) => s.name.toLowerCase() === name.toLowerCase())) {
@@ -337,7 +337,7 @@ mock.post('/v1/schools', ({ body }) => {
 
 /* ---------- Subscriptions ---------- */
 
-mock.get('/v1/subscriptions', ({ query }) => {
+mock.get('/v1/platform/subscriptions', ({ query }) => {
   const rows: SubscriptionRow[] = schools
     .filter((s) => s.status !== 'Suspended')
     .map((s) => {
@@ -357,7 +357,7 @@ mock.get('/v1/subscriptions', ({ query }) => {
   return paginate(rows, query, (r) => r.schoolName);
 });
 
-mock.get('/v1/schools/:id/subscription', ({ params }) => {
+mock.get('/v1/platform/schools/:id/subscription', ({ params }) => {
   const school = findSchool(params.id!);
   return {
     plan: school.plan,
@@ -379,7 +379,7 @@ const ACTION_LABEL: Record<SubscriptionAction['action'], string> = {
   reactivate: 'Subscription reactivated',
 };
 
-mock.post('/v1/schools/:id/subscription/actions', ({ params, body }) => {
+mock.post('/v1/platform/schools/:id/subscription/actions', ({ params, body }) => {
   const school = findSchool(params.id!);
   const action = body as SubscriptionAction;
   const before = `${school.plan} · ${school.status}`;

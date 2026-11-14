@@ -7,12 +7,15 @@ import { deleteRequest, getRequest, patchRequest, postRequest } from '../helpers
 import { queryKeys } from '../query-keys';
 
 export const usePlansQuery = () =>
-  useQuery({ queryKey: queryKeys.plans.list(), queryFn: () => getRequest<Plan[]>('/v1/plans') });
+  useQuery({
+    queryKey: queryKeys.plans.list(),
+    queryFn: () => getRequest<Plan[]>('/v1/platform/plans'),
+  });
 
 export function usePlanQuery(id: MaybeRefOrGetter<string | undefined>) {
   return useQuery({
     queryKey: computed(() => queryKeys.plans.detail(toValue(id) ?? '')),
-    queryFn: () => getRequest<Plan>(`/v1/plans/${toValue(id)}`),
+    queryFn: () => getRequest<Plan>(`/v1/platform/plans/${toValue(id)}`),
     enabled: () => !!toValue(id),
   });
 }
@@ -21,7 +24,7 @@ export function usePlanQuery(id: MaybeRefOrGetter<string | undefined>) {
 export function usePlanSchoolsQuery(id: MaybeRefOrGetter<string | undefined>) {
   return useQuery({
     queryKey: computed(() => queryKeys.plans.schools(toValue(id) ?? '')),
-    queryFn: () => getRequest<PlanSchoolUsage[]>(`/v1/plans/${toValue(id)}/schools`),
+    queryFn: () => getRequest<PlanSchoolUsage[]>(`/v1/platform/plans/${toValue(id)}/schools`),
     enabled: () => !!toValue(id),
   });
 }
@@ -39,17 +42,17 @@ function usePlanMutation<V, R>(fn: (vars: V) => Promise<R>) {
 }
 
 export const useCreatePlanMutation = () =>
-  usePlanMutation((payload: CreatePlanPayload) => postRequest<Plan>('/v1/plans', payload));
+  usePlanMutation((payload: CreatePlanPayload) => postRequest<Plan>('/v1/platform/plans', payload));
 
 export const useUpdatePlanMutation = () =>
   usePlanMutation(({ id, plan }: { id: string; plan: PlanDefinition }) =>
-    patchRequest<Plan>(`/v1/plans/${id}`, plan),
+    patchRequest<Plan>(`/v1/platform/plans/${id}`, plan),
   );
 
 export const usePlanStatusMutation = () =>
   usePlanMutation(({ id, status }: { id: string; status: 'Active' | 'Archived' }) =>
-    postRequest<Plan>(`/v1/plans/${id}/status`, { status }),
+    postRequest<Plan>(`/v1/platform/plans/${id}/status`, { status }),
   );
 
 export const useDeletePlanMutation = () =>
-  usePlanMutation((id: string) => deleteRequest<{ ok: true }>(`/v1/plans/${id}`));
+  usePlanMutation((id: string) => deleteRequest<{ ok: true }>(`/v1/platform/plans/${id}`));

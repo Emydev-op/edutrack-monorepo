@@ -11,7 +11,7 @@ export function useSubscriptionsQuery(params: MaybeRefOrGetter<SubscriptionQuery
   return useQuery({
     queryKey: computed(() => queryKeys.subscriptions.list(cleanParams(toValue(params)))),
     queryFn: () =>
-      getRequest<Paginated<SubscriptionRow>>('/v1/subscriptions', {
+      getRequest<Paginated<SubscriptionRow>>('/v1/platform/subscriptions', {
         params: cleanParams(toValue(params)),
       }),
     placeholderData: keepPreviousData,

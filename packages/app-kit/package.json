@@ -16,6 +16,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@edutrack/shared": "*",
     "@edutrack/ui": "*",
     "@lucide/vue": "^1.67.0",
     "@vueuse/core": "^15.0.0",

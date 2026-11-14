@@ -116,7 +116,7 @@ The e2e suite (`test/tenancy.e2e-spec.ts`) proves a query in school A's context 
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Teacher / Parent / Student   | The Host subdomain: `greenfield.edutrack.ng` → `School.slug = greenfield` (or a verified `customDomain`). Sign-in, refresh and every request must be on that school's host; a token for another school answers 403 `TENANT_MISMATCH`. |
 | School Admin (shared portal) | The session's chosen school (`AuthSession.schoolId`), picked at sign-in or with `POST /auth/switch-school`.                                                                                                                           |
-| Platform back office         | No school. Back-office routes use `@PlatformOnly()` and `PrismaService`.                                                                                                                                                              |
+| Platform back office         | No school. Back-office routes live under `/api/v1/platform/…`, use `@PlatformOnly()` and `PrismaService` (see [`platform-api.md`](platform-api.md)).                                                                                  |
 
 `APP_BASE_DOMAIN` sets the base domain (`edutrack.ng` deployed, `localhost` locally, so `http://greenfield.localhost:5172` works without DNS changes). Reserved subdomains (`www`, `api`, `admin`, `backoffice`…) are never schools; the same list must be blocked when provisioning slugs. Outside production only, the `x-tenant-id` header (`TENANT_HEADER` in `@edutrack/shared`) or `x-school-slug`, holding a slug or school id, is accepted when the Host names no school. In production those headers are ignored.
 
@@ -188,11 +188,11 @@ E2E helpers live in `test/support/test-app.ts`: `createTestApp()` boots the real
 
 ## Seed
 
-`npm run db:seed` (in the backend or at the repo root) is idempotent and refuses `NODE_ENV=production`. It loads platform roles and staff, the Starter and Growth plans, Greenfield Academy (`greenfield`, Main and Lekki campuses, four departments) and Crestview College (`crestview`, new), the predefined roles per school, and the portals' demo accounts. Every password is `Edutrack2026!`. Demo invitation links: `GFA-INV-7Q2K` (teacher, pending), `expired`, `used`, `GFA-INV-LAWAL` (School Admin), `PLT-INV-DAYO` (back office), `PLT-INV-CHIKA` (expired).
+`npm run db:seed` (in the backend or at the repo root) is idempotent and refuses `NODE_ENV=production`. It loads platform roles and staff, the Starter, Growth and Enterprise plans, seven more back-office demo schools in every subscription state with a year of platform invoices, Greenfield Academy (`greenfield`, Main and Lekki campuses, four departments) and Crestview College (`crestview`, new), the predefined roles per school, and the portals' demo accounts. Every password is `Edutrack2026!`. Demo invitation links: `GFA-INV-7Q2K` (teacher, pending), `expired`, `used`, `GFA-INV-LAWAL` (School Admin), `PLT-INV-DAYO` (back office), `PLT-INV-CHIKA` (expired).
 
 ## Reaching the API from a portal (development)
 
-Portals call the API same-site under `/api`, so the refresh cookie is first-party and CORS isn't involved. When a portal switches its mocks off, add a Vite dev proxy:
+Portals call the API same-site under `/api`, so the refresh cookie is first-party and CORS isn't involved. When a portal switches its mocks off, add a Vite dev proxy (the back office already has one, driven by `API_PROXY_TARGET`):
 
 ```ts
 // vite.config.ts

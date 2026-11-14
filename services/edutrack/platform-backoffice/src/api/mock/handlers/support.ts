@@ -129,7 +129,7 @@ function pick(options: [string, string][], value: string | undefined, message: s
   return value;
 }
 
-mock.get('/v1/support/summary', () => {
+mock.get('/v1/platform/support/summary', () => {
   const rated = issues.filter((i) => i.rating);
   return {
     open: issues.filter(VIEWS.open).length,
@@ -177,7 +177,7 @@ mock.get('/v1/support/summary', () => {
   };
 });
 
-mock.get('/v1/support/issues', ({ query }) => {
+mock.get('/v1/platform/support/issues', ({ query }) => {
   const inView = VIEWS[(query.view as IssueView) ?? 'open'] ?? VIEWS.open;
   const rows = issues
     .filter(
@@ -194,7 +194,7 @@ mock.get('/v1/support/issues', ({ query }) => {
   return paginate(rows, query, (i) => `${i.id} ${i.subject} ${i.schoolName}`);
 });
 
-mock.get('/v1/support/issues/:id', ({ params }) => {
+mock.get('/v1/platform/support/issues/:id', ({ params }) => {
   const issue = findIssue(params.id!);
   const author = issue.requester.split(' · ')[0] ?? 'the school';
   const messages = messagesOf(issue);
@@ -211,7 +211,7 @@ mock.get('/v1/support/issues/:id', ({ params }) => {
   return { ...toIssue(issue), messages, events };
 });
 
-mock.post('/v1/support/issues', ({ body }) => {
+mock.post('/v1/platform/support/issues', ({ body }) => {
   const p = body as CreateIssuePayload;
   const school = findSchool(p.schoolId);
   const id = `SUP-${1183 + issues.filter((i) => i.createdAt === 'Just now').length}`;
@@ -254,7 +254,7 @@ mock.post('/v1/support/issues', ({ body }) => {
 });
 
 /** Assign, reassign and change priority or category. */
-mock.patch('/v1/support/issues/:id', ({ params, body }) => {
+mock.patch('/v1/platform/support/issues/:id', ({ params, body }) => {
   const row = findIssue(params.id!);
   const p = body as UpdateIssuePayload;
   if (isDone(row.status) && p.assignee !== undefined)
@@ -294,7 +294,7 @@ mock.patch('/v1/support/issues/:id', ({ params, body }) => {
 });
 
 /** A reply to the school or an internal note. The first reply picks up an unowned ticket. */
-mock.post('/v1/support/issues/:id/messages', ({ params, body }) => {
+mock.post('/v1/platform/support/issues/:id/messages', ({ params, body }) => {
   const row = findIssue(params.id!);
   const { kind, text } = body as { kind: 'agent' | 'note'; text: string };
   if (row.status === 'Closed')
@@ -315,7 +315,7 @@ mock.post('/v1/support/issues/:id/messages', ({ params, body }) => {
   return { ok: true };
 });
 
-mock.post('/v1/support/issues/:id/transitions', ({ params, body }) => {
+mock.post('/v1/platform/support/issues/:id/transitions', ({ params, body }) => {
   const row = findIssue(params.id!);
   const { to, note, option } = body as IssueTransitionPayload;
   const from = row.status;

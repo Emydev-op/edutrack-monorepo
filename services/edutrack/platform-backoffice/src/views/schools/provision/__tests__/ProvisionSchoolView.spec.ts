@@ -115,7 +115,9 @@ describe('Provision school wizard', () => {
         expect.objectContaining({ params: { id: 'wizard-test-college' } }),
       ),
     );
-    const { data: admins } = await apiClient.get('/v1/schools/wizard-test-college/administrators');
+    const { data: admins } = await apiClient.get(
+      '/v1/platform/schools/wizard-test-college/administrators',
+    );
     expect(admins).toHaveLength(2);
     w.unmount();
   });

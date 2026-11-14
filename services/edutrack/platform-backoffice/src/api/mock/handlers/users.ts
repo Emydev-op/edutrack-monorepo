@@ -15,7 +15,7 @@ const activeWithin = (seen: string, window: string) =>
       ? /Today|Yesterday|Dec|Just now/.test(seen)
       : seen.endsWith('2026');
 
-mock.get('/v1/users', ({ query }) => {
+mock.get('/v1/platform/users', ({ query }) => {
   const rows = users
     .map(toUser)
     .filter(
@@ -29,9 +29,9 @@ mock.get('/v1/users', ({ query }) => {
   return paginate(rows, query, (u) => `${fullName(u)} ${u.email}`);
 });
 
-mock.get('/v1/users/:id', ({ params }) => toUser(findUser(params.id!)));
+mock.get('/v1/platform/users/:id', ({ params }) => toUser(findUser(params.id!)));
 
-mock.post('/v1/users/invitations', ({ body }) => {
+mock.post('/v1/platform/users/invitations', ({ body }) => {
   const p = body as InviteUserPayload;
   const email = requireText(p.email, 'Enter a valid email').toLowerCase();
   if (users.some((u) => u.email.toLowerCase() === email)) {
@@ -67,7 +67,7 @@ mock.post('/v1/users/invitations', ({ body }) => {
   return toUser(user);
 });
 
-mock.patch('/v1/users/:id', ({ params, body }) => {
+mock.patch('/v1/platform/users/:id', ({ params, body }) => {
   const user = findUser(params.id!);
   const p = body as UpdateUserPayload;
   const previousRole = roleName(user.roleId);
@@ -114,7 +114,7 @@ const USER_ACTIONS: Record<
   },
 };
 
-mock.post('/v1/users/:id/:action', ({ params, body }) => {
+mock.post('/v1/platform/users/:id/:action', ({ params, body }) => {
   const user = findUser(params.id!);
   const action = USER_ACTIONS[params.action as UserAction];
   if (!action) throw new MockHttpError(404, 'Unknown action');
@@ -132,7 +132,7 @@ mock.post('/v1/users/:id/:action', ({ params, body }) => {
   return toUser(user);
 });
 
-mock.get('/v1/users/:id/activity', ({ params }) => {
+mock.get('/v1/platform/users/:id/activity', ({ params }) => {
   const user = findUser(params.id!);
   const name = fullName(user);
   const own = activity
@@ -170,7 +170,7 @@ mock.get('/v1/users/:id/activity', ({ params }) => {
   );
 });
 
-mock.get('/v1/users/:id/security', ({ params }) => {
+mock.get('/v1/platform/users/:id/security', ({ params }) => {
   const user = findUser(params.id!);
   const invited = user.status === 'Invited';
   return {
@@ -181,7 +181,7 @@ mock.get('/v1/users/:id/security', ({ params }) => {
   };
 });
 
-mock.get('/v1/users/:id/open-issues', ({ params }) => {
+mock.get('/v1/platform/users/:id/open-issues', ({ params }) => {
   const name = fullName(findUser(params.id!));
   return { count: issues.filter((i) => i.assignee === name && isOpenIssue(i)).length };
 });
@@ -194,9 +194,9 @@ const withCounts = () =>
     activeUsers: users.filter((u) => u.roleId === r.id && u.status !== 'Deactivated').length,
   }));
 
-mock.get('/v1/roles', () => withCounts());
+mock.get('/v1/platform/roles', () => withCounts());
 
-mock.post('/v1/roles', ({ body }) => {
+mock.post('/v1/platform/roles', ({ body }) => {
   const p = body as CreateRolePayload;
   const name = requireText(p.name, 'Give the role a name');
   if (roles.some((r) => r.name.toLowerCase() === name.toLowerCase()))
@@ -220,7 +220,7 @@ mock.post('/v1/roles', ({ body }) => {
   return { ...role, activeUsers: 0 };
 });
 
-mock.delete('/v1/roles/:id', ({ params }) => {
+mock.delete('/v1/platform/roles/:id', ({ params }) => {
   const role = roles.find((r) => r.id === params.id);
   if (!role) throw new MockHttpError(404, 'Role not found');
   if (role.predefined) throw new MockHttpError(409, "Predefined roles can't be deleted");

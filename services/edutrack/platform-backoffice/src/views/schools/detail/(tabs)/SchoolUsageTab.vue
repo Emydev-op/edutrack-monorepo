@@ -24,7 +24,13 @@ const { data: usage, isPending } = useSchoolUsageQuery(() => props.school.id);
         value: `${formatCount(usage.smsSent)}${usage.smsNote ? ` · ${usage.smsNote}` : ''}`,
         emphasis: usage.smsNote ? 'error' : undefined,
       },
-      { label: 'Storage', value: `${usage.storageUsedGb} GB of ${usage.storageLimitGb} GB` },
+      {
+        label: 'Storage',
+        value:
+          usage.storageLimitGb === null
+            ? `${usage.storageUsedGb} GB (unlimited)`
+            : `${usage.storageUsedGb} GB of ${usage.storageLimitGb} GB`,
+      },
     ]"
   />
 </template>

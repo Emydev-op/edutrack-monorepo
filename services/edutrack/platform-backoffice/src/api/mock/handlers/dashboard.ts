@@ -98,7 +98,7 @@ const NEW_SHARE = [0.18, 0.12, 0.22, 0.15, 0.2, 0.14, 0.17, 0.11, 0.19, 0.16, 0.
 
 const suspendedCount = () => 4 + schools.filter((s) => s.status === 'Suspended').length;
 
-mock.get('/v1/dashboard/summary', () => ({
+mock.get('/v1/platform/dashboard/summary', () => ({
   greetingName: 'Tolu',
   generatedAt: 'Tuesday 8 December 2026, 09:30 WAT',
   totals: {
@@ -116,7 +116,7 @@ mock.get('/v1/dashboard/summary', () => ({
   },
 }));
 
-mock.get('/v1/dashboard/revenue', ({ query }) => {
+mock.get('/v1/platform/dashboard/revenue', ({ query }) => {
   const range = (query.range as RevenueRange) in REVENUE ? (query.range as RevenueRange) : '30d';
   const r = REVENUE[range];
   const ratio = r.previous / r.total;
@@ -145,7 +145,7 @@ mock.get('/v1/dashboard/revenue', ({ query }) => {
   };
 });
 
-mock.get('/v1/dashboard/growth', ({ query }) => {
+mock.get('/v1/platform/dashboard/growth', ({ query }) => {
   const year: [string, number, number, number, number][] = [
     ['Jan', 6, 151, 2, 3],
     ['Feb', 4, 154, 2, 3],
@@ -172,7 +172,7 @@ mock.get('/v1/dashboard/growth', ({ query }) => {
   };
 });
 
-mock.get('/v1/dashboard/subscription-health', () => [
+mock.get('/v1/platform/dashboard/subscription-health', () => [
   { label: 'Active', status: 'Active', schools: 186, tone: 'success' },
   { label: 'Expiring soon', status: 'Expiring', schools: 12, tone: 'warning' },
   { label: 'Grace period', status: 'Grace period', schools: 3, tone: 'warning' },
@@ -180,7 +180,7 @@ mock.get('/v1/dashboard/subscription-health', () => [
   { label: 'Expired', status: 'Expired', schools: 9, tone: 'neutral' },
 ]);
 
-mock.get('/v1/dashboard/attention', () => {
+mock.get('/v1/platform/dashboard/attention', () => {
   const urgent = issues.filter((i) => i.priority === 'Urgent' && isOpenIssue(i)).length;
   const unassigned = issues.filter((i) => !i.assignee && i.status === 'Open').length;
   return [
@@ -235,6 +235,6 @@ mock.get('/v1/dashboard/attention', () => {
   ];
 });
 
-mock.get('/v1/dashboard/onboarding', () =>
+mock.get('/v1/platform/dashboard/onboarding', () =>
   schools.filter((s) => s.status === 'Onboarding' || s.setupProgress < 100),
 );
