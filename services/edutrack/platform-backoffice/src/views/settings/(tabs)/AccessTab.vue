@@ -90,7 +90,7 @@ const actions = (role: Role): RowAction[] => [
       title="Sessions & passwords"
       :rows="[
         { label: 'Session timeout', value: '30 minutes idle · 12 hours maximum' },
-        { label: 'Password policy', value: '10+ characters, upper and lower case, number, symbol' },
+        { label: 'Password policy', value: '8+ characters, upper and lower case, number, symbol' },
         { label: 'Password reuse', value: 'Last 5 blocked' },
       ]"
     >

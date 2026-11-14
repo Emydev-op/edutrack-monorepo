@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Clock, DAY } from '../common/clock/clock.js';
 import { AppException } from '../common/errors/app.exception.js';
@@ -28,6 +28,15 @@ const invitationInclude = {
 
 type InvitationRow = Prisma.InvitationGetPayload<{ include: typeof invitationInclude }>;
 
+/** What listeners hear when an invitation is accepted. */
+export interface AcceptedInvitation {
+  invitationId: string;
+  userId: string;
+  name: string;
+  schoolId: string | null;
+  platformStaffId: string | null;
+}
+
 const DATE = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
   month: 'short',
@@ -41,7 +50,9 @@ const DATE = new Intl.DateTimeFormat('en-GB', {
  */
 @Injectable()
 export class InvitationService {
+  private readonly logger = new Logger(InvitationService.name);
   private readonly ttlDays: number;
+  private readonly acceptedListeners: ((accepted: AcceptedInvitation) => Promise<void>)[] = [];
 
   constructor(
     private readonly prisma: PrismaService,
@@ -71,6 +82,11 @@ export class InvitationService {
     )
       throw AppException.gone('This invitation has expired.', 'INVITATION_EXPIRED');
     return invitation;
+  }
+
+  /** Runs after every accepted invitation (e.g. the back office alerts its user managers). */
+  onAccepted(listener: (accepted: AcceptedInvitation) => Promise<void>) {
+    this.acceptedListeners.push(listener);
   }
 
   /** What the accept page shows. Fields cover the School Admin, Teacher and back-office pages. */
@@ -189,7 +205,19 @@ export class InvitationService {
         },
       });
     });
-    return { email: user.email ?? '', name: `${user.firstName} ${user.lastName}` };
+    const name = `${user.firstName} ${user.lastName}`;
+    const accepted: AcceptedInvitation = {
+      invitationId: inv.id,
+      userId: inv.userId,
+      name,
+      schoolId: inv.schoolId,
+      platformStaffId: inv.platformStaffId,
+    };
+    for (const listener of this.acceptedListeners)
+      await listener(accepted).catch((error: unknown) =>
+        this.logger.warn({ msg: 'Invitation listener failed', error: String(error) }),
+      );
+    return { email: user.email ?? '', name };
   }
 
   /**

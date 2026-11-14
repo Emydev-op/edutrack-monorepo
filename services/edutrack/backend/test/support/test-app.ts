@@ -11,6 +11,7 @@ import type { TemplateDataMap, TemplateName } from '../../src/notifications/temp
 import { NotificationsService } from '../../src/notifications/notifications.service.js';
 import { PrismaService } from '../../src/prisma/prisma.service.js';
 import { REDIS_CLIENT } from '../../src/redis/redis.constants.js';
+import { StorageService } from '../../src/storage/storage.service.js';
 
 export const PASSWORD = 'Edutrack2026!';
 
@@ -55,10 +56,38 @@ export class FakeNotifications {
   }
 }
 
+/** In-memory object storage (CI has no S3), so uploads can be checked. */
+export class FakeStorage {
+  readonly objects = new Map<string, { body: Buffer; contentType?: string }>();
+
+  upload(key: string, body: Buffer | Uint8Array | string, contentType?: string) {
+    this.objects.set(key, { body: Buffer.from(body), contentType });
+    return Promise.resolve({ bucket: 'test', key });
+  }
+
+  remove(key: string) {
+    this.objects.delete(key);
+    return Promise.resolve();
+  }
+
+  getDownloadUrl(key: string) {
+    return Promise.resolve(`https://storage.test/${key}`);
+  }
+
+  getUploadUrl(key: string) {
+    return Promise.resolve(`https://storage.test/upload/${key}`);
+  }
+
+  ping() {
+    return Promise.resolve();
+  }
+}
+
 export interface TestApp {
   app: INestApplication<App>;
   clock: FixedClock;
   notifications: FakeNotifications;
+  storage: FakeStorage;
   prisma: PrismaService;
   redis: Redis;
   http: () => ReturnType<typeof request>;
@@ -70,11 +99,14 @@ export interface TestApp {
 export async function createTestApp(controllers: Type[] = []): Promise<TestApp> {
   const clock = new FixedClock();
   const notifications = new FakeNotifications();
+  const storage = new FakeStorage();
   const moduleRef = await Test.createTestingModule({ imports: [AppModule], controllers })
     .overrideProvider(Clock)
     .useValue(clock)
     .overrideProvider(NotificationsService)
     .useValue(notifications)
+    .overrideProvider(StorageService)
+    .useValue(storage)
     .compile();
   const app = moduleRef.createNestApplication<INestApplication<App>>();
   configureApp(app);
@@ -85,6 +117,7 @@ export async function createTestApp(controllers: Type[] = []): Promise<TestApp> 
     app,
     clock,
     notifications,
+    storage,
     prisma,
     redis,
     http: () => request(app.getHttpServer()),

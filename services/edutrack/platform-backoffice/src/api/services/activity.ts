@@ -29,6 +29,14 @@ export function useAuditQuery(params: MaybeRefOrGetter<ActivityQuery>) {
   });
 }
 
+/** Names that appear in the back-office trail, for the Actor filters. */
+export const useAuditActorsQuery = () =>
+  useQuery({
+    queryKey: queryKeys.audit.actors(),
+    queryFn: () => getRequest<string[]>('/v1/platform/audit/actors'),
+    staleTime: 5 * 60_000,
+  });
+
 export function useAuditEntryQuery(id: MaybeRefOrGetter<string | undefined>) {
   return useQuery({
     queryKey: computed(() => queryKeys.audit.detail(toValue(id) ?? '')),
