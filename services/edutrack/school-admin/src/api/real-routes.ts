@@ -15,6 +15,9 @@ export const REAL_ROUTES: readonly string[] = [
   '* /v1/users/**',
   '* /v1/roles/**',
   'GET /v1/staff/options',
+  // School profile and branches.
+  '* /v1/school/profile',
+  '* /v1/branches/**',
 ];
 
 type Rule = { method: string; pattern: RegExp };

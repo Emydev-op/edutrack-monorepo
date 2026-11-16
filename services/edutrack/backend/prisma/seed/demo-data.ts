@@ -25,6 +25,7 @@ import {
   seedPlatformData,
 } from './platform-data.js';
 import { seedSchoolOrgData } from './school-org-data.js';
+import { seedSchoolBranches } from './school-branches-data.js';
 import { seedSupportDesk } from './support-data.js';
 
 export const DEMO_PASSWORD = 'Edutrack2026!';
@@ -618,8 +619,9 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
     where: { id: departmentIds.get('greenfield:Sciences')! },
     data: { hodStaffId: staffIds.get('i.bello@greenfield.edu.ng')! },
   });
-
+  // Org first: it creates staff (e.g. Femi Adebayo) the branches seed makes campus heads.
   await seedSchoolOrgData(prisma, { now, passwordHash, schoolIds });
+  await seedSchoolBranches(prisma, schoolIds, now);
 
   /* ---------- Invitations ---------- */
 

@@ -73,7 +73,7 @@ describe('Tenant isolation, resolution and permissions (e2e)', () => {
       const codes = await inSchool(greenfield, async () =>
         (await db.branch.findMany()).map((b) => b.code).sort(),
       );
-      expect(codes).toEqual(['GFA-LK', 'GFA-MC']);
+      expect(codes).toEqual(['GFA-AJ', 'GFA-LK', 'GFA-MC']);
       expect(await inSchool(crestview, () => db.branch.count())).toBe(1);
       expect(await inSchool(crestview, () => db.schoolRole.count())).toBe(10);
     });
@@ -176,7 +176,10 @@ describe('Tenant isolation, resolution and permissions (e2e)', () => {
       const gf = await signIn(t, 'adaeze.okonkwo@greenfield.edu.ng');
       const cv = await signIn(t, 'e.udo@crestviewcollege.ng');
       const gfRes = await authed(t, gf.token).get('/api/v1/test-tenancy/branches');
-      expect(gfRes.body.data).toEqual({ schoolId: greenfield, codes: ['GFA-LK', 'GFA-MC'] });
+      expect(gfRes.body.data).toEqual({
+        schoolId: greenfield,
+        codes: ['GFA-AJ', 'GFA-LK', 'GFA-MC'],
+      });
       const cvRes = await authed(t, cv.token).get('/api/v1/test-tenancy/branches');
       expect(cvRes.body.data).toEqual({ schoolId: crestview, codes: ['CCV-MC'] });
     });
