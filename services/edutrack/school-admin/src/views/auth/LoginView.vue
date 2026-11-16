@@ -126,7 +126,7 @@ const onSubmit = handleSubmit(async (values) => {
 
 <template>
   <AuthLayout>
-    <AuthHeading title="School Admin" :description="`Sign in to manage ${env.schoolName}.`" />
+    <AuthHeading title="School Admin" description="Sign in to manage your school." />
     <InlineNotice
       v-if="notice"
       :tone="notice.tone"
