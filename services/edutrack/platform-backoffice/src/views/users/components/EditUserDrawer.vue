@@ -8,9 +8,10 @@ import { toast } from 'vue-sonner';
 import { useRolesQuery, useUpdateUserMutation } from '@/api/services/users';
 import ChoiceCards from '@edutrack/app-kit/components/form/ChoiceCards.vue';
 import FormInput from '@edutrack/app-kit/components/form/FormInput.vue';
+import FormSelect from '@edutrack/app-kit/components/form/FormSelect.vue';
 import SideDrawer from '@edutrack/app-kit/components/overlays/SideDrawer.vue';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
-import { editUserSchema } from '@/schema/user';
+import { editUserSchema, SUPPORT_TEAM_OPTIONS } from '@/schema/user';
 import { PERMISSION_AREAS, type PlatformUser, type Role } from '@/types';
 
 const props = defineProps<{ user: PlatformUser }>();
@@ -26,6 +27,7 @@ const initialValues = () => ({
   email: props.user.email,
   phone: props.user.phone,
   roleId: props.user.roleId,
+  supportTeam: props.user.supportTeam ?? ('' as const),
 });
 const { handleSubmit, defineField, meta, resetForm } = useForm({
   validationSchema: editUserSchema,
@@ -101,6 +103,12 @@ const save = handleSubmit(async (values) => {
         placeholder="osegbo.emeka@edutrack.ng"
       />
       <FormInput name="phone" label="Phone" type="tel" placeholder="0803 555 0123" />
+      <FormSelect
+        name="supportTeam"
+        label="Support team"
+        :options="SUPPORT_TEAM_OPTIONS"
+        hint="Tickets they own move to this team. Escalations go to the least-busy person in a team."
+      />
       <div class="flex flex-col gap-1.5 text-[13px] font-medium">
         <span>Role</span>
         <ChoiceCards

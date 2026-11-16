@@ -1,5 +1,6 @@
 import type { PageQuery } from './common';
 import type { RoleId } from './roles';
+import type { SupportTeam } from './support';
 
 export type UserStatus = 'Active' | 'Invited' | 'Suspended' | 'Deactivated';
 export type InvitationState = 'Pending' | 'Accepted' | 'Expired' | 'Resent' | 'Revoked';
@@ -12,6 +13,8 @@ export interface PlatformUser {
   phone: string;
   roleId: RoleId;
   roleName: string;
+  /** The support desk team they work in, if any. */
+  supportTeam: SupportTeam | null;
   status: UserStatus;
   invitation: InvitationState | null;
   invitedBy: string | null;
@@ -33,6 +36,8 @@ export interface InviteUserPayload {
   email: string;
   phone: string;
   roleId: RoleId;
+  /** Empty for none. */
+  supportTeam?: SupportTeam | '';
 }
 
 export interface UpdateUserPayload {
@@ -41,6 +46,7 @@ export interface UpdateUserPayload {
   email: string;
   phone: string;
   roleId: RoleId;
+  supportTeam?: SupportTeam | '';
 }
 
 export interface UserSecurity {

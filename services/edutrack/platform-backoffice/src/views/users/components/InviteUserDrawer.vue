@@ -9,10 +9,11 @@ import { useInviteUserMutation, useRolesQuery } from '@/api/services/users';
 import StepIndicator from '@edutrack/app-kit/components/common/StepIndicator.vue';
 import ChoiceCards from '@edutrack/app-kit/components/form/ChoiceCards.vue';
 import FormInput from '@edutrack/app-kit/components/form/FormInput.vue';
+import FormSelect from '@edutrack/app-kit/components/form/FormSelect.vue';
 import SideDrawer from '@edutrack/app-kit/components/overlays/SideDrawer.vue';
 import { useSuccessDialog } from '@edutrack/app-kit/composables/useSuccessDialog';
 import { routesPath } from '@/router/routes-path';
-import { inviteUserDetailsSchema } from '@/schema/user';
+import { inviteUserDetailsSchema, SUPPORT_TEAM_OPTIONS } from '@/schema/user';
 import { PERMISSION_AREAS } from '@/types';
 
 const open = defineModel<boolean>('open', { required: true });
@@ -28,7 +29,7 @@ const { handleSubmit, values, meta, resetForm } = useForm({
   validationSchema: inviteUserDetailsSchema,
   // The details step unmounts on Continue; keep its values for the review and the request.
   keepValuesOnUnmount: true,
-  initialValues: { firstName: '', lastName: '', email: '', phone: '' },
+  initialValues: { firstName: '', lastName: '', email: '', phone: '', supportTeam: '' as const },
 });
 
 watch(open, (isOpen) => {
@@ -66,6 +67,7 @@ async function send() {
       firstName: values.firstName!,
       lastName: values.lastName!,
       email: values.email!,
+      supportTeam: values.supportTeam ?? '',
       roleId: roleId.value,
     });
     open.value = false;
@@ -118,6 +120,12 @@ async function send() {
         placeholder="osegbo.emeka@edutrack.ng"
       />
       <FormInput name="phone" label="Phone (optional)" type="tel" placeholder="0803 555 0123" />
+      <FormSelect
+        name="supportTeam"
+        label="Support team (optional)"
+        :options="SUPPORT_TEAM_OPTIONS"
+        hint="Only for people who work support tickets."
+      />
     </form>
 
     <div v-else-if="step === 1" class="flex flex-col gap-1.5 text-[13px] font-medium">
@@ -140,6 +148,8 @@ async function send() {
       <dd>{{ values.phone || '—' }}</dd>
       <dt class="text-faint">Role</dt>
       <dd>{{ roleName }}</dd>
+      <dt class="text-faint">Support team</dt>
+      <dd>{{ values.supportTeam || '—' }}</dd>
       <dt class="text-faint">Link expires</dt>
       <dd>7 days after sending</dd>
     </dl>

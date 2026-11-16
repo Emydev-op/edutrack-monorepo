@@ -52,18 +52,17 @@ describe('support desk workflow', () => {
     'runs a ticket from assignment to escalation, resolution, reopening and closing',
     { timeout: 30_000 },
     async () => {
-      await api.patch('/v1/platform/support/issues/SUP-1171', { assignee: 'Tolu Bamidele' });
+      // Assignment sends the agent's staff id (Tolu is u1, Ibrahim u3).
+      await api.patch('/v1/platform/support/issues/SUP-1171', { assignee: 'u1' });
       let t = await get('SUP-1171');
       expect(t).toMatchObject({ status: 'Assigned', team: 'Tier 1 Support' });
 
       // Reassigning needs a reason; the new owner's team follows.
       expect(
-        await statusOf(
-          api.patch('/v1/platform/support/issues/SUP-1171', { assignee: 'Chidi Eze' }),
-        ),
+        await statusOf(api.patch('/v1/platform/support/issues/SUP-1171', { assignee: 'u3' })),
       ).toBe(422);
       await api.patch('/v1/platform/support/issues/SUP-1171', {
-        assignee: 'Chidi Eze',
+        assignee: 'u3',
         reason: 'Needs a permissions fix',
       });
       expect((await get('SUP-1171')).team).toBe('Technical');
@@ -88,11 +87,13 @@ describe('support desk workflow', () => {
       await move('SUP-1171', { to: 'In Progress' });
       await move('SUP-1171', { to: 'Escalated', option: 'Engineering', note: 'Looks like a bug' });
       t = await get('SUP-1171');
+      // Nobody is in Engineering, so it waits in that team's queue.
       expect(t).toMatchObject({
         status: 'Escalated',
-        assignee: 'Engineering on-call',
+        assignee: null,
+        team: 'Engineering',
         escalatedTo: 'Engineering',
-        escalatedFrom: 'Chidi Eze',
+        escalatedFrom: 'Ibrahim Yusuf',
       });
 
       expect(await statusOf(move('SUP-1171', { to: 'Resolved', option: 'Fixed' }))).toBe(422);

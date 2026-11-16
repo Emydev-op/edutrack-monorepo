@@ -190,3 +190,31 @@ export const slugify = (name: string) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 50)
     .replace(/-+$/, '');
+
+/** The Lagos calendar day of an instant, as `YYYY-MM-DD`. */
+const lagosDay = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(date);
+
+const SHORT_DAY = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  timeZone: TZ,
+});
+const sameYear = (a: Date, b: Date) => lagosDay(a).slice(0, 4) === lagosDay(b).slice(0, 4);
+const isToday = (date: Date, now: Date) => lagosDay(date) === lagosDay(now);
+const isYesterday = (date: Date, now: Date) =>
+  lagosDay(date) === lagosDay(new Date(now.getTime() - 86_400_000));
+
+/** For ticket lists: `Today, 10:42`, `Yesterday`, `5 Dec`, `5 Dec 2025`. */
+export function formatShortDay(date: Date, now: Date): string {
+  if (isToday(date, now)) return `Today, ${TIME_FORMAT.format(date)}`;
+  if (isYesterday(date, now)) return 'Yesterday';
+  return sameYear(date, now) ? sep(SHORT_DAY.format(date)) : formatDay(date);
+}
+
+/** For conversations and timelines: `Today, 10:42`, `Yesterday, 16:05`, `3 Dec, 10:14`. */
+export function formatShortStamp(date: Date, now: Date): string {
+  const time = TIME_FORMAT.format(date);
+  if (isToday(date, now)) return `Today, ${time}`;
+  if (isYesterday(date, now)) return `Yesterday, ${time}`;
+  return `${sameYear(date, now) ? sep(SHORT_DAY.format(date)) : formatDay(date)}, ${time}`;
+}

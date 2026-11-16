@@ -127,6 +127,7 @@ const user = (
   createdAt,
   invitation,
   invitedBy: invitation ? ME.name : null,
+  supportTeam: null,
 });
 
 export const users: UserRow[] = [
@@ -231,7 +232,27 @@ export const users: UserRow[] = [
     '30 Jun 2026',
     '5 May 2024',
   ),
+  user(
+    'u10',
+    'Funmi',
+    'Adebayo',
+    'funmi@edutrack.ng',
+    '0806 221 0432',
+    'agent',
+    'Active',
+    'Today, 08:30',
+    '12 Feb 2025',
+  ),
 ];
+/** Support desk teams (the rest of the staff aren't in one). */
+const TEAMS: Record<string, PlatformUser['supportTeam']> = {
+  u1: 'Tier 1 Support',
+  u2: 'Tier 1 Support',
+  u3: 'Technical',
+  u8: 'Onboarding',
+  u10: 'Billing',
+};
+for (const u of users) u.supportTeam = TEAMS[u.id] ?? null;
 /** Passwords set through invitations or resets during this session. */
 export const passwords = new Map<string, string>([[ME.email, DEMO_PASSWORD]]);
 
@@ -525,7 +546,7 @@ export const plans: Plan[] = [
  * A ticket as the mock stores it. The SLA clocks are worked out from these timestamps (ms) on
  * every read, so they keep ticking while the app is open.
  */
-export interface IssueRow extends Omit<SupportIssue, 'schoolName' | 'sla'> {
+export interface IssueRow extends Omit<SupportIssue, 'schoolName' | 'sla' | 'assigneeId'> {
   description?: string;
   createdMs: number;
   firstReplyMs: number | null;

@@ -59,7 +59,9 @@ export interface SupportIssue {
   category: IssueCategory;
   priority: IssuePriority;
   status: IssueStatus;
+  /** The owner's name, and their staff user id (what assignment sends). */
   assignee: string | null;
+  assigneeId: string | null;
   team: SupportTeam;
   requester: string;
   createdAt: string;
@@ -89,6 +91,8 @@ export interface IssueMessage {
   when: string;
   text: string;
   kind: MessageKind;
+  /** Files sent with the message, as signed links. */
+  attachments?: { name: string; url: string }[];
 }
 
 export interface SupportIssueDetail extends SupportIssue {
@@ -118,11 +122,17 @@ export interface SupportSummary {
   ratings: number;
   /** Ticket counts for the views that show one on their tab. */
   views: Record<'open' | 'unassigned' | 'mine' | 'overdue', number>;
-  /** Open tickets each agent owns, for choosing who to assign. */
-  agentLoad: Record<string, number>;
   weeklyVolume: { label: string; value: number }[];
   byCategory: { label: string; percent: number }[];
   topSchools: { label: string; value: number }[];
+}
+
+/** Staff who can own tickets: their team and how many open tickets they have. */
+export interface SupportAgent {
+  id: string;
+  name: string;
+  team: SupportTeam | null;
+  open: number;
 }
 
 export interface CreateIssuePayload {
@@ -132,11 +142,14 @@ export interface CreateIssuePayload {
   description: string;
   category: IssueCategory;
   priority: IssuePriority;
+  /** Agent id, or null for the team's queue. */
   assignee: string | null;
+  /** The file as a data URL, and its name. */
   attachment: string | null;
+  attachmentName?: string;
 }
 
-/** Assignment, priority and category changes. `reason` is required when reassigning. */
+/** Assignment (agent id), priority and category changes. `reason` is required when reassigning. */
 export interface UpdateIssuePayload {
   assignee?: string | null;
   priority?: IssuePriority;

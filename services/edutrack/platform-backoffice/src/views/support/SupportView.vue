@@ -8,7 +8,11 @@ import { computed, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 
 import { useSchoolsQuery } from '@/api/services/schools';
-import { useIssuesQuery, useSupportSummaryQuery } from '@/api/services/support';
+import {
+  useIssuesQuery,
+  useSupportAgentsQuery,
+  useSupportSummaryQuery,
+} from '@/api/services/support';
 import CellLink from '@edutrack/app-kit/components/common/CellLink.vue';
 import DataTable, { type Column } from '@edutrack/app-kit/components/common/DataTable.vue';
 import DateRangeFilter, {
@@ -21,7 +25,7 @@ import PageHeader from '@edutrack/app-kit/components/common/PageHeader.vue';
 import type { RowAction } from '@edutrack/app-kit/components/common/RowActions.vue';
 import SearchInput from '@edutrack/app-kit/components/common/SearchInput.vue';
 import TabNav from '@edutrack/app-kit/components/common/TabNav.vue';
-import { isDone, SUPPORT_AGENT_NAMES } from '@/config/support-desk';
+import { isDone } from '@/config/support-desk';
 import { useRouteQuery } from '@edutrack/app-kit/composables/useRouteQuery';
 import { routesPath } from '@/router/routes-path';
 import {
@@ -63,6 +67,8 @@ const created = ref<DateRangeValue>({});
 watch([debouncedSearch, priority, category, school, assignee, created], () => (page.value = '1'));
 
 const { data: summary } = useSupportSummaryQuery();
+const { data: agents } = useSupportAgentsQuery();
+const agentNames = computed(() => (agents.value ?? []).map((a) => a.name));
 const { data: schools } = useSchoolsQuery({ pageSize: 100 });
 const schoolNames = computed(() => (schools.value?.data ?? []).map((s) => s.name));
 const schoolIdByName = computed(
@@ -219,11 +225,7 @@ const columns: Column[] = [
       <FilterMenu v-model="priority" label="Priority" :options="ISSUE_PRIORITIES" />
       <FilterMenu v-model="category" label="Category" :options="ISSUE_CATEGORIES" />
       <FilterMenu v-model="school" label="School" :options="schoolNames" />
-      <FilterMenu
-        v-model="assignee"
-        label="Owner"
-        :options="['Unassigned', ...SUPPORT_AGENT_NAMES]"
-      />
+      <FilterMenu v-model="assignee" label="Owner" :options="['Unassigned', ...agentNames]" />
       <DateRangeFilter v-model="created" label="Created" />
       <Button v-if="filtered" variant="ghost" class="h-9 text-primary" @click="clearFilters"
         >Clear</Button
