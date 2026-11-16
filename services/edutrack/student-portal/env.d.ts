@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  /** Base URL of the EduTrack API, e.g. http://localhost:3000/api */
+  /** Base URL of the EduTrack API, e.g. http://localhost:8000/api */
   readonly VITE_API_URL: string;
   /** Fixed tenant (school) id for local development. */
   readonly VITE_TENANT_ID?: string;

@@ -6,7 +6,7 @@ Every app ships as its own Docker image, built **from the repo root** so it can 
 
 | App                 | Dockerfile                                         | Runtime            | Port |
 | ------------------- | -------------------------------------------------- | ------------------ | ---- |
-| backend             | `services/edutrack/backend/Dockerfile`             | Node 24 (alpine)   | 3000 |
+| backend             | `services/edutrack/backend/Dockerfile`             | Node 24 (alpine)   | 8000 |
 | platform-backoffice | `services/edutrack/platform-backoffice/Dockerfile` | nginx (static SPA) | 80   |
 | school-admin        | `services/edutrack/school-admin/Dockerfile`        | nginx (static SPA) | 80   |
 | teacher-portal      | `services/edutrack/teacher-portal/Dockerfile`      | nginx (static SPA) | 80   |
@@ -43,7 +43,7 @@ docker run --rm -e DATABASE_URL=postgresql://... edutrack/backend npx prisma mig
 | Variable               | Required | Example                                      | Notes                          |
 | ---------------------- | -------- | -------------------------------------------- | ------------------------------ |
 | `NODE_ENV`             | no       | `production`                                 |                                |
-| `PORT`                 | no       | `3000`                                       |                                |
+| `PORT`                 | no       | `8000`                                       |                                |
 | `CORS_ORIGINS`         | yes      | `https://admin.example.com,https://...`      | Comma-separated portal origins |
 | `DATABASE_URL`         | yes      | `postgresql://user:pass@host:5432/edutrack`  |                                |
 | `REDIS_URL`            | yes      | `rediss://:pass@host:6379`                   | `rediss://` enables TLS        |

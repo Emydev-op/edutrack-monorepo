@@ -198,7 +198,7 @@ Portals call the API same-site under `/api`, so the refresh cookie is first-part
 // vite.config.ts
 server: {
   port: 5171,
-  proxy: { '/api': { target: 'http://localhost:3000', changeOrigin: false } },
+  proxy: { '/api': { target: 'http://localhost:8000', changeOrigin: false } },
 },
 ```
 
