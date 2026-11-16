@@ -11,7 +11,8 @@ cp services/edutrack/school-admin/.env.example services/edutrack/school-admin/.e
 npm run dev -w @edutrack/school-admin
 ```
 
-Runs on http://localhost:5171.
+Runs on http://localhost:5171, or http://admin.localhost through the local router (`npm run infra:up`).
+Deployed at `admin.edutrack.ng`, shared by every school (the school is chosen at sign-in).
 
 ## Layout
 

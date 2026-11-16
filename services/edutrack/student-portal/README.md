@@ -11,7 +11,9 @@ cp services/edutrack/student-portal/.env.example services/edutrack/student-porta
 npm run dev -w @edutrack/student-portal
 ```
 
-Runs on http://localhost:5173.
+Runs on http://localhost:5173/student/ (built for the path `/student/`). Through the local router
+(`npm run infra:up`) it is http://greenfield.localhost/student, the same shape as the deployed
+address `<school>.edutrack.ng/student`; the school's entry page (`@edutrack/school-home`) links here.
 
 ## Layout
 
