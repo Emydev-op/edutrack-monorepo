@@ -10,6 +10,11 @@
 export const REAL_ROUTES: readonly string[] = [
   // Sign-in, invitations, passwords, sessions.
   '* /v1/auth/**',
+  // School › Organogram, Settings › Users & Roles, and the staff picker.
+  '* /v1/organogram/**',
+  '* /v1/users/**',
+  '* /v1/roles/**',
+  'GET /v1/staff/options',
 ];
 
 type Rule = { method: string; pattern: RegExp };

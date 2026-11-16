@@ -4,7 +4,7 @@ import { Input } from '@edutrack/ui/components/input';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { Textarea } from '@edutrack/ui/components/textarea';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { computed, reactive, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -129,16 +129,19 @@ async function save() {
       if (isNew.value) {
         const r = await create.mutateAsync(payload);
         leaving.value = true;
-        toast.success('Role created. Assign it from a user’s access settings.');
+        toast.success(messageOf(r, 'Role created. Assign it from a user’s access settings.'));
         await router.push({ name: routesPath.school.role.name, params: { id: r.id } });
       } else {
-        await update.mutateAsync(payload);
+        const saved = await update.mutateAsync(payload);
         initial.value = JSON.stringify(form);
         const n = existing.value?.users ?? 0;
         toast.success(
-          n
-            ? `Role saved. ${n} user${n === 1 ? '’s' : 's’'} access updated.`
-            : 'Role saved. No users have this role yet.',
+          messageOf(
+            saved,
+            n
+              ? `Role saved. ${n} user${n === 1 ? '’s' : 's’'} access updated.`
+              : 'Role saved. No users have this role yet.',
+          ),
         );
       }
     } catch (e) {
@@ -185,9 +188,9 @@ function destroy() {
     confirmLabel: 'Delete role',
     tone: 'destructive',
     action: async () => {
-      await remove.mutateAsync();
+      const result = await remove.mutateAsync();
       leaving.value = true;
-      toast.success('Role deleted.');
+      toast.success(messageOf(result, 'Role deleted.'));
       await router.push({ name: routesPath.school.roles.name });
     },
   });
