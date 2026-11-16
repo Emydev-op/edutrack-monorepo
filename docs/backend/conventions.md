@@ -18,37 +18,42 @@ How the EduTrack API (`services/edutrack/backend`) is put together, and the rule
 
 Every route is under `/api/v1/...` (global prefix `api`, URI versioning with default version 1). Health is version-neutral: `/api/health`, `/api/health/live`.
 
-## Errors
+## Responses
 
-Every error response has one shape, produced by `AllExceptionsFilter`:
+Every JSON response has one envelope. The HTTP status code still says what happened; the body repeats it as `success` so clients can branch on one field.
+
+**Success** (`ResponseEnvelopeInterceptor`, `src/common/http/`):
+
+```json
+{ "success": true, "message": "Ticket assigned to Ibrahim Yusuf.", "data": { "id": "SUP-1171" } }
+{ "success": true, "message": "Tickets loaded.", "data": [ … ], "meta": { "page": 1, "pageSize": 20, "total": 47, "totalPages": 3 } }
+```
+
+- `data` is the handler's return value (`null` when it returns nothing). Paged lists return `paginated(...)`, and the envelope puts its rows in `data` and the paging in `meta` beside it.
+- `message` is written for the person using the portal; the back office shows it in its success toast. Every route declares one with `@ResponseMessage('Tickets loaded.')`, or builds it from the result and request: `@ResponseMessage((issue, req) => …)`. A unit test fails if a route has none.
+- `@RawResponse()` skips the envelope. Only the health probes use it (Docker and load balancers read them).
+
+**Failure** (`AllExceptionsFilter`):
 
 ```json
 {
-  "statusCode": 422,
+  "success": false,
   "message": "Enter a mobile number, like 0803 412 7781.",
-  "code": "VALIDATION",
-  "error": "VALIDATION",
-  "fields": { "guardians.0.phone": "Enter a mobile number, like 0803 412 7781." },
+  "error": {
+    "code": "VALIDATION",
+    "fields": { "guardians.0.phone": "Enter a mobile number, like 0803 412 7781." }
+  },
   "requestId": "4c1f…"
 }
 ```
 
 - `message` is written for the person using the portal; `getApiErrorMessage()` in `@edutrack/web-core` shows it as is.
-- `code` is stable and machine-readable. `error` repeats it because the portals' sign-in screens (and the mock API) read the code from `error`.
-- `fields` only on 422s, keyed by property path.
+- `error.code` is stable and machine-readable (`getApiErrorCode()`); screens branch on it, never on the message.
+- `error.fields` only on 422s, keyed by property path (`getApiErrorFields()`).
 - `requestId` matches the `X-Request-Id` response header and the log lines of that request.
+- Unknown errors answer 500 `INTERNAL_ERROR` with a generic message; internals never leak.
 
-Throw `AppException` with a status, message and code: `AppException.notFound('That student doesn’t exist.')`, `AppException.conflict('…', 'TERM_LOCKED')`, `AppException.validation({ name: 'Enter a name.' })`. Nest's own `HttpException`s get a default code from their status.
-
-| Source                                       | Answer                                                         |
-| -------------------------------------------- | -------------------------------------------------------------- |
-| DTO validation (global `ValidationPipe`)     | 422 `VALIDATION`, `fields` by path; unknown properties too     |
-| Prisma P2002 (unique)                        | 409 `DUPLICATE`, "A record with the same code already exists." |
-| Prisma P2003 / P2014 (foreign key, Restrict) | 409 `REFERENCE_CONFLICT`                                       |
-| Prisma P2025 / P2001 (not found)             | 404 `NOT_FOUND`                                                |
-| `TenantMismatchError`                        | 403 `TENANT_MISMATCH`                                          |
-| `TenantContextError`, anything unknown       | 500 `INTERNAL_ERROR`, generic message, logged with the stack   |
-| Rate limit                                   | 429 `RATE_LIMITED` with `Retry-After`                          |
+**In the portals**, `unwrapEnvelope(client)` (`@edutrack/web-core/http`) hands services the data itself (`{ data, meta }` for paged lists, matching `Paginated<T>`), and `messageOf(result, fallback)` returns the API's message for the toast, or the screen's own wording when there is none (the mock API sends none). The back office uses it, and its mock API answers in the same envelope (`createMockAdapter({ envelope: true })`). The other portals switch when they move to the real API.
 
 ## Validation and DTOs
 
@@ -58,7 +63,7 @@ Throw `AppException` with a status, message and code: `AppException.notFound('Th
 
 ## Pagination
 
-List endpoints take `PaginationQueryDto` (`page` ≥ 1, `pageSize` 10/20/50, optional `search`) and answer `{ data, meta: { page, pageSize, total, totalPages } }`, the same envelope as the portals' mock `paginate()` and `Paginated<T>` in `@edutrack/shared`.
+List endpoints take `PaginationQueryDto` (`page` ≥ 1, `pageSize` 10/20/50, optional `search`) and return `paginated(rows, total, query)`, which answers `{ success, message, data: [...], meta: { page, pageSize, total, totalPages } }`.
 
 ```ts
 @Get()

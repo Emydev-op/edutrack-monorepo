@@ -1,3 +1,4 @@
+import { messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
 import { useReactivateSchoolMutation, useSuspendSchoolsMutation } from '@/api/services/schools';
@@ -32,9 +33,15 @@ export function useSchoolActions() {
       confirmLabel: many ? `Suspend ${schools.length} schools` : 'Suspend school',
       tone: 'destructive',
       action: async ({ text }) => {
-        await suspendMutation.mutateAsync({ ids: schools.map((s) => s.id), reason: text });
+        const done = await suspendMutation.mutateAsync({
+          ids: schools.map((s) => s.id),
+          reason: text,
+        });
         toast.success(
-          many ? `${schools.length} schools suspended.` : `${schools[0]!.name} suspended.`,
+          messageOf(
+            done,
+            many ? `${schools.length} schools suspended.` : `${schools[0]!.name} suspended.`,
+          ),
         );
       },
     });
@@ -54,8 +61,8 @@ export function useSchoolActions() {
       ],
       confirmLabel: 'Reactivate school',
       action: async () => {
-        await reactivateMutation.mutateAsync(school.id);
-        toast.success(`${school.name} reactivated.`);
+        const saved = await reactivateMutation.mutateAsync(school.id);
+        toast.success(messageOf(saved, `${school.name} reactivated.`));
       },
     });
   }

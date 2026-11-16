@@ -3,12 +3,14 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PlatformOnly } from '../../auth/decorators/auth.decorators.js';
 import { SubscriptionListQuery } from './dto/subscriptions.dto.js';
 import { SubscriptionsService } from './subscriptions.service.js';
+import { ResponseMessage } from '../../common/http/api-response.js';
 
 @ApiTags('platform · subscriptions')
 @Controller('platform/subscriptions')
 export class SubscriptionsController {
   constructor(private readonly subscriptions: SubscriptionsService) {}
 
+  @ResponseMessage('Subscriptions loaded.')
   @Get()
   @PlatformOnly('Subscriptions.View')
   @ApiOperation({

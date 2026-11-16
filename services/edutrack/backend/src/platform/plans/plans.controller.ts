@@ -6,12 +6,14 @@ import { CurrentUser } from '../../common/decorators/request.decorators.js';
 import { planId } from '../shared/params.js';
 import { CreatePlanDto, PlanDefinitionDto, PlanStatusDto } from './dto/plans.dto.js';
 import { PlansService } from './plans.service.js';
+import { ResponseMessage } from '../../common/http/api-response.js';
 
 @ApiTags('platform · plans')
 @Controller('platform/plans')
 export class PlansController {
   constructor(private readonly plans: PlansService) {}
 
+  @ResponseMessage('Plans loaded.')
   @Get()
   @PlatformOnly('Subscriptions.View')
   @ApiOperation({ summary: 'Every plan with its school count and version history' })
@@ -19,6 +21,7 @@ export class PlansController {
     return this.plans.list();
   }
 
+  @ResponseMessage('Plan loaded.')
   @Get(':id')
   @PlatformOnly('Subscriptions.View')
   @ApiOperation({ summary: 'One plan' })
@@ -26,6 +29,7 @@ export class PlansController {
     return this.plans.get(id);
   }
 
+  @ResponseMessage('Schools on this plan loaded.')
   @Get(':id/schools')
   @PlatformOnly('Subscriptions.View')
   @ApiOperation({ summary: 'Schools on the plan with their student and branch counts' })
@@ -33,6 +37,11 @@ export class PlansController {
     return this.plans.schools(id);
   }
 
+  @ResponseMessage((p: { name: string; status: string }) =>
+    p.status === 'Active'
+      ? `${p.name} published. It’s now offered when provisioning schools.`
+      : `${p.name} saved as a draft.`,
+  )
   @Post()
   @PlatformOnly('Subscriptions.Manage')
   @ApiOperation({ summary: 'Create a plan (published or draft)' })
@@ -41,6 +50,11 @@ export class PlansController {
     return this.plans.create(dto, user.userId);
   }
 
+  @ResponseMessage((p: { name: string; status: string; schools: number }) =>
+    p.status === 'Active' && p.schools
+      ? `${p.name} saved. Schools pick up changes as described.`
+      : `${p.name} saved.`,
+  )
   @Patch(':id')
   @PlatformOnly('Subscriptions.Manage')
   @ApiOperation({
@@ -58,6 +72,9 @@ export class PlansController {
     return this.plans.update(id, dto, user.userId);
   }
 
+  @ResponseMessage((p: { name: string; status: string }) =>
+    p.status === 'Archived' ? `${p.name} archived.` : `${p.name} is now active.`,
+  )
   @Post(':id/status')
   @HttpCode(200)
   @PlatformOnly('Subscriptions.Manage')
@@ -66,6 +83,7 @@ export class PlansController {
     return this.plans.setStatus(id, dto);
   }
 
+  @ResponseMessage('Plan deleted.')
   @Delete(':id')
   @PlatformOnly('Subscriptions.Manage')
   @ApiOperation({ summary: 'Delete a draft no school uses' })

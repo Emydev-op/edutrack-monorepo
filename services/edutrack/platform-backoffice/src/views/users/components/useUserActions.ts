@@ -1,4 +1,5 @@
 import type { InjectionKey } from 'vue';
+import { messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
 import {
@@ -22,8 +23,8 @@ export function useUserActions(current: () => PlatformUser | undefined) {
   const run =
     (action: UserAction, message: () => string) =>
     async ({ text }: { text: string }) => {
-      await mutation.mutateAsync({ action, reason: text || undefined });
-      toast.success(message());
+      const saved = await mutation.mutateAsync({ action, reason: text || undefined });
+      toast.success(messageOf(saved, message()));
     };
 
   return {

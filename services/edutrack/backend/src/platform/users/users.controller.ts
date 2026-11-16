@@ -12,14 +12,20 @@ import {
 } from './dto/users.dto.js';
 import { RolesService } from './roles.service.js';
 import { UsersService } from './users.service.js';
+import { ResponseMessage } from '../../common/http/api-response.js';
 
 const userId = new RecordIdPipe(USER_NOT_FOUND);
+
+type Named = { name: string };
+type Person = { firstName: string; lastName: string; email: string };
+const nameOf = (u: Person) => `${u.firstName} ${u.lastName}`;
 
 @ApiTags('platform · users')
 @Controller('platform/users')
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
+  @ResponseMessage('Staff loaded.')
   @Get()
   @PlatformOnly('Users.View')
   @ApiOperation({ summary: 'Back-office staff, filtered by role, status, created and last active' })
@@ -27,6 +33,7 @@ export class UsersController {
     return this.users.list(query);
   }
 
+  @ResponseMessage((u: { email: string }) => `Invitation sent to ${u.email}.`)
   @Post('invitations')
   @PlatformOnly('Users.Create')
   @ApiOperation({
@@ -40,12 +47,14 @@ export class UsersController {
     return this.users.invite(dto);
   }
 
+  @ResponseMessage('Staff member loaded.')
   @Get(':id')
   @PlatformOnly('Users.View')
   get(@Param('id', userId) id: string) {
     return this.users.get(id);
   }
 
+  @ResponseMessage('Changes saved.')
   @Patch(':id')
   @PlatformOnly('Users.Edit')
   @ApiOperation({ summary: 'Edit details and role (not your own role)' })
@@ -53,24 +62,28 @@ export class UsersController {
     return this.users.update(id, dto);
   }
 
+  @ResponseMessage('Activity loaded.')
   @Get(':id/activity')
   @PlatformOnly('Users.View')
   activity(@Param('id', userId) id: string) {
     return this.users.activity(id);
   }
 
+  @ResponseMessage('Security details loaded.')
   @Get(':id/security')
   @PlatformOnly('Users.View')
   security(@Param('id', userId) id: string) {
     return this.users.security(id);
   }
 
+  @ResponseMessage('Open tickets counted.')
   @Get(':id/open-issues')
   @PlatformOnly('Users.View')
   openIssues(@Param('id', userId) id: string) {
     return this.users.openIssues(id);
   }
 
+  @ResponseMessage((u: Person) => `${nameOf(u)} suspended.`)
   @Post(':id/suspend')
   @HttpCode(200)
   @PlatformOnly('Users.Suspend')
@@ -79,6 +92,7 @@ export class UsersController {
     return this.users.act(id, 'suspend', dto.reason);
   }
 
+  @ResponseMessage((u: Person) => `${nameOf(u)} reactivated.`)
   @Post(':id/reactivate')
   @HttpCode(200)
   @PlatformOnly('Users.Suspend')
@@ -87,6 +101,7 @@ export class UsersController {
     return this.users.act(id, 'reactivate', dto.reason);
   }
 
+  @ResponseMessage((u: Person) => `${nameOf(u)} deactivated.`)
   @Post(':id/deactivate')
   @HttpCode(200)
   @PlatformOnly('Users.Delete')
@@ -95,6 +110,7 @@ export class UsersController {
     return this.users.act(id, 'deactivate', dto.reason);
   }
 
+  @ResponseMessage((u: Person) => `Password reset link sent to ${u.email}.`)
   @Post(':id/password-reset')
   @HttpCode(200)
   @PlatformOnly('Users.Edit')
@@ -103,6 +119,7 @@ export class UsersController {
     return this.users.act(id, 'password-reset', dto.reason);
   }
 
+  @ResponseMessage((u: Person) => `${nameOf(u)} signed out of all sessions.`)
   @Post(':id/sign-out')
   @HttpCode(200)
   @PlatformOnly('Users.Edit')
@@ -111,6 +128,7 @@ export class UsersController {
     return this.users.act(id, 'sign-out', dto.reason);
   }
 
+  @ResponseMessage((u: Person) => `New invitation sent to ${u.email}.`)
   @Post(':id/resend-invitation')
   @HttpCode(200)
   @PlatformOnly('Users.Create')
@@ -118,6 +136,7 @@ export class UsersController {
     return this.users.act(id, 'resend-invitation', dto.reason);
   }
 
+  @ResponseMessage('Invitation revoked.')
   @Post(':id/revoke-invitation')
   @HttpCode(200)
   @PlatformOnly('Users.Create')
@@ -131,6 +150,7 @@ export class UsersController {
 export class RolesController {
   constructor(private readonly roles: RolesService) {}
 
+  @ResponseMessage('Roles loaded.')
   @Get()
   @PlatformOnly()
   @ApiOperation({ summary: 'Roles with their permissions and how many people hold each' })
@@ -138,6 +158,7 @@ export class RolesController {
     return this.roles.list();
   }
 
+  @ResponseMessage((r: Named) => `Role “${r.name}” created. Assign it from Users.`)
   @Post()
   @PlatformOnly('Users.Manage')
   @ApiConflictResponse({ description: 'ROLE_NAME_TAKEN' })
@@ -145,6 +166,7 @@ export class RolesController {
     return this.roles.create(dto);
   }
 
+  @ResponseMessage('Role deleted.')
   @Delete(':id')
   @PlatformOnly('Users.Manage')
   @ApiOperation({ summary: 'Delete a custom role nobody holds' })

@@ -35,45 +35,84 @@ function respond(config: InternalAxiosRequestConfig, status: number, data: unkno
   return { data, status, statusText: String(status), headers: {}, config };
 }
 
+export interface MockAdapterOptions {
+  /**
+   * Answer in the API's envelope: `{ success: true, message, data, meta? }` and
+   * `{ success: false, message, error: { code, fields? } }`. Portals still on the older bare
+   * bodies leave it off.
+   */
+  envelope?: boolean;
+}
+
 /** Answers requests in the browser, exactly where the real API will. */
-export const mockAdapter: AxiosAdapter = async (config) => {
-  await latency();
-  const method = (config.method ?? 'get').toLowerCase();
-  const path = pathOf(config);
-  const route = resolve(method, path);
+export function createMockAdapter({ envelope = false }: MockAdapterOptions = {}): AxiosAdapter {
+  const failure = (
+    status: number,
+    message: string,
+    code?: string,
+    fields?: Record<string, string>,
+  ) =>
+    envelope
+      ? {
+          success: false,
+          message,
+          error: {
+            code: code ?? (status === 404 ? 'NOT_FOUND' : 'ERROR'),
+            ...(fields && { fields }),
+          },
+        }
+      : { statusCode: status, message, error: code, ...(fields && { fields }) };
+  const success = (data: unknown) => {
+    if (!envelope) return data;
+    const paged =
+      typeof data === 'object' && data !== null && 'data' in data && 'meta' in data
+        ? (data as { data: unknown; meta: unknown })
+        : null;
+    // The mock has no per-action wording; screens fall back to their own toast text.
+    return paged
+      ? { success: true, message: '', data: paged.data, meta: paged.meta }
+      : { success: true, message: '', data };
+  };
 
-  if (!route) {
-    const response = respond(config, 404, {
-      statusCode: 404,
-      message: `No mock for ${method.toUpperCase()} ${path}`,
-    });
-    throw new AxiosError(response.data.message, 'ERR_BAD_REQUEST', config, null, response);
-  }
+  return async (config) => {
+    await latency();
+    const method = (config.method ?? 'get').toLowerCase();
+    const path = pathOf(config);
+    const route = resolve(method, path);
 
-  try {
-    const body =
-      typeof config.data === 'string' && config.data ? JSON.parse(config.data) : config.data;
-    const data = await route.handler({
-      params: route.params,
-      query: queryOf(config),
-      body,
-      headers: headersOf(config),
-    });
-    return respond(config, method === 'post' ? 201 : 200, structuredClone(data ?? null));
-  } catch (error) {
-    if (!(error instanceof MockHttpError)) throw error;
-    const response = respond(config, error.status, {
-      statusCode: error.status,
-      message: error.message,
-      error: error.code,
-      ...(error.fields && { fields: error.fields }),
-    });
-    throw new AxiosError(
-      error.message,
-      error.status >= 500 ? 'ERR_BAD_RESPONSE' : 'ERR_BAD_REQUEST',
-      config,
-      null,
-      response,
-    );
-  }
-};
+    if (!route) {
+      const message = `No mock for ${method.toUpperCase()} ${path}`;
+      const response = respond(config, 404, failure(404, message));
+      throw new AxiosError(message, 'ERR_BAD_REQUEST', config, null, response);
+    }
+
+    try {
+      const body =
+        typeof config.data === 'string' && config.data ? JSON.parse(config.data) : config.data;
+      const data = await route.handler({
+        params: route.params,
+        query: queryOf(config),
+        body,
+        headers: headersOf(config),
+      });
+      return respond(config, method === 'post' ? 201 : 200, success(structuredClone(data ?? null)));
+    } catch (error) {
+      if (!(error instanceof MockHttpError)) throw error;
+      const response = respond(
+        config,
+        error.status,
+        failure(error.status, error.message, error.code, error.fields),
+      );
+      throw new AxiosError(
+        error.message,
+        error.status >= 500 ? 'ERR_BAD_RESPONSE' : 'ERR_BAD_REQUEST',
+        config,
+        null,
+        response,
+      );
+    }
+  };
+}
+
+/** The bare-body mock adapter (portals not yet on the envelope). */
+export const mockAdapter: AxiosAdapter = createMockAdapter();

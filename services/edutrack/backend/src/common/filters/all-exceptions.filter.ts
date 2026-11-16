@@ -15,19 +15,10 @@ import {
 } from '../../tenancy/tenant.errors.js';
 import { RequestContext } from '../context/request-context.js';
 import { AppException } from '../errors/app.exception.js';
+import type { ApiFailure } from '../http/api-response.js';
 
-/** The body of every error response. Portals read `message` (and `error`/`code`, `fields`). */
-export interface ErrorBody {
-  statusCode: number;
-  message: string;
-  /** Stable machine code, e.g. ACCOUNT_LOCKED, VALIDATION, NOT_FOUND. */
-  code: string;
-  /** Same as `code`. The portals' mock API (and their sign-in screens) read the code from here. */
-  error: string;
-  /** Per-field messages for 422s, keyed by property path (`guardians.0.phone`). */
-  fields?: Record<string, string>;
-  requestId?: string;
-}
+/** The body of every error response (see `api-response.ts`). */
+export type ErrorBody = ApiFailure;
 
 const DEFAULT_CODES: Record<number, string> = {
   400: 'BAD_REQUEST',
@@ -89,7 +80,7 @@ function fromPrisma(error: Prisma.PrismaClientKnownRequestError): AppException |
 
 /**
  * The single place errors become HTTP responses, so every endpoint answers with the same shape:
- * `{ statusCode, message, code, error, fields?, requestId }`. Unknown errors are logged with the
+ * `{ success: false, message, error: { code, fields? }, requestId }`. Unknown errors are logged with the
  * request id and answered with a generic 500; internals never leak.
  */
 @Catch()
@@ -111,12 +102,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const status = known?.getStatus() ?? HttpStatus.INTERNAL_SERVER_ERROR;
     const code = known?.code ?? DEFAULT_CODES[500]!;
     const body: ErrorBody = {
-      statusCode: status,
+      success: false,
       message:
         known && status < 500 ? known.message : 'Something went wrong on our side. Try again.',
-      code,
-      error: code,
-      ...(known?.fields && { fields: known.fields }),
+      error: { code, ...(known?.fields && { fields: known.fields }) },
       ...(requestId && { requestId }),
     };
     for (const [name, value] of Object.entries(known?.headers ?? {}))

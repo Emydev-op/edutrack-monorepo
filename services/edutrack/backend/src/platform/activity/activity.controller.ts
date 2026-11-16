@@ -7,6 +7,7 @@ import { formatAgo } from '../shared/format.js';
 import { RecordIdPipe } from '../shared/params.js';
 import { PLATFORM_AREA } from '../shared/platform-audit.service.js';
 import { HistoryQuery, HistoryService } from './history.service.js';
+import { ResponseMessage } from '../../common/http/api-response.js';
 
 const entryId = new RecordIdPipe('That audit entry doesn’t exist.');
 
@@ -19,6 +20,7 @@ export class ActivityController {
     private readonly clock: Clock,
   ) {}
 
+  @ResponseMessage('Activity loaded.')
   @Get()
   @PlatformOnly('Audit.View')
   @ApiOperation({ summary: 'Every back-office action in plain language, newest first' })
@@ -26,6 +28,7 @@ export class ActivityController {
     return this.history.activity(query);
   }
 
+  @ResponseMessage('Recent activity loaded.')
   @Get('recent')
   @PlatformOnly()
   @ApiOperation({ summary: 'The latest back-office actions, for the dashboard' })
@@ -53,6 +56,7 @@ export class ActivityController {
 export class AuditController {
   constructor(private readonly history: HistoryService) {}
 
+  @ResponseMessage('Audit log loaded.')
   @Get()
   @PlatformOnly('Audit.View')
   @ApiOperation({ summary: 'The audit log: who changed what, before and after, from where' })
@@ -60,6 +64,7 @@ export class AuditController {
     return this.history.audit(query);
   }
 
+  @ResponseMessage('Actors loaded.')
   @Get('actors')
   @PlatformOnly('Audit.View')
   @ApiOperation({ summary: 'Names that appear in the trail, for the Actor filter' })
@@ -67,6 +72,7 @@ export class AuditController {
     return this.history.actors();
   }
 
+  @ResponseMessage('Audit entry loaded.')
   @Get(':id')
   @PlatformOnly('Audit.View')
   entry(@Param('id', entryId) id: string) {

@@ -12,6 +12,7 @@ import {
   UpdateProfileDto,
 } from './dto/account.dto.js';
 import { SearchService } from './search.service.js';
+import { type MessageRequest, ResponseMessage } from '../../common/http/api-response.js';
 
 const me = () => {
   const id = RequestContext.get()?.userId;
@@ -24,6 +25,7 @@ const me = () => {
 export class MeController {
   constructor(private readonly account: AccountService) {}
 
+  @ResponseMessage('Profile loaded.')
   @Get('profile')
   @PlatformOnly()
   @ApiOperation({ summary: 'Your profile' })
@@ -31,12 +33,16 @@ export class MeController {
     return this.account.profile();
   }
 
+  @ResponseMessage('Profile saved.')
   @Patch('profile')
   @PlatformOnly()
   updateProfile(@Body() dto: UpdateProfileDto) {
     return this.account.updateProfile(dto);
   }
 
+  @ResponseMessage((_r: unknown, req: MessageRequest<{ avatarUrl?: string | null }>) =>
+    req.body.avatarUrl ? 'Profile photo updated.' : 'Profile photo removed.',
+  )
   @Put('avatar')
   @PlatformOnly()
   @ApiOperation({ summary: 'Upload (JPG or PNG, up to 2 MB, as a data URL) or remove your photo' })
@@ -53,6 +59,7 @@ export class SettingsController {
     private readonly alerts: PlatformAlertsService,
   ) {}
 
+  @ResponseMessage('Notification preferences loaded.')
   @Get('notifications')
   @PlatformOnly()
   @ApiOperation({ summary: 'Your notification channels per event' })
@@ -60,6 +67,7 @@ export class SettingsController {
     return this.alerts.preferences(me());
   }
 
+  @ResponseMessage('Notification preference saved.')
   @Put('notifications')
   @PlatformOnly()
   @ApiOperation({ summary: 'Turn one channel on or off for one event (security emails stay on)' })
@@ -67,12 +75,14 @@ export class SettingsController {
     return this.alerts.setPreference(me(), dto);
   }
 
+  @ResponseMessage('Security settings loaded.')
   @Get('security')
   @PlatformOnly('Settings.View')
   security() {
     return this.account.security();
   }
 
+  @ResponseMessage('Security setting updated.')
   @Put('security')
   @PlatformOnly('Settings.Edit')
   @ApiOperation({
@@ -89,6 +99,7 @@ export class SettingsController {
 export class NotificationsController {
   constructor(private readonly alerts: PlatformAlertsService) {}
 
+  @ResponseMessage('Notifications loaded.')
   @Get()
   @PlatformOnly()
   @ApiOperation({ summary: 'Your latest 30 notifications' })
@@ -96,6 +107,7 @@ export class NotificationsController {
     return this.alerts.inbox(me());
   }
 
+  @ResponseMessage('All notifications marked as read.')
   @Post('read-all')
   @HttpCode(200)
   @PlatformOnly()
@@ -109,6 +121,7 @@ export class NotificationsController {
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 
+  @ResponseMessage('Search results loaded.')
   @Get()
   @PlatformOnly()
   @ApiOperation({ summary: 'Schools, staff and issues for the command menu' })

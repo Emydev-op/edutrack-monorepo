@@ -30,11 +30,17 @@ export class PaginationQueryDto {
   search?: string;
 }
 
-/** Same shape as the portals' mock `paginate()` and `Paginated<T>` in @edutrack/shared. */
-export interface Paginated<T> {
-  data: T[];
-  meta: { page: number; pageSize: number; total: number; totalPages: number };
+/**
+ * A page of a list. The response envelope sends `data` and `meta` side by side:
+ * `{ success, message, data: [...], meta: { page, pageSize, total, totalPages } }`.
+ */
+export class Page<T> {
+  constructor(
+    readonly data: T[],
+    readonly meta: { page: number; pageSize: number; total: number; totalPages: number },
+  ) {}
 }
+export type Paginated<T> = Page<T>;
 
 /** `skip`/`take` for Prisma from a pagination query. */
 export const toSkipTake = ({ page, pageSize }: Pick<PaginationQueryDto, 'page' | 'pageSize'>) => ({
@@ -47,8 +53,10 @@ export function paginated<T>(
   total: number,
   { page, pageSize }: Pick<PaginationQueryDto, 'page' | 'pageSize'>,
 ): Paginated<T> {
-  return {
-    data,
-    meta: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
-  };
+  return new Page(data, {
+    page,
+    pageSize,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+  });
 }

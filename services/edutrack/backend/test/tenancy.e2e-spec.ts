@@ -176,9 +176,9 @@ describe('Tenant isolation, resolution and permissions (e2e)', () => {
       const gf = await signIn(t, 'adaeze.okonkwo@greenfield.edu.ng');
       const cv = await signIn(t, 'e.udo@crestviewcollege.ng');
       const gfRes = await authed(t, gf.token).get('/api/v1/test-tenancy/branches');
-      expect(gfRes.body).toEqual({ schoolId: greenfield, codes: ['GFA-LK', 'GFA-MC'] });
+      expect(gfRes.body.data).toEqual({ schoolId: greenfield, codes: ['GFA-LK', 'GFA-MC'] });
       const cvRes = await authed(t, cv.token).get('/api/v1/test-tenancy/branches');
-      expect(cvRes.body).toEqual({ schoolId: crestview, codes: ['CCV-MC'] });
+      expect(cvRes.body.data).toEqual({ schoolId: crestview, codes: ['CCV-MC'] });
     });
 
     it('a dev tenant header cannot move a School Admin session to another school', async () => {
@@ -186,7 +186,7 @@ describe('Tenant isolation, resolution and permissions (e2e)', () => {
       const res = await authed(t, cv.token, { tenant: 'greenfield' }).get(
         '/api/v1/test-tenancy/branches',
       );
-      expect(res.body.codes).toEqual(['CCV-MC']);
+      expect(res.body.data.codes).toEqual(['CCV-MC']);
     });
 
     it('teacher sessions resolve the school from the Host', async () => {
@@ -194,7 +194,7 @@ describe('Tenant isolation, resolution and permissions (e2e)', () => {
       const ok = await authed(t, ade.token, { host: 'greenfield.localhost' }).get(
         '/api/v1/test-tenancy/branches',
       );
-      expect(ok.body.schoolId).toBe(greenfield);
+      expect(ok.body.data.schoolId).toBe(greenfield);
       const viaHeader = await authed(t, ade.token, { tenant: 'greenfield' }).get(
         '/api/v1/test-tenancy/branches',
       );
@@ -203,7 +203,7 @@ describe('Tenant isolation, resolution and permissions (e2e)', () => {
         '/api/v1/test-tenancy/branches',
       );
       expect(wrongHost.status).toBe(403);
-      expect(wrongHost.body.code).toBe('TENANT_MISMATCH');
+      expect(wrongHost.body.error.code).toBe('TENANT_MISMATCH');
       const noHost = await authed(t, ade.token).get('/api/v1/test-tenancy/branches');
       expect(noHost.status).toBe(403);
     });
@@ -216,7 +216,7 @@ describe('Tenant isolation, resolution and permissions (e2e)', () => {
       expect((await api.get('/api/v1/test-tenancy/branches')).status).toBe(200);
       const denied = await api.get('/api/v1/test-tenancy/users-admin');
       expect(denied.status).toBe(403);
-      expect(denied.body.code).toBe('FORBIDDEN');
+      expect(denied.body.error.code).toBe('FORBIDDEN');
       const adaeze = await signIn(t, 'adaeze.okonkwo@greenfield.edu.ng');
       expect((await authed(t, adaeze.token).get('/api/v1/test-tenancy/users-admin')).status).toBe(
         200,
@@ -247,13 +247,13 @@ describe('Tenant isolation, resolution and permissions (e2e)', () => {
         '/api/v1/test-tenancy/school-admin-only',
       );
       expect(res.status).toBe(403);
-      expect(res.body.code).toBe('WRONG_PORTAL');
+      expect(res.body.error.code).toBe('WRONG_PORTAL');
     });
 
     it('keeps back-office routes for platform staff with the right role', async () => {
       const tolu = await signIn(t, 'tolu@edutrack.ng', { portal: 'platform' });
       const res = await authed(t, tolu.token).get('/api/v1/test-tenancy/platform');
-      expect(res.body).toEqual({ ok: true, schoolId: null });
+      expect(res.body.data).toEqual({ ok: true, schoolId: null });
       expect(
         (await authed(t, tolu.token).get('/api/v1/test-tenancy/platform-settings')).status,
       ).toBe(200);
@@ -264,12 +264,12 @@ describe('Tenant isolation, resolution and permissions (e2e)', () => {
       ).toBe(403);
       // A school session never reaches back-office routes, and a platform session has no tenant.
       const adaeze = await signIn(t, 'adaeze.okonkwo@greenfield.edu.ng');
-      expect((await authed(t, adaeze.token).get('/api/v1/test-tenancy/platform')).body.code).toBe(
-        'PLATFORM_ONLY',
-      );
-      expect((await authed(t, tolu.token).get('/api/v1/test-tenancy/branches')).body.code).toBe(
-        'NO_TENANT',
-      );
+      expect(
+        (await authed(t, adaeze.token).get('/api/v1/test-tenancy/platform')).body.error.code,
+      ).toBe('PLATFORM_ONLY');
+      expect(
+        (await authed(t, tolu.token).get('/api/v1/test-tenancy/branches')).body.error.code,
+      ).toBe('NO_TENANT');
     });
   });
 });

@@ -40,7 +40,7 @@ describe('Forgot, reset and expired passwords (e2e)', () => {
   it('emails a single-use link for the portal it came from; reset ends every session', async () => {
     const email = 'e.udo@crestviewcollege.ng';
     const before = await signIn(t, email);
-    expect((await forgot(email)).body).toEqual({ ok: true });
+    expect((await forgot(email)).body.data).toEqual({ ok: true });
     const message = await t.notifications.waitFor(email, 'password-reset');
     const { link, expiresInMinutes } = message.data as PasswordResetData;
     expect(link.startsWith('http://localhost:5171/reset-password?token=')).toBe(true);
@@ -48,11 +48,11 @@ describe('Forgot, reset and expired passwords (e2e)', () => {
 
     const weak = await reset(tokenOf(link), 'weak');
     expect(weak.status).toBe(422);
-    expect(weak.body.fields.password).toContain('at least 8 characters');
+    expect(weak.body.error.fields.password).toContain('at least 8 characters');
 
     const ok = await reset(tokenOf(link));
     expect(ok.status).toBe(200);
-    expect(ok.body).toEqual({ ok: true });
+    expect(ok.body.data).toEqual({ ok: true });
     expect((await authed(t, before.token).get('/api/v1/auth/me')).status).toBe(401);
     expect((await login(t, email)).status).toBe(401);
     expect((await login(t, email, NEW_PASSWORD)).status).toBe(200);
@@ -60,7 +60,7 @@ describe('Forgot, reset and expired passwords (e2e)', () => {
 
     const again = await reset(tokenOf(link), 'Another-Pass-2026');
     expect(again.status).toBe(400);
-    expect(again.body.code).toBe('RESET_INVALID');
+    expect(again.body.error.code).toBe('RESET_INVALID');
   });
 
   it('builds Teacher Workspace links on the school’s address', async () => {
@@ -82,21 +82,21 @@ describe('Forgot, reset and expired passwords (e2e)', () => {
     const secondToken = tokenOf((second.data as PasswordResetData).link);
     expect((second.data as PasswordResetData).link.startsWith('http://localhost:5170/')).toBe(true);
 
-    expect((await reset(firstToken)).body.code).toBe('RESET_INVALID');
+    expect((await reset(firstToken)).body.error.code).toBe('RESET_INVALID');
     t.clock.advance(61 * MINUTE);
     const expired = await reset(secondToken);
     expect(expired.status).toBe(410);
-    expect(expired.body.code).toBe('RESET_EXPIRED');
+    expect(expired.body.error.code).toBe('RESET_EXPIRED');
   });
 
   it('answers the same for unknown emails and sends nothing', async () => {
     t.notifications.clear();
     const res = await forgot('nobody@nowhere.ng');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body.data).toEqual({ ok: true });
     await new Promise((r) => setTimeout(r, 200));
     expect(t.notifications.sent).toHaveLength(0);
-    expect((await reset('made-up-token')).body.code).toBe('RESET_INVALID');
+    expect((await reset('made-up-token')).body.error.code).toBe('RESET_INVALID');
   });
 
   it('clears a sign-in pause when the password is reset', async () => {
@@ -120,17 +120,17 @@ describe('Forgot, reset and expired passwords (e2e)', () => {
     it('lets a user with an expired password set a new one and signs them in', async () => {
       const email = 'r.adeleke@greenfield.edu.ng';
       const host = 'greenfield.localhost';
-      expect((await login(t, email, PASSWORD, { host })).body.code).toBe('PASSWORD_EXPIRED');
+      expect((await login(t, email, PASSWORD, { host })).body.error.code).toBe('PASSWORD_EXPIRED');
 
       const wrong = await expired({ email, current: 'Wrong-password-1', next: NEW_PASSWORD }, host);
       expect(wrong.status).toBe(401);
       const same = await expired({ email, current: PASSWORD, next: PASSWORD }, host);
       expect(same.status).toBe(422);
-      expect(same.body.fields.next).toBeDefined();
+      expect(same.body.error.fields.next).toBeDefined();
 
       const ok = await expired({ email, current: PASSWORD, next: NEW_PASSWORD }, host);
       expect(ok.status).toBe(200);
-      expect(ok.body.user.displayName).toBe('Mrs. Ronke Adeleke');
+      expect(ok.body.data.user.displayName).toBe('Mrs. Ronke Adeleke');
       expect((await login(t, email, NEW_PASSWORD, { host })).status).toBe(200);
 
       const notExpired = await expired(
@@ -138,7 +138,7 @@ describe('Forgot, reset and expired passwords (e2e)', () => {
         host,
       );
       expect(notExpired.status).toBe(409);
-      expect(notExpired.body.code).toBe('PASSWORD_NOT_EXPIRED');
+      expect(notExpired.body.error.code).toBe('PASSWORD_NOT_EXPIRED');
     });
 
     it('works for School Admin too (Kunle Bakare)', async () => {
@@ -148,7 +148,7 @@ describe('Forgot, reset and expired passwords (e2e)', () => {
         next: NEW_PASSWORD,
       });
       expect(ok.status).toBe(200);
-      expect(ok.body.user.roles).toEqual(['School Admin', 'Bursar']);
+      expect(ok.body.data.user.roles).toEqual(['School Admin', 'Bursar']);
     });
 
     it('honours "passwords never expire" (0 days)', async () => {

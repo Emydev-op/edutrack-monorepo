@@ -3,6 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { computed, watch } from 'vue';
 import { RouterLink, RouterView, useRoute } from 'vue-router';
+import { messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
 import { useSchoolQuery, useStartSupportSessionMutation } from '@/api/services/schools';
@@ -63,8 +64,13 @@ function startSupportSession() {
     acknowledgement: "I have the school's consent for this session",
     confirmLabel: 'Start audited session',
     action: async ({ text }) => {
-      await supportSession.mutateAsync(text);
-      toast.success(`Support session started in ${school.value?.name}. It ends in 30 minutes.`);
+      const session = await supportSession.mutateAsync(text);
+      toast.success(
+        messageOf(
+          session,
+          `Support session started in ${school.value?.name}. It ends in 30 minutes.`,
+        ),
+      );
     },
   });
 }

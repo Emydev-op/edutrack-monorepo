@@ -28,7 +28,7 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
     it('shows and updates your own profile', async () => {
       const res = await api.get('/api/v1/platform/me/profile');
       expect(res.status).toBe(200);
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         firstName: 'Tolu',
         email: 'tolu@edutrack.ng',
         roleName: 'Platform Administrator',
@@ -36,7 +36,7 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
         phone: '0803 412 7781',
         avatarUrl: null,
       });
-      expect(res.body.lastSignIn).toMatch(/^\d{1,2} \w{3} \d{4} · \d{2}:\d{2}/);
+      expect(res.body.data.lastSignIn).toMatch(/^\d{1,2} \w{3} \d{4} · \d{2}:\d{2}/);
 
       const bad = await api
         .patch('/api/v1/platform/me/profile')
@@ -45,11 +45,11 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
       const taken = await api
         .patch('/api/v1/platform/me/profile')
         .send({ firstName: 'Tolu', lastName: 'Bamidele', phone: '0805 555 0122' });
-      expect(taken.body.fields.phone).toMatch(/already used/);
+      expect(taken.body.error.fields.phone).toMatch(/already used/);
       const ok = await api
         .patch('/api/v1/platform/me/profile')
         .send({ firstName: 'Toluwani', lastName: 'Bamidele', phone: '' });
-      expect(ok.body).toMatchObject({ firstName: 'Toluwani', phone: '' });
+      expect(ok.body.data).toMatchObject({ firstName: 'Toluwani', phone: '' });
       await api
         .patch('/api/v1/platform/me/profile')
         .send({ firstName: 'Tolu', lastName: 'Bamidele', phone: '0803 412 7781' });
@@ -58,12 +58,14 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
     it('stores, replaces and removes the photo, checking type and size', async () => {
       const up = await api.put('/api/v1/platform/me/avatar').send({ avatarUrl: PNG });
       expect(up.status).toBe(200);
-      expect(up.body.avatarUrl).toMatch(/^https:\/\/storage\.test\/platform\/avatars\/.+\.png$/);
-      const firstKey = (up.body.avatarUrl as string).replace('https://storage.test/', '');
+      expect(up.body.data.avatarUrl).toMatch(
+        /^https:\/\/storage\.test\/platform\/avatars\/.+\.png$/,
+      );
+      const firstKey = (up.body.data.avatarUrl as string).replace('https://storage.test/', '');
       expect(t.storage.objects.get(firstKey)?.contentType).toBe('image/png');
 
       const again = await api.put('/api/v1/platform/me/avatar').send({ avatarUrl: PNG });
-      expect(again.body.avatarUrl).not.toBe(up.body.avatarUrl);
+      expect(again.body.data.avatarUrl).not.toBe(up.body.data.avatarUrl);
       expect(t.storage.objects.has(firstKey)).toBe(false);
 
       const fake = await api.put('/api/v1/platform/me/avatar').send({
@@ -82,7 +84,7 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
       expect(tooBig.body.message).toBe('The photo is larger than 2 MB.');
 
       const removed = await api.put('/api/v1/platform/me/avatar').send({ avatarUrl: null });
-      expect(removed.body.avatarUrl).toBeNull();
+      expect(removed.body.data.avatarUrl).toBeNull();
       expect(t.storage.objects.size).toBe(0);
     });
   });
@@ -90,7 +92,7 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
   describe('notification preferences', () => {
     it('starts from the defaults and saves one channel at a time', async () => {
       const res = await api.get('/api/v1/platform/settings/notifications');
-      expect(res.body.map((p: { event: string }) => p.event)).toEqual([
+      expect(res.body.data.map((p: { event: string }) => p.event)).toEqual([
         'User invitation',
         'Subscription expiring',
         'Subscription overdue',
@@ -99,7 +101,7 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
         'Support issue urgent',
         'Security alert',
       ]);
-      expect(res.body[6]).toEqual({
+      expect(res.body.data[6]).toEqual({
         event: 'Security alert',
         channels: { 'in-app': true, email: true, sms: true },
         locked: ['email'],
@@ -108,12 +110,12 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
       const saved = await api
         .put('/api/v1/platform/settings/notifications')
         .send({ event: 'Subscription expiring', channel: 'sms', enabled: false });
-      expect(saved.body[1].channels).toEqual({ 'in-app': true, email: true, sms: false });
+      expect(saved.body.data[1].channels).toEqual({ 'in-app': true, email: true, sms: false });
 
       const locked = await api
         .put('/api/v1/platform/settings/notifications')
         .send({ event: 'Security alert', channel: 'email', enabled: false });
-      expect(locked.body.code).toBe('CHANNEL_LOCKED');
+      expect(locked.body.error.code).toBe('CHANNEL_LOCKED');
       const unknown = await api
         .put('/api/v1/platform/settings/notifications')
         .send({ event: 'Lunch', channel: 'email', enabled: false });
@@ -123,14 +125,14 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
 
   describe('security settings', () => {
     it('saves the new-device toggle, refuses IP restriction, and needs Settings', async () => {
-      expect((await api.get('/api/v1/platform/settings/security')).body).toEqual({
+      expect((await api.get('/api/v1/platform/settings/security')).body.data).toEqual({
         newDeviceAlerts: true,
         ipRestriction: false,
       });
       const off = await api
         .put('/api/v1/platform/settings/security')
         .send({ newDeviceAlerts: false });
-      expect(off.body).toEqual({ newDeviceAlerts: false, ipRestriction: false });
+      expect(off.body.data).toEqual({ newDeviceAlerts: false, ipRestriction: false });
       const event = await t.prisma.auditEvent.findFirst({
         where: { action: 'settings.security' },
         orderBy: { createdAt: 'desc' },
@@ -139,7 +141,7 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
 
       const ip = await api.put('/api/v1/platform/settings/security').send({ ipRestriction: true });
       expect(ip.status).toBe(422);
-      expect(ip.body.code).toBe('IP_RANGES_REQUIRED');
+      expect(ip.body.error.code).toBe('IP_RANGES_REQUIRED');
 
       expect((await ngozi.get('/api/v1/platform/settings/security')).status).toBe(403);
       await api.put('/api/v1/platform/settings/security').send({ newDeviceAlerts: true });
@@ -150,14 +152,14 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
     it('lists your notifications and marks them read', async () => {
       const res = await api.get('/api/v1/platform/notifications');
       expect(res.status).toBe(200);
-      expect(res.body.filter((n: { unread: boolean }) => n.unread)).toHaveLength(2);
-      expect(res.body[0]).toMatchObject({
+      expect(res.body.data.filter((n: { unread: boolean }) => n.unread)).toHaveLength(2);
+      expect(res.body.data[0]).toMatchObject({
         title: 'Unity Model College has an overdue invoice',
         to: expect.stringMatching(/^\/schools\/.+\/billing$/),
       });
       const read = await api.post('/api/v1/platform/notifications/read-all');
       expect(read.status).toBe(200);
-      expect(read.body.every((n: { unread: boolean }) => !n.unread)).toBe(true);
+      expect(read.body.data.every((n: { unread: boolean }) => !n.unread)).toBe(true);
     });
   });
 
@@ -224,27 +226,27 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
         true,
       );
       const one = await api.get(`/api/v1/platform/audit/${audit.body.data[0].id}`);
-      expect(one.body).toEqual(audit.body.data[0]);
+      expect(one.body.data).toEqual(audit.body.data[0]);
       expect(
         (await api.get('/api/v1/platform/audit/00000000-0000-4000-8000-000000000000')).status,
       ).toBe(404);
 
       const actors = await api.get('/api/v1/platform/audit/actors');
-      expect(actors.body).toEqual(expect.arrayContaining(['Tolu Bamidele', 'EduTrack']));
+      expect(actors.body.data).toEqual(expect.arrayContaining(['Tolu Bamidele', 'EduTrack']));
     });
   });
 
   describe('search', () => {
     it('finds schools, staff and nothing it shouldn’t', async () => {
       const unity = await api.get('/api/v1/platform/search?q=unity');
-      expect(unity.body[0]).toMatchObject({
+      expect(unity.body.data[0]).toMatchObject({
         type: 'School',
         title: 'Unity Model College',
         meta: expect.stringContaining('Grace period'),
         to: expect.stringMatching(/^\/schools\//),
       });
       const people = await api.get('/api/v1/platform/search?q=okafor');
-      expect(people.body).toEqual([
+      expect(people.body.data).toEqual([
         expect.objectContaining({
           type: 'User',
           title: 'Ngozi Okafor',
@@ -252,9 +254,9 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
         }),
       ]);
       const empty = await api.get('/api/v1/platform/search?q=zzzz-nothing');
-      expect(empty.body).toEqual([]);
+      expect(empty.body.data).toEqual([]);
       const all = await api.get('/api/v1/platform/search');
-      expect(all.body.length).toBeLessThanOrEqual(9);
+      expect(all.body.data.length).toBeLessThanOrEqual(9);
     });
   });
 });

@@ -44,54 +44,65 @@ const prismaError = (code: string, meta?: Record<string, unknown>) =>
   new Prisma.PrismaClientKnownRequestError('db', { code, clientVersion: '7', meta });
 
 describe('AllExceptionsFilter', () => {
-  it('serialises AppException with code, error alias, fields and request id', () => {
+  /** Status, code and message of a failure, for compact assertions. */
+  const answer = (exception: unknown) => {
+    const res = run(exception);
+    const body = res.body as { success: boolean; message: string; error: { code: string } };
+    return {
+      status: res.statusCode,
+      success: body.success,
+      code: body.error.code,
+      message: body.message,
+    };
+  };
+
+  it('answers { success: false, message, error: { code, fields }, requestId }', () => {
     const res = run(AppException.validation({ 'guardians.0.phone': 'Enter a phone number.' }));
     expect(res.statusCode).toBe(422);
     expect(res.body).toEqual({
-      statusCode: 422,
+      success: false,
       message: 'Enter a phone number.',
-      code: 'VALIDATION',
-      error: 'VALIDATION',
-      fields: { 'guardians.0.phone': 'Enter a phone number.' },
+      error: { code: 'VALIDATION', fields: { 'guardians.0.phone': 'Enter a phone number.' } },
       requestId: 'req-1',
     });
   });
 
   it('maps Nest HTTP exceptions to default codes', () => {
-    expect(run(new NotFoundException('Nope')).body).toMatchObject({
-      statusCode: 404,
-      message: 'Nope',
+    expect(answer(new NotFoundException('Nope'))).toEqual({
+      status: 404,
+      success: false,
       code: 'NOT_FOUND',
+      message: 'Nope',
     });
-    expect(run(new BadRequestException(['a', 'b'])).body).toMatchObject({
+    expect(answer(new BadRequestException(['a', 'b']))).toMatchObject({
       message: 'a, b',
       code: 'BAD_REQUEST',
     });
   });
 
   it('maps Prisma errors to readable conflicts and not-founds', () => {
-    expect(run(prismaError('P2002', { target: ['school_id', 'code'] })).body).toMatchObject({
-      statusCode: 409,
+    expect(answer(prismaError('P2002', { target: ['school_id', 'code'] }))).toMatchObject({
+      status: 409,
       code: 'DUPLICATE',
       message: 'A record with the same code already exists.',
     });
     expect(
-      run(
+      answer(
         prismaError('P2002', {
           driverAdapterError: { cause: { constraint: { fields: ['staffNumber'] } } },
         }),
-      ).body,
+      ),
     ).toMatchObject({ message: 'A record with the same staff number already exists.' });
-    expect(run(prismaError('P2003')).body).toMatchObject({
-      statusCode: 409,
+    expect(answer(prismaError('P2003'))).toMatchObject({
+      status: 409,
       code: 'REFERENCE_CONFLICT',
     });
-    expect(run(prismaError('P2025')).body).toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
+    expect(answer(prismaError('P2025'))).toMatchObject({ status: 404, code: 'NOT_FOUND' });
   });
 
   it('maps tenant errors: mismatch is 403, missing context is a 500', () => {
-    expect(run(new TenantMismatchError('Branch', 'update')).body).toMatchObject({
-      statusCode: 403,
+    expect(answer(new TenantMismatchError('Branch', 'update'))).toMatchObject({
+      status: 403,
       code: 'TENANT_MISMATCH',
     });
     expect(run(new TenantContextError('Branch', 'findMany')).statusCode).toBe(500);
@@ -101,7 +112,11 @@ describe('AllExceptionsFilter', () => {
     const res = run(new Error('connection string postgres://secret'));
     expect(res.statusCode).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
     expect(JSON.stringify(res.body)).not.toContain('secret');
-    expect(res.body).toMatchObject({ code: 'INTERNAL_ERROR', requestId: 'req-1' });
+    expect(res.body).toMatchObject({
+      success: false,
+      error: { code: 'INTERNAL_ERROR' },
+      requestId: 'req-1',
+    });
   });
 
   it('passes extra headers such as Retry-After', () => {

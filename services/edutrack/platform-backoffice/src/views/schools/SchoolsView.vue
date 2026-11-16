@@ -13,6 +13,7 @@ import {
 import { refDebounced } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
+import { messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
 import { useSchoolsQuery, useSendRenewalRemindersMutation } from '@/api/services/schools';
@@ -144,7 +145,7 @@ function exportSchools(list: School[], filename = 'schools.csv') {
 
 async function sendReminders() {
   const result = await reminders.mutateAsync(selection.selectedRows().map((s) => s.id));
-  toast.success(`Renewal reminders queued for ${result.queued} schools.`);
+  toast.success(messageOf(result, `Renewal reminders queued for ${result.queued} schools.`));
   selection.clear();
 }
 </script>

@@ -2,6 +2,7 @@
 import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { computed } from 'vue';
+import { messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
 import { useSchoolSubscriptionQuery, useSubscriptionActionMutation } from '@/api/services/schools';
@@ -146,8 +147,8 @@ function run(def: ActionDef) {
     ...def.request,
     title: `${def.label} · ${props.school.name}`,
     action: async (result) => {
-      await mutation.mutateAsync(def.build(result));
-      toast.success(`${def.label} applied to ${props.school.name}.`);
+      const saved = await mutation.mutateAsync(def.build(result));
+      toast.success(messageOf(saved, `${def.label} applied to ${props.school.name}.`));
     },
   });
 }

@@ -4,6 +4,7 @@ import { StatusBadge } from '@edutrack/ui/components/status-badge';
 import { CopyIcon, SendIcon, UserPlusIcon } from '@lucide/vue';
 import { useClipboard } from '@vueuse/core';
 import { computed, ref } from 'vue';
+import { messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
 import {
@@ -47,8 +48,8 @@ function resendInvite(admin: SchoolAdministrator) {
     ],
     confirmLabel: 'Resend invitation',
     action: async () => {
-      await resend.mutateAsync(admin.id);
-      toast.success(`New invitation sent to ${admin.name}.`);
+      const sent = await resend.mutateAsync(admin.id);
+      toast.success(messageOf(sent, `New invitation sent to ${admin.name}.`));
     },
   });
 }

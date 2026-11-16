@@ -3,6 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { useForm } from 'vee-validate';
 import { watch } from 'vue';
+import { messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
 import { useUpdateSchoolMutation } from '@/api/services/schools';
@@ -30,9 +31,9 @@ const { handleSubmit, meta, resetForm } = useForm({
 watch(open, (isOpen) => isOpen && resetForm({ values: initial() }));
 
 const save = handleSubmit(async (values) => {
-  await update.mutateAsync({ ...values, phone: values.phone ?? '' });
+  const saved = await update.mutateAsync({ ...values, phone: values.phone ?? '' });
   open.value = false;
-  toast.success('School updated.');
+  toast.success(messageOf(saved, 'School updated.'));
 });
 </script>
 

@@ -32,7 +32,7 @@ describe('Platform support desk (e2e)', () => {
     it('lists agents with their team and load, and the summary counts', async () => {
       const agents = await tolu.get('/api/v1/platform/support/agents');
       // Other test files leave extra active staff in the shared test database.
-      expect(agents.body).toEqual(
+      expect(agents.body.data).toEqual(
         expect.arrayContaining([
           { id: ids.funmi, name: 'Funmi Adebayo', team: 'Billing', open: 1 },
           { id: ids.ibrahim, name: 'Ibrahim Yusuf', team: 'Technical', open: 3 },
@@ -40,20 +40,20 @@ describe('Platform support desk (e2e)', () => {
           { id: ids.tolu, name: 'Tolu Bamidele', team: 'Tier 1 Support', open: 0 },
         ]),
       );
-      expect(agents.body.some((a: { id: string }) => a.id === ids.kemi)).toBe(false);
+      expect(agents.body.data.some((a: { id: string }) => a.id === ids.kemi)).toBe(false);
 
       const summary = await ngozi.get('/api/v1/platform/support/summary');
-      expect(summary.body).toMatchObject({
+      expect(summary.body.data).toMatchObject({
         open: 8,
         unassigned: 2,
         escalated: 1,
         ratings: expect.any(Number),
         views: { open: 8, unassigned: 2, mine: 2 },
       });
-      expect(summary.body.satisfaction).toBeGreaterThan(3);
-      expect(summary.body.weeklyVolume).toHaveLength(5);
-      expect(summary.body.weeklyVolume[0].label).toMatch(/^Wk \d+$/);
-      expect(summary.body.topSchools[0]).toEqual({
+      expect(summary.body.data.satisfaction).toBeGreaterThan(3);
+      expect(summary.body.data.weeklyVolume).toHaveLength(5);
+      expect(summary.body.data.weeklyVolume[0].label).toMatch(/^Wk \d+$/);
+      expect(summary.body.data.topSchools[0]).toEqual({
         label: expect.any(String),
         value: expect.any(Number),
       });
@@ -98,7 +98,7 @@ describe('Platform support desk (e2e)', () => {
     it('shows a ticket with its conversation and timeline', async () => {
       const res = await tolu.get('/api/v1/platform/support/issues/sup-1182');
       expect(res.status).toBe(200);
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         id: 'SUP-1182',
         schoolName: 'Kingsway International School',
         status: 'In Progress',
@@ -108,20 +108,22 @@ describe('Platform support desk (e2e)', () => {
         team: 'Tier 1 Support',
         sla: { firstReply: { state: 'met' }, targets: [1, 8] },
       });
-      expect(res.body.messages.map((m: { kind: string }) => m.kind)).toEqual([
+      expect(res.body.data.messages.map((m: { kind: string }) => m.kind)).toEqual([
         'school',
         'agent',
         'note',
         'agent',
       ]);
-      expect(res.body.messages[0].authorRole).toBe('School Admin · Kingsway International School');
-      expect(res.body.events[1]).toMatchObject({
+      expect(res.body.data.messages[0].authorRole).toBe(
+        'School Admin · Kingsway International School',
+      );
+      expect(res.body.data.events[1]).toMatchObject({
         title: 'Priority High → Urgent',
         detail: 'Ngozi Okafor · internal',
         tone: 'warning',
       });
       const escalated = await tolu.get('/api/v1/platform/support/issues/SUP-1180');
-      expect(escalated.body).toMatchObject({
+      expect(escalated.body.data).toMatchObject({
         escalatedTo: 'Billing specialist',
         escalatedFrom: 'Tolu Bamidele',
       });
@@ -150,17 +152,18 @@ describe('Platform support desk (e2e)', () => {
         attachment: `data:image/png;base64,${Buffer.from('not an image').toString('base64')}`,
       });
       expect(bad.status).toBe(422);
-      expect(bad.body.code).toBe('ATTACHMENT_TYPE');
+      expect(bad.body.error.code).toBe('ATTACHMENT_TYPE');
       const notAgent = await tolu
         .post('/api/v1/platform/support/issues')
         .send({ ...base, assignee: ids.kemi });
-      expect(notAgent.body.code).toBe('NOT_AN_AGENT');
+      expect(notAgent.body.error.code).toBe('NOT_AN_AGENT');
 
       const res = await tolu
         .post('/api/v1/platform/support/issues')
         .send({ ...base, attachment: PNG, attachmentName: 'screenshot.png' });
       expect(res.status).toBe(201);
-      expect(res.body).toMatchObject({
+      expect(res.body).toMatchObject({ success: true, message: 'SUP-1183 created.' });
+      expect(res.body.data).toMatchObject({
         id: 'SUP-1183',
         status: 'Open',
         team: 'Billing',
@@ -168,10 +171,10 @@ describe('Platform support desk (e2e)', () => {
         requester: 'Mr. Femi Adeyemi · Bursar',
         sla: { targets: [1, 8] },
       });
-      number = res.body.id as string;
+      number = res.body.data.id as string;
 
       const detail = await tolu.get(path());
-      expect(detail.body.messages).toEqual([
+      expect(detail.body.data.messages).toEqual([
         expect.objectContaining({
           kind: 'school',
           author: 'Mr. Femi Adeyemi',
@@ -184,7 +187,7 @@ describe('Platform support desk (e2e)', () => {
           ],
         }),
       ]);
-      expect(detail.body.events[0].detail).toBe(
+      expect(detail.body.data.events[0].detail).toBe(
         'Raised by Tolu Bamidele for Mr. Femi Adeyemi · routed to Billing',
       );
 
@@ -208,17 +211,17 @@ describe('Platform support desk (e2e)', () => {
         .post(`${path()}/messages`)
         .send({ kind: 'note', text: 'Probably the retry job.' });
       expect(note.status).toBe(200);
-      expect((await ngozi.get(path())).body.status).toBe('Open');
+      expect((await ngozi.get(path())).body.data.status).toBe('Open');
 
       await ngozi.post(`${path()}/messages`).send({ kind: 'agent', text: 'Looking into it now.' });
       const after = await ngozi.get(path());
-      expect(after.body).toMatchObject({
+      expect(after.body.data).toMatchObject({
         status: 'In Progress',
         assignee: 'Ngozi Okafor',
         team: 'Tier 1 Support',
         sla: { firstReply: { state: 'met', label: 'Met' } },
       });
-      expect(after.body.events).toContainEqual(
+      expect(after.body.data.events).toContainEqual(
         expect.objectContaining({ title: 'Picked up by Ngozi Okafor · first reply sent' }),
       );
       expect(
@@ -232,7 +235,7 @@ describe('Platform support desk (e2e)', () => {
         to: 'Waiting for School',
         note: 'Which classes got two reminders?',
       });
-      expect(waiting.body).toMatchObject({
+      expect(waiting.body.data).toMatchObject({
         status: 'Waiting for School',
         sla: { resolution: { state: 'paused' } },
       });
@@ -246,7 +249,7 @@ describe('Platform support desk (e2e)', () => {
         option: 'Technical',
         note: 'Duplicate sends from the scheduler',
       });
-      expect(escalated.body).toMatchObject({
+      expect(escalated.body.data).toMatchObject({
         status: 'Escalated',
         assignee: 'Ibrahim Yusuf',
         team: 'Technical',
@@ -260,7 +263,7 @@ describe('Platform support desk (e2e)', () => {
         option: 'Fixed',
         note: 'Duplicate scheduler job removed.',
       });
-      expect(resolved.body).toMatchObject({
+      expect(resolved.body.data).toMatchObject({
         status: 'Resolved',
         resolution: 'Duplicate scheduler job removed.',
         resolutionType: 'Fixed',
@@ -271,7 +274,7 @@ describe('Platform support desk (e2e)', () => {
       expect((await move(ngozi, { to: 'In Progress' })).status).toBe(409);
 
       const detail = await ngozi.get(path());
-      expect(detail.body.messages).toContainEqual(
+      expect(detail.body.data.messages).toContainEqual(
         expect.objectContaining({ kind: 'agent', text: 'Duplicate scheduler job removed.' }),
       );
     });
@@ -279,7 +282,7 @@ describe('Platform support desk (e2e)', () => {
     it('reopens, and closes without resolving only with a reason', async () => {
       expect((await move(tolu, { to: 'Reopened' })).status).toBe(422);
       const reopened = await move(tolu, { to: 'Reopened', note: 'Happened again today' });
-      expect(reopened.body).toMatchObject({
+      expect(reopened.body.data).toMatchObject({
         status: 'Reopened',
         reopenCount: 1,
         resolution: null,
@@ -291,10 +294,12 @@ describe('Platform support desk (e2e)', () => {
         option: 'Duplicate',
         note: 'Tracked in SUP-1182.',
       });
-      expect(closed.body).toMatchObject({ status: 'Closed', resolutionType: 'Duplicate' });
+      expect(closed.body.data).toMatchObject({ status: 'Closed', resolutionType: 'Duplicate' });
       const reply = await tolu.post(`${path()}/messages`).send({ kind: 'agent', text: 'Hi' });
-      expect(reply.body.code).toBe('ISSUE_CLOSED');
-      expect((await tolu.patch(path()).send({ assignee: ids.ngozi })).body.code).toBe('ISSUE_DONE');
+      expect(reply.body.error.code).toBe('ISSUE_CLOSED');
+      expect((await tolu.patch(path()).send({ assignee: ids.ngozi })).body.error.code).toBe(
+        'ISSUE_DONE',
+      );
     });
 
     it('escalating to a team nobody is in leaves it in that team’s queue', async () => {
@@ -308,7 +313,7 @@ describe('Platform support desk (e2e)', () => {
       const ok = await ngozi
         .post('/api/v1/platform/support/issues/SUP-1182/transitions')
         .send({ to: 'Escalated', option: 'Engineering', note: 'Needs a code change' });
-      expect(ok.body).toMatchObject({
+      expect(ok.body.data).toMatchObject({
         assignee: null,
         team: 'Engineering',
         escalatedTo: 'Engineering',
@@ -320,9 +325,11 @@ describe('Platform support desk (e2e)', () => {
     const path = '/api/v1/platform/support/issues/SUP-1174';
 
     it('assigns, needs a reason to reassign, and changes priority and category', async () => {
-      expect((await tolu.patch(path).send({ assignee: ids.kemi })).body.code).toBe('NOT_AN_AGENT');
+      expect((await tolu.patch(path).send({ assignee: ids.kemi })).body.error.code).toBe(
+        'NOT_AN_AGENT',
+      );
       const assigned = await tolu.patch(path).send({ assignee: ids.funmi });
-      expect(assigned.body).toMatchObject({
+      expect(assigned.body.data).toMatchObject({
         status: 'Assigned',
         assignee: 'Funmi Adebayo',
         team: 'Billing',
@@ -331,11 +338,11 @@ describe('Platform support desk (e2e)', () => {
       const moved = await tolu
         .patch(path)
         .send({ assignee: ids.ngozi, reason: 'Needs account context' });
-      expect(moved.body).toMatchObject({ assignee: 'Ngozi Okafor', team: 'Tier 1 Support' });
+      expect(moved.body.data).toMatchObject({ assignee: 'Ngozi Okafor', team: 'Tier 1 Support' });
 
       const triaged = await tolu.patch(path).send({ priority: 'Urgent', category: 'Subscription' });
-      expect(triaged.body).toMatchObject({ priority: 'Urgent', category: 'Subscription' });
-      const events = (await tolu.get(path)).body.events as { title: string; detail: string }[];
+      expect(triaged.body.data).toMatchObject({ priority: 'Urgent', category: 'Subscription' });
+      const events = (await tolu.get(path)).body.data.events as { title: string; detail: string }[];
       expect(events.map((e) => e.title)).toEqual(
         expect.arrayContaining([
           'Assigned to Funmi Adebayo · Billing',
@@ -378,7 +385,7 @@ describe('Platform support desk (e2e)', () => {
         expect((await api.post('/api/v1/platform/support/issues').send({})).status).toBe(403);
         // Without Support.Edit she is no longer someone tickets can be given to.
         const agents = await tolu.get('/api/v1/platform/support/agents');
-        expect(agents.body.some((a: { id: string }) => a.id === ids.funmi)).toBe(false);
+        expect(agents.body.data.some((a: { id: string }) => a.id === ids.funmi)).toBe(false);
       } finally {
         await t.prisma.platformStaff.update({
           where: { id: funmi.id },
@@ -391,7 +398,7 @@ describe('Platform support desk (e2e)', () => {
 
   describe('staff teams and the daily checks', () => {
     it('sets a staff member’s support team', async () => {
-      const user = (await tolu.get(`/api/v1/platform/users/${ids.ibrahim}`)).body;
+      const user = (await tolu.get(`/api/v1/platform/users/${ids.ibrahim}`)).body.data;
       expect(user.supportTeam).toBe('Technical');
       const details = {
         firstName: user.firstName,
@@ -407,10 +414,10 @@ describe('Platform support desk (e2e)', () => {
       const moved = await tolu
         .patch(`/api/v1/platform/users/${ids.ibrahim}`)
         .send({ ...details, supportTeam: 'Engineering' });
-      expect(moved.body.supportTeam).toBe('Engineering');
+      expect(moved.body.data.supportTeam).toBe('Engineering');
       // Leaving it out keeps it.
       const kept = await tolu.patch(`/api/v1/platform/users/${ids.ibrahim}`).send(details);
-      expect(kept.body.supportTeam).toBe('Engineering');
+      expect(kept.body.data.supportTeam).toBe('Engineering');
       const audit = await t.prisma.auditEvent.findFirst({
         where: { action: 'user.support_team' },
         orderBy: { createdAt: 'desc' },
@@ -429,8 +436,8 @@ describe('Platform support desk (e2e)', () => {
       const result = await t.app.get(DailyChecksService).run();
       expect(result.ticketsClosed).toBeGreaterThanOrEqual(1);
       const res = await tolu.get('/api/v1/platform/support/issues/SUP-1170');
-      expect(res.body.status).toBe('Closed');
-      expect(res.body.events).toContainEqual(
+      expect(res.body.data.status).toBe('Closed');
+      expect(res.body.data.events).toContainEqual(
         expect.objectContaining({
           title: 'Closed automatically · no reply from the school in 7 days',
           detail: 'EduTrack · school can see',
