@@ -1,6 +1,8 @@
 import axios, { isAxiosError } from 'axios';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { getApiErrorCode } from '@edutrack/web-core/http';
+
 import { installMockApi } from '..';
 
 const api = axios.create({ baseURL: '/api' });
@@ -12,7 +14,7 @@ async function errorOf(request: Promise<unknown>) {
     if (isAxiosError(error))
       return {
         status: error.response?.status,
-        code: error.response?.data?.error,
+        code: getApiErrorCode(error),
         message: error.response?.data?.message,
       };
   }

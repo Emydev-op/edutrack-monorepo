@@ -5,6 +5,7 @@ import { PaperclipIcon, XIcon } from '@lucide/vue';
 import { useForm } from 'vee-validate';
 import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
 import { useSchoolsQuery } from '@/api/services/schools';
@@ -106,7 +107,7 @@ const submit = handleSubmit(async (v) => {
     attachmentName: attachment.value?.name,
   });
   submitted.value = true;
-  toast.success(`${issue.id} created.`);
+  toast.success(messageOf(issue, `${issue.id} created.`));
   await router.push({ name: routesPath.support.detail.name, params: { id: issue.id } });
 });
 </script>

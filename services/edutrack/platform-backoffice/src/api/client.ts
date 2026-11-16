@@ -1,4 +1,4 @@
-import { createHttpClient, getApiErrorMessage } from '@edutrack/web-core/http';
+import { createHttpClient, getApiErrorMessage, unwrapEnvelope } from '@edutrack/web-core/http';
 import { isAxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { toast } from 'vue-sonner';
 
@@ -18,6 +18,9 @@ export const apiClient = createHttpClient({
 });
 apiClient.defaults.withCredentials = true;
 Object.assign(apiClient.defaults.headers.common, PORTAL_HEADER);
+// Every response is `{ success, message, data, meta? }`; services and screens get the data, and
+// `messageOf(result, fallback)` gives the API's message for the success toast.
+unwrapEnvelope(apiClient);
 
 if (env.useMocks) {
   // The client owns its adapter, so every module instance (including after hot reloads) uses the

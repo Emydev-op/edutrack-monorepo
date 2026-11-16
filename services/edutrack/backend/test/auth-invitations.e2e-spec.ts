@@ -38,7 +38,7 @@ describe('Invitations (e2e)', () => {
   it('shows a pending invitation for the accept page', async () => {
     const res = await lookup('GFA-INV-7Q2K');
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({
+    expect(res.body.data).toMatchObject({
       token: 'GFA-INV-7Q2K',
       status: 'pending',
       email: 'c.nnamdi@greenfield.edu.ng',
@@ -56,13 +56,15 @@ describe('Invitations (e2e)', () => {
   it('accepts once: sets the password, activates the membership, then sign-in works', async () => {
     const weak = await accept('GFA-INV-7Q2K', { ...ACCEPT, password: 'weak' });
     expect(weak.status).toBe(422);
-    expect(weak.body.fields.password).toBeDefined();
+    expect(weak.body.error.fields.password).toBeDefined();
     const badPhone = await accept('GFA-INV-7Q2K', { ...ACCEPT, phone: '12' });
-    expect(badPhone.body.fields).toEqual({ phone: 'Enter a mobile number, like 0803 412 7781.' });
+    expect(badPhone.body.error.fields).toEqual({
+      phone: 'Enter a mobile number, like 0803 412 7781.',
+    });
 
     const res = await accept('GFA-INV-7Q2K');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ email: 'c.nnamdi@greenfield.edu.ng', name: 'Chukwudi Nnamdi' });
+    expect(res.body.data).toEqual({ email: 'c.nnamdi@greenfield.edu.ng', name: 'Chukwudi Nnamdi' });
 
     const membership = await t.prisma.schoolMembership.findFirstOrThrow({
       where: { user: { email: 'c.nnamdi@greenfield.edu.ng' } },
@@ -78,25 +80,25 @@ describe('Invitations (e2e)', () => {
 
     const reused = await accept('GFA-INV-7Q2K');
     expect(reused.status).toBe(409);
-    expect(reused.body.code).toBe('INVITATION_USED');
-    expect((await lookup('GFA-INV-7Q2K')).body.status).toBe('accepted');
+    expect(reused.body.error.code).toBe('INVITATION_USED');
+    expect((await lookup('GFA-INV-7Q2K')).body.data.status).toBe('accepted');
   });
 
   it('reports used, expired and unknown links', async () => {
-    expect((await lookup('used')).body.status).toBe('accepted');
-    expect((await accept('used')).body.code).toBe('INVITATION_USED');
+    expect((await lookup('used')).body.data.status).toBe('accepted');
+    expect((await accept('used')).body.error.code).toBe('INVITATION_USED');
     const expired = await lookup('expired');
     expect(expired.status).toBe(410);
-    expect(expired.body.code).toBe('INVITATION_EXPIRED');
+    expect(expired.body.error.code).toBe('INVITATION_EXPIRED');
     expect((await accept('expired')).status).toBe(410);
     const unknown = await lookup('no-such-invitation');
     expect(unknown.status).toBe(404);
-    expect(unknown.body.code).toBe('INVITATION_INVALID');
+    expect(unknown.body.error.code).toBe('INVITATION_INVALID');
   });
 
   it('activates platform staff from a back-office invitation', async () => {
     const info = await lookup('PLT-INV-DAYO');
-    expect(info.body).toMatchObject({
+    expect(info.body.data).toMatchObject({
       schoolName: 'EduTrack',
       roleName: 'Support Agent',
       invitedBy: 'Tolu Bamidele · Platform Administrator',
@@ -112,7 +114,7 @@ describe('Invitations (e2e)', () => {
     ).toBe(200);
     const res = await login(t, 'dayo@edutrack.ng', 'Agent-Password-1', { portal: 'platform' });
     expect(res.status).toBe(200);
-    expect(res.body.user.roleId).toBe('agent');
+    expect(res.body.data.user.roleId).toBe('agent');
     expect((await lookup('PLT-INV-CHIKA')).status).toBe(410);
   });
 
@@ -124,7 +126,7 @@ describe('Invitations (e2e)', () => {
       password: 'Some-New-Pass-1',
     });
     expect(wrong.status).toBe(422);
-    expect(wrong.body.fields.password).toContain('already have an EduTrack account');
+    expect(wrong.body.error.fields.password).toContain('already have an EduTrack account');
     const ok = await accept('GFA-INV-LAWAL', {
       firstName: 'Kemi',
       lastName: 'Lawal',
@@ -146,9 +148,9 @@ describe('Invitations (e2e)', () => {
     expect(sent).toBeDefined();
     expect((sent!.data as InvitationData).link).toBe(link);
     expect((await lookup('PLT-INV-CHIKA')).status).toBe(404); // the old token was replaced
-    expect((await lookup(token)).body.status).toBe('pending');
+    expect((await lookup(token)).body.data.status).toBe('pending');
     t.clock.advance(8 * DAY);
-    expect((await lookup(token)).body.code).toBe('INVITATION_EXPIRED');
+    expect((await lookup(token)).body.error.code).toBe('INVITATION_EXPIRED');
     expect(
       (await accept(token, { firstName: 'Chika', lastName: 'Obi', password: 'Agent-Password-2' }))
         .status,

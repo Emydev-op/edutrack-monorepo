@@ -52,6 +52,7 @@ import { InvitationService } from './invitation.service.js';
 import { PasswordResetService } from './password-reset.service.js';
 import { RefreshCookieService } from './refresh-cookie.service.js';
 import { SessionService } from './session.service.js';
+import { ResponseMessage } from '../common/http/api-response.js';
 
 export const PORTAL_HEADER = 'x-edutrack-portal';
 
@@ -106,6 +107,7 @@ export class AuthController {
   }
 
   @Public()
+  @ResponseMessage('Signed in.')
   @Post('login')
   @HttpCode(200)
   @portalHeader
@@ -143,6 +145,7 @@ export class AuthController {
   }
 
   @Public()
+  @ResponseMessage('Password changed. You’re signed in.')
   @Post('password/expired')
   @HttpCode(200)
   @portalHeader
@@ -168,6 +171,7 @@ export class AuthController {
   }
 
   @Public()
+  @ResponseMessage('Session refreshed.')
   @Post('refresh')
   @HttpCode(200)
   @portalHeader
@@ -205,6 +209,7 @@ export class AuthController {
   }
 
   @Public()
+  @ResponseMessage('Signed out.')
   @Post('logout')
   @HttpCode(200)
   @portalHeader
@@ -245,6 +250,7 @@ export class AuthController {
     return list.find((s) => s.id === id) ?? null;
   }
 
+  @ResponseMessage('Account loaded.')
   @Get('me')
   @Authenticated()
   @ApiOperation({
@@ -258,6 +264,7 @@ export class AuthController {
     return this.auth.me(user);
   }
 
+  @ResponseMessage('School switched.')
   @Post('switch-school')
   @HttpCode(200)
   @Authenticated()
@@ -273,6 +280,7 @@ export class AuthController {
   }
 
   @Public()
+  @ResponseMessage('If an account matches, a reset link is on its way.')
   @Post('password/forgot')
   @HttpCode(200)
   @portalHeader
@@ -305,6 +313,7 @@ export class AuthController {
   }
 
   @Public()
+  @ResponseMessage('Password reset. You can sign in now.')
   @Post('password/reset')
   @HttpCode(200)
   @ApiOperation({
@@ -320,6 +329,7 @@ export class AuthController {
     return { ok: true };
   }
 
+  @ResponseMessage('Password changed.')
   @Post('password/change')
   @HttpCode(200)
   @Authenticated()
@@ -333,6 +343,7 @@ export class AuthController {
     return this.passwords.change(user, dto);
   }
 
+  @ResponseMessage('Devices loaded.')
   @Get('sessions')
   @Authenticated()
   @ApiOperation({
@@ -358,6 +369,7 @@ export class AuthController {
       );
   }
 
+  @ResponseMessage('Device signed out.')
   @Delete('sessions/:id')
   @Authenticated()
   @ApiOperation({ summary: 'Sign out one of your other devices' })
@@ -384,6 +396,11 @@ export class AuthController {
     return { ok: true };
   }
 
+  @ResponseMessage((r: { signedOut: number }) =>
+    r.signedOut === 1
+      ? 'Signed out of 1 other device.'
+      : `Signed out of ${r.signedOut} other devices.`,
+  )
   @Post('sessions/sign-out-others')
   @HttpCode(200)
   @Authenticated()
@@ -398,6 +415,7 @@ export class AuthController {
   }
 
   @Public()
+  @ResponseMessage('Invitation found.')
   @Get('invitations/:token')
   @ApiOperation({ summary: 'Look up an invitation for the accept page' })
   @ApiNotFoundResponse({ description: 'INVITATION_INVALID' })
@@ -410,6 +428,7 @@ export class AuthController {
   }
 
   @Public()
+  @ResponseMessage('Invitation accepted. Welcome to EduTrack.')
   @Post('invitations/:token/accept')
   @HttpCode(200)
   @ApiOperation({

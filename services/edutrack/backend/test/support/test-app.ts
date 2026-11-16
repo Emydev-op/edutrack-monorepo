@@ -188,7 +188,7 @@ export async function signIn(t: TestApp, email: string, o: LoginOptions = {}) {
   const portal = o.portal ?? (o.host || o.tenant ? 'teacher' : 'school_admin');
   return {
     res,
-    token: res.body.accessToken as string,
+    token: res.body.data.accessToken as string,
     cookie: cookieFrom(res, `et_rt_${portal}`)!,
     cookieName: `et_rt_${portal}`,
     body: res.body,

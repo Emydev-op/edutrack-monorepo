@@ -10,6 +10,7 @@ import {
   type GrowthRange,
   type RevenueRange,
 } from './dashboard.service.js';
+import { ResponseMessage } from '../../common/http/api-response.js';
 
 const pick = <T extends string>(allowed: readonly T[], value: unknown, fallback: T): T =>
   allowed.includes(value as T) ? (value as T) : fallback;
@@ -19,6 +20,7 @@ const pick = <T extends string>(allowed: readonly T[], value: unknown, fallback:
 export class DashboardController {
   constructor(private readonly dashboard: DashboardService) {}
 
+  @ResponseMessage('Dashboard loaded.')
   @Get('summary')
   @PlatformOnly()
   @ApiOperation({ summary: 'Greeting and platform totals' })
@@ -26,6 +28,7 @@ export class DashboardController {
     return this.dashboard.summary(user.userId);
   }
 
+  @ResponseMessage('Revenue loaded.')
   @Get('revenue')
   @PlatformOnly('Reports.View')
   @ApiQuery({ name: 'range', enum: REVENUE_RANGES, required: false })
@@ -34,6 +37,7 @@ export class DashboardController {
     return this.dashboard.revenue(pick<RevenueRange>(REVENUE_RANGES, range, '30d'));
   }
 
+  @ResponseMessage('Growth loaded.')
   @Get('growth')
   @PlatformOnly('Reports.View')
   @ApiQuery({ name: 'range', enum: GROWTH_RANGES, required: false })
@@ -42,6 +46,7 @@ export class DashboardController {
     return this.dashboard.growth(pick<GrowthRange>(GROWTH_RANGES, range, '6m'));
   }
 
+  @ResponseMessage('Subscription health loaded.')
   @Get('subscription-health')
   @PlatformOnly('Subscriptions.View')
   @ApiOperation({ summary: 'Subscriptions by status' })
@@ -49,6 +54,7 @@ export class DashboardController {
     return this.dashboard.subscriptionHealth();
   }
 
+  @ResponseMessage('Items needing attention loaded.')
   @Get('attention')
   @PlatformOnly()
   @ApiOperation({
@@ -58,6 +64,7 @@ export class DashboardController {
     return this.dashboard.attention();
   }
 
+  @ResponseMessage('Onboarding schools loaded.')
   @Get('onboarding')
   @PlatformOnly('Schools.View')
   @ApiOperation({ summary: 'Schools still setting up' })

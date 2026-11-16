@@ -20,10 +20,10 @@ describe('Health and error shape (e2e)', () => {
     const res = await t.http().get('/api/v1/nowhere').set('X-Request-Id', 'test-request-0001');
     expect(res.status).toBe(404);
     expect(res.headers['x-request-id']).toBe('test-request-0001');
-    expect(res.body).toMatchObject({
-      statusCode: 404,
-      code: 'NOT_FOUND',
-      error: 'NOT_FOUND',
+    expect(res.body).toEqual({
+      success: false,
+      message: expect.any(String),
+      error: { code: 'NOT_FOUND' },
       requestId: 'test-request-0001',
     });
   });
@@ -31,6 +31,10 @@ describe('Health and error shape (e2e)', () => {
   it('requires a token everywhere else', async () => {
     const res = await t.http().get('/api/v1/auth/me');
     expect(res.status).toBe(401);
-    expect(res.body).toMatchObject({ code: 'UNAUTHORIZED', message: 'Sign in to continue.' });
+    expect(res.body).toMatchObject({
+      success: false,
+      message: 'Sign in to continue.',
+      error: { code: 'UNAUTHORIZED' },
+    });
   });
 });

@@ -31,9 +31,9 @@ describe('Platform plans (e2e)', () => {
   it('lists the seeded plans with school counts and history', async () => {
     const res = await api.get('/api/v1/platform/plans');
     expect(res.status).toBe(200);
-    const names = (res.body as { name: string }[]).map((p) => p.name);
+    const names = (res.body.data as { name: string }[]).map((p) => p.name);
     expect(names).toEqual(expect.arrayContaining(['Starter', 'Growth', 'Enterprise']));
-    const growth = (res.body as Record<string, unknown>[]).find((p) => p.name === 'Growth')!;
+    const growth = (res.body.data as Record<string, unknown>[]).find((p) => p.name === 'Growth')!;
     expect(growth).toMatchObject({
       status: 'Active',
       pricing: { model: 'flat', prices: { annual: 1850000, term: 700000 } },
@@ -49,9 +49,9 @@ describe('Platform plans (e2e)', () => {
       .post('/api/v1/platform/plans')
       .send({ ...definition(`Pilot ${suffix}`), status: 'Draft' });
     expect(res.status).toBe(201);
-    expect(res.body).toMatchObject({ status: 'Draft', version: 1, schools: 0 });
-    expect(res.body.modules).toEqual(expect.arrayContaining(['profile', 'users', 'results']));
-    expect(res.body.history[0].summary).toBe('Created as draft');
+    expect(res.body.data).toMatchObject({ status: 'Draft', version: 1, schools: 0 });
+    expect(res.body.data.modules).toEqual(expect.arrayContaining(['profile', 'users', 'results']));
+    expect(res.body.data.history[0].summary).toBe('Created as draft');
   });
 
   it('refuses a duplicate name, a missing price, unknown modules and missing requirements', async () => {
@@ -59,7 +59,7 @@ describe('Platform plans (e2e)', () => {
       .post('/api/v1/platform/plans')
       .send({ ...definition('growth'), status: 'Draft' });
     expect(dup.status).toBe(409);
-    expect(dup.body.code).toBe('PLAN_NAME_TAKEN');
+    expect(dup.body.error.code).toBe('PLAN_NAME_TAKEN');
 
     const noPrice = await api.post('/api/v1/platform/plans').send({
       ...definition(`NoPrice ${suffix}`),
@@ -100,11 +100,11 @@ describe('Platform plans (e2e)', () => {
     const created = await api
       .post('/api/v1/platform/plans')
       .send({ ...definition(`Edit ${suffix}`), status: 'Draft' });
-    const id = created.body.id as string;
+    const id = created.body.data.id as string;
 
     const same = await api.patch(`/api/v1/platform/plans/${id}`).send(definition(`Edit ${suffix}`));
     expect(same.status).toBe(200);
-    expect(same.body.version).toBe(1);
+    expect(same.body.data.version).toBe(1);
 
     const edited = await api.patch(`/api/v1/platform/plans/${id}`).send({
       ...definition(`Edit ${suffix}`),
@@ -112,9 +112,9 @@ describe('Platform plans (e2e)', () => {
       limits: { students: null, branches: 3, users: 40, storage: 20 },
     });
     expect(edited.status).toBe(200);
-    expect(edited.body.version).toBe(2);
-    expect(edited.body.limits.students).toBeNull();
-    expect(edited.body.history[0]).toMatchObject({
+    expect(edited.body.data.version).toBe(2);
+    expect(edited.body.data.limits.students).toBeNull();
+    expect(edited.body.data.history[0]).toMatchObject({
       version: 2,
       summary: 'Price, Students changed',
       by: 'Tolu Bamidele',
@@ -124,16 +124,15 @@ describe('Platform plans (e2e)', () => {
       .post(`/api/v1/platform/plans/${id}/status`)
       .send({ status: 'Active' });
     expect(published.status).toBe(200);
-    expect(published.body.status).toBe('Active');
-    expect(published.body.history[0].summary).toBe('Published');
+    expect(published.body.data.status).toBe('Active');
+    expect(published.body.data.history[0].summary).toBe('Published');
 
     const archived = await api
       .post(`/api/v1/platform/plans/${id}/status`)
       .send({ status: 'Archived' });
-    expect(archived.body.history.map((h: { summary: string }) => h.summary).slice(0, 2)).toEqual([
-      'Archived',
-      'Published',
-    ]);
+    expect(
+      archived.body.data.history.map((h: { summary: string }) => h.summary).slice(0, 2),
+    ).toEqual(['Archived', 'Published']);
     const draftAgain = await api
       .post(`/api/v1/platform/plans/${id}/status`)
       .send({ status: 'Draft' });
@@ -141,26 +140,32 @@ describe('Platform plans (e2e)', () => {
   });
 
   it('deletes only unused drafts', async () => {
-    const plans = (await api.get('/api/v1/platform/plans')).body as { id: string; name: string }[];
+    const plans = (await api.get('/api/v1/platform/plans')).body.data as {
+      id: string;
+      name: string;
+    }[];
     const growth = plans.find((p) => p.name === 'Growth')!;
     const inUse = await api.delete(`/api/v1/platform/plans/${growth.id}`);
     expect(inUse.status).toBe(409);
-    expect(inUse.body.code).toBe('PLAN_IN_USE');
+    expect(inUse.body.error.code).toBe('PLAN_IN_USE');
 
     const draft = await api
       .post('/api/v1/platform/plans')
       .send({ ...definition(`Delete ${suffix}`), status: 'Draft' });
-    const del = await api.delete(`/api/v1/platform/plans/${draft.body.id}`);
+    const del = await api.delete(`/api/v1/platform/plans/${draft.body.data.id}`);
     expect(del.status).toBe(200);
-    expect((await api.get(`/api/v1/platform/plans/${draft.body.id}`)).status).toBe(404);
+    expect((await api.get(`/api/v1/platform/plans/${draft.body.data.id}`)).status).toBe(404);
   });
 
   it('lists a plan’s schools with usage, and 404s unknown or malformed ids', async () => {
-    const plans = (await api.get('/api/v1/platform/plans')).body as { id: string; name: string }[];
+    const plans = (await api.get('/api/v1/platform/plans')).body.data as {
+      id: string;
+      name: string;
+    }[];
     const starter = plans.find((p) => p.name === 'Starter')!;
     const schools = await api.get(`/api/v1/platform/plans/${starter.id}/schools`);
     expect(schools.status).toBe(200);
-    expect(schools.body).toEqual(
+    expect(schools.body.data).toEqual(
       expect.arrayContaining([expect.objectContaining({ name: 'Crestview College', branches: 1 })]),
     );
     expect((await api.get('/api/v1/platform/plans/not-a-plan')).status).toBe(404);

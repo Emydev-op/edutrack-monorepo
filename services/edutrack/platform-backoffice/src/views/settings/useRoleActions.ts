@@ -1,4 +1,5 @@
 import { useRouter } from 'vue-router';
+import { messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
 import { useDeleteRoleMutation } from '@/api/services/users';
@@ -42,9 +43,9 @@ export function useRoleActions() {
       confirmLabel: 'Delete role',
       tone: 'destructive',
       action: async () => {
-        await remove.mutateAsync(role.id);
+        const done = await remove.mutateAsync(role.id);
         onDeleted?.();
-        toast.success('Role deleted.');
+        toast.success(messageOf(done, 'Role deleted.'));
       },
     });
   }

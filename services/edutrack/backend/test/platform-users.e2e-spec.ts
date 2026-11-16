@@ -79,8 +79,9 @@ describe('Platform users and roles (e2e)', () => {
     });
 
     it('filters by view, status, role and search', async () => {
+      // A page of 50: earlier runs leave invited staff behind in the shared test database.
       const emails = async (query: string) =>
-        ((await api.get(`/api/v1/platform/users?${query}`)).body.data as UserRow[]).map(
+        ((await api.get(`/api/v1/platform/users?pageSize=50&${query}`)).body.data as UserRow[]).map(
           (u) => u.email,
         );
       expect(await emails('status=Suspended')).toEqual(['kemi@edutrack.ng']);
@@ -104,7 +105,7 @@ describe('Platform users and roles (e2e)', () => {
       const email = `amaka.${suffix}@edutrack.ng`;
       const res = await invite(api, email, 'agent', { firstName: 'Amaka', phone });
       expect(res.status).toBe(201);
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         email,
         status: 'Invited',
         invitation: 'Pending',
@@ -115,17 +116,17 @@ describe('Platform users and roles (e2e)', () => {
       const sent = t.notifications.find(email, 'invitation')!;
       expect(sent.data).toMatchObject({ position: 'Support Agent', organisation: 'EduTrack' });
 
-      expect((await invite(api, email, 'agent')).body.code).toBe('USER_EXISTS');
+      expect((await invite(api, email, 'agent')).body.error.code).toBe('USER_EXISTS');
       expect((await invite(api, `x.${suffix}@edutrack.ng`, 'agent', { phone: '12' })).status).toBe(
         422,
       );
-      expect((await invite(api, `y.${suffix}@edutrack.ng`, 'nobody')).body.fields).toEqual({
+      expect((await invite(api, `y.${suffix}@edutrack.ng`, 'nobody')).body.error.fields).toEqual({
         roleId: 'Choose a role.',
       });
 
       expect((await accept(tokenFrom(email), 'Amaka')).status).toBe(200);
-      const user = await api.get(`/api/v1/platform/users/${res.body.id}`);
-      expect(user.body).toMatchObject({ status: 'Active', invitation: 'Accepted' });
+      const user = await api.get(`/api/v1/platform/users/${res.body.data.id}`);
+      expect(user.body.data).toMatchObject({ status: 'Active', invitation: 'Accepted' });
       const alert = await t.prisma.notification.findFirst({
         where: { userId: ids.tolu, category: 'user.invitation', title: { contains: 'Amaka' } },
       });
@@ -139,15 +140,17 @@ describe('Platform users and roles (e2e)', () => {
       });
       expect(role.status).toBe(201);
       const email = `people.${suffix}@edutrack.ng`;
-      await invite(api, email, role.body.id);
+      await invite(api, email, role.body.data.id);
       await accept(tokenFrom(email), 'People');
       const { token } = await signIn(t, email, { portal: 'platform' });
       const people = authed(t, token);
 
       const above = await invite(people, `above.${suffix}@edutrack.ng`, 'admin');
       expect(above.status).toBe(403);
-      expect(above.body.code).toBe('ROLE_ABOVE_YOURS');
-      expect((await invite(people, `ok.${suffix}@edutrack.ng`, role.body.id)).status).toBe(201);
+      expect(above.body.error.code).toBe('ROLE_ABOVE_YOURS');
+      expect((await invite(people, `ok.${suffix}@edutrack.ng`, role.body.data.id)).status).toBe(
+        201,
+      );
       // Nor promote anyone above themselves.
       const promote = await people.patch(`/api/v1/platform/users/${ids.dayo}`).send({
         firstName: 'Dayo',
@@ -155,7 +158,7 @@ describe('Platform users and roles (e2e)', () => {
         email: 'dayo@edutrack.ng',
         roleId: 'admin',
       });
-      expect(promote.body.code).toBe('ROLE_ABOVE_YOURS');
+      expect(promote.body.error.code).toBe('ROLE_ABOVE_YOURS');
     });
 
     it('needs Users.Create', async () => {
@@ -174,7 +177,10 @@ describe('Platform users and roles (e2e)', () => {
         roleId: 'ops',
       });
       expect(res.status).toBe(200);
-      expect(res.body).toMatchObject({ lastName: 'Okafor-Eze', roleName: 'Platform Operations' });
+      expect(res.body.data).toMatchObject({
+        lastName: 'Okafor-Eze',
+        roleName: 'Platform Operations',
+      });
       const actions = (
         await t.prisma.auditEvent.findMany({
           where: { entityId: ids.ngozi, createdAt: { gte: new Date(Date.now() - 60_000) } },
@@ -196,17 +202,19 @@ describe('Platform users and roles (e2e)', () => {
         email: 'tolu@edutrack.ng',
         roleId: 'ops',
       });
-      expect(own.body.code).toBe('OWN_ACCOUNT');
+      expect(own.body.error.code).toBe('OWN_ACCOUNT');
       const taken = await api.patch(`/api/v1/platform/users/${ids.dayo}`).send({
         firstName: 'Dayo',
         lastName: 'Ola',
         email: 'tolu@edutrack.ng',
         roleId: 'agent',
       });
-      expect(taken.body.fields).toEqual({ email: 'Another EduTrack account uses this email.' });
+      expect(taken.body.error.fields).toEqual({
+        email: 'Another EduTrack account uses this email.',
+      });
       expect(
         (await api.post(`/api/v1/platform/users/${ids.tolu}/suspend`).send({ reason: 'x' })).body
-          .code,
+          .error.code,
       ).toBe('OWN_ACCOUNT');
     });
   });
@@ -224,7 +232,7 @@ describe('Platform users and roles (e2e)', () => {
         .post(`/api/v1/platform/users/${ids.ngozi}/suspend`)
         .send({ reason: 'Extended leave' });
       expect(res.status).toBe(200);
-      expect(res.body.status).toBe('Suspended');
+      expect(res.body.data.status).toBe('Suspended');
       expect((await ngozi.get('/api/v1/platform/schools')).status).toBe(401);
       const event = await t.prisma.auditEvent.findFirst({
         where: { action: 'user.suspend', entityId: ids.ngozi },
@@ -233,9 +241,9 @@ describe('Platform users and roles (e2e)', () => {
       expect(event?.summary).toBe('User suspended · Ngozi Okafor-Eze · “Extended leave”');
 
       const back = await api.post(`/api/v1/platform/users/${ids.ngozi}/reactivate`).send({});
-      expect(back.body.status).toBe('Active');
+      expect(back.body.data.status).toBe('Active');
       expect(
-        (await api.post(`/api/v1/platform/users/${ids.ngozi}/reactivate`).send({})).body.code,
+        (await api.post(`/api/v1/platform/users/${ids.ngozi}/reactivate`).send({})).body.error.code,
       ).toBe('NOT_SUSPENDED');
     });
 
@@ -243,7 +251,7 @@ describe('Platform users and roles (e2e)', () => {
       const res = await api
         .post(`/api/v1/platform/users/${ids.kemi}/deactivate`)
         .send({ reason: 'Left EduTrack' });
-      expect(res.body.status).toBe('Deactivated');
+      expect(res.body.data.status).toBe('Deactivated');
       const again = await api.post(`/api/v1/platform/users/${ids.kemi}/reactivate`).send({});
       expect(again.status).toBe(409);
       expect(again.body.message).toBe(
@@ -256,35 +264,40 @@ describe('Platform users and roles (e2e)', () => {
       expect(reset.status).toBe(200);
       expect(t.notifications.find('ngozi@edutrack.ng', 'password-reset')).toBeDefined();
       expect(
-        (await api.post(`/api/v1/platform/users/${ids.dayo}/password-reset`).send({})).body.code,
+        (await api.post(`/api/v1/platform/users/${ids.dayo}/password-reset`).send({})).body.error
+          .code,
       ).toBe('NOT_ACTIVE');
 
       await signIn(t, 'ngozi@edutrack.ng', { portal: 'platform' });
       const out = await api.post(`/api/v1/platform/users/${ids.ngozi}/sign-out`).send({});
       expect(out.status).toBe(200);
       const security = await api.get(`/api/v1/platform/users/${ids.ngozi}/security`);
-      expect(security.body).toMatchObject({ activeSessions: '0', failedSignIns: 0 });
+      expect(security.body.data).toMatchObject({ activeSessions: '0', failedSignIns: 0 });
     });
 
     it('resends and revokes invitations, and re-invites someone who left', async () => {
       const resent = await api
         .post(`/api/v1/platform/users/${ids.chika}/resend-invitation`)
         .send({});
-      expect(resent.body).toMatchObject({ status: 'Invited', invitation: 'Resent' });
+      expect(resent.body.data).toMatchObject({ status: 'Invited', invitation: 'Resent' });
       expect(t.notifications.find('chika@edutrack.ng', 'invitation')).toBeDefined();
       expect(
         (await api.post(`/api/v1/platform/users/${ids.ngozi}/resend-invitation`).send({})).body
-          .code,
+          .error.code,
       ).toBe('NOT_INVITED');
 
       const revoked = await api
         .post(`/api/v1/platform/users/${ids.dayo}/revoke-invitation`)
         .send({});
-      expect(revoked.body).toMatchObject({ status: 'Deactivated', invitation: 'Revoked' });
+      expect(revoked.body.data).toMatchObject({ status: 'Deactivated', invitation: 'Revoked' });
       t.notifications.clear();
       const again = await invite(api, 'dayo@edutrack.ng', 'agent');
       expect(again.status).toBe(201);
-      expect(again.body).toMatchObject({ id: ids.dayo, status: 'Invited', invitation: 'Pending' });
+      expect(again.body.data).toMatchObject({
+        id: ids.dayo,
+        status: 'Invited',
+        invitation: 'Pending',
+      });
       expect(t.notifications.find('dayo@edutrack.ng', 'invitation')).toBeDefined();
     });
   });
@@ -293,17 +306,17 @@ describe('Platform users and roles (e2e)', () => {
     it('shows activity, security and open issues', async () => {
       const activity = await api.get(`/api/v1/platform/users/${ids.ngozi}/activity`);
       expect(activity.status).toBe(200);
-      expect(activity.body.map((e: { title: string }) => e.title)).toEqual(
+      expect(activity.body.data.map((e: { title: string }) => e.title)).toEqual(
         expect.arrayContaining([
           'Signed in',
           'User suspended · Ngozi Okafor-Eze · “Extended leave”',
         ]),
       );
       const security = await api.get(`/api/v1/platform/users/${ids.tolu}/security`);
-      expect(security.body).toMatchObject({ twoFactor: 'Coming soon' });
-      expect(security.body.activeSessions).toMatch(/^\d+ · /);
+      expect(security.body.data).toMatchObject({ twoFactor: 'Coming soon' });
+      expect(security.body.data.activeSessions).toMatch(/^\d+ · /);
       const issues = await api.get(`/api/v1/platform/users/${ids.ngozi}/open-issues`);
-      expect(issues.body).toEqual({ count: expect.any(Number) });
+      expect(issues.body.data).toEqual({ count: expect.any(Number) });
     });
   });
 
@@ -311,14 +324,14 @@ describe('Platform users and roles (e2e)', () => {
     it('lists predefined roles first with how many people hold each', async () => {
       const res = await api.get('/api/v1/platform/roles');
       expect(res.status).toBe(200);
-      expect(res.body.slice(0, 5).map((r: { id: string }) => r.id)).toEqual([
+      expect(res.body.data.slice(0, 5).map((r: { id: string }) => r.id)).toEqual([
         'admin',
         'ops',
         'support',
         'agent',
         'finance',
       ]);
-      expect(res.body[0]).toMatchObject({ predefined: true, activeUsers: 1 });
+      expect(res.body.data[0]).toMatchObject({ predefined: true, activeUsers: 1 });
     });
 
     it('creates, refuses duplicates and empty roles, and deletes only unused custom roles', async () => {
@@ -333,7 +346,7 @@ describe('Platform users and roles (e2e)', () => {
         .post('/api/v1/platform/roles')
         .send({ name, permissions: { Reports: ['View'], Audit: ['View'], Users: [] } });
       expect(ok.status).toBe(201);
-      expect(ok.body).toMatchObject({
+      expect(ok.body.data).toMatchObject({
         name,
         description: 'Custom role',
         permissions: { Audit: ['View'], Reports: ['View'] },
@@ -345,7 +358,7 @@ describe('Platform users and roles (e2e)', () => {
           await api
             .post('/api/v1/platform/roles')
             .send({ name: name.toUpperCase(), permissions: { Audit: ['View'] } })
-        ).body.code,
+        ).body.error.code,
       ).toBe('ROLE_NAME_TAKEN');
       expect(
         (
@@ -355,15 +368,17 @@ describe('Platform users and roles (e2e)', () => {
         ).body.message,
       ).toBe('Choose at least one permission.');
 
-      expect((await api.delete('/api/v1/platform/roles/admin')).body.code).toBe('ROLE_PREDEFINED');
-      const people = (await api.get('/api/v1/platform/roles')).body.find(
+      expect((await api.delete('/api/v1/platform/roles/admin')).body.error.code).toBe(
+        'ROLE_PREDEFINED',
+      );
+      const people = (await api.get('/api/v1/platform/roles')).body.data.find(
         (r: { name: string }) => r.name === `People ${suffix}`,
       );
-      expect((await api.delete(`/api/v1/platform/roles/${people.id}`)).body.code).toBe(
+      expect((await api.delete(`/api/v1/platform/roles/${people.id}`)).body.error.code).toBe(
         'ROLE_IN_USE',
       );
-      expect((await api.delete(`/api/v1/platform/roles/${ok.body.id}`)).status).toBe(200);
-      expect((await api.delete(`/api/v1/platform/roles/${ok.body.id}`)).status).toBe(404);
+      expect((await api.delete(`/api/v1/platform/roles/${ok.body.data.id}`)).status).toBe(200);
+      expect((await api.delete(`/api/v1/platform/roles/${ok.body.data.id}`)).status).toBe(404);
     });
 
     it('needs Users.Manage to change roles', async () => {

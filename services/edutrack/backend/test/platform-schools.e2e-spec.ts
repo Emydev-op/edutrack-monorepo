@@ -27,7 +27,7 @@ describe('Platform schools and subscriptions (e2e)', () => {
       const { token } = await signIn(t, 'adaeze.okonkwo@greenfield.edu.ng');
       const res = await authed(t, token).get('/api/v1/platform/schools');
       expect(res.status).toBe(403);
-      expect(res.body.code).toBe('PLATFORM_ONLY');
+      expect(res.body.error.code).toBe('PLATFORM_ONLY');
       expect((await t.http().get('/api/v1/platform/schools')).status).toBe(401);
     });
 
@@ -53,7 +53,17 @@ describe('Platform schools and subscriptions (e2e)', () => {
     it('lists schools with the back office’s fields, newest first', async () => {
       const res = await api.get('/api/v1/platform/schools?pageSize=50');
       expect(res.status).toBe(200);
-      expect(res.body.meta).toMatchObject({ page: 1, pageSize: 50 });
+      expect(res.body).toMatchObject({
+        success: true,
+        message: 'Schools loaded.',
+        data: expect.any(Array),
+        meta: {
+          page: 1,
+          pageSize: 50,
+          total: expect.any(Number),
+          totalPages: expect.any(Number),
+        },
+      });
       const greenfield = (res.body.data as School[]).find((s) => s.id === ids.greenfield)!;
       expect(greenfield).toMatchObject({
         name: 'Greenfield Academy',
@@ -98,14 +108,14 @@ describe('Platform schools and subscriptions (e2e)', () => {
 
     it('shows onboarding progress and a pending first administrator', async () => {
       const lagoon = await api.get(`/api/v1/platform/schools/${ids.lagoon}`);
-      expect(lagoon.body).toMatchObject({
+      expect(lagoon.body.data).toMatchObject({
         status: 'Onboarding',
         setupProgress: 0,
         currentStep: 'Accept invitation',
         admin: 'Peter Okon (invited)',
       });
       const admins = await api.get(`/api/v1/platform/schools/${ids.lagoon}/administrators`);
-      expect(admins.body).toEqual([
+      expect(admins.body.data).toEqual([
         expect.objectContaining({
           name: 'Peter Okon',
           role: 'Owner',
@@ -118,19 +128,19 @@ describe('Platform schools and subscriptions (e2e)', () => {
 
     it('returns usage, billing, activity and audit', async () => {
       const usage = await api.get(`/api/v1/platform/schools/${ids.greenfield}/usage`);
-      expect(usage.body).toMatchObject({ storageLimitGb: 50 });
-      expect(usage.body.activeStaff).toBeGreaterThan(0);
+      expect(usage.body.data).toMatchObject({ storageLimitGb: 50 });
+      expect(usage.body.data.activeStaff).toBeGreaterThan(0);
 
       const billing = await api.get(`/api/v1/platform/schools/${ids.unity}/billing`);
-      expect(billing.body[0]).toMatchObject({ amount: '₦1,850,000', status: 'Overdue' });
-      expect(billing.body.at(-1).status).toBe('Paid');
+      expect(billing.body.data[0]).toMatchObject({ amount: '₦1,850,000', status: 'Overdue' });
+      expect(billing.body.data.at(-1).status).toBe('Paid');
 
       const activity = await api.get(`/api/v1/platform/schools/${ids.pinnacle}/activity`);
-      expect(activity.body[0]).toMatchObject({ tone: 'error', detail: 'by Tolu Bamidele' });
-      expect(activity.body[0].title).toMatch(/^School suspended · Pinnacle/);
+      expect(activity.body.data[0]).toMatchObject({ tone: 'error', detail: 'by Tolu Bamidele' });
+      expect(activity.body.data[0].title).toMatch(/^School suspended · Pinnacle/);
 
       const audit = await api.get(`/api/v1/platform/schools/${ids.pinnacle}/audit`);
-      expect(audit.body[0]).toMatchObject({
+      expect(audit.body.data[0]).toMatchObject({
         action: 'school.suspend',
         previousValue: 'Active',
         newValue: 'Suspended',
@@ -166,14 +176,14 @@ describe('Platform schools and subscriptions (e2e)', () => {
         state: 'Oyo',
       });
       expect(res.status).toBe(200);
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         name: 'Hillcrest Nursery & Primary School',
         contactEmail: 'office@hillcrest.edu.ng',
         phone: '0803 111 2222',
       });
       const audit = await api.get(`/api/v1/platform/schools/${ids.hillcrest}/audit`);
-      expect(audit.body[0]).toMatchObject({ action: 'school.update', actor: 'Tolu Bamidele' });
-      expect(audit.body[0].ipDevice).toMatch(/^10\.\d+\.\d+\.\d+ · /);
+      expect(audit.body.data[0]).toMatchObject({ action: 'school.update', actor: 'Tolu Bamidele' });
+      expect(audit.body.data[0].ipDevice).toMatch(/^10\.\d+\.\d+\.\d+ · /);
     });
 
     it('suspends a school: its staff are signed out and can’t sign back in; reactivating restores it', async () => {
@@ -185,29 +195,30 @@ describe('Platform schools and subscriptions (e2e)', () => {
         .post(`/api/v1/platform/schools/${ids.greenfield}/suspend`)
         .send({ reason: 'Fraud investigation' });
       expect(res.status).toBe(200);
-      expect(res.body.status).toBe('Suspended');
+      expect(res.body).toMatchObject({ success: true, message: 'Greenfield Academy suspended.' });
+      expect(res.body.data.status).toBe('Suspended');
       const again = await api
         .post(`/api/v1/platform/schools/${ids.greenfield}/suspend`)
         .send({ reason: 'Again' });
-      expect(again.body.code).toBe('ALREADY_SUSPENDED');
+      expect(again.body.error.code).toBe('ALREADY_SUSPENDED');
 
       expect((await authed(t, staff.token).get('/api/v1/auth/me')).status).toBe(401);
       const blocked = await login(t, 'adaeze.okonkwo@greenfield.edu.ng');
       expect(blocked.status).toBe(403);
-      expect(blocked.body.code).toBe('SCHOOL_SUSPENDED');
+      expect(blocked.body.error.code).toBe('SCHOOL_SUSPENDED');
 
       const back = await api.post(`/api/v1/platform/schools/${ids.greenfield}/reactivate`);
       expect(back.status).toBe(200);
-      expect(back.body.status).toBe('Active');
+      expect(back.body.data.status).toBe('Active');
       expect((await login(t, 'adaeze.okonkwo@greenfield.edu.ng')).status).toBe(200);
       const notSuspended = await api.post(`/api/v1/platform/schools/${ids.greenfield}/reactivate`);
-      expect(notSuspended.body.code).toBe('NOT_SUSPENDED');
+      expect(notSuspended.body.error.code).toBe('NOT_SUSPENDED');
     });
 
     it('returns an onboarding school to Onboarding when reactivated', async () => {
       await api.post(`/api/v1/platform/schools/${ids.crestview}/suspend`).send({ reason: 'Check' });
       const back = await api.post(`/api/v1/platform/schools/${ids.crestview}/reactivate`);
-      expect(back.body.status).toBe('Onboarding');
+      expect(back.body.data.status).toBe('Onboarding');
     });
 
     it('bulk-suspends, skipping schools already suspended', async () => {
@@ -215,7 +226,7 @@ describe('Platform schools and subscriptions (e2e)', () => {
         .post('/api/v1/platform/schools/bulk-suspend')
         .send({ ids: [ids.royal, ids.pinnacle], reason: 'Unpaid' });
       expect(res.status).toBe(200);
-      expect(res.body).toEqual({ suspended: 1 });
+      expect(res.body.data).toEqual({ suspended: 1 });
       const missing = await api
         .post('/api/v1/platform/schools/bulk-suspend')
         .send({ ids: ['00000000-0000-4000-8000-000000000000'], reason: 'x' });
@@ -227,7 +238,7 @@ describe('Platform schools and subscriptions (e2e)', () => {
       const res = await api
         .post('/api/v1/platform/schools/reminders')
         .send({ ids: [ids.hillcrest, ids.pinnacle] });
-      expect(res.body).toEqual({ queued: 1 });
+      expect(res.body.data).toEqual({ queued: 1 });
       const mail = t.notifications.find('bola.ajayi@hillcrest.edu.ng', 'renewal-reminder');
       expect(mail?.data).toMatchObject({ plan: 'Starter', amount: '₦650,000' });
     });
@@ -237,8 +248,10 @@ describe('Platform schools and subscriptions (e2e)', () => {
         .post(`/api/v1/platform/schools/${ids.kingsway}/support-sessions`)
         .send({ reason: 'SUP-1182 result publication' });
       expect(res.status).toBe(201);
-      expect(res.body.expiresIn).toBe('30 minutes');
-      const row = await t.prisma.supportSession.findUnique({ where: { id: res.body.sessionId } });
+      expect(res.body.data.expiresIn).toBe('30 minutes');
+      const row = await t.prisma.supportSession.findUnique({
+        where: { id: res.body.data.sessionId },
+      });
       expect(row).toMatchObject({ mode: 'READ_ONLY', endedAt: null });
       const suspended = await api
         .post(`/api/v1/platform/schools/${ids.pinnacle}/support-sessions`)
@@ -257,7 +270,7 @@ describe('Platform schools and subscriptions (e2e)', () => {
         .post(`/api/v1/platform/schools/${ids.kingsway}/administrators`)
         .send({ name: 'Ada Deputy', email, role: 'School Admin', scope: 'GRA Campus' });
       expect(res.status).toBe(201);
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         name: 'Ada Deputy',
         scope: 'GRA Campus',
         status: 'Invited',
@@ -268,16 +281,16 @@ describe('Platform schools and subscriptions (e2e)', () => {
       const dup = await api
         .post(`/api/v1/platform/schools/${ids.kingsway}/administrators`)
         .send({ name: 'Ada Deputy', email, role: 'Owner', scope: 'All branches' });
-      expect(dup.body.code).toBe('ALREADY_MEMBER');
+      expect(dup.body.error.code).toBe('ALREADY_MEMBER');
 
       const resent = await api.post(
-        `/api/v1/platform/schools/${ids.kingsway}/administrators/${res.body.id}/resend`,
+        `/api/v1/platform/schools/${ids.kingsway}/administrators/${res.body.data.id}/resend`,
       );
       expect(resent.status).toBe(200);
-      expect(resent.body.note).toMatch(/^Resent /);
+      expect(resent.body.data.note).toMatch(/^Resent /);
 
       const admins = await api.get(`/api/v1/platform/schools/${ids.kingsway}/administrators`);
-      const active = (admins.body as { id: string; status: string }[]).find(
+      const active = (admins.body.data as { id: string; status: string }[]).find(
         (a) => a.status === 'Active',
       )!;
       const used = await api.post(
@@ -328,7 +341,7 @@ describe('Platform schools and subscriptions (e2e)', () => {
       const name = `Bright Future ${suffix}`;
       const res = await api.post('/api/v1/platform/schools').send(payload(name));
       expect(res.status).toBe(201);
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         name,
         status: 'Onboarding',
         plan: 'Growth',
@@ -339,8 +352,8 @@ describe('Platform schools and subscriptions (e2e)', () => {
         brandColor: '#1F6FEB',
         admin: 'Funmi Ade (invited) +1',
       });
-      const id = res.body.id as string;
-      expect(res.body.subdomain).toBe(`bright-future-${suffix}.localhost`);
+      const id = res.body.data.id as string;
+      expect(res.body.data.subdomain).toBe(`bright-future-${suffix}.localhost`);
 
       const school = await t.prisma.school.findUniqueOrThrow({
         where: { id },
@@ -387,7 +400,7 @@ describe('Platform schools and subscriptions (e2e)', () => {
       expect(t.notifications.find('+2348035550101', 'invitation')).toBeDefined();
 
       const admins = await api.get(`/api/v1/platform/schools/${id}/administrators`);
-      expect(admins.body.map((a: { scope: string }) => a.scope)).toEqual([
+      expect(admins.body.data.map((a: { scope: string }) => a.scope)).toEqual([
         'All branches',
         'Ajah Campus',
       ]);
@@ -403,10 +416,13 @@ describe('Platform schools and subscriptions (e2e)', () => {
       expect(accepted.status).toBe(200);
       const signedIn = await login(t, `funmi.${suffix}@school.ng`, 'Bright-Future-1');
       expect(signedIn.status).toBe(200);
-      expect(signedIn.body.school.name).toBe(name);
+      expect(signedIn.body.data.school.name).toBe(name);
 
       const after = await api.get(`/api/v1/platform/schools/${id}`);
-      expect(after.body).toMatchObject({ currentStep: 'School Profile', admin: 'Funmi Ade +1' });
+      expect(after.body.data).toMatchObject({
+        currentStep: 'School Profile',
+        admin: 'Funmi Ade +1',
+      });
     });
 
     it('refuses bad provisioning requests with field messages', async () => {
@@ -474,8 +490,8 @@ describe('Platform schools and subscriptions (e2e)', () => {
       const second = await api
         .post('/api/v1/platform/schools')
         .send(payload(`Twin ${suffix}!`, { admins: admin('b') }));
-      expect(first.body.subdomain).toBe(`twin-${suffix}.localhost`);
-      expect(second.body.subdomain).toBe(`twin-${suffix}-2.localhost`);
+      expect(first.body.data.subdomain).toBe(`twin-${suffix}.localhost`);
+      expect(second.body.data.subdomain).toBe(`twin-${suffix}-2.localhost`);
     });
   });
 
@@ -503,7 +519,7 @@ describe('Platform schools and subscriptions (e2e)', () => {
 
     it('shows a school’s subscription', async () => {
       const res = await api.get(`/api/v1/platform/schools/${ids.kingsway}/subscription`);
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         plan: 'Enterprise',
         price: '₦4,500,000 / year',
         studentLimit: 'Unlimited',
@@ -511,7 +527,7 @@ describe('Platform schools and subscriptions (e2e)', () => {
         status: 'Active',
       });
       const brook = await api.get(`/api/v1/platform/schools/${ids.brookfield}/subscription`);
-      expect(brook.body.status).toBe('Active');
+      expect(brook.body.data.status).toBe('Active');
     });
 
     it('runs every subscription action with its rules', async () => {
@@ -525,31 +541,35 @@ describe('Platform schools and subscriptions (e2e)', () => {
         reason: 'Bank transfer confirmed',
       });
       expect(extended.status).toBe(200);
-      expect(extended.body.status).toBe('Active');
+      expect(extended.body.data.status).toBe('Active');
 
       const same = await act({ action: 'change_plan', plan: 'Growth' });
-      expect(same.body.code).toBe('SAME_PLAN');
+      expect(same.body.error.code).toBe('SAME_PLAN');
       const changed = await act({ action: 'change_plan', plan: 'Starter' });
-      expect(changed.body.plan).toBe('Starter');
+      expect(changed.body.data.plan).toBe('Starter');
       const sub = await api.get(`/api/v1/platform/schools/${ids.unity}/subscription`);
-      expect(sub.body.price).toBe('₦650,000 / year');
+      expect(sub.body.data.price).toBe('₦650,000 / year');
 
       const grace = await act({ action: 'enter_grace' });
-      expect(grace.body.status).toBe('Grace period');
-      expect((await act({ action: 'enter_grace' })).body.code).toBe('ALREADY_IN_GRACE');
-      expect((await act({ action: 'restrict', reason: 'Overdue' })).body.status).toBe('Restricted');
-      expect((await act({ action: 'cancel', reason: 'Closing' })).body.status).toBe('Cancelled');
-      expect((await act({ action: 'enter_grace' })).body.code).toBe('CANCELLED');
-      expect((await act({ action: 'reactivate' })).body.status).toBe('Active');
-      expect((await act({ action: 'reactivate' })).body.code).toBe('ALREADY_ACTIVE');
+      expect(grace.body.data.status).toBe('Grace period');
+      expect((await act({ action: 'enter_grace' })).body.error.code).toBe('ALREADY_IN_GRACE');
+      expect((await act({ action: 'restrict', reason: 'Overdue' })).body.data.status).toBe(
+        'Restricted',
+      );
+      expect((await act({ action: 'cancel', reason: 'Closing' })).body.data.status).toBe(
+        'Cancelled',
+      );
+      expect((await act({ action: 'enter_grace' })).body.error.code).toBe('CANCELLED');
+      expect((await act({ action: 'reactivate' })).body.data.status).toBe('Active');
+      expect((await act({ action: 'reactivate' })).body.error.code).toBe('ALREADY_ACTIVE');
       expect((await act({ action: 'teleport' })).status).toBe(422);
 
       const audit = await api.get(`/api/v1/platform/schools/${ids.unity}/audit`);
-      expect(audit.body.slice(0, 2).map((e: { action: string }) => e.action)).toEqual([
+      expect(audit.body.data.slice(0, 2).map((e: { action: string }) => e.action)).toEqual([
         'subscription.reactivate',
         'subscription.cancel',
       ]);
-      expect(audit.body[0]).toMatchObject({
+      expect(audit.body.data[0]).toMatchObject({
         previousValue: 'Starter · Cancelled',
         newValue: 'Starter · Active',
       });
@@ -591,10 +611,10 @@ describe('Platform schools and subscriptions (e2e)', () => {
   describe('dashboard', () => {
     it('summarises the platform', async () => {
       const res = await api.get('/api/v1/platform/dashboard/summary');
-      expect(res.body.greetingName).toBe('Tolu');
-      expect(res.body.generatedAt).toMatch(/WAT$/);
-      expect(res.body.totals.schools).toBeGreaterThanOrEqual(9);
-      expect(res.body.totals.stalledOnboarding).toBeGreaterThanOrEqual(1);
+      expect(res.body.data.greetingName).toBe('Tolu');
+      expect(res.body.data.generatedAt).toMatch(/WAT$/);
+      expect(res.body.data.totals.schools).toBeGreaterThanOrEqual(9);
+      expect(res.body.data.totals.stalledOnboarding).toBeGreaterThanOrEqual(1);
     });
 
     it('charts revenue for each range, defaulting to 30 days', async () => {
@@ -607,21 +627,21 @@ describe('Platform schools and subscriptions (e2e)', () => {
       ] as const) {
         const res = await api.get(`/api/v1/platform/dashboard/revenue?range=${range}`);
         expect(res.status).toBe(200);
-        expect(res.body.points).toHaveLength(points);
+        expect(res.body.data.points).toHaveLength(points);
       }
       const fallback = await api.get('/api/v1/platform/dashboard/revenue?range=forever');
-      expect(fallback.body.label).toBe('Last 30 days');
+      expect(fallback.body.data.label).toBe('Last 30 days');
       const year = await api.get('/api/v1/platform/dashboard/revenue?range=12m');
-      expect(year.body.total).toBeGreaterThan(0);
-      expect(year.body.points.map((p: { label: string }) => p.label)).not.toContain('Sept');
-      expect(year.body.stats.overdue).toBeGreaterThanOrEqual(1);
+      expect(year.body.data.total).toBeGreaterThan(0);
+      expect(year.body.data.points.map((p: { label: string }) => p.label)).not.toContain('Sept');
+      expect(year.body.data.stats.overdue).toBeGreaterThanOrEqual(1);
     });
 
     it('returns growth, subscription health, attention and onboarding', async () => {
       const growth = await api.get('/api/v1/platform/dashboard/growth?range=12m');
-      expect(growth.body.months).toHaveLength(12);
+      expect(growth.body.data.months).toHaveLength(12);
       const health = await api.get('/api/v1/platform/dashboard/subscription-health');
-      expect(health.body.map((h: { label: string }) => h.label)).toEqual([
+      expect(health.body.data.map((h: { label: string }) => h.label)).toEqual([
         'Active',
         'Expiring soon',
         'Grace period',
@@ -629,15 +649,15 @@ describe('Platform schools and subscriptions (e2e)', () => {
         'Expired',
       ]);
       const attention = await api.get('/api/v1/platform/dashboard/attention');
-      const statuses = attention.body.map((a: { status: string }) => a.status);
+      const statuses = attention.body.data.map((a: { status: string }) => a.status);
       expect(statuses).toEqual(expect.arrayContaining(['Onboarding', 'Pending']));
       const onboarding = await api.get('/api/v1/platform/dashboard/onboarding');
-      expect(onboarding.body.every((s: { setupProgress: number }) => s.setupProgress < 100)).toBe(
-        true,
-      );
+      expect(
+        onboarding.body.data.every((s: { setupProgress: number }) => s.setupProgress < 100),
+      ).toBe(true);
       const recent = await api.get('/api/v1/platform/activity/recent');
-      expect(recent.body.length).toBeGreaterThan(0);
-      expect(recent.body[0]).toHaveProperty('when');
+      expect(recent.body.data.length).toBeGreaterThan(0);
+      expect(recent.body.data[0]).toHaveProperty('when');
     });
   });
 });

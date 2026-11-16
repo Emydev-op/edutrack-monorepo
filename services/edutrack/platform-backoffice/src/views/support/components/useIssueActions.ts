@@ -1,4 +1,4 @@
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { shallowRef } from 'vue';
 import { toast } from 'vue-sonner';
 
@@ -73,7 +73,9 @@ export function useIssueActions() {
       confirmLabel: reassign ? 'Reassign' : 'Assign',
       action: async ({ option, text }) => {
         const issue = await update.mutateAsync({ assignee: option, reason: text || undefined });
-        toast.success(`${reassign ? 'Reassigned' : 'Assigned'} to ${issue.assignee}.`);
+        toast.success(
+          messageOf(issue, `${reassign ? 'Reassigned' : 'Assigned'} to ${issue.assignee}.`),
+        );
       },
     });
   }
@@ -84,8 +86,10 @@ export function useIssueActions() {
   }
 
   async function start(i: SupportIssue) {
-    await transition.mutateAsync({ to: 'In Progress' });
-    toast.success(i.status === 'Escalated' ? 'Escalation accepted.' : 'Work started.');
+    const saved = await transition.mutateAsync({ to: 'In Progress' });
+    toast.success(
+      messageOf(saved, i.status === 'Escalated' ? 'Escalation accepted.' : 'Work started.'),
+    );
   }
 
   const resolve = (i: SupportIssue) =>
@@ -111,8 +115,8 @@ export function useIssueActions() {
       },
       confirmLabel: 'Resolve',
       action: async ({ option, text }) => {
-        await transition.mutateAsync({ to: 'Resolved', option, note: text });
-        toast.success('Resolved. The school has been asked to confirm.');
+        const saved = await transition.mutateAsync({ to: 'Resolved', option, note: text });
+        toast.success(messageOf(saved, 'Resolved. The school has been asked to confirm.'));
       },
     });
 
@@ -135,8 +139,13 @@ export function useIssueActions() {
       confirmLabel: 'Escalate',
       tone: 'destructive',
       action: async ({ option, text }) => {
-        await transition.mutateAsync({ to: 'Escalated', option, note: text });
-        toast.success(`Escalated to ${ESCALATION_TARGETS.find((t) => t.team === option)?.label}.`);
+        const saved = await transition.mutateAsync({ to: 'Escalated', option, note: text });
+        toast.success(
+          messageOf(
+            saved,
+            `Escalated to ${ESCALATION_TARGETS.find((t) => t.team === option)?.label}.`,
+          ),
+        );
       },
     });
 
@@ -153,8 +162,8 @@ export function useIssueActions() {
       },
       confirmLabel: 'Send and wait',
       action: async ({ text }) => {
-        await transition.mutateAsync({ to: 'Waiting for School', note: text });
-        toast.success('Question sent. SLA paused.');
+        const saved = await transition.mutateAsync({ to: 'Waiting for School', note: text });
+        toast.success(messageOf(saved, 'Question sent. SLA paused.'));
       },
     });
 
@@ -171,8 +180,8 @@ export function useIssueActions() {
       },
       confirmLabel: 'Put on hold',
       action: async ({ option, text }) => {
-        await transition.mutateAsync({ to: 'On Hold', option, note: text });
-        toast.success('On hold. SLA paused.');
+        const saved = await transition.mutateAsync({ to: 'On Hold', option, note: text });
+        toast.success(messageOf(saved, 'On hold. SLA paused.'));
       },
     });
 
@@ -185,8 +194,8 @@ export function useIssueActions() {
       ],
       confirmLabel: 'Resume',
       action: async () => {
-        await transition.mutateAsync({ to: 'In Progress' });
-        toast.success('Work resumed.');
+        const saved = await transition.mutateAsync({ to: 'In Progress' });
+        toast.success(messageOf(saved, 'Work resumed.'));
       },
     });
 
@@ -205,8 +214,8 @@ export function useIssueActions() {
       },
       confirmLabel: 'Reopen',
       action: async ({ text }) => {
-        await transition.mutateAsync({ to: 'Reopened', note: text });
-        toast.success(`${i.id} reopened.`);
+        const saved = await transition.mutateAsync({ to: 'Reopened', note: text });
+        toast.success(messageOf(saved, `${i.id} reopened.`));
       },
     });
 
@@ -218,8 +227,8 @@ export function useIssueActions() {
       details: [['Resolution', i.resolution ?? '—']],
       confirmLabel: 'Close ticket',
       action: async () => {
-        await transition.mutateAsync({ to: 'Closed' });
-        toast.success(`${i.id} closed.`);
+        const saved = await transition.mutateAsync({ to: 'Closed' });
+        toast.success(messageOf(saved, `${i.id} closed.`));
       },
     });
 
@@ -235,8 +244,8 @@ export function useIssueActions() {
       confirmLabel: 'Close',
       tone: 'destructive',
       action: async ({ option, text }) => {
-        await transition.mutateAsync({ to: 'Closed', option, note: text });
-        toast.success(`${i.id} closed.`);
+        const saved = await transition.mutateAsync({ to: 'Closed', option, note: text });
+        toast.success(messageOf(saved, `${i.id} closed.`));
       },
     });
 
@@ -253,8 +262,8 @@ export function useIssueActions() {
       confirmLabel: 'Change',
       action: async ({ option }) => {
         if (option === i.priority) return;
-        await update.mutateAsync({ priority: option as SupportIssue['priority'] });
-        toast.success(`Priority set to ${option}.`);
+        const saved = await update.mutateAsync({ priority: option as SupportIssue['priority'] });
+        toast.success(messageOf(saved, `Priority set to ${option}.`));
       },
     });
 

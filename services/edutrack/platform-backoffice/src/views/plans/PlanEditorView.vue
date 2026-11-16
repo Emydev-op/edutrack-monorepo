@@ -3,7 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Checkbox } from '@edutrack/ui/components/checkbox';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { Spinner } from '@edutrack/ui/components/spinner';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { useField, useForm } from 'vee-validate';
 import { computed, nextTick, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
@@ -198,9 +198,12 @@ async function createPlan(planStatus: 'Active' | 'Draft') {
   await router.replace({ name: r.detail.name, params: { id: created.id } });
   leaving = false;
   toast.success(
-    planStatus === 'Active'
-      ? `${created.name} published. It’s now offered when provisioning schools.`
-      : `${created.name} saved as a draft.`,
+    messageOf(
+      created,
+      planStatus === 'Active'
+        ? `${created.name} published. It’s now offered when provisioning schools.`
+        : `${created.name} saved as a draft.`,
+    ),
   );
 }
 
@@ -235,7 +238,10 @@ async function saveChanges() {
   const saved = await update.mutateAsync({ id: plan.value!.id, plan: current.value });
   loadSaved(saved);
   toast.success(
-    `${saved.name} saved${saved.status === 'Active' && saved.schools ? '. Schools pick up changes as described.' : '.'}`,
+    messageOf(
+      saved,
+      `${saved.name} saved${saved.status === 'Active' && saved.schools ? '. Schools pick up changes as described.' : '.'}`,
+    ),
   );
 }
 
@@ -304,8 +310,10 @@ function changeStatus(next: 'Active' | 'Archived') {
   if (changes.value.length)
     return void toast.warning('Save or discard your edits before changing the plan’s status.');
   const run = async () => {
-    await setStatus.mutateAsync({ id: p.id, status: next });
-    toast.success(next === 'Archived' ? `${p.name} archived.` : `${p.name} is now active.`);
+    const saved = await setStatus.mutateAsync({ id: p.id, status: next });
+    toast.success(
+      messageOf(saved, next === 'Archived' ? `${p.name} archived.` : `${p.name} is now active.`),
+    );
   };
   if (next === 'Archived')
     return confirm({
@@ -343,10 +351,10 @@ function deleteDraft() {
     confirmLabel: 'Delete draft',
     tone: 'destructive',
     action: async () => {
-      await remove.mutateAsync(p.id);
+      const saved = await remove.mutateAsync(p.id);
       leaving = true;
       await router.push({ name: r.list.name });
-      toast.success(`${p.name} deleted.`);
+      toast.success(messageOf(saved, `${p.name} deleted.`));
     },
   });
 }

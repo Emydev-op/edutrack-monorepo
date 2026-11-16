@@ -8,6 +8,7 @@ import { cn } from '@edutrack/ui/lib/utils';
 import { ArrowRightIcon, InfoIcon, PaperclipIcon } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
+import { messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
 import { useIssueMessageMutation, useIssueQuery } from '@/api/services/support';
@@ -41,8 +42,10 @@ const picksUp = computed(
 
 async function send() {
   if (!draft.value.trim()) return void (draftError.value = 'Write something first');
-  await sendMessage.mutateAsync({ kind: mode.value, text: draft.value.trim() });
-  toast.success(mode.value === 'note' ? 'Internal note added.' : 'Reply sent to the school.');
+  const sent = await sendMessage.mutateAsync({ kind: mode.value, text: draft.value.trim() });
+  toast.success(
+    messageOf(sent, mode.value === 'note' ? 'Internal note added.' : 'Reply sent to the school.'),
+  );
   draft.value = '';
 }
 watch(draft, () => (draftError.value = ''));

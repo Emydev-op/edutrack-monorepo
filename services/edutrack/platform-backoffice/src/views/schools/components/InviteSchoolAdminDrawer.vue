@@ -3,6 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { useForm } from 'vee-validate';
 import { watch } from 'vue';
+import { messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
 import { useInviteSchoolAdminMutation } from '@/api/services/schools';
@@ -23,9 +24,9 @@ const { handleSubmit, meta, resetForm } = useForm({
 watch(open, (isOpen) => isOpen && resetForm());
 
 const send = handleSubmit(async (values) => {
-  await invite.mutateAsync(values);
+  const admin = await invite.mutateAsync(values);
   open.value = false;
-  toast.success(`Invitation sent to ${values.email}.`);
+  toast.success(messageOf(admin, `Invitation sent to ${values.email}.`));
 });
 </script>
 

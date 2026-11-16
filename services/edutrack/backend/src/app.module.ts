@@ -1,9 +1,10 @@
 import { type MiddlewareConsumer, Module, type NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module.js';
 import { ClockModule } from './common/clock/clock.js';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter.js';
+import { ResponseEnvelopeInterceptor } from './common/http/response-envelope.interceptor.js';
 import { RequestContextMiddleware } from './common/logging/request-context.middleware.js';
 import { validateEnv } from './config/env.validation.js';
 import { HealthModule } from './health/health.module.js';
@@ -30,7 +31,10 @@ import { TenantHostMiddleware } from './tenancy/tenant-host.middleware.js';
     PlatformModule,
     HealthModule,
   ],
-  providers: [{ provide: APP_FILTER, useClass: AllExceptionsFilter }],
+  providers: [
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
+    { provide: APP_INTERCEPTOR, useClass: ResponseEnvelopeInterceptor },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

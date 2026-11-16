@@ -17,8 +17,21 @@ import {
 } from './dto/schools.dto.js';
 import { ProvisioningService } from './provisioning.service.js';
 import { SchoolsService } from './schools.service.js';
+import { type MessageRequest, ResponseMessage } from '../../common/http/api-response.js';
 
 const adminId = new RecordIdPipe('That administrator doesn’t exist.');
+
+type Named = { name: string };
+
+/** What each subscription action says once it is done. */
+const SUBSCRIPTION_DONE: Record<string, string> = {
+  change_plan: 'Plan changed.',
+  extend: 'Subscription extended.',
+  enter_grace: 'Grace period started.',
+  restrict: 'Subscription restricted.',
+  cancel: 'Subscription cancelled.',
+  reactivate: 'Subscription reactivated.',
+};
 
 @ApiTags('platform · schools')
 @Controller('platform/schools')
@@ -29,6 +42,7 @@ export class SchoolsController {
     private readonly subscriptions: SubscriptionsService,
   ) {}
 
+  @ResponseMessage('Schools loaded.')
   @Get()
   @PlatformOnly('Schools.View')
   @ApiOperation({ summary: 'Schools, filtered by status, plan and state, newest first' })
@@ -36,6 +50,9 @@ export class SchoolsController {
     return this.schools.list(query);
   }
 
+  @ResponseMessage(
+    (s: Named) => `${s.name} provisioned. Administrator invitations are on their way.`,
+  )
   @Post()
   @PlatformOnly('Schools.Create')
   @ApiOperation({
@@ -50,6 +67,9 @@ export class SchoolsController {
     return this.provisioning.provision(dto);
   }
 
+  @ResponseMessage((r: { suspended: number }) =>
+    r.suspended === 1 ? '1 school suspended.' : `${r.suspended} schools suspended.`,
+  )
   @Post('bulk-suspend')
   @HttpCode(200)
   @PlatformOnly('Schools.Suspend')
@@ -60,6 +80,11 @@ export class SchoolsController {
     return this.schools.bulkSuspend(dto);
   }
 
+  @ResponseMessage((r: { queued: number }) =>
+    r.queued === 1
+      ? 'Renewal reminder queued for 1 school.'
+      : `Renewal reminders queued for ${r.queued} schools.`,
+  )
   @Post('reminders')
   @HttpCode(200)
   @PlatformOnly('Subscriptions.Edit')
@@ -68,6 +93,7 @@ export class SchoolsController {
     return this.schools.sendReminders(dto.ids);
   }
 
+  @ResponseMessage('School loaded.')
   @Get(':id')
   @PlatformOnly('Schools.View')
   @ApiOperation({ summary: 'One school' })
@@ -75,6 +101,7 @@ export class SchoolsController {
     return this.schools.get(id);
   }
 
+  @ResponseMessage('School updated.')
   @Patch(':id')
   @PlatformOnly('Schools.Edit')
   @ApiOperation({ summary: 'Edit the display name, contact email, phone and state' })
@@ -82,6 +109,7 @@ export class SchoolsController {
     return this.schools.update(id, dto);
   }
 
+  @ResponseMessage((s: Named) => `${s.name} suspended.`)
   @Post(':id/suspend')
   @HttpCode(200)
   @PlatformOnly('Schools.Suspend')
@@ -94,6 +122,7 @@ export class SchoolsController {
     return this.schools.suspend(id, dto.reason);
   }
 
+  @ResponseMessage((s: Named) => `${s.name} reactivated.`)
   @Post(':id/reactivate')
   @HttpCode(200)
   @PlatformOnly('Schools.Suspend')
@@ -103,6 +132,7 @@ export class SchoolsController {
     return this.schools.reactivate(id);
   }
 
+  @ResponseMessage('Support session started. It ends in 30 minutes.')
   @Post(':id/support-sessions')
   @PlatformOnly('Schools.View', 'Support.Create')
   @ApiOperation({ summary: 'Open 30 minutes of read-only access to the school’s portal' })
@@ -114,6 +144,7 @@ export class SchoolsController {
     return this.schools.startSupportSession(id, dto.reason, user.userId);
   }
 
+  @ResponseMessage('Administrators loaded.')
   @Get(':id/administrators')
   @PlatformOnly('Schools.View')
   @ApiOperation({ summary: 'The school’s owners and School Admins, with pending invitations' })
@@ -121,6 +152,7 @@ export class SchoolsController {
     return this.schools.administrators(id);
   }
 
+  @ResponseMessage((a: { email: string }) => `Invitation sent to ${a.email}.`)
   @Post(':id/administrators')
   @PlatformOnly('Schools.Edit')
   @ApiOperation({ summary: 'Invite an Owner or School Admin' })
@@ -129,6 +161,7 @@ export class SchoolsController {
     return this.schools.inviteAdminAndSend(id, dto);
   }
 
+  @ResponseMessage((a: Named) => `New invitation sent to ${a.name}.`)
   @Post(':id/administrators/:adminId/resend')
   @HttpCode(200)
   @PlatformOnly('Schools.Edit')
@@ -137,6 +170,7 @@ export class SchoolsController {
     return this.schools.resendAdminInvite(id, membershipId);
   }
 
+  @ResponseMessage('Usage loaded.')
   @Get(':id/usage')
   @PlatformOnly('Schools.View')
   @ApiOperation({ summary: 'Active staff, parent sign-ins (30 days), SMS this week, storage' })
@@ -144,6 +178,7 @@ export class SchoolsController {
     return this.schools.usage(id);
   }
 
+  @ResponseMessage('Billing history loaded.')
   @Get(':id/billing')
   @PlatformOnly('Schools.View', 'Subscriptions.View')
   @ApiOperation({ summary: 'EduTrack’s invoices to the school' })
@@ -151,6 +186,7 @@ export class SchoolsController {
     return this.schools.billing(id);
   }
 
+  @ResponseMessage('School activity loaded.')
   @Get(':id/activity')
   @PlatformOnly('Schools.View')
   @ApiOperation({ summary: 'Timeline of what happened to the school' })
@@ -158,6 +194,7 @@ export class SchoolsController {
     return this.schools.activity(id);
   }
 
+  @ResponseMessage('School audit log loaded.')
   @Get(':id/audit')
   @PlatformOnly('Schools.View', 'Audit.View')
   @ApiOperation({ summary: 'Audit entries for the school' })
@@ -165,6 +202,7 @@ export class SchoolsController {
     return this.schools.auditLog(id);
   }
 
+  @ResponseMessage('Subscription loaded.')
   @Get(':id/subscription')
   @PlatformOnly('Schools.View', 'Subscriptions.View')
   @ApiOperation({ summary: 'The school’s plan, price, limits, renewal and payment status' })
@@ -172,6 +210,10 @@ export class SchoolsController {
     return this.subscriptions.forSchool(id);
   }
 
+  @ResponseMessage(
+    (_r: unknown, req: MessageRequest<{ action: string }>) =>
+      SUBSCRIPTION_DONE[req.body.action] ?? 'Subscription updated.',
+  )
   @Post(':id/subscription/actions')
   @HttpCode(200)
   @PlatformOnly('Subscriptions.Edit')

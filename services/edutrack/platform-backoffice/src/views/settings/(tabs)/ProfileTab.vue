@@ -4,6 +4,7 @@ import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { useForm } from 'vee-validate';
 import { computed, ref, watch } from 'vue';
+import { messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
 import {
@@ -54,7 +55,7 @@ const save = handleSubmit(async (v) => {
   resetForm({
     values: { firstName: saved.firstName, lastName: saved.lastName, phone: saved.phone },
   });
-  toast.success('Profile saved.');
+  toast.success(messageOf(saved, 'Profile saved.'));
 });
 
 function upload(event: Event) {
@@ -69,8 +70,8 @@ function upload(event: Event) {
     return void (avatarError.value = `“${file.name}” is larger than 2 MB.`);
   const reader = new FileReader();
   reader.onload = async () => {
-    await updateAvatar.mutateAsync(String(reader.result));
-    toast.success('Profile photo updated.');
+    const profile = await updateAvatar.mutateAsync(String(reader.result));
+    toast.success(messageOf(profile, 'Profile photo updated.'));
   };
   reader.readAsDataURL(file);
 }
@@ -81,8 +82,8 @@ function removePhoto() {
     details: [['Shown instead', 'Your initials']],
     confirmLabel: 'Remove photo',
     action: async () => {
-      await updateAvatar.mutateAsync(null);
-      toast.success('Profile photo removed.');
+      const profile = await updateAvatar.mutateAsync(null);
+      toast.success(messageOf(profile, 'Profile photo removed.'));
     },
   });
 }

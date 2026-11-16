@@ -40,8 +40,8 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
       t.clock.advance(1_000);
       const res = await refresh(first.cookie);
       expect(res.status).toBe(200);
-      expect(res.body.user.email).toBe(ADAEZE);
-      expect(res.body.accessToken).not.toBe(first.token);
+      expect(res.body.data.user.email).toBe(ADAEZE);
+      expect(res.body.data.accessToken).not.toBe(first.token);
       const rotated = cookieFrom(res, COOKIE)!;
       expect(rotated).toBeDefined();
       expect(rotated).not.toBe(first.cookie);
@@ -53,7 +53,7 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
       expect(JSON.stringify(session)).not.toContain(rotated);
 
       // The new access token works.
-      expect((await authed(t, res.body.accessToken).get('/api/v1/auth/me')).status).toBe(200);
+      expect((await authed(t, res.body.data.accessToken).get('/api/v1/auth/me')).status).toBe(200);
     });
 
     it('detects reuse of a rotated token and ends the whole session', async () => {
@@ -63,11 +63,11 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
 
       const replay = await refresh(first.cookie);
       expect(replay.status).toBe(401);
-      expect(replay.body.code).toBe('SESSION_REUSED');
+      expect(replay.body.error.code).toBe('SESSION_REUSED');
       // The legitimate holder is signed out too: the session is gone.
       const legit = await refresh(second);
       expect(legit.status).toBe(401);
-      expect(legit.body.code).toBe('SESSION_ENDED');
+      expect(legit.body.error.code).toBe('SESSION_ENDED');
       expect((await authed(t, first.token).get('/api/v1/auth/me')).status).toBe(401);
       const session = await t.prisma.authSession.findFirstOrThrow({
         where: { previousRefreshTokenHash: sha256(first.cookie) },
@@ -80,12 +80,12 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
       const second = cookieFrom(await refresh(first.cookie), COOKIE)!;
       const raced = await refresh(first.cookie);
       expect(raced.status).toBe(409);
-      expect(raced.body.code).toBe('REFRESH_CONFLICT');
+      expect(raced.body.error.code).toBe('REFRESH_CONFLICT');
       expect((await refresh(second)).status).toBe(200);
     });
 
     it('fails without a cookie, with an unknown one, or for another portal', async () => {
-      expect((await refresh(undefined)).body.code).toBe('SESSION_ENDED');
+      expect((await refresh(undefined)).body.error.code).toBe('SESSION_ENDED');
       expect((await refresh('not-a-real-token')).status).toBe(401);
       const { cookie } = await signIn(t, ADAEZE);
       const other = await t
@@ -108,7 +108,7 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
       try {
         const res = await refresh(udo.cookie);
         expect(res.status).toBe(401);
-        expect(res.body.code).toBe('ACCOUNT_SUSPENDED');
+        expect(res.body.error.code).toBe('ACCOUNT_SUSPENDED');
         expect(setCookieLine(res, COOKIE)).toMatch(/Expires=Thu, 01 Jan 1970/);
       } finally {
         await t.prisma.schoolMembership.update({
@@ -143,7 +143,7 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
       t.clock.advance(2 * HOUR);
       const expired = await refresh(cookieFrom(stillOk, COOKIE));
       expect(expired.status).toBe(401);
-      expect(expired.body.code).toBe('SESSION_ENDED');
+      expect(expired.body.error.code).toBe('SESSION_ENDED');
     });
 
     it('expires access tokens after 15 minutes', async () => {
@@ -151,7 +151,7 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
       t.clock.advance(16 * 60_000);
       const res = await authed(t, token).get('/api/v1/auth/me');
       expect(res.status).toBe(401);
-      expect(res.body.code).toBe('TOKEN_EXPIRED');
+      expect(res.body.error.code).toBe('TOKEN_EXPIRED');
     });
   });
 
@@ -160,9 +160,9 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
       const { token, cookie } = await signIn(t, ADAEZE);
       const res = await authed(t, token).post('/api/v1/auth/logout').send({});
       expect(res.status).toBe(200);
-      expect(res.body).toEqual({ ok: true, signedOut: 1 });
+      expect(res.body.data).toEqual({ ok: true, signedOut: 1 });
       expect(setCookieLine(res, COOKIE)).toMatch(/Expires=Thu, 01 Jan 1970/);
-      expect((await authed(t, token).get('/api/v1/auth/me')).body.code).toBe('SESSION_ENDED');
+      expect((await authed(t, token).get('/api/v1/auth/me')).body.error.code).toBe('SESSION_ENDED');
       expect((await refresh(cookie)).status).toBe(401);
     });
 
@@ -174,15 +174,15 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
         .post('/api/v1/auth/logout')
         .set('Cookie', `${COOKIE}=${a.cookie}`)
         .send({ allDevices: true });
-      expect(res.body.ok).toBe(true);
-      expect(res.body.signedOut).toBeGreaterThanOrEqual(2);
+      expect(res.body.data.ok).toBe(true);
+      expect(res.body.data.signedOut).toBeGreaterThanOrEqual(2);
       expect((await authed(t, b.token).get('/api/v1/auth/me')).status).toBe(401);
     });
 
     it('always answers ok, even with nothing to sign out', async () => {
       const res = await t.http().post('/api/v1/auth/logout');
       expect(res.status).toBe(200);
-      expect(res.body).toEqual({ ok: true, signedOut: 0 });
+      expect(res.body.data).toEqual({ ok: true, signedOut: 0 });
     });
   });
 
@@ -191,7 +191,7 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
       const { token } = await signIn(t, ADAEZE);
       const res = await authed(t, token).get('/api/v1/auth/me');
       expect(res.status).toBe(200);
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         portal: 'school_admin',
         user: { email: ADAEZE, roleName: 'School Admin' },
         school: { slug: 'greenfield' },
@@ -200,7 +200,7 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
           roles: expect.arrayContaining([expect.objectContaining({ key: 'school_admin' })]),
         },
       });
-      expect(res.body.membership.permissions).toEqual(
+      expect(res.body.data.membership.permissions).toEqual(
         expect.arrayContaining(['students.view', 'settings.users', 'results.publish']),
       );
     });
@@ -208,13 +208,13 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
     it('returns the AuthUser shape plus permissions for platform staff', async () => {
       const { token } = await signIn(t, 'ngozi@edutrack.ng', { portal: 'platform' });
       const res = await authed(t, token).get('/api/v1/auth/me');
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         portal: 'platform',
         roleId: 'support',
         email: 'ngozi@edutrack.ng',
       });
-      expect(res.body.permissions).toContain('Support.Manage');
-      expect(res.body.permissions).not.toContain('Settings.View');
+      expect(res.body.data.permissions).toContain('Support.Manage');
+      expect(res.body.data.permissions).not.toContain('Settings.View');
     });
   });
 
@@ -228,19 +228,23 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
       const api = authed(t, desk.token, { host: 'greenfield.localhost' });
       const list = await api.get('/api/v1/auth/sessions');
       expect(list.status).toBe(200);
-      expect(list.body[0]).toMatchObject({
+      expect(list.body.data[0]).toMatchObject({
         current: true,
         device: 'Chrome on macOS',
         portal: 'teacher',
       });
-      const other = list.body.find((s: { device: string }) => s.device === 'Chrome on Android');
+      const other = list.body.data.find(
+        (s: { device: string }) => s.device === 'Chrome on Android',
+      );
       expect(other).toMatchObject({ current: false });
       expect(Date.parse(other.signedInAt)).not.toBeNaN();
 
-      const current = await api.delete(`/api/v1/auth/sessions/${list.body[0].id}`);
+      const current = await api.delete(`/api/v1/auth/sessions/${list.body.data[0].id}`);
       expect(current.status).toBe(409);
-      expect(current.body.code).toBe('CURRENT_SESSION');
-      expect((await api.delete(`/api/v1/auth/sessions/${other.id}`)).body).toEqual({ ok: true });
+      expect(current.body.error.code).toBe('CURRENT_SESSION');
+      expect((await api.delete(`/api/v1/auth/sessions/${other.id}`)).body.data).toEqual({
+        ok: true,
+      });
       expect(
         (await authed(t, phone.token, { host: 'greenfield.localhost' }).get('/api/v1/auth/me'))
           .status,
@@ -266,7 +270,7 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
       const other = await signIn(t, 'e.udo@crestviewcollege.ng');
       const res = await authed(t, keep.token).post('/api/v1/auth/sessions/sign-out-others');
       expect(res.status).toBe(200);
-      expect(res.body.signedOut).toBeGreaterThanOrEqual(1);
+      expect(res.body.data.signedOut).toBeGreaterThanOrEqual(1);
       expect((await authed(t, other.token).get('/api/v1/auth/me')).status).toBe(401);
       expect((await authed(t, keep.token).get('/api/v1/auth/me')).status).toBe(200);
     });
@@ -284,11 +288,11 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
         .post('/api/v1/auth/password/change')
         .send({ current: 'nope', next: 'New-Password-2026' });
       expect(wrong.status).toBe(422);
-      expect(wrong.body.fields).toEqual({ current: 'Your current password is incorrect.' });
+      expect(wrong.body.error.fields).toEqual({ current: 'Your current password is incorrect.' });
       const weak = await api
         .post('/api/v1/auth/password/change')
         .send({ current: PASSWORD, next: 'weakpass' });
-      expect(weak.body.fields.next).toContain('at least 8 characters');
+      expect(weak.body.error.fields.next).toContain('at least 8 characters');
       const same = await api
         .post('/api/v1/auth/password/change')
         .send({ current: PASSWORD, next: PASSWORD });
@@ -298,7 +302,7 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
         .post('/api/v1/auth/password/change')
         .send({ current: PASSWORD, next: 'New-Password-2026' });
       expect(ok.status).toBe(200);
-      expect(ok.body.signedOut).toBeGreaterThanOrEqual(1);
+      expect(ok.body.data.signedOut).toBeGreaterThanOrEqual(1);
       expect((await authed(t, there.token, { host }).get('/api/v1/auth/me')).status).toBe(401);
       expect((await api.get('/api/v1/auth/me')).status).toBe(200);
       expect((await login(t, email, PASSWORD, { host })).status).toBe(401);
@@ -327,8 +331,8 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
       });
       try {
         const signedIn = await signIn(t, ADAEZE, { schoolId: greenfield.id });
-        expect(signedIn.body.school.slug).toBe('greenfield');
-        expect(signedIn.body.schools.map((s: { slug: string }) => s.slug).sort()).toEqual([
+        expect(signedIn.body.data.school.slug).toBe('greenfield');
+        expect(signedIn.body.data.schools.map((s: { slug: string }) => s.slug).sort()).toEqual([
           'crestview',
           'greenfield',
         ]);
@@ -337,22 +341,22 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
           .post('/api/v1/auth/switch-school')
           .send({ schoolId: crestview.id });
         expect(switched.status).toBe(200);
-        expect(switched.body.school.slug).toBe('crestview');
-        expect(switched.body.schools.find((s: { current: boolean }) => s.current).slug).toBe(
+        expect(switched.body.data.school.slug).toBe('crestview');
+        expect(switched.body.data.schools.find((s: { current: boolean }) => s.current).slug).toBe(
           'crestview',
         );
         // The old token named Greenfield; the session now says Crestview, so it no longer works.
         expect((await authed(t, signedIn.token).get('/api/v1/auth/me')).status).toBe(401);
-        const me = await authed(t, switched.body.accessToken).get('/api/v1/auth/me');
-        expect(me.body.school.slug).toBe('crestview');
+        const me = await authed(t, switched.body.data.accessToken).get('/api/v1/auth/me');
+        expect(me.body.data.school.slug).toBe('crestview');
         // Refresh keeps the chosen school.
-        expect((await refresh(signedIn.cookie)).body.school.slug).toBe('crestview');
+        expect((await refresh(signedIn.cookie)).body.data.school.slug).toBe('crestview');
 
-        const nowhere = await authed(t, switched.body.accessToken)
+        const nowhere = await authed(t, switched.body.data.accessToken)
           .post('/api/v1/auth/switch-school')
           .send({ schoolId: '01a1d53d-0000-7000-8000-000000000000' });
         expect(nowhere.status).toBe(403);
-        expect(nowhere.body.code).toBe('NO_ACCESS');
+        expect(nowhere.body.error.code).toBe('NO_ACCESS');
       } finally {
         await t.prisma.schoolMembership.delete({ where: { id: membership.id } });
       }
@@ -366,7 +370,7 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
         .post('/api/v1/auth/switch-school')
         .send({ schoolId: '01a1d53d-0000-7000-8000-000000000000' });
       expect(res.status).toBe(403);
-      expect(res.body.code).toBe('WRONG_PORTAL');
+      expect(res.body.error.code).toBe('WRONG_PORTAL');
     });
   });
 });

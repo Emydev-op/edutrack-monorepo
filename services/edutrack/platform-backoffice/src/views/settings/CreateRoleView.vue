@@ -3,7 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Input } from '@edutrack/ui/components/input';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { Textarea } from '@edutrack/ui/components/textarea';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -75,13 +75,13 @@ function next() {
 async function submit() {
   error.value = '';
   try {
-    await create.mutateAsync({
+    const role = await create.mutateAsync({
       name: name.value.trim(),
       description: description.value.trim(),
       permissions: permissions.value,
     });
     created.value = true;
-    toast.success(`Role “${name.value.trim()}” created. Assign it from Users.`);
+    toast.success(messageOf(role, `Role “${name.value.trim()}” created. Assign it from Users.`));
     await router.push({ name: routesPath.settings.access.name });
   } catch (err) {
     error.value = getApiErrorMessage(err);

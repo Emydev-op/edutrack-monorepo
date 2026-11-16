@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
 import {
@@ -34,8 +34,8 @@ const toggles = computed(() => [
 
 async function toggle(key: string, enabled: boolean) {
   try {
-    await update.mutateAsync({ [key]: enabled } as Partial<SecuritySettings>);
-    toast.success('Security setting updated.');
+    const saved = await update.mutateAsync({ [key]: enabled } as Partial<SecuritySettings>);
+    toast.success(messageOf(saved, 'Security setting updated.'));
   } catch (error) {
     toast.error(getApiErrorMessage(error, 'The setting wasn’t saved. Try again.'));
   }
