@@ -2,7 +2,7 @@
 import { Button } from '@edutrack/ui/components/button';
 import { Input } from '@edutrack/ui/components/input';
 import { Spinner } from '@edutrack/ui/components/spinner';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { computed, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -88,7 +88,7 @@ async function send() {
       branches: form.scope === 'Branch' ? form.branches : [],
     });
     open.value = false;
-    toast.success(`Invitation sent to ${user.email}.`);
+    toast.success(messageOf(user, `Invitation sent to ${user.email}.`));
     await router.push({ name: routesPath.school.invitations.name });
   } catch (e) {
     serverError.value = getApiErrorMessage(e, 'We couldn’t send the invitation. Try again.');

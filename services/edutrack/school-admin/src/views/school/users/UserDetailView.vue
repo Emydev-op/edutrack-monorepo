@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
+import { messageOf } from '@edutrack/web-core/http';
 import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -44,8 +45,8 @@ function run(action: UserAction, request: Omit<ConfirmRequest, 'action'>, done: 
   void confirm({
     ...request,
     action: async ({ text }) => {
-      await act.mutateAsync({ action, reason: text || undefined });
-      toast.success(done);
+      const result = await act.mutateAsync({ action, reason: text || undefined });
+      toast.success(messageOf(result, done));
     },
   });
 }

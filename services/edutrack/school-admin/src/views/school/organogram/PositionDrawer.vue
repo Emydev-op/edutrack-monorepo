@@ -3,7 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Input } from '@edutrack/ui/components/input';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { Textarea } from '@edutrack/ui/components/textarea';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { computed, reactive, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
@@ -102,7 +102,7 @@ async function submit() {
     });
     open.value = false;
     emit('saved', saved.id);
-    toast.success(props.position ? 'Position saved.' : 'Position added.');
+    toast.success(messageOf(saved, props.position ? 'Position saved.' : 'Position added.'));
   } catch (e) {
     serverError.value = getApiErrorMessage(e, 'That didn’t save. Try again.');
   }
