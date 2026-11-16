@@ -14,7 +14,7 @@ Multi-tenant school management platform. One repo holds the API, the five web po
 │   ├── ui/                     # @edutrack/ui        — shadcn-vue design system & theme
 │   └── web-core/               # @edutrack/web-core  — HTTP client, TanStack Query defaults
 └── services/edutrack/
-    ├── backend/                # @edutrack/backend             — NestJS API            :3000
+    ├── backend/                # @edutrack/backend             — NestJS API            :8000
     ├── platform-backoffice/    # @edutrack/platform-backoffice — EduTrack staff        :5170
     ├── school-admin/           # @edutrack/school-admin        — school administrators :5171
     ├── teacher-portal/         # @edutrack/teacher-portal      — teachers              :5172
@@ -38,7 +38,7 @@ Prerequisites: **Node.js 24** (`nvm use` reads `.nvmrc`), npm 11, and Docker.
 npm install                       # installs every workspace and builds @edutrack/shared
 npm run infra:up                  # Postgres, Redis, RustFS (S3) in Docker
 cp services/edutrack/backend/.env.example services/edutrack/backend/.env
-npm run dev:backend               # http://localhost:3000/api, docs at /docs
+npm run dev:backend               # http://localhost:8000/api, docs at /docs
 ```
 
 In another terminal, start any portal (copy its `.env.example` to `.env` first):

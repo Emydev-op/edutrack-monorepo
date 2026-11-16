@@ -22,7 +22,7 @@ export default defineConfig(({ command, mode }) => {
       // Same-site API calls: the refresh cookie (Path=/api/v1/auth) stays first-party. Keep the
       // portal's Host (changeOrigin: false) so the API sees where the request came from.
       proxy: {
-        '/api': { target: env.API_PROXY_TARGET ?? 'http://localhost:3000', changeOrigin: false },
+        '/api': { target: env.API_PROXY_TARGET ?? 'http://localhost:8000', changeOrigin: false },
       },
     },
     preview: { port: 5170, strictPort: true },

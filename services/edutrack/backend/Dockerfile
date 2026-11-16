@@ -24,6 +24,6 @@ COPY --from=build /repo/services/edutrack/backend/prisma ./services/edutrack/bac
 COPY --from=build /repo/services/edutrack/backend/dist ./services/edutrack/backend/dist
 WORKDIR /repo/services/edutrack/backend
 USER node
-EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://127.0.0.1:3000/api/health/live || exit 1
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://127.0.0.1:8000/api/health/live || exit 1
 CMD ["node", "dist/main.js"]

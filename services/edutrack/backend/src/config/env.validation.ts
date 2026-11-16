@@ -39,7 +39,7 @@ export class Env {
   @IsInt()
   @Min(1)
   @Max(65535)
-  PORT = 3000;
+  PORT = 8000;
 
   @Transform(({ value }) =>
     typeof value === 'string'
