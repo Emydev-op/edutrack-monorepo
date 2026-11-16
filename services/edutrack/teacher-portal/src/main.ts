@@ -8,10 +8,12 @@ import { createApp } from 'vue';
 
 import App from './App.vue';
 import { queryClient } from './api/query-client';
+import { installSchoolBrand } from './lib/school-brand';
 import router from './router';
 import { useAuthStore } from './stores/auth';
 
 async function bootstrap() {
+  installSchoolBrand();
   const app = createApp(App);
   app.use(createPinia());
   app.use(router);

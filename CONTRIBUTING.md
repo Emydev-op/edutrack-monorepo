@@ -59,7 +59,7 @@ fix(backend): reject expired invitation tokens
 chore(deps): bump vite to 8.4
 ```
 
-Scopes: `backend`, `platform-backoffice`, `school-admin`, `teacher-portal`, `student-portal`, `parent-portal`, `ui`, `shared`, `web-core`, `app-kit`, `infra`, `ci`, `deps`, `repo`.
+Scopes: `backend`, `platform-backoffice`, `school-admin`, `teacher-portal`, `student-portal`, `parent-portal`, `school-home`, `ui`, `shared`, `web-core`, `app-kit`, `infra`, `ci`, `deps`, `repo`.
 
 Use `feat!:` or a `BREAKING CHANGE:` footer for breaking changes.
 

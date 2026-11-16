@@ -22,6 +22,7 @@
     "services/edutrack/teacher-portal": { "component": "teacher-portal" },
     "services/edutrack/student-portal": { "component": "student-portal" },
     "services/edutrack/parent-portal": { "component": "parent-portal" },
+    "services/edutrack/school-home": { "component": "school-home" },
     "packages/shared": { "component": "shared" },
     "packages/ui": { "component": "ui" },
     "packages/web-core": { "component": "web-core" },

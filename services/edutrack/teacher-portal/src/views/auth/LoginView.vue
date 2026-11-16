@@ -14,6 +14,7 @@ import AuthLayout from '@/components/layout/AuthLayout.vue';
 import { DEMO_ACCOUNTS, DEMO_CREDENTIALS } from '@/config/demo';
 import { env } from '@/config/env';
 import { errorCodeOf, getApiErrorMessage } from '@/lib/api-errors';
+import { useSchoolBrand } from '@/lib/school-brand';
 import { routesPath } from '@/router/routes-path';
 import { loginSchema } from '@/schema/auth';
 import { useAuthStore } from '@/stores/auth';
@@ -25,6 +26,7 @@ const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const login = useLoginMutation();
+const school = useSchoolBrand();
 
 const { handleSubmit, defineField, setFieldValue, values } = useForm({
   validationSchema: loginSchema,
@@ -136,7 +138,7 @@ function useDemo(email: string) {
   <AuthLayout>
     <AuthHeading
       title="Teacher Workspace"
-      :description="`Sign in to your classes at ${env.schoolName}.`"
+      :description="`Sign in to your classes at ${school.name}.`"
     />
     <InlineNotice
       v-if="notice"

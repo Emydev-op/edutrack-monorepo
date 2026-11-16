@@ -3,16 +3,11 @@ import authPattern from '@edutrack/ui/assets/brand/auth-pattern.svg';
 import logoWhite from '@edutrack/ui/assets/brand/logo-mark-white.svg';
 import { BookCheckIcon, ClipboardCheckIcon, NotebookPenIcon } from '@lucide/vue';
 
-import { env } from '@/config/env';
+import { useSchoolBrand } from '@/lib/school-brand';
 
 import AuthHero from './AuthHero.vue';
 
-const initials = env.schoolName
-  .split(/\s+/)
-  .map((w) => w[0])
-  .join('')
-  .slice(0, 2)
-  .toUpperCase();
+const school = useSchoolBrand();
 
 const HIGHLIGHTS = [
   { label: 'Score sheets', icon: BookCheckIcon },
@@ -51,7 +46,7 @@ const patternStyle = { backgroundImage: `url("${authPattern}")`, backgroundSize:
           </h2>
           <p class="text-[15px] leading-relaxed text-pretty text-brand-subtle">
             Plan lessons, set work, enter scores and take the register for your classes at
-            {{ env.schoolName }}.
+            {{ school.name }}.
           </p>
         </div>
         <div class="max-w-[460px]"><AuthHero /></div>
@@ -75,12 +70,19 @@ const patternStyle = { backgroundImage: `url("${authPattern}")`, backgroundSize:
         class="m-auto flex w-full max-w-[400px] flex-col gap-4.5 px-5 pt-7 pb-8 max-lg:max-w-[420px]"
       >
         <div class="flex items-center gap-2.5 lg:hidden">
+          <img
+            v-if="school.logoUrl"
+            :src="school.logoUrl"
+            alt=""
+            class="size-9 rounded-lg border object-contain p-0.5"
+          />
           <span
+            v-else
             class="flex size-9 items-center justify-center rounded-lg bg-primary font-semibold text-brand-subtle"
-            >{{ initials }}</span
+            >{{ school.initials }}</span
           >
           <span class="flex flex-col">
-            <span class="font-semibold">{{ env.schoolName }}</span>
+            <span class="font-semibold">{{ school.name }}</span>
             <span class="text-xs text-faint">Teacher Workspace</span>
           </span>
         </div>
