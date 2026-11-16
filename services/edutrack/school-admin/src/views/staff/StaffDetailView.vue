@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
+import { messageOf } from '@edutrack/web-core/http';
 import { computed, watch } from 'vue';
 import { RouterLink, RouterView, useRoute } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -78,13 +79,16 @@ function askDeactivate() {
     action: async () => {
       const r = await deactivate.mutateAsync({ id: st.id, coverArranged: !!load });
       toast.success(
-        [
-          `${st.name} deactivated.`,
-          r.cleared.removed &&
-            `${plural(r.cleared.removed, 'assignment')} now need a teacher in Teacher Assignments.`,
-        ]
-          .filter(Boolean)
-          .join(' '),
+        messageOf(
+          r,
+          [
+            `${st.name} deactivated.`,
+            r.cleared.removed &&
+              `${plural(r.cleared.removed, 'assignment')} now need a teacher in Teacher Assignments.`,
+          ]
+            .filter(Boolean)
+            .join(' '),
+        ),
       );
     },
   });
@@ -98,8 +102,8 @@ function askReactivate() {
       'Reactivation restores the record; access must be granted again from Users & Roles.',
     confirmLabel: 'Reactivate',
     action: async () => {
-      await reactivate.mutateAsync(st.id);
-      toast.success(`${st.name} reactivated.`);
+      const r = await reactivate.mutateAsync(st.id);
+      toast.success(messageOf(r, `${st.name} reactivated.`));
     },
   });
 }

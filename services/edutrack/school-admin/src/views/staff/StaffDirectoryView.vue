@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { EyeIcon, MailIcon, PencilIcon } from '@lucide/vue';
 import { refDebounced } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
@@ -90,9 +90,10 @@ const staffLink = (s: StaffListRow) => ({
 
 async function sendInvites(ids: string[]) {
   try {
-    const { invited, skipped } = await invite.mutateAsync(ids);
+    const result = await invite.mutateAsync(ids);
+    const { invited, skipped } = result;
     if (invited)
-      toast.success(`${invited} invitation${invited === 1 ? '' : 's'} sent.`, {
+      toast.success(messageOf(result, `${invited} invitation${invited === 1 ? '' : 's'} sent.`), {
         description: skipped.length
           ? `Not invited: ${skipped.join(', ')}. They have no email, already have access, or need a role chosen from their profile.`
           : undefined,

@@ -10,6 +10,10 @@
 export const REAL_ROUTES: readonly string[] = [
   // Sign-in, invitations, passwords, sessions.
   '* /v1/auth/**',
+  // Staff. `GET /v1/staff/:id` also matches /v1/staff/options (no way to exclude it here).
+  '* /v1/staff',
+  '* /v1/staff/:id',
+  '* /v1/staff/:id/**',
 ];
 
 type Rule = { method: string; pattern: RegExp };

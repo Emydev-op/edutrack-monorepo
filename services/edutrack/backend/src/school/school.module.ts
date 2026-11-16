@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PublicSchoolController } from './public/public-school.controller.js';
 import { SchoolAuditService } from './shared/school-audit.service.js';
 import { SchoolBrandingService } from './shared/school-branding.service.js';
+import { StaffModule } from './staff/staff.module.js';
 
 /**
  * The school side of the API: what School Admin (admin.edutrack.ng) and the school portals
@@ -9,6 +10,7 @@ import { SchoolBrandingService } from './shared/school-branding.service.js';
  * the signed-in school as the tenant, so `TenantPrismaService` only ever sees that school's rows.
  */
 @Module({
+  imports: [StaffModule],
   controllers: [PublicSchoolController],
   providers: [SchoolBrandingService, SchoolAuditService],
   exports: [SchoolBrandingService, SchoolAuditService],
