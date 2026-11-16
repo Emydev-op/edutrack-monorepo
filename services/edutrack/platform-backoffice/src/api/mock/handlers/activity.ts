@@ -24,6 +24,12 @@ mock.get('/v1/platform/audit', ({ query }) => {
   return paginate(rows, query, (e) => `${e.actor} ${e.action} ${e.entityId}`);
 });
 
+mock.get('/v1/platform/audit/actors', () =>
+  [...new Set([...activity.map((a) => a.actor), ...auditLog.map((e) => e.actor)])].sort((a, b) =>
+    a.localeCompare(b),
+  ),
+);
+
 mock.get('/v1/platform/audit/:id', ({ params }) => {
   const entry = auditLog.find((e) => e.id === params.id);
   if (!entry) throw new MockHttpError(404, 'Audit entry not found');

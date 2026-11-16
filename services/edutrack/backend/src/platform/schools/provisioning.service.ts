@@ -9,6 +9,7 @@ import { AppException } from '../../common/errors/app.exception.js';
 import type { Plan, Prisma } from '../../generated/prisma/client.js';
 import type { BillingPeriod } from '../../generated/prisma/enums.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { PlatformAlertsService } from '../alerts/platform-alerts.service.js';
 import { RESERVED_SUBDOMAINS } from '../../tenancy/tenant-resolver.service.js';
 import { addDays, addMonths, lagosToday, PERIOD_MONTHS, slugify } from '../shared/format.js';
 import { PlatformAuditService } from '../shared/platform-audit.service.js';
@@ -59,6 +60,7 @@ export class ProvisioningService {
     private readonly schools: SchoolsService,
     private readonly invitations: InvitationService,
     private readonly audit: PlatformAuditService,
+    private readonly alerts: PlatformAlertsService,
     private readonly clock: Clock,
   ) {}
 
@@ -303,6 +305,18 @@ export class ProvisioningService {
         });
       }
     }
-    return this.schools.get(schoolId);
+    const school = await this.schools.get(schoolId);
+    await this.alerts.tryNotify(
+      'school.provisioned',
+      {
+        title: `${school.name} was provisioned`,
+        detail: `${school.plan} · ${school.state} · onboarding has started`,
+        link: `/schools/${schoolId}`,
+        entityType: 'School',
+        entityId: schoolId,
+      },
+      { permission: 'Schools.View', exclude: [RequestContext.get()?.userId] },
+    );
+    return school;
   }
 }

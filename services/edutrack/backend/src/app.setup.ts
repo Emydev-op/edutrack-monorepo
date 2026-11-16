@@ -17,6 +17,8 @@ export function configureApp(app: INestApplication) {
   const express = app as NestExpressApplication;
   express.set('trust proxy', parseTrustProxy(config.get('TRUST_PROXY', { infer: true })));
   express.disable('x-powered-by');
+  // Profile photos arrive as data URLs (up to 2 MB, about 2.8 MB of base64).
+  express.useBodyParser('json', { limit: '3mb' });
   app.use(helmet());
   app.use(cookieParser());
   app.enableCors({

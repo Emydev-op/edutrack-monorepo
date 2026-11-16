@@ -51,6 +51,7 @@ export const queryKeys = {
     all: ['audit'] as const,
     list: (params: object) => [...queryKeys.audit.all, 'list', params] as const,
     detail: (id: string) => [...queryKeys.audit.all, 'detail', id] as const,
+    actors: () => [...queryKeys.audit.all, 'actors'] as const,
   },
   settings: {
     profile: ['settings', 'profile'] as const,

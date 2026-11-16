@@ -81,10 +81,11 @@ describe('Platform schools and subscriptions (e2e)', () => {
         expect((res.body.data as School[]).map((s) => s.id)).toContain(ids[slug]);
         expect((res.body.data as School[]).every((s) => s.status === status)).toBe(true);
       }
-      const onboarding = await api.get('/api/v1/platform/schools?status=Onboarding');
-      expect((onboarding.body.data as School[]).map((s) => s.id)).toEqual(
-        expect.arrayContaining([ids.crestview, ids.brookfield, ids.lagoon]),
-      );
+      // Every local run provisions more onboarding schools (newest first), so look each one up.
+      for (const slug of ['crestview', 'brookfield', 'lagoon']) {
+        const res = await api.get(`/api/v1/platform/schools?status=Onboarding&search=${slug}`);
+        expect((res.body.data as School[]).map((s) => s.id)).toContain(ids[slug]);
+      }
       const enterprise = await api.get('/api/v1/platform/schools?plan=Enterprise');
       expect((enterprise.body.data as School[]).map((s) => s.id)).toEqual([ids.kingsway]);
       const rivers = await api.get('/api/v1/platform/schools?state=Rivers');
@@ -368,6 +369,18 @@ describe('Platform schools and subscriptions (e2e)', () => {
         'SETUP_FEE',
       ]);
       expect(school.settings).not.toBeNull();
+
+      // Everyone else who can see schools is told; the person who provisioned it isn't.
+      const alerts = await t.prisma.notification.findMany({
+        where: { category: 'school.provisioned', entityId: id },
+        include: { user: { select: { email: true } } },
+      });
+      const told = alerts.map((a) => a.user.email);
+      expect(told).toContain('ngozi@edutrack.ng');
+      expect(told).not.toContain('tolu@edutrack.ng');
+      expect(told).not.toContain('kemi@edutrack.ng'); // suspended
+      expect(alerts[0]).toMatchObject({ title: `${name} was provisioned`, link: `/schools/${id}` });
+      expect(t.notifications.find('ngozi@edutrack.ng', 'platform-alert')).toBeDefined();
 
       const funmi = t.notifications.find(`funmi.${suffix}@school.ng`, 'invitation');
       expect(funmi?.data).toMatchObject({ organisation: name, position: 'Proprietress' });

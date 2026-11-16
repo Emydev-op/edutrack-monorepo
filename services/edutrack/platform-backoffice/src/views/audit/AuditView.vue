@@ -7,7 +7,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
-import { useAuditQuery } from '@/api/services/activity';
+import { useAuditActorsQuery, useAuditQuery } from '@/api/services/activity';
 import DataTable, { type Column } from '@edutrack/app-kit/components/common/DataTable.vue';
 import DateRangeFilter, {
   type DateRangeValue,
@@ -22,7 +22,7 @@ import { downloadCsv } from '@edutrack/app-kit/lib/csv';
 import { routesPath } from '@/router/routes-path';
 import type { ActivityQuery, AuditEntry } from '@/types';
 
-import { ACTORS, AUDIT_ENTITIES } from '../activity/activity-filters';
+import { AUDIT_ENTITIES } from '../activity/activity-filters';
 import AuditEntryDrawer from './AuditEntryDrawer.vue';
 
 const route = useRoute();
@@ -38,6 +38,7 @@ const entity = ref('');
 const date = ref<DateRangeValue>({});
 watch([debouncedSearch, actor, entity, date], () => (page.value = '1'));
 
+const { data: actors } = useAuditActorsQuery();
 const { data, isPending } = useAuditQuery(() => ({
   search: debouncedSearch.value,
   page: Number(page.value),
@@ -130,7 +131,7 @@ function exportCsv() {
       ><SearchInput v-model="search" placeholder="Search actor, action or entity ID"
     /></template>
     <template #filters>
-      <FilterMenu v-model="actor" label="Actor" :options="ACTORS" />
+      <FilterMenu v-model="actor" label="Actor" :options="actors ?? []" />
       <FilterMenu v-model="entity" label="Entity" :options="AUDIT_ENTITIES" />
       <DateRangeFilter v-model="date" label="Date range" />
     </template>

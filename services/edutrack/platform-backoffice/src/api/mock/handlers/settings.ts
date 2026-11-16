@@ -12,7 +12,7 @@ import {
   schools,
   users,
 } from '../db';
-import { mock } from '@edutrack/web-core/mock';
+import { mock, MockHttpError } from '@edutrack/web-core/mock';
 import { fullName, requireText, roleName, toIssue } from './shared';
 
 mock.get('/v1/platform/me/profile', () => ({
@@ -84,6 +84,13 @@ mock.get('/v1/platform/settings/security', () => securityToggles);
 
 mock.put('/v1/platform/settings/security', ({ body }) => {
   const before = { ...securityToggles };
+  // Same rule as the API: there is nowhere to enter approved ranges yet.
+  if ((body as Partial<SecuritySettings>).ipRestriction && !securityToggles.ipRestriction)
+    throw new MockHttpError(
+      422,
+      'Add approved IP ranges before turning this on. Managing IP ranges isn’t available yet.',
+      'IP_RANGES_REQUIRED',
+    );
   Object.assign(securityToggles, body as Partial<SecuritySettings>);
   audit({
     summary: 'Sign-in security settings changed',

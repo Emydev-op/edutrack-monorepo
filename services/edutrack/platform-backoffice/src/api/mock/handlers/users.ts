@@ -119,6 +119,15 @@ mock.post('/v1/platform/users/:id/:action', ({ params, body }) => {
   const action = USER_ACTIONS[params.action as UserAction];
   if (!action) throw new MockHttpError(404, 'Unknown action');
   const before = user.status;
+  // Same rule as the API: only suspended users come back; deactivated ones are invited again.
+  if (params.action === 'reactivate' && before !== 'Suspended')
+    throw new MockHttpError(
+      409,
+      before === 'Deactivated'
+        ? 'Deactivated users can’t be reactivated. Invite them again instead.'
+        : 'Only suspended users can be reactivated.',
+      'NOT_SUSPENDED',
+    );
   action.apply?.(user);
   const reason = (body as { reason?: string } | null)?.reason;
   audit({

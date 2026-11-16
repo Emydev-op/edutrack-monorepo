@@ -16,7 +16,13 @@ import { hashPassword } from '../../src/auth/password.js';
 import { PREDEFINED_PLATFORM_ROLES } from '../../src/auth/permissions/platform-permissions.js';
 import { PREDEFINED_SCHOOL_ROLES } from '../../src/auth/permissions/school-permissions.js';
 import { sha256 } from '../../src/auth/tokens.js';
-import { demoUuid, PLAN_SEEDS, seedPlans, seedPlatformData } from './platform-data.js';
+import {
+  demoUuid,
+  PLAN_SEEDS,
+  seedPlans,
+  seedPlatformAccount,
+  seedPlatformData,
+} from './platform-data.js';
 
 export const DEMO_PASSWORD = 'Edutrack2026!';
 const DAY = 86_400_000;
@@ -685,6 +691,7 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
     greenfield: schoolIds.greenfield!,
     crestview: schoolIds.crestview!,
   });
+  await seedPlatformAccount(prisma, { now, passwordHash, tolu });
 
   return { schools: schoolIds, users: userIds.size };
 }

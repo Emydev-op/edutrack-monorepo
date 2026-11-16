@@ -1,7 +1,11 @@
 import type { InjectionKey } from 'vue';
 import { toast } from 'vue-sonner';
 
-import { useUserActionMutation, useUserOpenIssuesQuery } from '@/api/services/users';
+import {
+  useUserActionMutation,
+  useUserOpenIssuesQuery,
+  useUserSecurityQuery,
+} from '@/api/services/users';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 import type { PlatformUser, UserAction } from '@/types';
 
@@ -12,6 +16,7 @@ export function useUserActions(current: () => PlatformUser | undefined) {
   const user = () => current()!;
   const mutation = useUserActionMutation(() => current()?.id ?? '');
   const { data: openIssues } = useUserOpenIssuesQuery(() => current()?.id ?? '');
+  const { data: security } = useUserSecurityQuery(() => current()?.id ?? '');
 
   const name = () => `${user().firstName} ${user().lastName}`;
   const run =
@@ -73,7 +78,7 @@ export function useUserActions(current: () => PlatformUser | undefined) {
       confirm({
         title: `Sign ${name()} out of all sessions?`,
         details: [
-          ['Active sessions', '2 · Chrome on Windows (Lagos), Safari on iPhone'],
+          ['Active sessions', security.value?.activeSessions ?? '—'],
           ['Effect', 'They need to sign in again on every device'],
         ],
         confirmLabel: 'Sign out everywhere',
