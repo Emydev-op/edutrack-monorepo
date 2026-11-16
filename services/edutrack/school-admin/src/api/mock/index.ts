@@ -1,4 +1,4 @@
-import { mockAdapter } from '@edutrack/web-core/mock';
+import { createMockAdapter, mockAdapter as legacyMockAdapter } from '@edutrack/web-core/mock';
 import type { AxiosInstance } from 'axios';
 
 import './handlers/academics';
@@ -24,11 +24,14 @@ import './handlers/reports';
 import './handlers/settings';
 import './handlers/support';
 
-export { mockAdapter };
+/** Answers in the API's `{ success, message, data }` envelope, like the real backend. */
+export const mockAdapter = createMockAdapter({ envelope: true });
+
+export { mockTokenForEmail } from './handlers/shared';
 
 console.info('[edutrack] Mock API enabled. Set VITE_USE_MOCKS=false to call the real backend.');
 
-/** Routes every request on a client through the in-browser mock API (used by tests). */
+/** Routes every request on a client through the in-browser mock API (tests; bare bodies). */
 export function installMockApi(client: AxiosInstance) {
-  client.defaults.adapter = mockAdapter;
+  client.defaults.adapter = legacyMockAdapter;
 }

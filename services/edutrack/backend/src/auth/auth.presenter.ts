@@ -1,3 +1,4 @@
+import { DEFAULT_BRAND_COLOR } from '@edutrack/shared';
 import type { User } from '../generated/prisma/client.js';
 import { initialsOf } from './identifiers.js';
 import { flattenPermissions, ROLE_DISPLAY_ORDER } from './permissions/school-permissions.js';
@@ -10,7 +11,6 @@ import type {
 /* Response shapes match the portals' `types/auth.ts`; extra fields are additive. */
 
 const PERIOD: Record<string, string> = { ANNUAL: 'Annual', TERM: 'Termly', MONTH: 'Monthly' };
-const DEFAULT_BRAND = '#1F6FEB';
 
 export function schoolSummary(m: MembershipWithSchool) {
   const { school } = m;
@@ -21,7 +21,7 @@ export function schoolSummary(m: MembershipWithSchool) {
     name: school.name,
     initials: initialsOf(school.name),
     plan: sub ? `${sub.plan.name} · ${PERIOD[sub.billingPeriod] ?? sub.billingPeriod}` : '',
-    brandColor: school.brandColor ?? DEFAULT_BRAND,
+    brandColor: school.brandColor ?? DEFAULT_BRAND_COLOR,
     // Logos are served from storage with signed URLs once the files module exists.
     logoUrl: null as string | null,
     subscriptionStatus: (sub && ['RESTRICTED', 'EXPIRED', 'CANCELLED'].includes(sub.status)

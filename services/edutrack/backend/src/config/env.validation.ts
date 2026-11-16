@@ -65,6 +65,12 @@ export class Env {
   @IsBoolean()
   LOG_JSON?: boolean;
 
+  /** Serve Swagger at /docs and the OpenAPI JSON at /docs/openapi.json. Defaults to off in production. */
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  API_DOCS?: boolean;
+
   @IsUrl({ protocols: ['postgresql', 'postgres'], require_tld: false })
   DATABASE_URL: string;
 

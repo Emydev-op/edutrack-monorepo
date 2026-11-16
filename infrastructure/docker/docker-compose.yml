@@ -65,6 +65,25 @@ services:
       timeout: 3s
       retries: 10
 
+  # The local router: console.localhost, admin.localhost and <school>.localhost/teacher|parent|student
+  # in front of the dev servers on your Mac (see nginx/gateway.dev.conf). Port 80 by default; set
+  # GATEWAY_PORT=8080 if something else uses 80, then open http://greenfield.localhost:8080.
+  gateway:
+    # Rebuilt by `npm run infra:up` when gateway.dev.conf changes.
+    build:
+      context: ./nginx
+      dockerfile: gateway.dev.Dockerfile
+    restart: unless-stopped
+    ports:
+      - '${GATEWAY_PORT:-80}:80'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
 volumes:
   postgres-data:
   redis-data:

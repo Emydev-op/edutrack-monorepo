@@ -2,9 +2,8 @@
 import { Button } from '@edutrack/ui/components/button';
 import { Checkbox } from '@edutrack/ui/components/checkbox';
 import { Spinner } from '@edutrack/ui/components/spinner';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorCode, getApiErrorMessage } from '@edutrack/web-core/http';
 import { useQueryClient } from '@tanstack/vue-query';
-import { isAxiosError } from 'axios';
 import { useForm } from 'vee-validate';
 import { computed, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
@@ -118,9 +117,7 @@ const onSubmit = handleSubmit(async (values) => {
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : null;
     await router.replace(redirect ?? { name: routesPath.dashboard.name });
   } catch (err) {
-    const code = isAxiosError(err)
-      ? (err.response?.data as { error?: string } | undefined)?.error
-      : undefined;
+    const code = getApiErrorCode(err);
     if (code && code in NOTICES) block.value = code as AccountBlock;
     else error.value = getApiErrorMessage(err, 'We couldn’t sign you in. Try again.');
   }
