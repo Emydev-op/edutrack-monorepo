@@ -31,7 +31,7 @@
     "test": "npm run test --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "infra:up": "docker compose -f infrastructure/docker/docker-compose.yml up -d",
+    "infra:up": "docker compose -f infrastructure/docker/docker-compose.yml up -d --build",
     "infra:down": "docker compose -f infrastructure/docker/docker-compose.yml down",
     "infra:logs": "docker compose -f infrastructure/docker/docker-compose.yml logs -f",
     "db:migrate": "npm run prisma:migrate -w @edutrack/backend",
