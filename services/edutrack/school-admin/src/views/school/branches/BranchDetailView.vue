@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
+import { messageOf } from '@edutrack/web-core/http';
 import { computed, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -90,8 +91,8 @@ function deactivate() {
     confirmLabel: 'Deactivate branch',
     tone: 'destructive',
     action: async ({ text }) => {
-      await status.mutateAsync({ action: 'deactivate', reason: text });
-      toast.success(`${b.name} deactivated.`);
+      const result = await status.mutateAsync({ action: 'deactivate', reason: text });
+      toast.success(messageOf(result, `${b.name} deactivated.`));
     },
   });
 }
@@ -106,8 +107,8 @@ function reactivate() {
     ],
     confirmLabel: 'Reactivate',
     action: async () => {
-      await status.mutateAsync({ action: 'reactivate' });
-      toast.success(`${b.name} is active again.`);
+      const result = await status.mutateAsync({ action: 'reactivate' });
+      toast.success(messageOf(result, `${b.name} is active again.`));
     },
   });
 }
@@ -123,8 +124,8 @@ function destroy() {
     confirmLabel: 'Delete branch',
     tone: 'destructive',
     action: async () => {
-      await remove.mutateAsync();
-      toast.success(`${b.name} deleted.`);
+      const result = await remove.mutateAsync();
+      toast.success(messageOf(result, `${b.name} deleted.`));
       await router.push({ name: routesPath.school.branches.name });
     },
   });

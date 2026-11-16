@@ -24,6 +24,7 @@ import {
   seedPlatformAccount,
   seedPlatformData,
 } from './platform-data.js';
+import { seedSchoolBranches } from './school-branches-data.js';
 import { seedSupportDesk } from './support-data.js';
 
 export const DEMO_PASSWORD = 'Edutrack2026!';
@@ -617,6 +618,7 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
     where: { id: departmentIds.get('greenfield:Sciences')! },
     data: { hodStaffId: staffIds.get('i.bello@greenfield.edu.ng')! },
   });
+  await seedSchoolBranches(prisma, schoolIds, now);
 
   /* ---------- Invitations ---------- */
 

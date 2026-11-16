@@ -21,6 +21,8 @@ export function configureApp(app: INestApplication) {
   // Ticket attachments arrive as data URLs (up to 10 MB, about 13.4 MB of base64). Only that
   // route takes bodies this large; the parser below then skips the already-parsed body.
   express.use('/api/v1/platform/support/issues', json({ limit: '14mb' }));
+  // The school profile carries the logo (1 MB) and approval certificate (5 MB) as data URLs.
+  express.use('/api/v1/school/profile', json({ limit: '9mb' }));
   // Profile photos arrive as data URLs (up to 2 MB, about 2.8 MB of base64).
   express.useBodyParser('json', { limit: '3mb' });
   app.use(helmet());

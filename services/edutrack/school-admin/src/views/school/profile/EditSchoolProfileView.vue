@@ -3,7 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { cn } from '@edutrack/ui/lib/utils';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { CheckIcon } from '@lucide/vue';
 import { useField, useForm } from 'vee-validate';
 import { computed, ref, watch } from 'vue';
@@ -136,7 +136,7 @@ async function submit() {
       fromSetup.value
         ? `School profile complete. ${p.name} is now shown across all portals.`
         : meta.value.dirty
-          ? 'School details saved. Changes are live on all portals.'
+          ? messageOf(p, 'School details saved. Changes are live on all portals.')
           : 'No changes to save.',
     );
     await back();
@@ -294,9 +294,9 @@ const cancel = back;
         <FileUpload
           v-model="logo"
           title="School logo"
-          hint="PNG, JPG or SVG · up to 1 MB · a square image works best"
-          accept="image/png,image/jpeg,image/svg+xml,image/webp"
-          type-label="PNG, JPG or SVG"
+          hint="PNG or JPG · up to 1 MB · a square image works best"
+          accept="image/png,image/jpeg"
+          type-label="PNG or JPG"
           :max-bytes="1048576"
           preview
         />
@@ -422,6 +422,7 @@ const cancel = back;
           accept="application/pdf,image/png,image/jpeg"
           type-label="PDF, JPG or PNG"
           :max-bytes="5242880"
+          read
           status="Awaiting verification by Edutrack"
         />
       </template>
