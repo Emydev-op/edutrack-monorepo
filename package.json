@@ -23,6 +23,8 @@
     "dev:teacher": "npm run dev -w @edutrack/teacher-portal",
     "dev:student": "npm run dev -w @edutrack/student-portal",
     "dev:parent": "npm run dev -w @edutrack/parent-portal",
+    "dev:school-home": "npm run dev -w @edutrack/school-home",
+    "dev:all": "run-p --print-label dev:backend dev:backoffice dev:school-admin dev:teacher dev:student dev:parent dev:school-home",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
@@ -41,6 +43,7 @@
     "@commitlint/config-conventional": "^21.2.4",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
+    "npm-run-all2": "^9.0.3",
     "prettier": "^3.9.10",
     "typescript": "~6.0.3"
   },

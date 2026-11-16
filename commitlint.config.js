@@ -12,6 +12,7 @@ export default {
         'teacher-portal',
         'student-portal',
         'parent-portal',
+        'school-home',
         'ui',
         'shared',
         'web-core',
