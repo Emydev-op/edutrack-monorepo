@@ -12,11 +12,10 @@ import {
   membershipView,
   platformPermissions,
   platformUser,
-  schoolAdminUser,
   schoolChoices,
+  schoolPortalUser,
   schoolSummary,
   signedInBody,
-  teacherUser,
 } from './auth.presenter.js';
 import { CredentialsService } from './credentials.service.js';
 import type { ExpiredPasswordDto, LoginDto, PortalName } from './dto/auth.dto.js';
@@ -294,10 +293,7 @@ export class AuthService {
       };
     return {
       portal,
-      user:
-        access.portal === 'TEACHER'
-          ? teacherUser(user, access.membership)
-          : schoolAdminUser(user, access.membership),
+      user: schoolPortalUser(user, access.portal, access.membership),
       school: schoolSummary(access.membership),
       schools: access.portal === 'SCHOOL_ADMIN' ? schoolChoices(access) : undefined,
       membership: membershipView(access.membership),

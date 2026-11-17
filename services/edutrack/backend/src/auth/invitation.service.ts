@@ -252,9 +252,13 @@ export class InvitationService {
     });
     const portal = inv.platformStaffId
       ? Portal.PLATFORM
-      : inv.membership && opensPortal(inv.membership, 'SCHOOL_ADMIN')
-        ? Portal.SCHOOL_ADMIN
-        : Portal.TEACHER;
+      : inv.membership?.kind === 'GUARDIAN'
+        ? Portal.PARENT
+        : inv.membership?.kind === 'STUDENT'
+          ? Portal.STUDENT
+          : inv.membership && opensPortal(inv.membership, 'SCHOOL_ADMIN')
+            ? Portal.SCHOOL_ADMIN
+            : Portal.TEACHER;
     const link = this.links.acceptInvitation(portal, inv.school?.slug, token);
     const data = {
       firstName: inv.user.firstName,

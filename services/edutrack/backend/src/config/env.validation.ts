@@ -185,16 +185,26 @@ export class Env {
   PLATFORM_LOCKOUT_MINUTES = 15;
 
   /* ---------- Links in emails ---------- */
+  // Defaults are the local router's addresses (`npm run infra:up`); deployed values are in
+  // .env.example.
 
   @IsUrl({ require_tld: false })
-  PLATFORM_PORTAL_URL = 'http://localhost:5170';
+  PLATFORM_PORTAL_URL = 'http://console.localhost';
 
   @IsUrl({ require_tld: false })
-  SCHOOL_ADMIN_PORTAL_URL = 'http://localhost:5171';
+  SCHOOL_ADMIN_PORTAL_URL = 'http://admin.localhost';
 
   /** Teacher Workspace base URL; `{slug}` is replaced with the school's slug. */
   @IsString()
-  TEACHER_PORTAL_URL_TEMPLATE = 'http://localhost:5172';
+  TEACHER_PORTAL_URL_TEMPLATE = 'http://{slug}.localhost/teacher';
+
+  /** Parent Portal base URL; `{slug}` is replaced with the school's slug. */
+  @IsString()
+  PARENT_PORTAL_URL_TEMPLATE = 'http://{slug}.localhost/parent';
+
+  /** Student Portal base URL (also printed on login slips); `{slug}` is the school's slug. */
+  @IsString()
+  STUDENT_PORTAL_URL_TEMPLATE = 'http://{slug}.localhost/student';
 
   /* ---------- Mail and SMS ---------- */
 
@@ -247,7 +257,13 @@ function productionProblems(env: Env): string[] {
     problems.push('COOKIE_SECURE: must not be false in production (refresh cookies need HTTPS)');
   if (env.APP_BASE_DOMAIN === 'localhost')
     problems.push('APP_BASE_DOMAIN: set the real base domain (e.g. edutrack.ng)');
-  for (const key of ['PLATFORM_PORTAL_URL', 'SCHOOL_ADMIN_PORTAL_URL'] as const)
+  for (const key of [
+    'PLATFORM_PORTAL_URL',
+    'SCHOOL_ADMIN_PORTAL_URL',
+    'TEACHER_PORTAL_URL_TEMPLATE',
+    'PARENT_PORTAL_URL_TEMPLATE',
+    'STUDENT_PORTAL_URL_TEMPLATE',
+  ] as const)
     if (/localhost|127\.0\.0\.1/.test(env[key]))
       problems.push(`${key}: points at localhost; emails would carry unusable links`);
   return problems;

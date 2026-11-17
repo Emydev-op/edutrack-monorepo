@@ -16,6 +16,7 @@ import { PlatformAuditService } from '../shared/platform-audit.service.js';
 import { nextPlatformNumber, platformInvoiceNumber } from '../shared/platform-sequence.js';
 import type { ProvisionSchoolDto } from './dto/schools.dto.js';
 import { SchoolsService } from './schools.service.js';
+import { defaultStudentLogins } from '../../school/student-logins/student-login-rules.js';
 
 const SECTION_CODES: Record<ProvisionSchoolDto['sections'][number], string> = {
   Nursery: 'NUR',
@@ -179,6 +180,9 @@ export class ProvisioningService {
               name,
               code: SECTION_CODES[name as keyof typeof SECTION_CODES],
               sortOrder: i,
+              studentLogins: defaultStudentLogins(
+                SECTION_CODES[name as keyof typeof SECTION_CODES],
+              ),
             },
           });
           sectionIds.push(row.id);

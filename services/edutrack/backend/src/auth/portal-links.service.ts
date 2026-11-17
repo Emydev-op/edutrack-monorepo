@@ -16,7 +16,14 @@ export class PortalLinksService {
         return this.config.get('SCHOOL_ADMIN_PORTAL_URL', { infer: true }).replace(/\/$/, '');
       default:
         return this.config
-          .get('TEACHER_PORTAL_URL_TEMPLATE', { infer: true })
+          .get(
+            portal === Portal.PARENT
+              ? 'PARENT_PORTAL_URL_TEMPLATE'
+              : portal === Portal.STUDENT
+                ? 'STUDENT_PORTAL_URL_TEMPLATE'
+                : 'TEACHER_PORTAL_URL_TEMPLATE',
+            { infer: true },
+          )
           .replace('{slug}', schoolSlug ?? '')
           .replace(/\/$/, '');
     }

@@ -61,6 +61,15 @@ export const studentRoutes: RouteRecordRaw[] = [
     },
   },
   {
+    ...s.loginSlips,
+    component: () => import('@/views/students/LoginSlipsView.vue'),
+    meta: {
+      title: 'Student login slips',
+      nav: s.list.name,
+      breadcrumb: [STUDENTS, { label: 'Login slips' }],
+    },
+  },
+  {
     ...s.transfer,
     component: () => import('@/views/students/TransferStudentView.vue'),
     meta: { title: 'Transfer or withdraw', nav: s.list.name, breadcrumb: [STUDENTS] },

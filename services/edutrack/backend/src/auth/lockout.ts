@@ -41,8 +41,12 @@ export function strictest(rules: LockoutRules[], fallback: LockoutRules): Lockou
   };
 }
 
-export const incorrectMessage = (attemptsLeft: number, usedPhone: boolean) =>
-  `The ${usedPhone ? 'phone number' : 'email'} or password you entered is incorrect. ` +
+/** @param used what was typed: a phone number (`true`/'phone'), an admission number or an email. */
+export const incorrectMessage = (
+  attemptsLeft: number,
+  used: boolean | 'email' | 'phone' | 'admission',
+) =>
+  `The ${used === true || used === 'phone' ? 'phone number' : used === 'admission' ? 'admission number' : 'email'} or password you entered is incorrect. ` +
   `${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} left before sign-in is paused.`;
 
 export const lockedMessage = (minutes: number) =>

@@ -14,6 +14,15 @@ export function normalizePhone(input: string): string | null {
 
 export type SignInIdentifier = { kind: 'email'; value: string } | { kind: 'phone'; value: string };
 
+/** Students sign in on their school's address with their admission number instead. */
+export interface AdmissionIdentifier {
+  kind: 'admission';
+  value: string;
+  schoolId: string;
+}
+
+export type CredentialIdentifier = SignInIdentifier | AdmissionIdentifier;
+
 /** Reads what the user typed in the sign-in box: an email or a phone number. */
 export function parseIdentifier(input: string): SignInIdentifier | null {
   const value = input.trim();

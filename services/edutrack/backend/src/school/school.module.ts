@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { OrganogramModule } from './organogram/organogram.module.js';
 import { AcademicsModule } from './academics/academics.module.js';
+import { AdmissionsModule } from './admissions/admissions.module.js';
 import { ContextModule } from './context/context.module.js';
 import { PublicSchoolController } from './public/public-school.controller.js';
 import { SchoolProfileModule } from './profile/profile.module.js';
@@ -8,7 +9,10 @@ import { SchoolAuditService } from './shared/school-audit.service.js';
 import { SchoolBrandingService } from './shared/school-branding.service.js';
 import { SchoolUsersModule } from './users/users.module.js';
 import { StaffModule } from './staff/staff.module.js';
+import { GuardiansModule } from './guardians/guardians.module.js';
+import { StudentLoginsModule } from './student-logins/student-logins.module.js';
 import { SetupModule } from './setup/setup.module.js';
+import { StudentsModule } from './students/students.module.js';
 
 /**
  * The school side of the API: what School Admin (admin.edutrack.ng) and the school portals
@@ -24,6 +28,11 @@ import { SetupModule } from './setup/setup.module.js';
     AcademicsModule,
     SetupModule,
     ContextModule,
+    // Before any /v1/students/:id route: GET /v1/students/logins.
+    StudentLoginsModule,
+    GuardiansModule,
+    StudentsModule,
+    AdmissionsModule,
     StaffModule,
   ],
   controllers: [PublicSchoolController],

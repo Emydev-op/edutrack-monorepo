@@ -30,6 +30,12 @@ export function applyTestEnv() {
     JWT_SECRET: 'e2e-test-secret-that-is-at-least-32-characters-long',
     REFRESH_REUSE_GRACE_SECONDS: '10',
     S3_CREATE_BUCKET: 'false',
+    // Links in emails and slips: the local router's addresses, whatever a developer's .env says.
+    PLATFORM_PORTAL_URL: 'http://console.localhost',
+    SCHOOL_ADMIN_PORTAL_URL: 'http://admin.localhost',
+    TEACHER_PORTAL_URL_TEMPLATE: 'http://{slug}.localhost/teacher',
+    PARENT_PORTAL_URL_TEMPLATE: 'http://{slug}.localhost/parent',
+    STUDENT_PORTAL_URL_TEMPLATE: 'http://{slug}.localhost/student',
   });
   process.env.S3_REGION ??= 'us-east-1';
   process.env.S3_BUCKET ??= 'edutrack-test';

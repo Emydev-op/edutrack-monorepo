@@ -49,7 +49,13 @@ const cards = computed(() => [
       { label: 'Gender', value: s.value.gender },
       { label: 'State of origin', value: s.value.stateOfOrigin },
       { label: 'Home address', value: s.value.address },
-      { label: 'Medical notes', value: s.value.medicalNotes || 'None recorded' },
+      {
+        label: 'Medical notes',
+        value:
+          s.value.medicalNotes === null
+            ? 'Restricted to staff who can edit student records'
+            : s.value.medicalNotes || 'None recorded',
+      },
     ],
   },
   {

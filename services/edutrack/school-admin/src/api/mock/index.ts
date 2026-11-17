@@ -17,6 +17,8 @@ import './handlers/organogram';
 import './handlers/school';
 import './handlers/shell';
 import './handlers/staff';
+// Before students: /v1/students/logins must not be taken for a student id.
+import './handlers/portal-accounts';
 import './handlers/students';
 import './handlers/users';
 import './handlers/communication';

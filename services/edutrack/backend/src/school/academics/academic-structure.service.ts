@@ -19,6 +19,8 @@ export interface AcademicSectionView {
   levels: number;
   /** Active branches that run it. */
   branches: string[];
+  /** Its students may sign in to the Student Portal. */
+  studentLogins: boolean;
 }
 
 /**
@@ -80,6 +82,7 @@ export class AcademicStructureService {
       description: s.description,
       levels: levels.filter((l) => l.level.sectionId === s.id).length,
       branches: branches.filter((b) => b.sectionIds.includes(s.id)).map((b) => b.name),
+      studentLogins: s.studentLogins,
     }));
   }
 

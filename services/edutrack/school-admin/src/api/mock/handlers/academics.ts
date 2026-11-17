@@ -96,6 +96,7 @@ function sectionsView(schoolId: string, acad: AcademicsData): SectionsView {
     confirmed: acad.confirmed.sections,
     sections: acad.sections.map((s) => ({
       ...s,
+      studentLogins: s.studentLogins ?? ['JSS', 'SSS'].includes(s.code),
       levels: acad.levels.filter((l) => l.section === s.name).length,
       branches: branches.filter((b) => b.sections.includes(s.name)).map((b) => b.name),
     })),
@@ -154,6 +155,10 @@ mock.put('/v1/academics/sections', (req) => {
     name: s.name.trim(),
     code: s.code,
     description: (s.description ?? '').trim(),
+    studentLogins:
+      s.studentLogins ??
+      acad.sections.find((x) => x.id === s.id)?.studentLogins ??
+      ['JSS', 'SSS'].includes(s.code),
   }));
   data.profile.sections = acad.sections.map((s) => s.name);
   if (!acad.assessment.same)
@@ -715,6 +720,7 @@ function classesView(schoolId: string, acad: AcademicsData): ClassesView {
     branches: branches.map((b) => ({ id: b.id, name: b.name, sections: b.sections })),
     sections: acad.sections.map((s) => ({
       ...s,
+      studentLogins: s.studentLogins ?? ['JSS', 'SSS'].includes(s.code),
       levels: acad.levels.filter((l) => l.section === s.name).length,
       branches: branches.filter((b) => b.sections.includes(s.name)).map((b) => b.name),
     })),

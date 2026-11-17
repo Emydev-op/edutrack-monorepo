@@ -109,7 +109,8 @@ export const useAdmitMutation = () =>
 
 export const useValidateImportMutation = () =>
   useMutation({
-    mutationFn: (fileName: string) => postRequest<ImportBatch>('/v1/imports', { fileName }),
+    mutationFn: (p: { fileName: string; text: string; branch: string }) =>
+      postRequest<ImportBatch>('/v1/imports', p),
   });
 
 export const useCommitImportMutation = () =>

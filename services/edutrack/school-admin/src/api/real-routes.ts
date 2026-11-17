@@ -39,11 +39,35 @@ export const REAL_ROUTES: readonly string[] = [
   'PUT /v1/academics/classes/arms/:id',
   'DELETE /v1/academics/classes/arms/:id',
   'GET /v1/academics/classes/:id',
+  // Students, Phase 2: records, transfers and withdrawals, arms and enrollment.
+  'GET /v1/students',
+  'POST /v1/students/assign-arm',
+  'GET /v1/students/:id',
+  'POST /v1/students/:id/transfer',
+  'GET /v1/enrollment/options',
+  'POST /v1/enrollments',
   // Setup Center and the header's working context.
   'GET /v1/setup',
   'POST /v1/setup/steps/:id/complete',
   'POST /v1/setup/finish',
   'GET /v1/context-options',
+  // Students, Phase 2: admissions and the student import.
+  'GET /v1/admissions',
+  'GET /v1/admissions/options',
+  'GET /v1/admissions/matches',
+  'POST /v1/admissions',
+  'POST /v1/imports',
+  'POST /v1/imports/:id/commit',
+  // Students, Phase 2: guardians, Parent Portal invitations and Student Portal logins.
+  'GET /v1/guardians',
+  'POST /v1/guardians',
+  'POST /v1/guardians/invite',
+  'POST /v1/guardians/merge',
+  'GET /v1/guardians/:id',
+  'POST /v1/guardians/:id/invite',
+  'DELETE /v1/guardians/:id/invite',
+  'GET /v1/students/logins',
+  'POST /v1/students/logins',
 ];
 
 type Rule = { method: string; pattern: RegExp };

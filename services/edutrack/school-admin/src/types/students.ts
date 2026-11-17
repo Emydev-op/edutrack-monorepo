@@ -58,7 +58,8 @@ export interface StudentDetail extends StudentRow {
   age: number | null;
   stateOfOrigin: string;
   address: string;
-  medicalNotes: string;
+  /** Null when the viewer may not see medical notes (needs students.edit). */
+  medicalNotes: string | null;
   admittedOn: string;
   admissionType: string;
   admittedInto: string;
@@ -123,8 +124,10 @@ export interface AdmissionOptions {
   session: string;
   term: string;
   branches: string[];
-  /** Class level → arms with how many places are used of the capacity. */
+  /** Class level → arms with how many places are used of the capacity (the first branch's). */
   arms: Record<string, { arm: string; used: number; capacity: number }[]>;
+  /** Branch → class level → arms, as each branch runs its own arms (real API only). */
+  armsByBranch?: Record<string, Record<string, { arm: string; used: number; capacity: number }[]>>;
   compulsorySubjects: string[];
   religiousSubjects: [code: string, name: string][];
   electives: string[];
@@ -203,8 +206,8 @@ export interface ImportIssue {
   row: number;
   student: string;
   kind: 'error' | 'warning';
-  /** What the issue is about, so the UI can offer the right fix. */
-  code: 'class' | 'dob' | 'duplicate' | 'no-guardian' | 'guardian-match';
+  /** What the issue is about, so the UI can offer the right fix ('invalid': exclude the row). */
+  code: 'class' | 'dob' | 'duplicate' | 'no-guardian' | 'guardian-match' | 'invalid';
   message: string;
   /** For class: the suggested class. */
   suggestion?: string;
@@ -264,7 +267,8 @@ export interface GuardianRow {
   children: { id: string; name: string; className: string }[];
   relationship: string;
   paysFees: boolean;
-  portal: 'Active' | 'Invited' | 'No account';
+  /** Parent Portal account. Closed: ended (children left more than two years ago, or merged). */
+  portal: 'Active' | 'Invited' | 'No account' | 'Closed';
   balance: number;
 }
 
@@ -285,6 +289,66 @@ export interface GuardianDetail extends GuardianRow {
   paymentPlan: string;
   preferredMethod: string;
   notifications: [string, string][];
+  /** The pending Parent Portal invitation, if any. */
+  invitation?: { sentBy: string; sentOn: string; expiresOn: string; expired: boolean } | null;
+}
+
+/** `POST /v1/guardians/invite`: everyone chosen, or everyone without an account. */
+export interface InviteGuardiansPayload {
+  ids?: string[];
+  /** Only guardians with a child in this class ("JSS 2B") or level ("JSS 2"). */
+  className?: string;
+  branchId?: string;
+}
+
+export interface GuardianInviteResult {
+  invited: number;
+  skipped: { id: string; name: string; reason: string }[];
+}
+
+/* ---------------- Student Portal logins ---------------- */
+
+export type StudentLoginState = 'No login' | 'Not signed in yet' | 'Active' | 'Closed';
+
+export interface StudentLoginsView {
+  sections: { id: string; name: string; code: string; studentLogins: boolean }[];
+  students: {
+    id: string;
+    name: string;
+    admissionNo: string;
+    className: string;
+    section: string;
+    /** The section has Student Portal logins on. */
+    enabled: boolean;
+    login: StudentLoginState;
+  }[];
+  counts: { eligible: number; withLogin: number; withoutLogin: number };
+}
+
+export interface StudentLoginsPayload {
+  className?: string;
+  studentIds?: string[];
+  /** Give students who already have a login a new one-time password. */
+  reissue?: boolean;
+}
+
+export interface LoginSlip {
+  studentId: string;
+  name: string;
+  className: string;
+  admissionNo: string;
+  schoolName: string;
+  signInAddress: string;
+  /** Shown once; changed at the first sign-in. */
+  oneTimePassword: string;
+}
+
+export interface StudentLoginsResult {
+  created: number;
+  reissued: number;
+  skipped: { id: string; name: string; reason: string }[];
+  issuedOn: string;
+  slips: LoginSlip[];
 }
 
 export interface GuardianDuplicate {
