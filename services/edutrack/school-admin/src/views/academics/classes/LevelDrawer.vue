@@ -2,7 +2,7 @@
 import { Button } from '@edutrack/ui/components/button';
 import { Input } from '@edutrack/ui/components/input';
 import { Spinner } from '@edutrack/ui/components/spinner';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { computed, reactive, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
@@ -116,10 +116,12 @@ async function submit() {
   serverError.value = '';
   try {
     if (props.level) {
-      await rename.mutateAsync({ id: props.level.id, name: form.name.trim() });
-      toast.success(`Renamed to ${form.name.trim()}. Students and curriculum moved with it.`);
+      const result = await rename.mutateAsync({ id: props.level.id, name: form.name.trim() });
+      toast.success(
+        messageOf(result, `Renamed to ${form.name.trim()}. Students and curriculum moved with it.`),
+      );
     } else {
-      await add.mutateAsync({
+      const result = await add.mutateAsync({
         branchId: form.branchId,
         section: form.section,
         name: form.name.trim(),
@@ -128,7 +130,10 @@ async function submit() {
         after: form.position === END ? undefined : form.position === START ? null : form.position,
       });
       toast.success(
-        `${form.name.trim()} added with ${armList.value.length} arm${armList.value.length === 1 ? '' : 's'}.`,
+        messageOf(
+          result,
+          `${form.name.trim()} added with ${armList.value.length} arm${armList.value.length === 1 ? '' : 's'}.`,
+        ),
       );
     }
     open.value = false;

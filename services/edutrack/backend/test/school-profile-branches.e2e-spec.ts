@@ -298,7 +298,10 @@ describe('School Admin profile and branches (e2e)', () => {
         sections: ['Nursery', 'Primary', 'Senior Secondary'],
         // Femi Adebayo is Lekki's Branch Admin in the seed (as in the mock).
         scopedUsers: [{ name: 'Mr. Femi Adebayo', roles: ['Branch Admin'] }],
-        classes: [],
+        // Lekki's class levels come from the academics seed.
+        classes: expect.arrayContaining([
+          { section: 'Nursery', level: 'Nursery 1', arms: 'A', students: 0 },
+        ]),
         finance: null,
       });
       expect(res.body.data.history[0]).toMatchObject({
@@ -457,9 +460,12 @@ describe('School Admin profile and branches (e2e)', () => {
           'Primary has classes at Lekki Campus. Remove those class levels in Classes & Arms before removing the section.',
         );
         const detail = (await admin.get(`/api/v1/branches/${lekki.id}`)).body.data;
-        expect(detail.classes).toEqual([
-          { section: 'Primary', level: 'Primary 1 (test)', arms: '', students: 0 },
-        ]);
+        expect(detail.classes).toContainEqual({
+          section: 'Primary',
+          level: 'Primary 1 (test)',
+          arms: '',
+          students: 0,
+        });
       } finally {
         await t.prisma.branchLevel.deleteMany({ where: { levelId: level.id } });
         await t.prisma.classLevel.delete({ where: { id: level.id } });

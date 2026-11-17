@@ -98,3 +98,17 @@ describe('New-school onboarding', () => {
     },
   );
 });
+
+describe('First-sign-in foundation (mock)', () => {
+  it('is complete for Greenfield and not yet for Crestview', async () => {
+    const gf = await signIn('adaeze.okonkwo@greenfield.edu.ng');
+    const { data: done } = await gf.get<SetupProgress>('/v1/setup');
+    expect(done).toMatchObject({
+      foundationComplete: true,
+      foundationSteps: ['school-profile', 'academic-session', 'classes-arms'],
+    });
+    const cv = await signIn('e.udo@crestviewcollege.ng');
+    const { data: fresh } = await cv.get<SetupProgress>('/v1/setup');
+    expect(fresh.foundationComplete).toBe(false);
+  });
+});

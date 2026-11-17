@@ -81,7 +81,7 @@ const showsImage = computed(() => {
       >
         <img
           v-if="preview && showsImage"
-          :src="model.dataUrl"
+          :src="model?.dataUrl ?? undefined"
           alt=""
           class="size-full object-contain"
         />

@@ -4,7 +4,7 @@ import { Checkbox } from '@edutrack/ui/components/checkbox';
 import { Input } from '@edutrack/ui/components/input';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { Switch } from '@edutrack/ui/components/switch';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { PlusIcon, Trash2Icon, XIcon } from '@lucide/vue';
 import { computed, reactive, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
@@ -212,7 +212,7 @@ function submit() {
           copy: copied.value.map((a) => a.id),
         });
         done.value = true;
-        toast.success(`${s.name} created. Next: set term dates and breaks.`);
+        toast.success(messageOf(s, `${s.name} created. Next: set term dates and breaks.`));
         await router.push({
           name: routesPath.academics.terms.name,
           params: { id: s.id },

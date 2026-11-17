@@ -459,7 +459,11 @@ export const setupConfirmed: Record<string, Record<AutoStep, boolean>> = {
   crestview: { 'school-profile': false, branches: false, 'organogram-roles': false, staff: false },
 };
 
-export const setup: Record<string, SetupProgress> = {
+/** Stored setup state; `setupView` adds the live steps and the foundation fields. */
+export const setup: Record<
+  string,
+  Omit<SetupProgress, 'foundationComplete' | 'foundationSteps'>
+> = {
   greenfield: {
     onboarding: false,
     intro:

@@ -1,12 +1,16 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
+import { queryKeys } from '@/api/query-keys';
 import DashboardLayout from '@/components/layout/DashboardLayout.vue';
+import { queryClient } from '@/lib/query-client';
 import { useAuthStore } from '@/stores/auth';
+import type { SetupProgress } from '@/types';
 
 import { academicsRoutes } from './modules/academics';
 import { authRoutes } from './modules/auth';
 import { plannedRoutes } from './modules/planned';
 import { schoolRoutes } from './modules/school';
+import { foundationRedirect } from './guards/foundation';
 import { communicationRoutes } from './modules/communication';
 import { financeRoutes } from './modules/finance';
 import { reportRoutes } from './modules/reports';
@@ -71,7 +75,7 @@ const router = createRouter({
   ],
 });
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore();
   if (to.matched.some((r) => r.meta.requiresAuth) && !auth.isAuthenticated) {
     return {
@@ -83,6 +87,15 @@ router.beforeEach((to) => {
   // only the sign-in page sends signed-in users back to work.
   if (to.name === routesPath.auth.login.name && auth.isAuthenticated)
     return { name: routesPath.dashboard.name };
+  // A new school finishes its foundation in the Setup Center first (cached per school; setup
+  // changes invalidate `queryKeys.setup.all`, so the guard sees them on the next navigation).
+  if (auth.isAuthenticated)
+    return foundationRedirect(to, () =>
+      queryClient.fetchQuery({
+        queryKey: [...queryKeys.setup.all, 'foundation', auth.school?.id],
+        queryFn: async () => (await import('@/api/helpers')).getRequest<SetupProgress>('/v1/setup'),
+      }),
+    );
 });
 
 router.afterEach((to) => {
