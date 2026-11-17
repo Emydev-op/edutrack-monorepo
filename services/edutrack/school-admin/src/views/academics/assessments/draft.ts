@@ -19,7 +19,6 @@ export function createAssessmentDraft(view: Ref<AssessmentView | undefined>) {
   const toConfig = (v: AssessmentView): AssessmentConfig => ({
     same: v.same,
     schemes: clone(v.schemes),
-    showPosition: v.showPosition,
     rounding: v.rounding,
     passMark: v.passMark,
   });

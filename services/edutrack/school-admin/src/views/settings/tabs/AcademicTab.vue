@@ -21,12 +21,6 @@ const confirm = useConfirm();
 
 const ITEMS: { key: keyof AcademicPolicy; label: string; description: string }[] = [
   {
-    key: 'showPosition',
-    label: 'Show class position on report cards',
-    description:
-      'Prints each student’s position in their class arm. Turn off if your school doesn’t rank.',
-  },
-  {
     key: 'reweightExempt',
     label: 'Re-weight exempt components',
     description:

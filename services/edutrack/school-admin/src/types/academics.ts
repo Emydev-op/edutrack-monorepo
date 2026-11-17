@@ -444,13 +444,14 @@ export interface AssessmentScheme {
   scale: GradeBand[];
   /** Highest first, for descriptive (e.g. Nursery) reports. */
   ratings: { name: string; description: string }[];
+  /** This section's report cards show class and subject position (e.g. 3rd of 32). */
+  showPosition: boolean;
 }
 
 export interface AssessmentConfig {
   /** One scheme for every section, under the key "*". */
   same: boolean;
   schemes: Record<string, AssessmentScheme | null>;
-  showPosition: boolean;
   rounding: 'Whole number' | '1 decimal place';
   passMark: number;
 }

@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { Clock } from '../../common/clock/clock.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import type { Prisma } from '../../generated/prisma/client.js';
@@ -71,7 +72,7 @@ export interface ClassDetailView {
     balance: number;
   }[];
   subjects: unknown[];
-  timetable: null;
+  timetable: unknown;
   results: unknown[];
 }
 
@@ -100,6 +101,7 @@ export class ClassesService {
     private readonly structure: AcademicStructureService,
     private readonly audit: SchoolAuditService,
     private readonly clock: Clock,
+    private readonly modules: ModuleRef,
   ) {}
 
   private get db() {
@@ -213,7 +215,10 @@ export class ClassesService {
     };
   }
 
-  /** One arm with its students. Subjects, timetable and results come with their phases. */
+  /**
+   * One arm with its students, the subjects it takes this session (and who teaches them this
+   * term) and its timetable. Results come with Phase 3b.
+   */
   async detail(id: string): Promise<ClassDetailView> {
     const { arm, level, branch } = await this.findArm(id);
     const facts = await this.armFacts([arm.id]);
@@ -248,9 +253,43 @@ export class ClassesService {
           };
         })
         .sort((a, b) => a.name.localeCompare(b.name)),
-      subjects: [],
-      timetable: null,
+      ...(await this.subjectsAndTimetable(arm.id, level.id, facts.session?.id)),
       results: [],
+    };
+  }
+
+  private async subjectsAndTimetable(armId: string, levelId: string, sessionId?: string) {
+    const term = sessionId ? await this.structure.currentTerm() : null;
+    if (!sessionId || !term) return { subjects: [], timetable: null };
+    const [offered, assignments, tt] = await Promise.all([
+      this.db.curriculumEntry.findMany({
+        where: { sessionId, levelId, subject: { status: 'ACTIVE' } },
+        include: { subject: true },
+        orderBy: { subject: { name: 'asc' } },
+      }),
+      this.db.teachingAssignment.findMany({
+        where: { termId: term.id, armId },
+        include: { staff: { select: { title: true, firstName: true, lastName: true } } },
+      }),
+      this.db.timetable.findFirst({ where: { termId: term.id, armId } }),
+    ]);
+    // The timetable service lives in the Phase 3a module, which imports this one.
+    const { TimetableService } = await import('../timetable/timetable.service.js');
+    return {
+      subjects: offered.map((e) => {
+        const a = assignments.find((x) => x.subjectId === e.subjectId);
+        return {
+          code: e.subject.code,
+          name: e.subject.name,
+          type: e.offering === 'COMPULSORY' ? 'Compulsory' : 'Elective',
+          teacherId: a?.staffId ?? null,
+          teacher: a ? staffName(a.staff) : null,
+          periods: a?.periodsPerWeek ?? e.subject.periodsPerWeek,
+        };
+      }),
+      timetable: tt
+        ? await this.modules.get(TimetableService, { strict: false }).view(armId, term.id)
+        : null,
     };
   }
 

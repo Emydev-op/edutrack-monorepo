@@ -624,9 +624,7 @@ mock.get('/v1/academics/results/report-card/:studentId', (req): ReportCard => {
     average: average === null ? '—' : `${average.toFixed(1)}%`,
     grade: average === null ? '—' : (gradeOf(scheme, average)?.grade ?? '—'),
     position:
-      acad.assessment.showPosition && average !== null
-        ? `${ord(pos)} of ${classmates.length}`
-        : null,
+      scheme.showPosition && average !== null ? `${ord(pos)} of ${classmates.length}` : null,
     published: acad.published.includes(`${term.id}|${arm.id}`),
     version: acad.reportVersions[`${term.id}|${student.id}`] ?? 0,
     nextTerm: next

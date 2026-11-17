@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { SetupStateService } from '../shared/setup-state.service.js';
+import { AcademicCatalogService } from './academic-catalog.service.js';
 import { AcademicSetupSteps } from './academic-steps.js';
 import { AcademicStructureService } from './academic-structure.service.js';
 import { AcademicsController } from './academics.controller.js';
@@ -17,6 +18,7 @@ import { SessionsService } from './sessions.service.js';
   controllers: [AcademicsController],
   providers: [
     AcademicStructureService,
+    AcademicCatalogService,
     AcademicSetupSteps,
     SectionsService,
     SessionsService,
@@ -24,6 +26,6 @@ import { SessionsService } from './sessions.service.js';
     SchoolAuditService,
     SetupStateService,
   ],
-  exports: [AcademicStructureService, AcademicSetupSteps],
+  exports: [AcademicStructureService, AcademicCatalogService, AcademicSetupSteps],
 })
 export class AcademicsModule {}

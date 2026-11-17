@@ -62,3 +62,31 @@ the screen's success toasts to the API's message: `toast.success(messageOf(resul
 Demo sign-ins (password `Edutrack2026!`): Greenfield `adaeze.okonkwo@greenfield.edu.ng` (School Admin, Principal),
 Crestview `e.udo@crestviewcollege.ng` (School Admin, Principal). The seed has more Greenfield staff
 with narrower roles (bursar, teachers) for permission tests.
+
+## Academics planning (Phase 3a)
+
+`src/school/curriculum/` (`CurriculumModule`) serves Subjects & Curriculum, Teacher Assignments,
+Timetable, Assessment & Grading and the read-only Attendance view under `/v1/academics/...`,
+beside Phase 1's `AcademicsModule`. `AcademicCatalogService` (in `academics/`) is the shared
+reader: current session and term, arms in display order, and what each level offers.
+
+Rules worth knowing:
+
+- **Everything is per session or term.** The curriculum, elective groups and assessment schemes
+  belong to the current session; teaching assignments and timetables to a term (`?term=` picks
+  one, otherwise the current term).
+- **Subjects** with any history (results, assignments, earlier sessions, timetables) can't be
+  deleted, only made inactive. Taking a subject out of a class clears this term's assignments and
+  draft lessons for it; it's refused once that class has result sheets for it this session.
+- **Timetables** are a manual grid. Grid keys are `"<Day>-P<n>"`, where `n` is the period's
+  position in its section's bell schedule (`TimetablePeriod`, created from the default the first
+  time a section needs one). Saving checks breaks, lesson counts, runs of one subject and teacher
+  clashes against other classes' drafts by time. Publishing copies the `DRAFT` layer to
+  `PUBLISHED`, which is what the portals read; a revision edits the draft while the published
+  version stays live.
+- **Assessment schemes** are per section; `SchoolSettings.sameSchemeForAllSections` writes one
+  scheme to every section. Whether report cards show position is per section
+  (`AssessmentScheme.showPosition`). Components and weights freeze once a section has published
+  results (`lockedAt`).
+- **Attendance** counts weekdays in the term, minus public holidays, mid-term breaks and calendar
+  closures. Class teachers take the register in the Teacher Workspace.

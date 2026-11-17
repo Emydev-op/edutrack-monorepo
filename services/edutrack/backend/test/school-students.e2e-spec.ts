@@ -197,7 +197,7 @@ describe('School Admin students (e2e)', () => {
         admittedInto: '2025/2026 · JSS 1B',
         previousSchool: 'Corona School, Ikeja',
         section: 'Junior Secondary',
-        classTeacher: 'Not assigned',
+        classTeacher: 'Mrs. Grace Okafor',
         enrolledSince: '14 Sep 2026',
         financeKey: id('Emmanuel Adeyemi'),
         exit: null,

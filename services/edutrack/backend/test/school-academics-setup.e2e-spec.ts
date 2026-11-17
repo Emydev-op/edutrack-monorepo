@@ -102,8 +102,13 @@ describe('School academics and setup (e2e)', () => {
         to: { name: 'classes', query: { from: 'setup' } },
       });
       expect(step(s, 'school-profile')).toMatchObject({ done: true, auto: true });
+      // Academics' Phase 3a steps describe themselves from live data.
+      expect(step(s, 'assessment-grading')).toMatchObject({
+        done: true,
+        auto: true,
+        description: 'Weights and grade scales set for every section',
+      });
       // Stored state for steps whose modules come later (seeded with the back office's demo).
-      expect(step(s, 'assessment-grading')).toMatchObject({ done: true, auto: false });
       expect(step(s, 'fees')).toMatchObject({
         done: false,
         auto: false,
@@ -121,12 +126,12 @@ describe('School academics and setup (e2e)', () => {
     });
 
     it('marks a not-yet-built step done by hand, and knows unknown steps', async () => {
-      const res = await gf.post('/api/v1/setup/steps/timetable/complete');
+      const res = await gf.post('/api/v1/setup/steps/notifications/complete');
       expect(res.status).toBe(200);
-      expect(res.body.message).toBe('Timetable marked as done.');
-      expect(res.body.data).toMatchObject({ id: 'timetable', done: true, auto: false });
+      expect(res.body.message).toBe('Notifications marked as done.');
+      expect(res.body.data).toMatchObject({ id: 'notifications', done: true, auto: false });
       const stored = await t.prisma.setupStepState.findFirst({
-        where: { schoolId: gfSchool, stepKey: 'timetable' },
+        where: { schoolId: gfSchool, stepKey: 'notifications' },
       });
       expect(stored?.confirmedAt).toBeTruthy();
       const missing = await gf.post('/api/v1/setup/steps/teleport/complete');
@@ -255,8 +260,7 @@ describe('School academics and setup (e2e)', () => {
       expect(res.body.data).toMatchObject({
         // The seed's JSS 2B roster (14 students, Emmanuel Adeyemi among them).
         arm: { name: 'JSS 2B', room: 'Room J2B · Block C', branch: 'Main Campus', students: 14 },
-        subjects: [],
-        timetable: null,
+        timetable: expect.objectContaining({ arm: 'JSS 2B', status: 'Published' }),
         results: [],
       });
       expect(res.body.data.students).toHaveLength(14);

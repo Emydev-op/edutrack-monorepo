@@ -72,12 +72,15 @@ export function startingScheme(code: string): AssessmentScheme {
       components: components('CA 40 · Exam 60'),
       scale: scale('A–F'),
       ratings: ratings(),
+      showPosition: false,
     };
   return {
     mode: 'scores',
     components: components(code === 'PRI' ? 'CA 40 · Exam 60' : 'CA1 20 · CA2 20 · Exam 60'),
     scale: scale(code === 'SSS' ? 'WAEC (A1–F9)' : 'A–F'),
     ratings: ratings(),
+    // Junior and Senior Secondary usually rank; Primary usually doesn't.
+    showPosition: code === 'JSS' || code === 'SSS',
   };
 }
 

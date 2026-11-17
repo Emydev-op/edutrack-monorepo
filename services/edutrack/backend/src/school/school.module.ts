@@ -3,6 +3,7 @@ import { OrganogramModule } from './organogram/organogram.module.js';
 import { AcademicsModule } from './academics/academics.module.js';
 import { AdmissionsModule } from './admissions/admissions.module.js';
 import { ContextModule } from './context/context.module.js';
+import { CurriculumModule } from './curriculum/curriculum.module.js';
 import { PublicSchoolController } from './public/public-school.controller.js';
 import { SchoolProfileModule } from './profile/profile.module.js';
 import { SchoolAuditService } from './shared/school-audit.service.js';
@@ -26,6 +27,7 @@ import { StudentsModule } from './students/students.module.js';
     OrganogramModule,
     SchoolUsersModule,
     AcademicsModule,
+    CurriculumModule,
     SetupModule,
     ContextModule,
     // Before any /v1/students/:id route: GET /v1/students/logins.

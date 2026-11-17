@@ -333,12 +333,14 @@ export function defaultScheme(code: string): AssessmentScheme {
         components: mkComponents('CA 40 · Exam 60'),
         scale: mkScale('A–F'),
         ratings: RATINGS.map(([name, description]) => ({ name, description })),
+        showPosition: false,
       }
     : {
         mode: 'scores',
         components: mkComponents(code === 'PRI' ? 'CA 40 · Exam 60' : 'CA1 20 · CA2 20 · Exam 60'),
         scale: mkScale(code === 'SSS' ? 'WAEC (A1–F9)' : 'A–F'),
         ratings: RATINGS.map(([name, description]) => ({ name, description })),
+        showPosition: code === 'JSS' || code === 'SSS',
       };
 }
 
@@ -1095,7 +1097,6 @@ function greenfield(): AcademicsData {
         'Junior Secondary': defaultScheme('JSS'),
         'Senior Secondary': defaultScheme('SSS'),
       },
-      showPosition: true,
       rounding: '1 decimal place',
       passMark: 40,
     },
@@ -1323,7 +1324,6 @@ function crestview(): AcademicsData {
     assessment: {
       same: true,
       schemes: {},
-      showPosition: true,
       rounding: '1 decimal place',
       passMark: 40,
     },

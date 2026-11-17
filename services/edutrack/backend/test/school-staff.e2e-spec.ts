@@ -27,6 +27,7 @@ interface Row {
   group: string;
   kind: string;
   isYou: boolean;
+  load: { periods: number; max: number; subjects: number; classes: number } | null;
 }
 
 describe('School Admin staff (e2e)', () => {
@@ -145,8 +146,11 @@ describe('School Admin staff (e2e)', () => {
         branch: 'All branches',
         kind: 'Teaching',
         staffNumber: 'GFA-ST-0117',
-        load: { periods: 0, max: 28, subjects: 0, classes: 0 },
+        load: { max: 28 },
       });
+      // Load comes from this term's teaching assignments (seeded with Academics).
+      expect(ade.load!.periods).toBeGreaterThan(0);
+      expect(ade.load!.periods).toBeLessThanOrEqual(28);
       const lawal = (list.rows as Row[]).find((r) => r.email === 'kemi.lawal@greenfield.edu.ng')!;
       expect(lawal).toMatchObject({ account: 'Invited', group: 'Finance' });
       const adamu = (list.rows as Row[]).find((r) => r.name === 'Mr. Peter Adamu')!;
@@ -175,8 +179,13 @@ describe('School Admin staff (e2e)', () => {
         address: 'Ikeja, Lagos',
         maxPeriods: 28,
         user: { email: 'g.okafor@greenfield.edu.ng', status: 'Active', roles: ['Teacher'] },
-        teaching: { assignments: [], classTeacherOf: [] },
       });
+      expect(res.body.data.teaching.classTeacherOf).toEqual(
+        expect.arrayContaining([expect.objectContaining({ name: 'JSS 2B' })]),
+      );
+      expect(res.body.data.teaching.assignments).toEqual(
+        expect.arrayContaining([expect.objectContaining({ arm: 'JSS 2B', subject: 'ENG' })]),
+      );
       const kinds = (res.body.data.documents as { kind: string; status: string }[]).map(
         (d) => `${d.kind}:${d.status}`,
       );

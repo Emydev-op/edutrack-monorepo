@@ -125,7 +125,6 @@ mock.put('/v1/settings/numbering', (req) => {
 /* ---------------- Academic ---------------- */
 
 const ACADEMIC_LABEL: Record<keyof AcademicPolicy, string> = {
-  showPosition: 'Show class position on report cards',
   reweightExempt: 'Re-weight exempt components',
   promotionSuggestions: 'Suggest promotion decisions',
   blockPromotionOnFees: 'Block promotion when fees are outstanding',
@@ -145,7 +144,6 @@ function academicSettings(schoolId: string): AcademicSettings {
           : s!.components.map((c) => `${c.name} ${c.weight}%`).join(' · ') || 'No components yet',
     }));
   return {
-    showPosition: acad.assessment.showPosition,
     ...policy,
     termsPerSession: session ? session.terms.length : null,
     session: session?.name ?? null,
@@ -159,15 +157,13 @@ mock.get('/v1/settings/academic', (req) => academicSettings(currentUser(req).sch
 
 mock.put('/v1/settings/academic', (req) => {
   const { schoolId, settings, log } = ctxFor(req);
-  const acad = academicsData[schoolId]!;
   const p = (req.body ?? {}) as Partial<AcademicPolicy>;
   for (const key of Object.keys(ACADEMIC_LABEL) as (keyof AcademicPolicy)[]) {
     const v = p[key];
     if (v === undefined) continue;
     if (typeof v !== 'boolean') fail(`${ACADEMIC_LABEL[key]} must be on or off.`);
-    const before = key === 'showPosition' ? acad.assessment.showPosition : settings.policy[key];
-    if (key === 'showPosition') acad.assessment.showPosition = v;
-    else settings.policy[key] = v;
+    const before = settings.policy[key];
+    settings.policy[key] = v;
     log('Academic', ACADEMIC_LABEL[key], onOff(before), onOff(v));
   }
   return academicSettings(schoolId);

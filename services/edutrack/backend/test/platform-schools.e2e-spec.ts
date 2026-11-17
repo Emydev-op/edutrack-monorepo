@@ -64,7 +64,9 @@ describe('Platform schools and subscriptions (e2e)', () => {
           totalPages: expect.any(Number),
         },
       });
-      const greenfield = (res.body.data as School[]).find((s) => s.id === ids.greenfield)!;
+      // Every local run provisions more schools (newest first), so look Greenfield up by name.
+      const found = await api.get('/api/v1/platform/schools?search=Greenfield');
+      const greenfield = (found.body.data as School[]).find((s) => s.id === ids.greenfield)!;
       expect(greenfield).toMatchObject({
         name: 'Greenfield Academy',
         plan: 'Growth',

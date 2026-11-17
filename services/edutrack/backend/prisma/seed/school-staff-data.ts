@@ -383,3 +383,33 @@ export async function seedSchoolStaffData(
     }
   }
 }
+
+/** Links each seeded teacher to the subjects they're qualified for, once the subjects exist. */
+export async function linkStaffQualifications(
+  prisma: PrismaClient,
+  schoolIds: Record<string, string>,
+): Promise<void> {
+  for (const [key, list] of [
+    ['greenfield', GREENFIELD],
+    ['crestview', CRESTVIEW],
+  ] as const) {
+    const schoolId = schoolIds[key]!;
+    for (const d of list) {
+      if (!d.qualified?.length) continue;
+      const staff = await prisma.staff.findUnique({
+        where: { schoolId_staffNumber: { schoolId, staffNumber: d.staffNumber } },
+      });
+      if (!staff) continue;
+      const subjects = await prisma.subject.findMany({
+        where: { schoolId, code: { in: d.qualified } },
+        select: { id: true },
+      });
+      for (const s of subjects)
+        await prisma.staffQualification.upsert({
+          where: { staffId_subjectId: { staffId: staff.id, subjectId: s.id } },
+          create: { schoolId, staffId: staff.id, subjectId: s.id },
+          update: {},
+        });
+    }
+  }
+}

@@ -1790,7 +1790,6 @@ mock.put('/v1/academics/assessment', (req) => {
   acad.assessment = {
     same: p.same,
     schemes: Object.fromEntries(keys.map((k) => [k, p.schemes[k] ?? null])),
-    showPosition: p.showPosition,
     rounding: p.rounding,
     passMark: p.passMark,
   };

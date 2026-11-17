@@ -353,12 +353,19 @@ function startDefault() {
 
   <SectionCard
     title="Report card options"
-    description="School-wide. Change any time before results are published."
+    description="Position is set per section; rounding and the pass mark are school-wide. Change any time before results are published."
   >
     <div class="grid gap-4 sm:grid-cols-3">
-      <label class="flex items-center gap-2.5 text-[13px] font-medium sm:col-span-3">
-        <Switch v-model="cfg.showPosition" />
-        Show class position (e.g. 3rd of 32) on report cards
+      <label
+        v-if="scheme?.mode === 'scores'"
+        class="flex items-center gap-2.5 text-[13px] font-medium sm:col-span-3"
+      >
+        <Switch
+          :model-value="scheme.showPosition"
+          @update:model-value="d.ensureScheme().showPosition = $event"
+        />
+        Show class position (e.g. 3rd of 32) on
+        {{ d.key.value === '*' ? 'every' : d.key.value }} report cards
       </label>
       <FieldShell id="as-round" label="Round totals to">
         <select
