@@ -136,8 +136,12 @@ watch(sibling, (sib) => {
   }
 });
 
-const arms = computed(() => options.value?.arms[d.level] ?? []);
-const levels = computed(() => Object.keys(options.value?.arms ?? {}));
+/** The chosen branch's arms (the real API answers per branch; the mock has one set). */
+const branchArms = computed(
+  () => options.value?.armsByBranch?.[d.branch] ?? options.value?.arms ?? {},
+);
+const arms = computed(() => branchArms.value[d.level] ?? []);
+const levels = computed(() => Object.keys(branchArms.value));
 const linkedGuardian = computed(() => guardians.value?.data.find((g) => g.id === d.guardianId));
 const guardianLabel = computed(() =>
   d.guardianMode === 'link'

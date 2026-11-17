@@ -25,6 +25,8 @@ export function configureApp(app: INestApplication) {
   express.use('/api/v1/school/profile', json({ limit: '9mb' }));
   // Staff documents arrive as data URLs (up to 5 MB, about 6.7 MB of base64).
   express.use('/api/v1/staff/:id/documents', json({ limit: '7mb' }));
+  // Student imports carry the CSV text (up to 4 MB, more once JSON-escaped).
+  express.use('/api/v1/imports', json({ limit: '6mb' }));
   // Profile photos arrive as data URLs (up to 2 MB, about 2.8 MB of base64).
   express.useBodyParser('json', { limit: '3mb' });
   app.use(helmet());
