@@ -3,7 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Checkbox } from '@edutrack/ui/components/checkbox';
 import { Input } from '@edutrack/ui/components/input';
 import { Spinner } from '@edutrack/ui/components/spinner';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { computed, reactive, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
@@ -24,7 +24,7 @@ const blank = () => ({
   email: '',
   relationship: 'Mother',
   paysFees: true,
-  invite: true,
+  invite: false,
   studentIds: props.studentId ? [props.studentId] : ([] as string[]),
 });
 const form = reactive(blank());
@@ -73,7 +73,9 @@ async function save() {
   try {
     const g = await add.mutateAsync({ ...form, name: form.name.trim(), email: form.email.trim() });
     open.value = false;
-    toast.success(`${g.name} added${form.invite ? ' and invited to the parent portal' : ''}.`);
+    toast.success(
+      messageOf(g, `${g.name} added${form.invite ? ' and invited to the parent portal' : ''}.`),
+    );
   } catch (e) {
     serverError.value = getApiErrorMessage(e, 'That didn’t save. Try again.');
   }

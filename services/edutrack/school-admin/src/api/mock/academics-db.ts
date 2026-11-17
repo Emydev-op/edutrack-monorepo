@@ -34,6 +34,8 @@ export interface SectionRec {
   name: string;
   code: string;
   description: string;
+  /** Student Portal logins; unset = the default (JSS and SSS on). */
+  studentLogins?: boolean;
 }
 
 export interface ArmRec {

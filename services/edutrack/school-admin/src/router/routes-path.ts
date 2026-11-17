@@ -78,6 +78,7 @@ export const routesPath = {
     enrollment: { name: 'enrollment', path: '/students/enrollment' },
     parents: { name: 'parents', path: '/students/parents' },
     parent: { name: 'parent', path: '/students/parents/:id' },
+    loginSlips: { name: 'student-login-slips', path: '/students/login-slips' },
   },
   staff: {
     directory: { name: 'staff', path: '/staff' },

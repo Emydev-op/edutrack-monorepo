@@ -41,7 +41,7 @@ export interface GuardianRecord {
   email: string;
   address: string;
   occupation: string;
-  portal: 'Active' | 'Invited' | 'No account';
+  portal: 'Active' | 'Invited' | 'No account' | 'Closed';
   portalSince: string;
   /** studentId → relationship. */
   children: Record<string, { relationship: string; paysFees: boolean; primary: boolean }>;
