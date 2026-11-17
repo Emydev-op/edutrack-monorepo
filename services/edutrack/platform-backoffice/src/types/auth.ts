@@ -8,6 +8,8 @@ export interface AuthUser {
   roleId: RoleId;
   roleName: string;
   avatarUrl: string | null;
+  /** `Schools.View`, `Users.Edit`… from the role. Older sessions may not have it yet. */
+  permissions?: string[];
 }
 
 export interface LoginPayload {

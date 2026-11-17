@@ -28,6 +28,16 @@ export const useAuthStore = defineStore('auth', () => {
       : '',
   );
 
+  /**
+   * Whether the role allows a permission (`Schools.View`). Mirrors the API's checks so screens
+   * can hide or lock what would only fail; the API still enforces every one.
+   */
+  function can(...permissions: string[]) {
+    const held = user.value?.permissions;
+    if (!held) return true; // a session from before permissions were sent: let the API decide
+    return permissions.every((p) => held.includes(p));
+  }
+
   /** `remember` is decided by the API's cookie at sign-in; kept for callers that pass it. */
   function setSession(session: Session, _remember?: boolean) {
     token.value = session.token;
@@ -67,6 +77,7 @@ export const useAuthStore = defineStore('auth', () => {
     initials,
     setSession,
     updateUser,
+    can,
     clear,
     restore,
   };

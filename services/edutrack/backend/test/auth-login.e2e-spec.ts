@@ -182,6 +182,10 @@ describe('Sign-in (e2e)', () => {
         },
       });
       expect(res.body.data.school).toBeUndefined();
+      // The back office hides and locks pages from the role's permissions.
+      expect(res.body.data.user.permissions).toEqual(
+        expect.arrayContaining(['Schools.View', 'Users.Manage', 'Settings.Edit']),
+      );
     });
 
     it.each([

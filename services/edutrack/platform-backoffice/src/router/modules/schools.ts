@@ -9,7 +9,11 @@ export const schoolRoutes: RouteRecordRaw[] = [
   {
     ...schools.list,
     component: () => import('@/views/schools/SchoolsView.vue'),
-    meta: { title: 'Schools', breadcrumb: [{ label: 'All Schools' }] },
+    meta: {
+      title: 'Schools',
+      breadcrumb: [{ label: 'All Schools' }],
+      permission: ['Schools.View'],
+    },
   },
   {
     ...schools.provision,
@@ -18,12 +22,18 @@ export const schoolRoutes: RouteRecordRaw[] = [
       title: 'Provision school',
       breadcrumb: [...trail, { label: 'Provision school' }],
       nav: 'provision-school',
+      permission: ['Schools.Create'],
     },
   },
   {
     path: schools.detail.path,
     component: () => import('@/views/schools/detail/SchoolDetailView.vue'),
-    meta: { title: 'School', breadcrumb: trail, nav: schools.list.name },
+    meta: {
+      title: 'School',
+      breadcrumb: trail,
+      nav: schools.list.name,
+      permission: ['Schools.View'],
+    },
     children: [
       {
         path: '',
@@ -32,6 +42,7 @@ export const schoolRoutes: RouteRecordRaw[] = [
       },
       {
         ...schools.subscription,
+        meta: { permission: ['Schools.View', 'Subscriptions.View'] },
         component: () => import('@/views/schools/detail/(tabs)/SchoolSubscriptionTab.vue'),
       },
       {
@@ -44,6 +55,7 @@ export const schoolRoutes: RouteRecordRaw[] = [
       },
       {
         ...schools.billing,
+        meta: { permission: ['Schools.View', 'Subscriptions.View'] },
         component: () => import('@/views/schools/detail/(tabs)/SchoolBillingTab.vue'),
       },
       {
@@ -52,6 +64,7 @@ export const schoolRoutes: RouteRecordRaw[] = [
       },
       {
         ...schools.audit,
+        meta: { permission: ['Schools.View', 'Audit.View'] },
         component: () => import('@/views/schools/detail/(tabs)/SchoolAuditTab.vue'),
       },
     ],
@@ -59,7 +72,7 @@ export const schoolRoutes: RouteRecordRaw[] = [
   {
     ...plans.list,
     component: () => import('@/views/plans/PlansView.vue'),
-    meta: { title: 'Plans', breadcrumb: [{ label: 'Plans' }] },
+    meta: { title: 'Plans', breadcrumb: [{ label: 'Plans' }], permission: ['Subscriptions.View'] },
   },
   {
     ...plans.create,
@@ -68,6 +81,7 @@ export const schoolRoutes: RouteRecordRaw[] = [
       title: 'Create plan',
       breadcrumb: [{ label: 'Plans', to: plans.list.name }, { label: 'Create plan' }],
       nav: plans.list.name,
+      permission: ['Subscriptions.Manage'],
     },
   },
   {
@@ -77,11 +91,16 @@ export const schoolRoutes: RouteRecordRaw[] = [
       title: 'Plan',
       breadcrumb: [{ label: 'Plans', to: plans.list.name }],
       nav: plans.list.name,
+      permission: ['Subscriptions.View'],
     },
   },
   {
     ...subscriptions,
     component: () => import('@/views/subscriptions/SubscriptionsView.vue'),
-    meta: { title: 'Subscriptions', breadcrumb: [{ label: 'Subscriptions' }] },
+    meta: {
+      title: 'Subscriptions',
+      breadcrumb: [{ label: 'Subscriptions' }],
+      permission: ['Subscriptions.View'],
+    },
   },
 ];

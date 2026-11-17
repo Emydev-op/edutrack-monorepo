@@ -16,5 +16,7 @@ declare module 'vue-router' {
     breadcrumb?: Crumb[];
     /** Sidebar item to highlight, for nested pages. */
     nav?: string;
+    /** Permissions needed to open the page (all of them), e.g. `Schools.View`. */
+    permission?: string[];
   }
 }

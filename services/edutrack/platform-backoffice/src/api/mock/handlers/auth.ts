@@ -1,6 +1,6 @@
 import type { AcceptInvitationPayload, LoginPayload } from '@/types';
 
-import { ME, passwords, users } from '../db';
+import { ME, passwords, roles, users } from '../db';
 import { mock, MockHttpError } from '@edutrack/web-core/mock';
 import { fullName, roleName } from './shared';
 
@@ -16,6 +16,9 @@ const authUser = (u: (typeof users)[number]) => ({
   roleId: u.roleId,
   roleName: roleName(u.roleId),
   avatarUrl: null,
+  permissions: Object.entries(roles.find((r) => r.id === u.roleId)?.permissions ?? {}).flatMap(
+    ([area, actions]) => (actions ?? []).map((a) => `${area}.${a}`),
+  ),
 });
 
 /**

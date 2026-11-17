@@ -175,6 +175,16 @@
   body {
     @apply bg-background text-foreground text-sm leading-normal;
   }
+  /* Tailwind 4 dropped the pointer cursor on buttons; bring it back for every clickable control. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab']:not([aria-disabled='true']),
+  [role='menuitem']:not([data-disabled]),
+  [role='option']:not([data-disabled]),
+  label[for],
+  summary {
+    cursor: pointer;
+  }
   /* Keyboard focus ring for buttons, links and other controls. Text fields signal focus with
      their border instead, so they are excluded. */
   :focus-visible:not(input:not([type='checkbox'], [type='radio']), textarea, select) {

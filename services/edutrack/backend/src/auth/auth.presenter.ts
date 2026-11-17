@@ -122,6 +122,8 @@ export function platformUser(user: User, staff: PlatformStaffWithRole) {
     roleId: staff.role.key ?? staff.role.id,
     roleName: staff.role.name,
     avatarUrl: null as string | null,
+    /** `Schools.View`, `Users.Edit`…: the back office hides and locks what the role can't do. */
+    permissions: platformPermissions(staff),
   };
 }
 
