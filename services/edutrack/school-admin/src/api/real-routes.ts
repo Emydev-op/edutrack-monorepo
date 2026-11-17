@@ -10,6 +10,28 @@
 export const REAL_ROUTES: readonly string[] = [
   // Sign-in, invitations, passwords, sessions.
   '* /v1/auth/**',
+  // Academics, Phase 1: sections, sessions and terms (not closing), classes and arms.
+  'GET /v1/academics/sections',
+  'PUT /v1/academics/sections',
+  'GET /v1/academics/sessions',
+  'POST /v1/academics/sessions',
+  'PUT /v1/academics/sessions/:id/terms',
+  'POST /v1/academics/sessions/:id/start',
+  'GET /v1/academics/classes',
+  'POST /v1/academics/classes/defaults',
+  'POST /v1/academics/classes/levels',
+  'PUT /v1/academics/classes/levels/:id',
+  'POST /v1/academics/classes/levels/:id/move',
+  'DELETE /v1/academics/classes/levels/:id',
+  'POST /v1/academics/classes/levels/:id/arms',
+  'PUT /v1/academics/classes/arms/:id',
+  'DELETE /v1/academics/classes/arms/:id',
+  'GET /v1/academics/classes/:id',
+  // Setup Center and the header's working context.
+  'GET /v1/setup',
+  'POST /v1/setup/steps/:id/complete',
+  'POST /v1/setup/finish',
+  'GET /v1/context-options',
 ];
 
 type Rule = { method: string; pattern: RegExp };

@@ -5,7 +5,7 @@ import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
 import { cn } from '@edutrack/ui/lib/utils';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { CheckIcon } from '@lucide/vue';
 import { computed } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
@@ -42,12 +42,29 @@ const stats = computed(() => {
     optionalLeft: steps.filter((s) => !s.required && !s.done).length,
   };
 });
-const groups = computed(() =>
-  GROUPS.map((name) => ({
-    name,
-    steps: (setup.value?.steps ?? []).filter((s) => s.group === name),
-  })).filter((g) => g.steps.length),
-);
+/** Until the foundation is in place, its steps come first and the dashboard stays closed. */
+const foundation = computed(() => {
+  const s = setup.value;
+  if (!s || s.foundationComplete) return [];
+  return s.foundationSteps
+    .map((id) => s.steps.find((x) => x.id === id))
+    .filter((x): x is SetupStep => !!x);
+});
+const foundationLine = computed(() => {
+  const n = foundation.value.length;
+  return `Finish ${n === 3 ? 'these three steps' : n === 1 ? 'this step' : `these ${n} steps`} to open your dashboard.`;
+});
+const groups = computed(() => {
+  const first = new Set(foundation.value.map((s) => s.id));
+  return [
+    ...(first.size ? [{ name: 'Get started', steps: foundation.value, foundation: true }] : []),
+    ...GROUPS.map((name) => ({
+      name,
+      steps: (setup.value?.steps ?? []).filter((s) => s.group === name && !first.has(s.id)),
+      foundation: false,
+    })).filter((g) => g.steps.length),
+  ];
+});
 
 /** The first step not done, in the Setup Center's order: where a new school goes next. */
 const next = computed(() => setup.value?.steps.find((s) => !s.done) ?? null);
@@ -69,8 +86,8 @@ const badge = (s: SetupStep) =>
 
 async function markDone(step: SetupStep) {
   try {
-    await complete.mutateAsync(step.id);
-    toast.success(`${step.name} marked as done.`);
+    const result = await complete.mutateAsync(step.id);
+    toast.success(messageOf(result, `${step.name} marked as done.`));
   } catch (e) {
     toast.error(getApiErrorMessage(e, 'That didn’t save. Try again.'));
   }
@@ -78,8 +95,10 @@ async function markDone(step: SetupStep) {
 
 async function finishSetup() {
   try {
-    await finish.mutateAsync();
-    toast.success('Setup complete. Reopen the Setup Center from the dashboard any time.');
+    const result = await finish.mutateAsync();
+    toast.success(
+      messageOf(result, 'Setup complete. Reopen the Setup Center from the dashboard any time.'),
+    );
     await router.push({ name: routesPath.dashboard.name });
   } catch (e) {
     toast.error(getApiErrorMessage(e, 'Setup couldn’t be finished. Try again.'));
@@ -196,8 +215,18 @@ async function finishSetup() {
     </section>
 
     <div class="grid items-start gap-4 xl:grid-cols-2">
-      <section v-for="g in groups" :key="g.name" class="rounded-lg border bg-card">
-        <h2 class="border-b border-divider px-4 py-3 text-sm font-semibold">{{ g.name }}</h2>
+      <section
+        v-for="g in groups"
+        :key="g.name"
+        :class="cn('rounded-lg border bg-card', g.foundation && 'border-primary/40 xl:col-span-2')"
+        :aria-label="g.foundation ? 'Get started' : undefined"
+      >
+        <div class="border-b border-divider px-4 py-3">
+          <h2 class="text-sm font-semibold">{{ g.name }}</h2>
+          <p v-if="g.foundation" class="mt-0.5 text-xs text-muted-foreground text-pretty">
+            {{ foundationLine }}
+          </p>
+        </div>
         <ul>
           <li
             v-for="s in g.steps"

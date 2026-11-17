@@ -28,4 +28,12 @@ export interface SetupProgress {
   finished: boolean;
   /** A newly provisioned school: the admin is guided step by step and lands in the Setup Center. */
   onboarding: boolean;
+  /**
+   * The first-sign-in foundation is in place: school profile confirmed, the current session with
+   * its terms started, class levels and arms set. Until then every screen except the Setup Center
+   * and the ones its foundation steps open redirects to the Setup Center.
+   */
+  foundationComplete: boolean;
+  /** The steps that make up the foundation, shown first in the Setup Center. */
+  foundationSteps: string[];
 }

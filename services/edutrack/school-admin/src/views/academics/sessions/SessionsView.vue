@@ -4,6 +4,7 @@ import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
 import type { StatusTone } from '@edutrack/ui/lib/status';
 import { cn } from '@edutrack/ui/lib/utils';
+import { messageOf } from '@edutrack/web-core/http';
 import { ChevronRightIcon } from '@lucide/vue';
 import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
@@ -89,8 +90,8 @@ function startSession(s: AcademicSession) {
     ],
     confirmLabel: 'Start session',
     action: async () => {
-      await start.mutateAsync(s.id);
-      toast.success(`${s.name} is now active.`);
+      const result = await start.mutateAsync(s.id);
+      toast.success(messageOf(result, `${s.name} is now active.`));
     },
   });
 }
