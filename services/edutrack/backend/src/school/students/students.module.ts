@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../../auth/auth.module.js';
+import { StudentLoginsController } from '../student-logins/student-logins.controller.js';
+import { StudentLoginsModule } from '../student-logins/student-logins.module.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { SetupStateService } from '../shared/setup-state.service.js';
 import { MemberPermissions } from './member-permissions.js';
@@ -17,8 +19,9 @@ import { StudentsService } from './students.service.js';
  * `StudentSetupSteps` for the Setup Center's Students step.
  */
 @Module({
-  imports: [AuthModule],
-  controllers: [StudentsController, EnrollmentController],
+  imports: [AuthModule, StudentLoginsModule],
+  // Student logins first: GET /v1/students/logins must register before GET /v1/students/:id.
+  controllers: [StudentLoginsController, StudentsController, EnrollmentController],
   providers: [
     SchoolAuditService,
     SetupStateService,

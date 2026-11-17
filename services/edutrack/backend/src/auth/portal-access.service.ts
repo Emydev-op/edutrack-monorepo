@@ -8,6 +8,7 @@ import { Portal } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { LockoutRules } from './lockout.js';
 import { strictest } from './lockout.js';
+import { childAccess, isCurrentStudent, type ChildAccess } from './school-portal-rules.js';
 import {
   TEACHER_PORTAL_ROLE_KEYS,
   TEACHING_ONLY_ROLE_KEYS,
@@ -18,6 +19,8 @@ export const membershipInclude = {
   staff: { include: { department: true } },
   roles: { include: { role: true } },
   branches: { select: { branchId: true } },
+  guardian: true,
+  student: true,
 } satisfies Prisma.SchoolMembershipInclude;
 
 export type MembershipWithSchool = Prisma.SchoolMembershipGetPayload<{
@@ -30,11 +33,13 @@ export type PlatformStaffWithRole = Prisma.PlatformStaffGetPayload<{
 }>;
 
 export type SchoolPortal = 'SCHOOL_ADMIN' | 'TEACHER';
+/** Portals for a school's families: parents (GUARDIAN membership) and pupils (STUDENT). */
+export type FamilyPortal = 'PARENT' | 'STUDENT';
 
 export type PortalAccess =
   | { portal: 'PLATFORM'; staff: PlatformStaffWithRole }
   | {
-      portal: SchoolPortal;
+      portal: SchoolPortal | FamilyPortal;
       /** The membership this session acts through. */
       membership: MembershipWithSchool;
       /** Every school this user can open in this portal (School Admin's school switcher). */
@@ -101,16 +106,25 @@ function blockOf(m: MembershipWithSchool): AppException {
 
 const BLOCK_PRIORITY = ['SCHOOL_SUSPENDED', 'ACCOUNT_SUSPENDED', 'ACCOUNT_DEACTIVATED'];
 
+const NO_ACCESS: Record<Portal, string> = {
+  PLATFORM: 'This account doesn’t have access to the EduTrack back office.',
+  TEACHER: 'This account doesn’t have access to the Teacher Workspace at this school.',
+  SCHOOL_ADMIN: 'This account doesn’t have access to School Admin.',
+  PARENT: 'This account doesn’t have access to the Parent Portal at this school.',
+  STUDENT: 'This account doesn’t have access to the Student Portal at this school.',
+};
+
 const noAccess = (portal: Portal) =>
-  new AppException(
-    HttpStatus.FORBIDDEN,
-    portal === Portal.PLATFORM
-      ? 'This account doesn’t have access to the EduTrack back office.'
-      : portal === Portal.TEACHER
-        ? 'This account doesn’t have access to the Teacher Workspace at this school.'
-        : 'This account doesn’t have access to School Admin.',
-    'NO_ACCESS',
-  );
+  new AppException(HttpStatus.FORBIDDEN, NO_ACCESS[portal], 'NO_ACCESS');
+
+/** One of a parent's children with what the parent may see of them. */
+export interface ParentChildAccess {
+  studentId: string;
+  relationship: string;
+  isPrimary: boolean;
+  paysFees: boolean;
+  access: ChildAccess;
+}
 
 /**
  * Decides whether a user may use a portal (and as which membership), after their password was
@@ -172,6 +186,8 @@ export class PortalAccessService {
         );
       return { portal: 'PLATFORM', staff };
     }
+    if (portal === Portal.PARENT || portal === Portal.STUDENT)
+      return this.resolveFamily(userId, portal, target.schoolId);
     if (portal !== Portal.SCHOOL_ADMIN && portal !== Portal.TEACHER)
       throw new AppException(
         HttpStatus.BAD_REQUEST,
@@ -203,6 +219,89 @@ export class PortalAccessService {
         (a, b) => (b.lastActiveAt?.getTime() ?? 0) - (a.lastActiveAt?.getTime() ?? 0),
       )[0]!;
     return { portal, membership: chosen, choices: eligible.filter(isUsable) };
+  }
+
+  /**
+   * Parent and Student Portals: one membership at the host school (a parent who has children at
+   * two schools signs in to each school's address with the same account and only ever gets that
+   * school). Parents need a child they may still see; pupils must still be on the roll, in a
+   * section whose Student Portal logins are on.
+   */
+  private async resolveFamily(
+    userId: string,
+    portal: FamilyPortal,
+    schoolId: string | undefined,
+  ): Promise<PortalAccess> {
+    if (!schoolId) throw noAccess(portal);
+    const m = await this.prisma.schoolMembership.findUnique({
+      where: {
+        schoolId_userId_kind: {
+          schoolId,
+          userId,
+          kind: portal === 'PARENT' ? 'GUARDIAN' : 'STUDENT',
+        },
+      },
+      include: membershipInclude,
+    });
+    if (!m || m.status === 'REVOKED') throw noAccess(portal);
+    if (!isUsable(m)) throw blockOf(m);
+    if (portal === 'PARENT') {
+      if (!m.guardian || m.guardian.deletedAt || m.guardian.mergedIntoId) throw noAccess(portal);
+      const children = await this.parentChildren(schoolId, m.guardian.id);
+      if (!children.length)
+        throw new AppException(
+          HttpStatus.FORBIDDEN,
+          `Your children are no longer at ${m.school.name}, so this parent account has closed.`,
+          'PARENT_ACCESS_ENDED',
+        );
+    } else await this.checkStudent(m);
+    return { portal, membership: m, choices: [m] };
+  }
+
+  /** The children a guardian may still see, by first name (left children only for two years). */
+  async parentChildren(schoolId: string, guardianId: string): Promise<ParentChildAccess[]> {
+    const links = await this.prisma.studentGuardian.findMany({
+      where: { schoolId, guardianId },
+      include: { student: true },
+      orderBy: [{ student: { firstName: 'asc' } }, { student: { surname: 'asc' } }],
+    });
+    const now = this.clock.now();
+    return links.flatMap((l) => {
+      const access = childAccess(l.student, now);
+      return access
+        ? [
+            {
+              studentId: l.studentId,
+              relationship: l.relationship,
+              isPrimary: l.isPrimary,
+              paysFees: l.paysFees,
+              access,
+            },
+          ]
+        : [];
+    });
+  }
+
+  /** A pupil signs in while on the roll, in a section with Student Portal logins on. */
+  private async checkStudent(m: MembershipWithSchool) {
+    const student = m.student;
+    if (!student || !isCurrentStudent(student))
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        `You’ve left ${m.school.name}, so your student login is closed.`,
+        'STUDENT_LEFT',
+      );
+    const enrollment = await this.prisma.enrollment.findFirst({
+      where: { schoolId: m.schoolId, studentId: student.id, status: 'ACTIVE' },
+      orderBy: { session: { startsOn: 'desc' } },
+      select: { level: { select: { section: { select: { studentLogins: true } } } } },
+    });
+    if (!enrollment?.level.section.studentLogins)
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        'Student Portal sign-in is turned off for your class. Ask your school.',
+        'STUDENT_LOGINS_OFF',
+      );
   }
 
   /** Expired: flagged by an admin, or older than the school's rule (platform passwords don't expire). */

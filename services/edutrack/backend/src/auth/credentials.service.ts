@@ -6,7 +6,11 @@ import type { User } from '../generated/prisma/client.js';
 import type { Portal } from '../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { REDIS_CLIENT } from '../redis/redis.constants.js';
-import { parseIdentifier, type SignInIdentifier } from './identifiers.js';
+import {
+  parseIdentifier,
+  type CredentialIdentifier,
+  type SignInIdentifier,
+} from './identifiers.js';
 import {
   afterFailure,
   incorrectMessage,
@@ -42,13 +46,39 @@ export class CredentialsService {
     return id;
   }
 
-  findUser(id: SignInIdentifier) {
+  findUser(id: CredentialIdentifier) {
+    if (id.kind === 'admission')
+      // The pupil's login is the User behind their STUDENT membership at this school.
+      return this.prisma.user.findFirst({
+        where: {
+          deletedAt: null,
+          memberships: {
+            some: {
+              schoolId: id.schoolId,
+              kind: 'STUDENT',
+              student: { admissionNo: { equals: id.value, mode: 'insensitive' }, deletedAt: null },
+            },
+          },
+        },
+      });
     return this.prisma.user.findFirst({
       where:
         id.kind === 'email'
           ? { email: id.value, deletedAt: null }
           : { phone: id.value, deletedAt: null },
     });
+  }
+
+  /**
+   * What was typed in the sign-in box. The Student Portal takes an admission number (on the
+   * school's address); every other portal an email or phone number.
+   */
+  identify(raw: string, portal: Portal, schoolId?: string, field = 'email'): CredentialIdentifier {
+    if (portal !== 'STUDENT' || !schoolId) return this.parse(raw, field);
+    const value = raw.trim();
+    if (!value || value.length > 40)
+      throw AppException.validation({ [field]: 'Enter your admission number.' });
+    return { kind: 'admission', value, schoolId };
   }
 
   /**
@@ -61,8 +91,8 @@ export class CredentialsService {
     portal: Portal,
     schoolId?: string,
     field = 'email',
-  ): Promise<{ user: User; identifier: SignInIdentifier }> {
-    const identifier = this.parse(raw, field);
+  ): Promise<{ user: User; identifier: CredentialIdentifier }> {
+    const identifier = this.identify(raw, portal, schoolId, field);
     const user = await this.findUser(identifier);
     if (!user) {
       await burnPasswordCheck(password);
@@ -103,7 +133,7 @@ export class CredentialsService {
       }
       throw new AppException(
         HttpStatus.UNAUTHORIZED,
-        incorrectMessage(result.attemptsLeft, identifier.kind === 'phone'),
+        incorrectMessage(result.attemptsLeft, identifier.kind),
         'INVALID_CREDENTIALS',
       );
     }
@@ -122,8 +152,9 @@ export class CredentialsService {
   }
 
   /** Unknown identifiers keep a countdown in Redis that mirrors a real account's. */
-  private async failUnknown(id: SignInIdentifier, rules: LockoutRules): Promise<never> {
-    const key = `auth:unknown:${sha256(`${id.kind}:${id.value}`)}`;
+  private async failUnknown(id: CredentialIdentifier, rules: LockoutRules): Promise<never> {
+    const subject = id.kind === 'admission' ? `${id.schoolId}:${id.value.toLowerCase()}` : id.value;
+    const key = `auth:unknown:${sha256(`${id.kind}:${subject}`)}`;
     const current = Number((await this.redis.get(key)) ?? 0);
     if (current >= rules.attempts) throw locked(rules.minutes);
     const count = await this.redis.incr(key);
@@ -135,7 +166,7 @@ export class CredentialsService {
     }
     throw new AppException(
       HttpStatus.UNAUTHORIZED,
-      incorrectMessage(result.attemptsLeft, id.kind === 'phone'),
+      incorrectMessage(result.attemptsLeft, id.kind),
       'INVALID_CREDENTIALS',
     );
   }

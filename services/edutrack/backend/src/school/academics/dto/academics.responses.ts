@@ -28,6 +28,12 @@ export class AcademicSectionResponse {
 
   @ApiProperty({ example: ['Main Campus'], description: 'Active branches that run it' })
   branches!: string[];
+
+  @ApiProperty({
+    example: true,
+    description: 'Its students may sign in to the Student Portal with their admission number',
+  })
+  studentLogins!: boolean;
 }
 
 export class SectionsViewResponse {

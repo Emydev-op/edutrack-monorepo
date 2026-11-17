@@ -58,6 +58,16 @@ export const REAL_ROUTES: readonly string[] = [
   'POST /v1/admissions',
   'POST /v1/imports',
   'POST /v1/imports/:id/commit',
+  // Students, Phase 2: guardians, Parent Portal invitations and Student Portal logins.
+  'GET /v1/guardians',
+  'POST /v1/guardians',
+  'POST /v1/guardians/invite',
+  'POST /v1/guardians/merge',
+  'GET /v1/guardians/:id',
+  'POST /v1/guardians/:id/invite',
+  'DELETE /v1/guardians/:id/invite',
+  'GET /v1/students/logins',
+  'POST /v1/students/logins',
 ];
 
 type Rule = { method: string; pattern: RegExp };

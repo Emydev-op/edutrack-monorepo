@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TenantPrismaService } from '../../tenancy/tenant-prisma.service.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
+import { defaultStudentLogins } from '../student-logins/student-login-rules.js';
 import { asTx } from '../shared/tenant-tx.js';
 import { fail } from './academic-format.js';
 import {
@@ -53,7 +54,13 @@ export class SectionsService {
       if (codes.has(s.code))
         throw fail(`Two sections use the code ${s.code}.`, 'SECTION_CODE_TAKEN');
       codes.add(s.code);
-      return { id: s.id, name, code: s.code, description: (s.description ?? '').trim() };
+      return {
+        id: s.id,
+        name,
+        code: s.code,
+        description: (s.description ?? '').trim(),
+        studentLogins: s.studentLogins,
+      };
     });
 
     const existing = await this.tenant.db.section.findMany({
@@ -84,8 +91,23 @@ export class SectionsService {
         });
       for (const [i, r] of rows.entries()) {
         const data = { name: r.name, code: r.code, description: r.description, sortOrder: i };
-        if (r.id && keptIds.has(r.id)) await tx.section.update({ where: { id: r.id }, data });
-        else await tx.section.create({ data: { schoolId, ...data } });
+        // Older clients don't send the flag: kept sections keep theirs, new ones get the default.
+        if (r.id && keptIds.has(r.id))
+          await tx.section.update({
+            where: { id: r.id },
+            data: {
+              ...data,
+              ...(r.studentLogins !== undefined && { studentLogins: r.studentLogins }),
+            },
+          });
+        else
+          await tx.section.create({
+            data: {
+              schoolId,
+              ...data,
+              studentLogins: r.studentLogins ?? defaultStudentLogins(r.code),
+            },
+          });
       }
       await this.audit.record(
         {

@@ -9,6 +9,8 @@ import { SchoolAuditService } from './shared/school-audit.service.js';
 import { SchoolBrandingService } from './shared/school-branding.service.js';
 import { SchoolUsersModule } from './users/users.module.js';
 import { StaffModule } from './staff/staff.module.js';
+import { GuardiansModule } from './guardians/guardians.module.js';
+import { StudentLoginsModule } from './student-logins/student-logins.module.js';
 import { SetupModule } from './setup/setup.module.js';
 import { StudentsModule } from './students/students.module.js';
 
@@ -26,6 +28,9 @@ import { StudentsModule } from './students/students.module.js';
     AcademicsModule,
     SetupModule,
     ContextModule,
+    // Before any /v1/students/:id route: GET /v1/students/logins.
+    StudentLoginsModule,
+    GuardiansModule,
     StudentsModule,
     AdmissionsModule,
     StaffModule,

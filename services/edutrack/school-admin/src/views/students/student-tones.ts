@@ -20,6 +20,8 @@ const TONES: Record<string, StatusTone> = {
   Rejected: 'error',
   Invited: 'info',
   'No account': 'neutral',
+  Closed: 'neutral',
+  Left: 'neutral',
 };
 
 /** Badge colours for student, fee, document, application and portal states. */

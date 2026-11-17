@@ -78,6 +78,41 @@ export function teacherUser(user: User, m: MembershipWithSchool) {
   };
 }
 
+/** Parent Portal: the parent as the school knows them (their guardian record's name and title). */
+export function parentUser(user: User, m: MembershipWithSchool) {
+  const title = m.guardian?.title ?? user.title ?? '';
+  return {
+    id: user.id,
+    title,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    displayName:
+      m.guardian?.fullName ?? [title, user.firstName, user.lastName].filter(Boolean).join(' '),
+    email: user.email ?? '',
+    phone: user.phone,
+  };
+}
+
+/** Student Portal: the pupil with their admission number. */
+export function studentUser(user: User, m: MembershipWithSchool) {
+  const s = m.student;
+  return {
+    id: user.id,
+    firstName: s?.firstName ?? user.firstName,
+    lastName: s?.surname ?? user.lastName,
+    displayName: s ? `${s.firstName} ${s.surname}` : `${user.firstName} ${user.lastName}`,
+    admissionNo: s?.admissionNo ?? '',
+  };
+}
+
+/** The signed-in user for any school portal. */
+export function schoolPortalUser(user: User, portal: string, m: MembershipWithSchool) {
+  if (portal === 'TEACHER') return teacherUser(user, m);
+  if (portal === 'PARENT') return parentUser(user, m);
+  if (portal === 'STUDENT') return studentUser(user, m);
+  return schoolAdminUser(user, m);
+}
+
 export function platformUser(user: User, staff: PlatformStaffWithRole) {
   return {
     id: user.id,
@@ -97,11 +132,12 @@ export function signedInBody(
   token: { accessToken: string; expiresIn: number },
 ) {
   if (access.portal === 'PLATFORM') return { ...token, user: platformUser(user, access.staff) };
-  if (access.portal === 'TEACHER') {
+  if (access.portal !== 'SCHOOL_ADMIN') {
+    // Teacher, Parent and Student Portals live on the school's address: only that school.
     const school = schoolSummary(access.membership);
     return {
       ...token,
-      user: teacherUser(user, access.membership),
+      user: schoolPortalUser(user, access.portal, access.membership),
       school: { id: school.id, slug: school.slug, name: school.name, initials: school.initials },
     };
   }

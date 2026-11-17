@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -45,6 +46,16 @@ export class SectionInputDto {
   @MaxLength(200, { message: 'Keep descriptions under 200 characters.' })
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional({
+    example: true,
+    description:
+      'Student Portal logins for this section. Omitted: kept as they are (new sections: on for ' +
+      'JSS and SSS, off otherwise).',
+  })
+  @IsOptional()
+  @IsBoolean({ message: 'Choose whether students in this section can sign in.' })
+  studentLogins?: boolean;
 }
 
 export class SaveSectionsDto {

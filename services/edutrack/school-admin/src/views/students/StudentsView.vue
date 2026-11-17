@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
-import { messageOf } from '@edutrack/web-core/http';
 import { ArrowRightLeftIcon, EyeIcon, MessageSquareIcon } from '@lucide/vue';
 import { refDebounced } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { RouterLink, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
@@ -25,8 +25,10 @@ import {
   useAssignArmMutation,
   useStudentsQuery,
 } from '@/api/services/students';
+import { useCreateStudentLoginsMutation } from '@/api/services/portal-accounts';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
+import { useLoginSlipsStore } from '@/stores/login-slips';
 import { useContextStore } from '@/stores/context';
 import type { StudentRow } from '@/types';
 
@@ -37,6 +39,8 @@ const confirm = useConfirm();
 const auth = useAuthStore();
 const context = useContextStore();
 const assignArm = useAssignArmMutation();
+const createLogins = useCreateStudentLoginsMutation();
+const slips = useLoginSlipsStore();
 const { data: options } = useAdmissionOptionsQuery();
 
 const page = useRouteQuery<string>('page', '1');
@@ -125,6 +129,55 @@ function moveArm() {
   });
 }
 
+/** Student Portal logins with one-time passwords, then the printable slips. */
+function studentLogins() {
+  const picked = selection.selectedRows();
+  const scopes = [
+    ...(picked.length
+      ? [
+          {
+            value: 'selected',
+            label: `${picked.length} selected student${picked.length === 1 ? '' : 's'}`,
+          },
+        ]
+      : []),
+    ...(className.value ? [{ value: 'class', label: `Students in ${className.value}` }] : []),
+    { value: 'all', label: 'Every student without a login' },
+  ];
+  void confirm({
+    title: 'Create Student Portal logins?',
+    description:
+      'Students sign in on your school’s address with their admission number. Only sections with Student Portal logins on (Academics › Sections) are included.',
+    details: [
+      ['Passwords', 'One-time, printed on a slip per student, and shown only once'],
+      ['First sign-in', 'Each student must choose their own password'],
+    ],
+    options: scopes,
+    confirmLabel: 'Create logins and print slips',
+    action: async ({ option }) => {
+      const result = await createLogins.mutateAsync(
+        option === 'selected'
+          ? { studentIds: picked.map((s) => s.id) }
+          : option === 'class'
+            ? { className: className.value }
+            : {},
+      );
+      if (!result.slips.length) {
+        toast.error(messageOf(result, 'No new logins to create.'), {
+          description: result.skipped.length
+            ? result.skipped.map((s) => `${s.name}: ${s.reason}`).join(' ')
+            : undefined,
+        });
+        return;
+      }
+      slips.set(result);
+      toast.success(messageOf(result, `${result.slips.length} login slips ready.`));
+      selection.clear();
+      await router.push({ name: routesPath.students.loginSlips.name });
+    },
+  }).catch((e: unknown) => toast.error(getApiErrorMessage(e)));
+}
+
 function exportRows(list: StudentRow[], name: string) {
   downloadCsv(
     name,
@@ -162,6 +215,7 @@ const columns: Column[] = [
     :description="`${context.current.session} · ${context.current.term} · ${context.current.branch}${data ? ` · ${data.meta.total} students` : ''}`"
   >
     <template #actions>
+      <Button variant="outline" @click="studentLogins">Student logins</Button>
       <Button as-child variant="outline"
         ><RouterLink :to="{ name: routesPath.students.import.name }"
           >Import students</RouterLink

@@ -3,6 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Input } from '@edutrack/ui/components/input';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
+import { Switch } from '@edutrack/ui/components/switch';
 import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon, Trash2Icon } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
@@ -29,7 +30,11 @@ interface Row {
   description: string;
   levels: number;
   branches: string[];
+  studentLogins: boolean;
 }
+
+/** New sections: Student Portal logins on for Junior and Senior Secondary. */
+const defaultLogins = (code: string) => ['JSS', 'SSS'].includes(code);
 
 const STANDARD: [string, string, string][] = [
   ['Nursery', 'NUR', 'Early years · ages 2–5'],
@@ -57,9 +62,12 @@ const toRow = (s: AcademicSection): Row => ({
   description: s.description,
   levels: s.levels,
   branches: s.branches,
+  studentLogins: s.studentLogins ?? defaultLogins(s.code),
 });
 const snapshot = (list: Row[]) =>
-  JSON.stringify(list.map((r) => [r.id, r.name.trim(), r.code, r.description.trim()]));
+  JSON.stringify(
+    list.map((r) => [r.id, r.name.trim(), r.code, r.description.trim(), r.studentLogins]),
+  );
 
 watch(
   data,
@@ -96,7 +104,15 @@ const invalid = computed(
 const err = (r: Row, k: 'name' | 'code') => (showErrors.value ? errorsFor(r)[k] : '');
 
 function add(name = '', code = '', description = '') {
-  rows.value.push({ key: `new-${++seq}`, name, code, description, levels: 0, branches: [] });
+  rows.value.push({
+    key: `new-${++seq}`,
+    name,
+    code,
+    description,
+    levels: 0,
+    branches: [],
+    studentLogins: defaultLogins(code),
+  });
 }
 function move(i: number, d: -1 | 1) {
   const list = [...rows.value];
@@ -137,6 +153,7 @@ async function submit() {
         name: r.name.trim(),
         code: r.code,
         description: r.description.trim(),
+        studentLogins: r.studentLogins,
       })),
     );
     original.value = snapshot(rows.value);
@@ -276,6 +293,20 @@ const fromSetup = computed(() => route.query.from === 'setup');
               />
             </FieldShell>
           </div>
+          <label class="flex items-center gap-2 text-[13px]">
+            <Switch v-model="r.studentLogins" :aria-label="`Student Portal logins for ${r.name}`" />
+            <span
+              >Student Portal logins
+              <span class="text-faint"
+                >·
+                {{
+                  r.studentLogins
+                    ? 'students sign in with their admission number'
+                    : 'off for this section'
+                }}</span
+              ></span
+            >
+          </label>
           <p class="text-xs text-faint">
             {{
               r.branches.length

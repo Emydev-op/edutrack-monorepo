@@ -30,6 +30,7 @@ import { seedSchoolStaffData } from './school-staff-data.js';
 import { seedSchoolAcademics } from './school-academics-data.js';
 import { seedSchoolStudents } from './school-students-data.js';
 import { seedSchoolAdmissions } from './school-admissions-data.js';
+import { seedSchoolAccounts } from './school-accounts-data.js';
 import { seedSupportDesk } from './support-data.js';
 
 export const DEMO_PASSWORD = 'Edutrack2026!';
@@ -732,6 +733,7 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
   await seedSchoolAcademics(prisma, schoolIds);
   await seedSchoolStudents(prisma, schoolIds);
   await seedSchoolAdmissions(prisma, schoolIds);
+  await seedSchoolAccounts(prisma, schoolIds);
 
   return { schools: schoolIds, users: userIds.size };
 }

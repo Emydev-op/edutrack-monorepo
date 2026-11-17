@@ -16,6 +16,8 @@ export interface AcademicSection {
   levels: number;
   /** Active branches that run it. */
   branches: string[];
+  /** Its students can sign in to the Student Portal (admission number + password). */
+  studentLogins: boolean;
 }
 
 export interface SectionsView {
@@ -28,6 +30,8 @@ export interface SectionInput {
   name: string;
   code: string;
   description: string;
+  /** Omitted: kept as is (new sections: on for JSS and SSS). */
+  studentLogins?: boolean;
 }
 
 /* ---------------- Sessions, terms and calendar ---------------- */

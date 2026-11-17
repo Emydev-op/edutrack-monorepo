@@ -65,7 +65,8 @@ const blank = () => ({
   guardianEmail: '',
   relationship: 'Father',
   paysFees: true,
-  invite: true,
+  // Parent Portal accounts are never created at admission: invite from Parents / Guardians.
+  invite: false,
   branch: 'Main Campus',
   level: 'JSS 1',
   arm: '',
@@ -291,7 +292,7 @@ const review = computed(() => [
             ],
             ['Relationship', d.relationship],
             ['Pays fees', d.paysFees ? 'Yes' : 'No'],
-            ['Portal invitation', d.invite ? 'Send on admission' : 'Don’t send'],
+            ['Parent Portal', 'Invite the guardian later from Parents / Guardians'],
           ],
   },
   {
@@ -354,9 +355,9 @@ const chip = (on: boolean, full = false) =>
         {{ result.admissionNo }} · {{ result.className }} · {{ options?.session }} ·
         {{ result.branch }}. Guardian: {{ result.guardianName ?? 'No guardian linked' }}.
         {{
-          result.invited
-            ? `Portal invitation sent to ${result.guardianName}.`
-            : 'No portal invitation sent.'
+          result.guardianName
+            ? 'Invite them to the Parent Portal from Parents / Guardians when you’re ready.'
+            : ''
         }}
         {{
           result.invoiceTotal
@@ -572,9 +573,6 @@ const chip = (on: boolean, full = false) =>
             </FieldShell>
             <label class="flex h-9 items-center gap-2 text-[13px]"
               ><Checkbox v-model="d.paysFees" />Responsible for fees</label
-            >
-            <label class="flex h-9 items-center gap-2 text-[13px]"
-              ><Checkbox v-model="d.invite" />Invite to parent portal</label
             >
           </div>
         </template>
