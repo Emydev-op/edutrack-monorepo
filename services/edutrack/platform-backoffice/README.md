@@ -12,6 +12,9 @@ Vue 3 · Vite · Pinia · Vue Router · TanStack Query · VeeValidate + Yup · s
 npm run dev -w @edutrack/platform-backoffice   # http://localhost:5170
 ```
 
+Through the local router (`npm run infra:up`) it is http://console.localhost; deployed at
+`console.edutrack.ng`.
+
 Sign in with the prefilled demo account. In development every API call is answered by an
 in-browser **mock API**, so the app works before the backend exists.
 

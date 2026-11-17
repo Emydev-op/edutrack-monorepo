@@ -5,7 +5,7 @@ import { useSessionStore } from '@/stores/session';
 
 /** Axios instance for this portal. Every API composable goes through it. */
 export const http = createHttpClient({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: import.meta.env.VITE_API_URL ?? '/api',
   getAccessToken: () => useSessionStore().accessToken,
   getTenantId: () => useSessionStore().tenantId,
   onUnauthorized: () => {

@@ -4,7 +4,7 @@ import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { Switch } from '@edutrack/ui/components/switch';
 import { cn } from '@edutrack/ui/lib/utils';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { CheckIcon } from '@lucide/vue';
 import { useField, useForm } from 'vee-validate';
 import { computed, ref, watch } from 'vue';
@@ -176,9 +176,12 @@ const onSubmit = handleSubmit(async (v) => {
       : await update.mutateAsync(payload);
     saved.value = true;
     toast.success(
-      isNew.value
-        ? 'Branch created. Next, set up its classes.'
-        : `Branch saved.${payload.grantBranchAdmin ? ` ${head.value!.name} now has Branch Admin access.` : ''}`,
+      messageOf(
+        result,
+        isNew.value
+          ? 'Branch created. Next, set up its classes.'
+          : `Branch saved.${payload.grantBranchAdmin ? ` ${head.value!.name} now has Branch Admin access.` : ''}`,
+      ),
     );
     await (fromSetup.value
       ? router.push({ name: routesPath.setupBranches.name })

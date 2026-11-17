@@ -14,6 +14,8 @@ export const RESERVED_SUBDOMAINS: ReadonlySet<string> = new Set([
   'apps',
   'admin',
   'backoffice',
+  'console',
+  'ops',
   'platform',
   'portal',
   'auth',

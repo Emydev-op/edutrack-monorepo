@@ -1,4 +1,5 @@
-import { SetMetadata } from '@nestjs/common';
+import { applyDecorators, SetMetadata } from '@nestjs/common';
+import { ApiExtension } from '@nestjs/swagger';
 
 /**
  * Every JSON response has one envelope. Success:
@@ -68,7 +69,14 @@ export const RAW_RESPONSE = 'response:raw';
  * `@ResponseMessage((issue: IssueView) => \`Ticket assigned to ${issue.assignee}.\`)`.
  */
 export const ResponseMessage = <T = any, B = any>(message: MessageSource<T, B>) =>
-  SetMetadata(RESPONSE_MESSAGE, message);
+  applyDecorators(
+    SetMetadata(RESPONSE_MESSAGE, message),
+    // Swagger shows the message as the example (built messages show a generic one).
+    ApiExtension(
+      'x-message',
+      typeof message === 'string' ? message : 'Written for this action from its result.',
+    ),
+  );
 
 /** Answers without the envelope (health probes read by load balancers and Docker). */
 export const RawResponse = () => SetMetadata(RAW_RESPONSE, true);

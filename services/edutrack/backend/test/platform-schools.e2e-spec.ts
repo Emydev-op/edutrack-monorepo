@@ -76,7 +76,8 @@ describe('Platform schools and subscriptions (e2e)', () => {
         subdomain: 'greenfield.localhost',
         type: 'Private · Nursery, Primary & Secondary',
       });
-      expect(greenfield.admin).toMatch(/^Adaeze Okonkwo/);
+      // Owners first: Greenfield's Proprietor holds the Owner role (school-org-data.ts).
+      expect(greenfield.admin).toMatch(/^Folasade Ogunbiyi/);
     });
 
     it('filters by status, plan, state and search', async () => {

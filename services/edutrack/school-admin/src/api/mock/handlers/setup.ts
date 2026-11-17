@@ -18,6 +18,13 @@ import { currentUser } from './shared';
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+/**
+ * The first-sign-in foundation (product decision): school profile confirmed, the current session
+ * with its terms started, class levels and arms set. Until it's in place School Admin keeps the
+ * school's admins in the Setup Center.
+ */
+export const FOUNDATION_STEPS = ['school-profile', 'academic-session', 'classes-arms'];
+
 /** Branches missing what parents need to find the campus. */
 export const branchIssues = (b: { street: string; city: string; sections: string[] }) => [
   ...(!b.street.trim() || !b.city.trim() ? ['Address incomplete'] : []),
@@ -69,17 +76,25 @@ export function setupView(req: Pick<MockRequest, 'headers'>): SetupProgress {
     },
   };
   const academic = academicSteps(schoolId);
+  const steps = base.steps.map((s) => {
+    const id = s.id as AutoStep;
+    if (isAcademicStep(s.id)) return { ...s, ...academic[s.id], auto: true };
+    if (s.id === 'fees') return { ...s, ...feesStep(schoolId), auto: true };
+    if (s.id === 'notifications') return { ...s, ...notificationsStep(schoolId), auto: true };
+    return id in live
+      ? { ...s, ...live[id], done: confirmed[id], auto: true }
+      : { ...s, auto: false };
+  });
+  const running = academicsData[schoolId]!.sessions.some(
+    (x) => x.status === 'Active' && x.terms.length,
+  );
   return {
     ...base,
-    steps: base.steps.map((s) => {
-      const id = s.id as AutoStep;
-      if (isAcademicStep(s.id)) return { ...s, ...academic[s.id], auto: true };
-      if (s.id === 'fees') return { ...s, ...feesStep(schoolId), auto: true };
-      if (s.id === 'notifications') return { ...s, ...notificationsStep(schoolId), auto: true };
-      return id in live
-        ? { ...s, ...live[id], done: confirmed[id], auto: true }
-        : { ...s, auto: false };
-    }),
+    steps,
+    foundationSteps: FOUNDATION_STEPS,
+    foundationComplete:
+      base.finished ||
+      (running && FOUNDATION_STEPS.every((id) => steps.find((x) => x.id === id)?.done)),
   };
 }
 
@@ -150,7 +165,7 @@ mock.post('/v1/setup/finish', (req) => {
       `Finish the required steps first: ${left.map((x) => x.name).join(', ')}.`,
     );
   setup[currentUser(req).schoolId]!.finished = true;
-  return { ...view, finished: true };
+  return { ...view, finished: true, foundationComplete: true };
 });
 
 /* ---------------- Notifications (Communication) ---------------- */

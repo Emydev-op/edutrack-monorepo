@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { FileTextIcon, UploadIcon } from '@lucide/vue';
-import { ref, useId } from 'vue';
+import { computed, ref, useId } from 'vue';
 
 import type { FileRef } from '@/types';
 
@@ -13,8 +13,10 @@ const props = defineProps<{
   /** e.g. "PDF, JPG or PNG", for the error message. */
   typeLabel: string;
   maxBytes: number;
-  /** Read images as a data URL so they can be previewed. */
+  /** Read the file as a data URL (images are also previewed). */
   preview?: boolean;
+  /** Read the file as a data URL so it can be sent to the API (without a preview). */
+  read?: boolean;
   /** Shown beside an uploaded file, e.g. "Awaiting verification by Edutrack". */
   status?: string;
 }>();
@@ -52,7 +54,7 @@ function pick(event: Event) {
     model.value = { name: file.name, size: sizeText(file.size), dataUrl };
   };
   busy.value = true;
-  if (!props.preview) return done(null);
+  if (!props.preview && !props.read) return done(null);
   const reader = new FileReader();
   reader.onload = () => done(typeof reader.result === 'string' ? reader.result : null);
   reader.onerror = () => {
@@ -61,6 +63,12 @@ function pick(event: Event) {
   };
   reader.readAsDataURL(file);
 }
+
+/** A preview for images and stored files (signed links); not for a PDF read as a data URL. */
+const showsImage = computed(() => {
+  const url = model.value?.dataUrl;
+  return Boolean(url) && (!url!.startsWith('data:') || url!.startsWith('data:image/'));
+});
 </script>
 
 <template>
@@ -71,7 +79,12 @@ function pick(event: Event) {
         class="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted text-muted-foreground"
         aria-hidden="true"
       >
-        <img v-if="model?.dataUrl" :src="model.dataUrl" alt="" class="size-full object-contain" />
+        <img
+          v-if="preview && showsImage"
+          :src="model?.dataUrl ?? undefined"
+          alt=""
+          class="size-full object-contain"
+        />
         <FileTextIcon v-else-if="model" class="size-5" />
         <UploadIcon v-else class="size-5" />
       </span>

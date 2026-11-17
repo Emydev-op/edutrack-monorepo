@@ -56,6 +56,8 @@ export interface StaffDocumentRow {
   kind: string;
   uploaded: string;
   status: 'Verified' | 'Pending' | 'Missing' | 'Optional';
+  /** Signed download link from the real API (an hour); absent in the mock. */
+  url?: string | null;
 }
 
 export interface StaffDetail extends StaffListRow {

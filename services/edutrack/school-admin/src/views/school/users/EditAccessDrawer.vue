@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { Spinner } from '@edutrack/ui/components/spinner';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { computed, reactive, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
@@ -56,13 +56,13 @@ async function submit() {
   if (Object.keys(errors.value).length) return;
   serverError.value = '';
   try {
-    await save.mutateAsync({
+    const result = await save.mutateAsync({
       roles: form.roles,
       scope: form.scope,
       branches: form.scope === 'Branch' ? form.branches : [],
     });
     open.value = false;
-    toast.success(`${props.user.name}’s access updated.`);
+    toast.success(messageOf(result, `${props.user.name}’s access updated.`));
   } catch (e) {
     serverError.value = getApiErrorMessage(e, 'That didn’t save. Try again.');
   }

@@ -3,7 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Input } from '@edutrack/ui/components/input';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { PlusIcon, SparklesIcon, Trash2Icon } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
@@ -237,7 +237,7 @@ async function submit() {
   showErrors.value = true;
   if (invalid.value) return void toast.error('Fix the highlighted dates first.');
   try {
-    await save.mutateAsync(
+    const result = await save.mutateAsync(
       terms.value.map((t) => ({
         id: t.id,
         name: t.name.trim(),
@@ -254,7 +254,7 @@ async function submit() {
     );
     original.value = snapshot();
     showErrors.value = false;
-    toast.success(`Terms and calendar saved for ${session.value!.name}.`);
+    toast.success(messageOf(result, `Terms and calendar saved for ${session.value!.name}.`));
     if (fromSetup.value) await router.push({ name: routesPath.setup.name });
   } catch (e) {
     toast.error(getApiErrorMessage(e));

@@ -3,6 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { cn } from '@edutrack/ui/lib/utils';
 import { ArrowRightIcon } from '@lucide/vue';
+import { messageOf } from '@edutrack/web-core/http';
 import { computed, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -124,9 +125,9 @@ function removePosition(p: Position) {
     confirmLabel: 'Remove position',
     tone: 'destructive',
     action: async () => {
-      await remove.mutateAsync(p.id);
+      const result = await remove.mutateAsync(p.id);
       selectedId.value = p.parentId;
-      toast.success('Position removed.');
+      toast.success(messageOf(result, 'Position removed.'));
     },
   });
 }

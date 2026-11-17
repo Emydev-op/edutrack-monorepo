@@ -2,6 +2,7 @@
 import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
+import { messageOf } from '@edutrack/web-core/http';
 import { computed } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -91,8 +92,13 @@ function finish() {
     ],
     confirmLabel: 'Mark complete',
     action: async () => {
-      await complete.mutateAsync('branches');
-      toast.success(`Branches complete.${nextAfter.value ? ` Next: ${nextAfter.value}.` : ''}`);
+      const result = await complete.mutateAsync('branches');
+      toast.success(
+        messageOf(
+          result,
+          `Branches complete.${nextAfter.value ? ` Next: ${nextAfter.value}.` : ''}`,
+        ),
+      );
       await router.push({ name: routesPath.setup.name });
     },
   });

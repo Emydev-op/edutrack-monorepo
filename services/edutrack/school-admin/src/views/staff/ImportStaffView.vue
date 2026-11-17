@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { FileSpreadsheetIcon, UploadIcon } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
@@ -143,7 +143,10 @@ function importRows() {
       try {
         const r = await commit.mutateAsync(b.id);
         toast.success(
-          `${r.imported} staff imported.${r.invites ? ` ${r.invites} invitation${r.invites === 1 ? '' : 's'} sent.` : ''}`,
+          messageOf(
+            r,
+            `${r.imported} staff imported.${r.invites ? ` ${r.invites} invitation${r.invites === 1 ? '' : 's'} sent.` : ''}`,
+          ),
         );
         await router.push(directory.value);
       } catch (e) {

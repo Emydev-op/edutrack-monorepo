@@ -3,7 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Input } from '@edutrack/ui/components/input';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon, Trash2Icon } from '@lucide/vue';
 import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
@@ -131,7 +131,7 @@ async function submit() {
     return false;
   }
   try {
-    await save.mutateAsync(
+    const result = await save.mutateAsync(
       rows.value.map((r) => ({
         id: r.id,
         name: r.name.trim(),
@@ -141,7 +141,7 @@ async function submit() {
     );
     original.value = snapshot(rows.value);
     showErrors.value = false;
-    toast.success('Academic sections saved.');
+    toast.success(messageOf(result, 'Academic sections saved.'));
     return true;
   } catch (e) {
     toast.error(getApiErrorMessage(e));

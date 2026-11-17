@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { computed, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
@@ -47,8 +47,8 @@ const columns: Column[] = [
 watch(file, async (f) => {
   if (!f) return;
   try {
-    await upload.mutateAsync({ kind: kind.value, name: f.name });
-    toast.success(`${kind.value} uploaded. Verify it once you’ve checked it.`);
+    const r = await upload.mutateAsync({ kind: kind.value, name: f.name, file: f.dataUrl ?? null });
+    toast.success(messageOf(r, `${kind.value} uploaded. Verify it once you’ve checked it.`));
   } catch (e) {
     toast.error(getApiErrorMessage(e, 'We couldn’t upload the document. Try again.'));
   } finally {
@@ -58,8 +58,8 @@ watch(file, async (f) => {
 
 async function onVerify(docId: string, label: string) {
   try {
-    await verify.mutateAsync(docId);
-    toast.success(`${label} verified.`);
+    const r = await verify.mutateAsync(docId);
+    toast.success(messageOf(r, `${label} verified.`));
   } catch (e) {
     toast.error(getApiErrorMessage(e, 'We couldn’t verify the document. Try again.'));
   }
@@ -79,7 +79,16 @@ async function onVerify(docId: string, label: string) {
       ><span class="font-medium">{{ row.kind }}</span></template
     >
     <template #cell-name="{ row }"
-      ><span :class="row.name ? '' : 'text-faint'">{{ row.name || 'Not uploaded' }}</span></template
+      ><a
+        v-if="row.url"
+        :href="row.url"
+        target="_blank"
+        rel="noopener"
+        class="text-primary hover:underline"
+        >{{ row.name }}</a
+      ><span v-else :class="row.name ? '' : 'text-faint'">{{
+        row.name || 'Not uploaded'
+      }}</span></template
     >
     <template #cell-status="{ row }"
       ><StatusBadge :label="row.status" :tone="staffTone(row.status)"
@@ -114,6 +123,7 @@ async function onVerify(docId: string, label: string) {
         accept="application/pdf,image/png,image/jpeg"
         type-label="PDF, JPG or PNG"
         :max-bytes="5242880"
+        preview
       />
     </div>
   </SectionCard>

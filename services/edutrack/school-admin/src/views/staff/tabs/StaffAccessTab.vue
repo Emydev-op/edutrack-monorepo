@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -20,7 +20,7 @@ const active = computed(() => props.staff.status === 'Active');
 async function sendInvite() {
   try {
     const r = await invite.mutateAsync([props.staff.id]);
-    if (r.invited) toast.success(`Invitation sent to ${props.staff.email}.`);
+    if (r.invited) toast.success(messageOf(r, `Invitation sent to ${props.staff.email}.`));
     else
       toast.error(
         'No obvious role for this position. Choose one from Edit by turning on portal access.',

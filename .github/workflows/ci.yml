@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       workspaces: ${{ steps.filter.outputs.changes }}
+      # The changed apps alone (no `shared` or `web`), for the verify and per-app image matrices.
+      apps: ${{ steps.apps.outputs.list }}
     steps:
       - uses: actions/checkout@v7
       - id: filter
@@ -54,6 +56,26 @@ jobs:
               - *shared
               - 'services/edutrack/parent-portal/**'
               - 'infrastructure/docker/nginx/**'
+            school-home:
+              - *shared
+              - 'services/edutrack/school-home/**'
+              - 'infrastructure/docker/nginx/**'
+            # The single web image (every portal + the production router). Not a workspace: the
+            # web-image job builds it.
+            web:
+              - *shared
+              - 'services/edutrack/platform-backoffice/**'
+              - 'services/edutrack/school-admin/**'
+              - 'services/edutrack/school-home/**'
+              - 'services/edutrack/teacher-portal/**'
+              - 'services/edutrack/student-portal/**'
+              - 'services/edutrack/parent-portal/**'
+              - 'infrastructure/docker/web.Dockerfile'
+              - 'infrastructure/docker/nginx/**'
+      - id: apps
+        env:
+          CHANGES: ${{ steps.filter.outputs.changes }}
+        run: echo "list=$(jq -c 'map(select(. != "shared" and . != "web"))' <<< "$CHANGES")" >> "$GITHUB_OUTPUT"
 
   format:
     name: Format
@@ -70,14 +92,12 @@ jobs:
   verify:
     name: ${{ matrix.workspace }}
     needs: changes
-    if: ${{ needs.changes.outputs.workspaces != '[]' }}
+    if: ${{ needs.changes.outputs.apps != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        workspace: ${{ fromJSON(needs.changes.outputs.workspaces) }}
-        exclude:
-          - workspace: shared
+        workspace: ${{ fromJSON(needs.changes.outputs.apps) }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -151,14 +171,12 @@ jobs:
   docker:
     name: Docker image (${{ matrix.workspace }})
     needs: [changes, verify]
-    if: ${{ needs.changes.outputs.workspaces != '[]' }}
+    if: ${{ needs.changes.outputs.apps != '[]' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        workspace: ${{ fromJSON(needs.changes.outputs.workspaces) }}
-        exclude:
-          - workspace: shared
+        workspace: ${{ fromJSON(needs.changes.outputs.apps) }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
@@ -171,12 +189,29 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.workspace }}
           cache-to: type=gha,mode=max,scope=${{ matrix.workspace }}
 
+  web-image:
+    name: Docker image (web)
+    needs: changes
+    if: ${{ contains(fromJSON(needs.changes.outputs.workspaces), 'web') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      # Builds only, like the per-app images. Publishing is set up with the deploy target.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: infrastructure/docker/web.Dockerfile
+          push: false
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+
   # The one check branch protection requires. Matrix jobs come and go with the files a PR
   # touches, so protection can't name them; this job fails if any of them failed.
   ci-passed:
     name: CI passed
     if: ${{ always() }}
-    needs: [changes, format, verify, backend-e2e, shared-packages, docker]
+    needs: [changes, format, verify, backend-e2e, shared-packages, docker, web-image]
     runs-on: ubuntu-latest
     steps:
       - name: Check job results

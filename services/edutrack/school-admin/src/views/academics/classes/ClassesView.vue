@@ -2,7 +2,7 @@
 import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -167,8 +167,8 @@ function deleteLevel(l: ClassLevel) {
     confirmLabel: 'Remove class level',
     tone: 'destructive',
     action: async () => {
-      await removeLevel.mutateAsync(l.id);
-      toast.success(`${l.name} removed.`);
+      const result = await removeLevel.mutateAsync(l.id);
+      toast.success(messageOf(result, `${l.name} removed.`));
     },
   });
 }
@@ -198,7 +198,10 @@ async function useDefaults() {
   try {
     const v = await applyDefaults.mutateAsync();
     toast.success(
-      `${pluralize(v.levels.length, 'class level')} added with one arm each. Rename, add or remove anything.`,
+      messageOf(
+        v,
+        `${pluralize(v.levels.length, 'class level')} added with one arm each. Rename, add or remove anything.`,
+      ),
     );
   } catch (e) {
     toast.error(getApiErrorMessage(e, 'That didn’t work. Try again.'));

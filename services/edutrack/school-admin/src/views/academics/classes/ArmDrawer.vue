@@ -2,7 +2,7 @@
 import { Button } from '@edutrack/ui/components/button';
 import { Input } from '@edutrack/ui/components/input';
 import { Spinner } from '@edutrack/ui/components/spinner';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { computed, reactive, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
@@ -91,13 +91,17 @@ async function submit() {
     room: form.room.trim(),
   };
   try {
-    if (props.arm) await update.mutateAsync({ id: props.arm.id, ...payload });
-    else await add.mutateAsync({ levelId: props.level!.id, ...payload });
+    const result = props.arm
+      ? await update.mutateAsync({ id: props.arm.id, ...payload })
+      : await add.mutateAsync({ levelId: props.level!.id, ...payload });
     open.value = false;
     toast.success(
-      props.arm
-        ? 'Arm saved.'
-        : `Arm ${levelName.value}${/\d$/.test(levelName.value) ? '' : ' '}${payload.arm} added.`,
+      messageOf(
+        result,
+        props.arm
+          ? 'Arm saved.'
+          : `Arm ${levelName.value}${/\d$/.test(levelName.value) ? '' : ' '}${payload.arm} added.`,
+      ),
     );
   } catch (e) {
     serverError.value = getApiErrorMessage(e, 'That didn’t save. Try again.');
@@ -118,10 +122,10 @@ function deleteArm() {
     confirmLabel: 'Remove arm',
     tone: 'destructive',
     action: async () => {
-      await remove.mutateAsync(a.id);
+      const result = await remove.mutateAsync(a.id);
       open.value = false;
       emit('deleted');
-      toast.success(`${a.name} removed.`);
+      toast.success(messageOf(result, `${a.name} removed.`));
     },
   });
 }

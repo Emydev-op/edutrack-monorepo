@@ -10,6 +10,7 @@ import { validateEnv } from './config/env.validation.js';
 import { HealthModule } from './health/health.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { PlatformModule } from './platform/platform.module.js';
+import { SchoolModule } from './school/school.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { QueueModule } from './queue/queue.module.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -29,6 +30,7 @@ import { TenantHostMiddleware } from './tenancy/tenant-host.middleware.js';
     NotificationsModule,
     AuthModule,
     PlatformModule,
+    SchoolModule,
     HealthModule,
   ],
   providers: [

@@ -9,8 +9,9 @@ export const env = {
    */
   useMocks: mocksFlag === undefined ? import.meta.env.DEV : mocksFlag === 'true',
   /**
-   * The school this deployment serves, shown on the sign-in pages. Each school's portal runs at
-   * its own address, so the school is known before anyone signs in.
+   * The school name shown on the sign-in pages with mocks on. Against the real API the school at
+   * this address (`<school>.edutrack.ng/teacher`) is read from `GET /v1/public/school`, and this is
+   * only shown until it answers (see lib/school-brand.ts).
    */
   schoolName: import.meta.env.VITE_SCHOOL_NAME ?? 'Greenfield Academy',
 } as const;

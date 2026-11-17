@@ -5,6 +5,12 @@ import { schoolData, type SchoolData } from '../school-db';
 
 export const tokenFor = (userId: string) => `mock-token.${userId}`;
 
+/** The mock token of the mock account with this email (real sign-in, mocked section). */
+export function mockTokenForEmail(email: string): string | null {
+  const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  return user ? tokenFor(user.id) : null;
+}
+
 /** The signed-in user, from the bearer token, as the real API resolves the tenant. */
 export function currentUser({ headers }: Pick<MockRequest, 'headers'>): SchoolUser {
   const token = headers.authorization?.replace(/^Bearer\s+/i, '');

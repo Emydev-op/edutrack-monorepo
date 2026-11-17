@@ -1,0 +1,51 @@
+{
+  "name": "@edutrack/school-home",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EduTrack school entry page — the school's own address, leading to the Teacher, Parent and Student portals",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "run-p typecheck \"build-only {@}\" --",
+    "build-only": "vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "run-s \"lint:*\"",
+    "lint:oxlint": "oxlint .",
+    "lint:eslint": "eslint . --cache"
+  },
+  "dependencies": {
+    "@edutrack/app-kit": "*",
+    "@edutrack/shared": "*",
+    "@edutrack/ui": "*",
+    "@lucide/vue": "^1.67.0",
+    "vue": "^3.5.45"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.5",
+    "@tsconfig/node24": "^24.0.5",
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^26.6.6",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "@vitest/eslint-plugin": "^1.6.27",
+    "@vue/eslint-config-typescript": "^14.9.0",
+    "@vue/test-utils": "^2.5.1",
+    "@vue/tsconfig": "^0.9.1",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-oxlint": "~1.93.0",
+    "eslint-plugin-vue": "~10.12.1",
+    "jiti": "^2.7.0",
+    "jsdom": "^31.0.0",
+    "npm-run-all2": "^9.0.3",
+    "oxlint": "~1.93.0",
+    "tailwindcss": "^4.3.5",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.7",
+    "vite-plugin-vue-devtools": "^8.2.1",
+    "vitest": "^5.1.0",
+    "vue-tsc": "^3.3.14"
+  }
+}
