@@ -4,7 +4,7 @@ import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { Switch } from '@edutrack/ui/components/switch';
 import { cn } from '@edutrack/ui/lib/utils';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { CheckIcon } from '@lucide/vue';
 import { useField, useForm } from 'vee-validate';
 import { computed, ref, watch } from 'vue';
@@ -256,18 +256,21 @@ const onSubmit = handleSubmit(async (v) => {
         'cleared' in result ? (result.cleared as { removed: number; classes: number }) : null;
       const invitedNow = payload.access && (isNew.value || !detail.value?.user);
       toast.success(
-        [
-          invitedNow
-            ? `Invitation sent to ${payload.email}.`
-            : isNew.value
-              ? `${name} added.`
-              : 'Changes saved.',
-          cleared?.removed
-            ? `${cleared.removed} assignment${cleared.removed === 1 ? '' : 's'} cleared.`
-            : '',
-        ]
-          .filter(Boolean)
-          .join(' '),
+        messageOf(
+          result,
+          [
+            invitedNow
+              ? `Invitation sent to ${payload.email}.`
+              : isNew.value
+                ? `${name} added.`
+                : 'Changes saved.',
+            cleared?.removed
+              ? `${cleared.removed} assignment${cleared.removed === 1 ? '' : 's'} cleared.`
+              : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+        ),
       );
       await (isNew.value && fromSetup.value
         ? router.push({ name: routesPath.staff.directory.name, query: { from: 'setup' } })

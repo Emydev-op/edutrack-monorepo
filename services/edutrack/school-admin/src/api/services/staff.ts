@@ -90,7 +90,7 @@ export const useInviteStaffMutation = () =>
   );
 
 export const useUploadStaffDocumentMutation = (id: MaybeRefOrGetter<string>) =>
-  useStaffMutation((p: { kind: string; name: string }) =>
+  useStaffMutation((p: { kind: string; name: string; file: string | null }) =>
     postRequest<StaffDocumentRow[]>(`/v1/staff/${toValue(id)}/documents`, p),
   );
 

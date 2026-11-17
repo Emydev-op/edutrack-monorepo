@@ -23,6 +23,8 @@ export function configureApp(app: INestApplication) {
   express.use('/api/v1/platform/support/issues', json({ limit: '14mb' }));
   // The school profile carries the logo (1 MB) and approval certificate (5 MB) as data URLs.
   express.use('/api/v1/school/profile', json({ limit: '9mb' }));
+  // Staff documents arrive as data URLs (up to 5 MB, about 6.7 MB of base64).
+  express.use('/api/v1/staff/:id/documents', json({ limit: '7mb' }));
   // Profile photos arrive as data URLs (up to 2 MB, about 2.8 MB of base64).
   express.useBodyParser('json', { limit: '3mb' });
   app.use(helmet());

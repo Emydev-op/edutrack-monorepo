@@ -73,6 +73,15 @@ describe('School Admin profile and branches (e2e)', () => {
 
   describe('school profile', () => {
     it('shows the seeded profile, plan and history', async () => {
+      // Earlier runs against the same test database leave branch changes in the school's history,
+      // which can push the seeded entries out of the latest 50.
+      await t.prisma.auditEvent.deleteMany({
+        where: {
+          schoolId: ids.greenfield,
+          entityType: 'School',
+          createdAt: { gte: new Date(Date.now() - 86_400_000) },
+        },
+      });
       const res = await admin.get('/api/v1/school/profile');
       expect(res.status).toBe(200);
       expect(res.body.message).toBe('School profile loaded.');

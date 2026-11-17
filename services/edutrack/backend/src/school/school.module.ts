@@ -5,6 +5,7 @@ import { SchoolProfileModule } from './profile/profile.module.js';
 import { SchoolAuditService } from './shared/school-audit.service.js';
 import { SchoolBrandingService } from './shared/school-branding.service.js';
 import { SchoolUsersModule } from './users/users.module.js';
+import { StaffModule } from './staff/staff.module.js';
 
 /**
  * The school side of the API: what School Admin (admin.edutrack.ng) and the school portals
@@ -12,7 +13,8 @@ import { SchoolUsersModule } from './users/users.module.js';
  * the signed-in school as the tenant, so `TenantPrismaService` only ever sees that school's rows.
  */
 @Module({
-  imports: [SchoolProfileModule, OrganogramModule, SchoolUsersModule],
+  // StaffModule last: OrganogramModule's GET /v1/staff/options must register before GET /v1/staff/:id.
+  imports: [SchoolProfileModule, OrganogramModule, SchoolUsersModule, StaffModule],
   controllers: [PublicSchoolController],
   providers: [SchoolBrandingService, SchoolAuditService],
   exports: [SchoolBrandingService, SchoolAuditService],

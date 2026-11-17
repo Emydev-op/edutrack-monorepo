@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { RequestContext } from '../../common/context/request-context.js';
 import type { Prisma } from '../../generated/prisma/client.js';
+import { PLATFORM_AREA } from '../../platform/shared/platform-audit.service.js';
 import { TenantPrismaService } from '../../tenancy/tenant-prisma.service.js';
 
 /** Change-history areas (Settings › History groups by these) and module names. */
@@ -72,10 +73,17 @@ export class SchoolAuditService {
     });
   }
 
-  /** A record's history, newest first (`entityId` omitted: every event of that type). */
+  /**
+   * A record's history, newest first (`entityId` omitted: every event of that type). School-side
+   * changes only: the back office's actions on the school (suspend, plan changes…) are left out.
+   */
   async history(entity: string, entityId?: string, take = 50): Promise<HistoryEntry[]> {
     const events = await this.tenant.db.auditEvent.findMany({
-      where: { entityType: entity, ...(entityId && { entityId }) },
+      where: {
+        entityType: entity,
+        ...(entityId && { entityId }),
+        OR: [{ area: null }, { area: { not: PLATFORM_AREA } }],
+      },
       orderBy: { createdAt: 'desc' },
       take,
     });

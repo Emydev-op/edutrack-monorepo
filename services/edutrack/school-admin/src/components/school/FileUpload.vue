@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { FileTextIcon, UploadIcon } from '@lucide/vue';
-import { ref, useId } from 'vue';
+import { computed, ref, useId } from 'vue';
 
 import type { FileRef } from '@/types';
 
@@ -13,7 +13,7 @@ const props = defineProps<{
   /** e.g. "PDF, JPG or PNG", for the error message. */
   typeLabel: string;
   maxBytes: number;
-  /** Read images as a data URL so they can be previewed. */
+  /** Read the file as a data URL (images are also previewed). */
   preview?: boolean;
   /** Read the file as a data URL so it can be sent to the API (without a preview). */
   read?: boolean;
@@ -63,6 +63,12 @@ function pick(event: Event) {
   };
   reader.readAsDataURL(file);
 }
+
+/** A preview for images and stored files (signed links); not for a PDF read as a data URL. */
+const showsImage = computed(() => {
+  const url = model.value?.dataUrl;
+  return Boolean(url) && (!url!.startsWith('data:') || url!.startsWith('data:image/'));
+});
 </script>
 
 <template>
@@ -74,7 +80,7 @@ function pick(event: Event) {
         aria-hidden="true"
       >
         <img
-          v-if="preview && model?.dataUrl"
+          v-if="preview && showsImage"
           :src="model.dataUrl"
           alt=""
           class="size-full object-contain"

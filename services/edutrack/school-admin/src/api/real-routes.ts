@@ -18,6 +18,10 @@ export const REAL_ROUTES: readonly string[] = [
   // School profile and branches.
   '* /v1/school/profile',
   '* /v1/branches/**',
+  // Staff. `GET /v1/staff/:id` also matches /v1/staff/options (no way to exclude it here).
+  '* /v1/staff',
+  '* /v1/staff/:id',
+  '* /v1/staff/:id/**',
 ];
 
 type Rule = { method: string; pattern: RegExp };
