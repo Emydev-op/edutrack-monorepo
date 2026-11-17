@@ -4,7 +4,7 @@ import { Checkbox } from '@edutrack/ui/components/checkbox';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { cn } from '@edutrack/ui/lib/utils';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { computed, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -79,7 +79,10 @@ async function confirm() {
       studentIds: [...picked.value],
     });
     toast.success(
-      `${r.enrolled} student${r.enrolled === 1 ? '' : 's'} enrolled in ${r.className} for ${data.value?.session}. Their teachers can see them now.`,
+      messageOf(
+        r,
+        `${r.enrolled} student${r.enrolled === 1 ? '' : 's'} enrolled in ${r.className} for ${data.value?.session}. Their teachers can see them now.`,
+      ),
     );
     reviewing.value = false;
     picked.value = new Set();

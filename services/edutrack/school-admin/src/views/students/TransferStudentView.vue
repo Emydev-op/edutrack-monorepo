@@ -3,6 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Input } from '@edutrack/ui/components/input';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { Textarea } from '@edutrack/ui/components/textarea';
+import { messageOf } from '@edutrack/web-core/http';
 import { computed, reactive, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -96,16 +97,17 @@ function submit() {
     ],
     confirmLabel: `Record ${kind}`,
     action: async () => {
-      await transfer.mutateAsync({
+      const result = await transfer.mutateAsync({
         kind: form.kind as 'Transfer' | 'Withdrawal',
         date: form.date,
         reason: form.reason,
         destination: form.destination,
         notes: form.notes,
-        document: letter.value?.name ?? null,
+        // The letter itself when it was read (the API keeps the file), else its name.
+        document: letter.value?.dataUrl ?? letter.value?.name ?? null,
       });
       done.value = true;
-      toast.success(`${form.kind} recorded for ${s.name}.`);
+      toast.success(messageOf(result, `${form.kind} recorded for ${s.name}.`));
       await router.push({ name: routesPath.students.detail.name, params: { id: s.id } });
     },
   });

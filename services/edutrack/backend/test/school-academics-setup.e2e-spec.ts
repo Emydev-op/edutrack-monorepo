@@ -253,12 +253,16 @@ describe('School academics and setup (e2e)', () => {
       const res = await gf.get(`${A}/classes/${jss2.arms[1]!.id}`);
       expect(res.status).toBe(200);
       expect(res.body.data).toMatchObject({
-        arm: { name: 'JSS 2B', room: 'Room J2B · Block C', branch: 'Main Campus', students: 0 },
-        students: [],
+        // The seed's JSS 2B roster (14 students, Emmanuel Adeyemi among them).
+        arm: { name: 'JSS 2B', room: 'Room J2B · Block C', branch: 'Main Campus', students: 14 },
         subjects: [],
         timetable: null,
         results: [],
       });
+      expect(res.body.data.students).toHaveLength(14);
+      expect(res.body.data.students).toContainEqual(
+        expect.objectContaining({ name: 'Emmanuel Adeyemi', admissionNo: 'STU-2025-0042' }),
+      );
       expect((await gf.get(`${A}/classes/not-an-id`)).status).toBe(404);
     });
 
@@ -654,7 +658,8 @@ describe('School academics and setup (e2e)', () => {
     });
 
     it('won’t remove a level whose arms have students, and removes it with its arms otherwise', async () => {
-      const jss1 = await level(gf, mainId, 'JSS 1');
+      // JSS 3: the seed has no students there (JSS 1A has one).
+      const jss1 = await level(gf, mainId, 'JSS 3');
       const session = await t.prisma.academicSession.findFirstOrThrow({
         where: { schoolId: gfSchool, status: 'ACTIVE' },
       });
@@ -684,9 +689,9 @@ describe('School academics and setup (e2e)', () => {
       const blocked = await gf.delete(`${A}/classes/levels/${jss1.id}`);
       expect(blocked.status).toBe(409);
       expect(blocked.body.error.code).toBe('LEVEL_HAS_STUDENTS');
-      expect(blocked.body.message).toBe('JSS 1B has students. Move them to another class first.');
+      expect(blocked.body.message).toBe('JSS 3B has students. Move them to another class first.');
       const armBlocked = await gf.delete(`${A}/classes/arms/${jss1.arms[1]!.id}`);
-      expect(armBlocked.body.message).toBe('JSS 1B has 1 student. Move them to another arm first.');
+      expect(armBlocked.body.message).toBe('JSS 3B has 1 student. Move them to another arm first.');
       const lower = await gf.put(`${A}/classes/arms/${jss1.arms[1]!.id}`).send({ capacity: 0 });
       expect(lower.status).toBe(422);
       const detail = await gf.get(`${A}/classes/${jss1.arms[1]!.id}`);

@@ -518,7 +518,9 @@ describe('School Admin admissions and student import (e2e)', () => {
           message,
         ]);
       }
-      expect(await t.prisma.student.count({ where: { schoolId, surname: 'Garba' } })).toBe(0);
+      expect(
+        await t.prisma.student.count({ where: { schoolId, firstName: 'Musa', surname: 'Garba' } }),
+      ).toBe(0);
     });
 
     it('refuses duplicates, rejected applications and full arms', async () => {
@@ -796,7 +798,9 @@ describe('School Admin admissions and student import (e2e)', () => {
       const late = await admin.post(`/api/v1/imports/${preview.body.data.id}/commit`).send({});
       expect(late.status).toBe(404);
       expect(late.body.error.code).toBe('IMPORT_EXPIRED');
-      expect(await t.prisma.student.count({ where: { schoolId, surname: 'Garba' } })).toBe(0);
+      expect(
+        await t.prisma.student.count({ where: { schoolId, firstName: 'Musa', surname: 'Garba' } }),
+      ).toBe(0);
     });
   });
 
@@ -875,7 +879,9 @@ describe('School Admin admissions and student import (e2e)', () => {
       expect(preview.status).toBe(200);
       const commit = await udo.post(`/api/v1/imports/${preview.body.data.id}/commit`).send({});
       expect(commit.status).toBe(404);
-      expect(await t.prisma.student.count({ where: { schoolId, surname: 'Garba' } })).toBe(0);
+      expect(
+        await t.prisma.student.count({ where: { schoolId, firstName: 'Musa', surname: 'Garba' } }),
+      ).toBe(0);
       expect(
         await t.prisma.admissionApplication.count({
           where: { id: kamsiApplicationId, schoolId, stage: 'ADMITTED' },
