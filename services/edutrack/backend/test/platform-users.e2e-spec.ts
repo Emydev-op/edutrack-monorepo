@@ -50,6 +50,17 @@ describe('Platform users and roles (e2e)', () => {
   beforeAll(async () => {
     t = await createTestApp();
     await t.reseed();
+    // Earlier runs against the same test database leave their invited staff behind
+    // (`<name>.<run>@edutrack.ng`; seeded staff have no dot), which pushes the seeded ones off the
+    // first page. Remove them before listing.
+    const leftovers = (
+      await t.prisma.platformStaff.findMany({
+        select: { id: true, user: { select: { email: true } } },
+      })
+    ).filter((s) => /^[a-z]+\.[a-z0-9]+@edutrack\.ng$/.test(s.user.email ?? ''));
+    const leftoverIds = leftovers.map((s) => s.id);
+    await t.prisma.invitation.deleteMany({ where: { platformStaffId: { in: leftoverIds } } });
+    await t.prisma.platformStaff.deleteMany({ where: { id: { in: leftoverIds } } });
     const { token } = await signIn(t, 'tolu@edutrack.ng', { portal: 'platform' });
     api = authed(t, token);
     for (const name of ['tolu', 'ngozi', 'kemi', 'bayo', 'dayo', 'chika'])

@@ -43,7 +43,7 @@ describe('Forgot, reset and expired passwords (e2e)', () => {
     expect((await forgot(email)).body.data).toEqual({ ok: true });
     const message = await t.notifications.waitFor(email, 'password-reset');
     const { link, expiresInMinutes } = message.data as PasswordResetData;
-    expect(link.startsWith('http://localhost:5171/reset-password?token=')).toBe(true);
+    expect(link.startsWith('http://admin.localhost/reset-password?token=')).toBe(true);
     expect(expiresInMinutes).toBe(60);
 
     const weak = await reset(tokenOf(link), 'weak');
@@ -67,7 +67,7 @@ describe('Forgot, reset and expired passwords (e2e)', () => {
     await forgot('g.okafor@greenfield.edu.ng', { host: 'greenfield.localhost' });
     const message = await t.notifications.waitFor('g.okafor@greenfield.edu.ng', 'password-reset');
     expect((message.data as PasswordResetData).link).toMatch(
-      /^http:\/\/localhost:5172\/reset-password\?token=/,
+      /^http:\/\/greenfield\.localhost\/teacher\/reset-password\?token=/,
     );
   });
 
@@ -80,7 +80,9 @@ describe('Forgot, reset and expired passwords (e2e)', () => {
     const second = await t.notifications.waitFor(email, 'password-reset');
     const firstToken = tokenOf((first.data as PasswordResetData).link);
     const secondToken = tokenOf((second.data as PasswordResetData).link);
-    expect((second.data as PasswordResetData).link.startsWith('http://localhost:5170/')).toBe(true);
+    expect((second.data as PasswordResetData).link.startsWith('http://console.localhost/')).toBe(
+      true,
+    );
 
     expect((await reset(firstToken)).body.error.code).toBe('RESET_INVALID');
     t.clock.advance(61 * MINUTE);

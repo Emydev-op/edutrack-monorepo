@@ -143,7 +143,7 @@ describe('Invitations (e2e)', () => {
     const { token, link } = await t.app
       .get(InvitationService)
       .send(invitation.id, { resend: true });
-    expect(link).toBe(`http://localhost:5170/accept-invitation/${token}`);
+    expect(link).toBe(`http://console.localhost/accept-invitation/${token}`);
     const sent = t.notifications.find('chika@edutrack.ng', 'invitation');
     expect(sent).toBeDefined();
     expect((sent!.data as InvitationData).link).toBe(link);

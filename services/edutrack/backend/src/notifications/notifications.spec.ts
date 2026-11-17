@@ -116,8 +116,11 @@ describe('environment', () => {
     NODE_ENV: 'production',
     JWT_SECRET: 'a-real-secret-that-is-long-enough-0123456789',
     APP_BASE_DOMAIN: 'edutrack.ng',
-    PLATFORM_PORTAL_URL: 'https://backoffice.edutrack.ng',
+    PLATFORM_PORTAL_URL: 'https://console.edutrack.ng',
     SCHOOL_ADMIN_PORTAL_URL: 'https://admin.edutrack.ng',
+    TEACHER_PORTAL_URL_TEMPLATE: 'https://{slug}.edutrack.ng/teacher',
+    PARENT_PORTAL_URL_TEMPLATE: 'https://{slug}.edutrack.ng/parent',
+    STUDENT_PORTAL_URL_TEMPLATE: 'https://{slug}.edutrack.ng/student',
   };
 
   it('has safe development defaults', () => {
@@ -138,5 +141,11 @@ describe('environment', () => {
     expect(() => validateEnv({ ...production, APP_BASE_DOMAIN: 'localhost' })).toThrow(
       /APP_BASE_DOMAIN/,
     );
+    expect(() =>
+      validateEnv({
+        ...production,
+        STUDENT_PORTAL_URL_TEMPLATE: 'http://{slug}.localhost/student',
+      }),
+    ).toThrow(/STUDENT_PORTAL_URL_TEMPLATE/);
   });
 });

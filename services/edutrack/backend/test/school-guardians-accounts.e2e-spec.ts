@@ -502,7 +502,7 @@ describe('School guardians and portal accounts (e2e)', () => {
       const data = mail.data as InvitationData;
       expect(data.position).toBe('Parent of Ifeoma');
       expect(data.organisation).toBe('Greenfield Academy');
-      expect(data.link).toMatch(/^http:\/\/localhost:5174\/accept-invitation\//);
+      expect(data.link).toMatch(/^http:\/\/greenfield\.localhost\/parent\/accept-invitation\//);
       const detail = await guardian(gfGuardianId);
       expect(detail.invitation).toMatchObject({ sentBy: 'SMS and email', expired: false });
 
@@ -831,7 +831,7 @@ describe('School guardians and portal accounts (e2e)', () => {
         className: 'SSS 2B',
         admissionNo: jss.admissionNo,
         schoolName: 'Greenfield Academy',
-        signInAddress: 'http://localhost:5173',
+        signInAddress: 'http://greenfield.localhost/student',
       });
       expect(slip.oneTimePassword).toMatch(/^[A-Z]{4}-\d{4}$/);
       const stored = await t.prisma.user.findFirstOrThrow({
