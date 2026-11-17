@@ -92,6 +92,7 @@ describe('lockout', () => {
       'The email or password you entered is incorrect. 1 attempt left before sign-in is paused.',
     );
     expect(incorrectMessage(3, true)).toContain('phone number or password');
+    expect(incorrectMessage(3, 'admission')).toContain('admission number or password');
   });
 });
 

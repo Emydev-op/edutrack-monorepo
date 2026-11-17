@@ -132,15 +132,18 @@ enum AssessmentMode {
 
 /// A section the school runs. sortOrder is the promotion path between sections.
 model Section {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  schoolId    String   @map("school_id") @db.Uuid
-  name        String
+  id            String   @id @default(uuid(7)) @db.Uuid
+  schoolId      String   @map("school_id") @db.Uuid
+  name          String
   /// 2–5 capitals, e.g. JSS.
-  code        String
-  description String   @default("")
-  sortOrder   Int      @default(0) @map("sort_order")
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  code          String
+  description   String   @default("")
+  sortOrder     Int      @default(0) @map("sort_order")
+  /// Students in this section may sign in to the Student Portal (admission number + password).
+  /// The school turns it on per section; new JSS and SSS sections start on, the others off.
+  studentLogins Boolean  @default(false) @map("student_logins")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   school           School             @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   branches         BranchSection[]

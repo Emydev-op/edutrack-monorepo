@@ -196,6 +196,14 @@ export class Env {
   @IsString()
   TEACHER_PORTAL_URL_TEMPLATE = 'http://localhost:5172';
 
+  /** Parent Portal base URL; `{slug}` is replaced with the school's slug. */
+  @IsString()
+  PARENT_PORTAL_URL_TEMPLATE = 'http://localhost:5174';
+
+  /** Student Portal base URL (also printed on login slips); `{slug}` is the school's slug. */
+  @IsString()
+  STUDENT_PORTAL_URL_TEMPLATE = 'http://localhost:5173';
+
   /* ---------- Mail and SMS ---------- */
 
   @IsString()
