@@ -35,7 +35,8 @@ const page = useRouteQuery<string>('page', '1');
 const pageSize = useRouteQuery<string>('pageSize', '10');
 const search = ref('');
 const debouncedSearch = refDebounced(search, 300);
-const role = ref('');
+// In the address so a role can link here (Settings › Roles › Users).
+const role = useRouteQuery<string>('role', '');
 const status = ref('');
 const created = ref('');
 const lastActive = ref('');

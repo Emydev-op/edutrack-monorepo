@@ -31,7 +31,7 @@ const columns: Column[] = [
   { key: 'type', label: 'Type', width: '110px' },
 ];
 const actions = (role: Role): RowAction[] => [
-  { label: 'View permissions', icon: EyeIcon, onSelect: () => showRole(role.id) },
+  { label: 'View permissions and users', icon: EyeIcon, onSelect: () => showRole(role.id) },
   { label: 'Duplicate role', icon: CopyIcon, onSelect: () => duplicate(role) },
   ...(role.predefined
     ? []
@@ -72,6 +72,14 @@ const actions = (role: Role): RowAction[] => [
       >
         {{ row.name }}
       </button>
+    </template>
+    <template #cell-activeUsers="{ row }">
+      <RouterLink
+        :to="{ name: routesPath.users.list.name, query: { role: row.name } }"
+        class="font-medium text-primary tabular-nums hover:underline"
+        :aria-label="`${row.activeUsers} users with ${row.name}`"
+        >{{ row.activeUsers }}</RouterLink
+      >
     </template>
     <template #cell-type="{ row }"
       ><StatusBadge :dot="false" :label="row.predefined ? 'Predefined' : 'Custom'"

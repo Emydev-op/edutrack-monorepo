@@ -54,6 +54,19 @@ export interface PlatformAlertData {
   link: string;
 }
 
+/** Sign-in email changed by an administrator; sent to the old and the new address. */
+export interface EmailChangedData {
+  firstName: string;
+  oldEmail: string;
+  newEmail: string;
+  changedBy: string;
+  when: string;
+  /** Which address this copy goes to. */
+  recipient: 'old' | 'new';
+  /** Sign-in page of the portal the account uses. */
+  link: string;
+}
+
 export interface TemplateDataMap {
   invitation: InvitationData;
   'password-reset': PasswordResetData;
@@ -61,6 +74,7 @@ export interface TemplateDataMap {
   'new-sign-in': NewSignInData;
   'renewal-reminder': RenewalReminderData;
   'platform-alert': PlatformAlertData;
+  'email-changed': EmailChangedData;
 }
 
 export type TemplateName = keyof TemplateDataMap;
@@ -178,6 +192,33 @@ export function renderEmail<T extends TemplateName>(
         html: layout(lines, { label: 'Open in the back office', href: d.link }),
       };
     }
+    case 'email-changed': {
+      const d = data as EmailChangedData;
+      const lines =
+        d.recipient === 'new'
+          ? [
+              `Hello ${d.firstName},`,
+              `${d.changedBy} changed the email on your EduTrack account to ${d.newEmail} on ${d.when}.`,
+              `From now on, sign in with this address. Your password stays the same, and ${d.oldEmail} no longer works for signing in.`,
+            ]
+          : [
+              `Hello ${d.firstName},`,
+              `${d.changedBy} changed the email on your EduTrack account from ${d.oldEmail} to ${d.newEmail} on ${d.when}. This address no longer works for signing in.`,
+              'If you didn’t expect this, contact your EduTrack administrator straight away.',
+            ];
+      return {
+        subject: 'The email on your EduTrack account was changed',
+        text:
+          d.recipient === 'new'
+            ? `${lines.join('\n\n')}\n\nSign in: ${d.link}\n\n${SECURITY_FOOTER}`
+            : `${lines.join('\n\n')}\n\n${SECURITY_FOOTER}`,
+        html: layout(
+          lines,
+          d.recipient === 'new' ? { label: 'Sign in', href: d.link } : undefined,
+          SECURITY_FOOTER,
+        ),
+      };
+    }
     default:
       throw new Error(`Unknown email template: ${String(template)}`);
   }
@@ -207,6 +248,10 @@ export function renderSms<T extends TemplateName>(template: T, data: TemplateDat
     case 'platform-alert': {
       const d = data as PlatformAlertData;
       return `EduTrack: ${d.title} ${d.link}`;
+    }
+    case 'email-changed': {
+      const d = data as EmailChangedData;
+      return `Your EduTrack sign-in email is now ${d.newEmail}. Not expected? Contact your administrator.`;
     }
     default:
       throw new Error(`Unknown SMS template: ${String(template)}`);

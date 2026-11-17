@@ -12,6 +12,7 @@ import FormSelect from '@edutrack/app-kit/components/form/FormSelect.vue';
 import SideDrawer from '@edutrack/app-kit/components/overlays/SideDrawer.vue';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 import { editUserSchema, SUPPORT_TEAM_OPTIONS } from '@/schema/user';
+import { useAuthStore } from '@/stores/auth';
 import { PERMISSION_AREAS, type PlatformUser, type Role } from '@/types';
 
 const props = defineProps<{ user: PlatformUser }>();
@@ -34,12 +35,32 @@ const { handleSubmit, defineField, meta, resetForm } = useForm({
   initialValues: initialValues(),
 });
 const [roleId] = defineField('roleId');
+const [email] = defineField('email');
 watch(open, (isOpen) => isOpen && resetForm({ values: initialValues() }));
 
 const roleChoices = computed(() =>
   (roles.value ?? []).map((r) => ({ value: r.id, label: r.name, description: r.description })),
 );
 const roleChanged = computed(() => roleId.value !== props.user.roleId);
+const emailChanged = computed(
+  () => (email.value ?? '').trim().toLowerCase() !== props.user.email.toLowerCase(),
+);
+const auth = useAuthStore();
+
+/** What changing the sign-in email does, for the confirmation. */
+function emailDetails(next: string): [string, string][] {
+  if (props.user.status === 'Invited')
+    return [
+      ['New email', next],
+      ['Invitation', 'The next resend goes to the new address'],
+    ];
+  return [
+    ['Current email', props.user.email],
+    ['New email', next],
+    ['Signs in with', `${next}, straight away. Their password stays the same.`],
+    ['Notified', 'Both addresses get an email about the change'],
+  ];
+}
 
 /** Permissions the user gains and loses moving from one role to another, e.g. "Schools Create". */
 function permissionDiff(from: Role, to: Role) {
@@ -58,6 +79,7 @@ function permissionDiff(from: Role, to: Role) {
 
 const save = handleSubmit(async (values) => {
   const payload = { ...values, phone: values.phone ?? '' };
+  const emailRows = emailChanged.value ? emailDetails(values.email) : [];
   if (roleChanged.value) {
     const from = roles.value?.find((r) => r.id === props.user.roleId);
     const to = roles.value?.find((r) => r.id === values.roleId);
@@ -72,14 +94,31 @@ const save = handleSubmit(async (values) => {
         ['Gains', diff.gains],
         ['Loses', diff.loses],
         ['Takes effect', 'The next time they load a page'],
+        ...emailRows,
       ],
       confirmLabel: 'Update role',
+      action: () => update.mutateAsync(payload),
+    });
+    if (!confirmed) return;
+  } else if (emailChanged.value) {
+    const confirmed = await confirm({
+      title: 'Change sign-in email',
+      description: `${props.user.firstName} ${props.user.lastName} will sign in with the new address. The old one stops working.`,
+      details: emailRows,
+      confirmLabel: 'Change email',
       action: () => update.mutateAsync(payload),
     });
     if (!confirmed) return;
   } else {
     await update.mutateAsync(payload);
   }
+  // Editing yourself: the account menu shows the new name and email at once.
+  if (props.user.id === auth.user?.id)
+    auth.updateUser({
+      firstName: values.firstName,
+      lastName: values.lastName,
+      email: values.email,
+    });
   open.value = false;
   toast.success('Changes saved.');
 });
@@ -89,7 +128,7 @@ const save = handleSubmit(async (values) => {
   <SideDrawer
     v-model:open="open"
     :title="`Edit ${user.firstName} ${user.lastName}`"
-    description="Changes are logged. Changing the email sends a confirmation to the new address."
+    description="Changes are logged. A new email takes over sign-in at once, and both addresses are told."
     :dirty="meta.dirty"
   >
     <form id="edit-user" class="flex flex-col gap-3.5" novalidate @submit="save">

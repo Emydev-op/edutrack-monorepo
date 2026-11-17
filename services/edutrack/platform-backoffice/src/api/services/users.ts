@@ -28,8 +28,12 @@ function useInvalidateUsers() {
     ]);
 }
 
-export function useUsersQuery(params: MaybeRefOrGetter<UserQuery>) {
+export function useUsersQuery(
+  params: MaybeRefOrGetter<UserQuery>,
+  enabled: MaybeRefOrGetter<boolean> = true,
+) {
   return useQuery({
+    enabled: () => toValue(enabled),
     queryKey: computed(() => queryKeys.users.list(cleanParams(toValue(params)))),
     queryFn: () =>
       getRequest<Paginated<PlatformUser>>('/v1/platform/users', {

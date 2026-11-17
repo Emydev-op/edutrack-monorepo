@@ -206,6 +206,30 @@ describe('Platform users and roles (e2e)', () => {
       expect(t.notifications.find('ngozi@edutrack.ng', 'platform-alert')).toBeDefined();
     });
 
+    it('moves sign-in to a new email and tells both addresses', async () => {
+      t.notifications.clear();
+      const details = { firstName: 'Ngozi', lastName: 'Okafor-Eze', phone: '0805 555 0122' };
+      const res = await api
+        .patch(`/api/v1/platform/users/${ids.ngozi}`)
+        .send({ ...details, email: 'Ngozi.Eze@edutrack.ng', roleId: 'ops' });
+      expect(res.status).toBe(200);
+      expect(res.body.data.email).toBe('ngozi.eze@edutrack.ng');
+      const toNew = t.notifications.find('ngozi.eze@edutrack.ng', 'email-changed');
+      const toOld = t.notifications.find('ngozi@edutrack.ng', 'email-changed');
+      expect(toNew?.data).toMatchObject({
+        recipient: 'new',
+        oldEmail: 'ngozi@edutrack.ng',
+        changedBy: 'Tolu Bamidele',
+        link: 'http://console.localhost/login',
+      });
+      expect(toOld?.data).toMatchObject({ recipient: 'old', newEmail: 'ngozi.eze@edutrack.ng' });
+
+      await api
+        .patch(`/api/v1/platform/users/${ids.ngozi}`)
+        .send({ ...details, email: 'ngozi@edutrack.ng', roleId: 'ops' })
+        .expect(200);
+    });
+
     it('refuses your own role, a taken email and keeps the last administrator', async () => {
       const own = await api.patch(`/api/v1/platform/users/${ids.tolu}`).send({
         firstName: 'Tolu',

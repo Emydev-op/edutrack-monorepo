@@ -25,9 +25,22 @@ import { RouterLink, useRoute } from 'vue-router';
 import { useSupportSummaryQuery } from '@/api/services/support';
 import { navigation, navKeyAliases, type NavItem } from '@/config/navigation';
 
+import { useAuthStore } from '@/stores/auth';
+
 import AccountMenu from './AccountMenu.vue';
 
 const route = useRoute();
+const auth = useAuthStore();
+
+/** Only what the role can open; a group with nothing left disappears. */
+const visibleNavigation = computed(() =>
+  navigation
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => auth.can(...(item.permission ?? []))),
+    }))
+    .filter((group) => group.items.length > 0),
+);
 const { data: support } = useSupportSummaryQuery();
 
 const collapsed = useStorage<Record<string, boolean>>('edutrack.platform.nav-collapsed', {});
@@ -53,7 +66,7 @@ const toggleGroup = (label: string) =>
 
     <SidebarContent class="px-1 pb-3">
       <nav aria-label="Main">
-        <SidebarGroup v-for="group in navigation" :key="group.label || 'root'" class="py-1">
+        <SidebarGroup v-for="group in visibleNavigation" :key="group.label || 'root'" class="py-1">
           <Collapsible
             :open="!group.label || !collapsed[group.label]"
             @update:open="group.label && toggleGroup(group.label)"

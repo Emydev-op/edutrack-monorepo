@@ -1,12 +1,14 @@
 import * as yup from 'yup';
 
 import { meetsPasswordPolicy } from '@edutrack/app-kit/lib/password';
+import { nigerianPhoneProblem } from '@edutrack/app-kit/lib/phone';
 
-export const NIGERIAN_MOBILE = /^(\+234|0)[789][01]\d{8}$/;
+export { NIGERIAN_MOBILE } from '@edutrack/app-kit/lib/phone';
 
 export const email = (message = 'Enter a valid email address') =>
   yup.string().trim().required(message).email(message);
 
+/** Optional Nigerian mobile number; the error says what is wrong (digit count, prefix…). */
 export const optionalNigerianPhone = (
   message = 'Enter a Nigerian mobile number, like 0803 412 7781',
 ) =>
@@ -14,11 +16,11 @@ export const optionalNigerianPhone = (
     .string()
     .trim()
     .default('')
-    .test(
-      'ng-phone',
-      message,
-      (value) => !value || NIGERIAN_MOBILE.test(value.replace(/[\s-]/g, '')),
-    );
+    .test('ng-phone', message, function (value) {
+      const example = /like (.+)$/.exec(message)?.[1];
+      const problem = nigerianPhoneProblem(value ?? '', example);
+      return problem ? this.createError({ message: problem }) : true;
+    });
 
 /** New password + confirmation, enforcing the platform password policy. */
 export const newPasswordFields = {

@@ -9,10 +9,11 @@ import {
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { BellIcon, ChevronsUpDownIcon, LogOutIcon, ShieldCheckIcon, UserIcon } from '@lucide/vue';
 import { useQueryClient } from '@tanstack/vue-query';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 
 import { useLogoutMutation } from '@/api/services/auth';
+import { useMyProfileQuery } from '@/api/services/settings';
 import InitialsAvatar from '@edutrack/app-kit/components/common/InitialsAvatar.vue';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 import { routesPath } from '@/router/routes-path';
@@ -24,6 +25,9 @@ const queryClient = useQueryClient();
 const confirm = useConfirm();
 const logout = useLogoutMutation();
 const signingOut = ref(false);
+// The profile carries a fresh signed link to the photo; the sign-in answer has none.
+const { data: profile } = useMyProfileQuery();
+const photo = computed(() => profile.value?.avatarUrl ?? auth.user?.avatarUrl ?? null);
 
 const links = [
   { label: 'My profile', to: { name: routesPath.settings.profile.name }, icon: UserIcon },
@@ -95,7 +99,7 @@ function signOutEverywhere() {
       class="flex w-full items-center gap-2.5 rounded-lg border border-transparent p-2 text-left hover:border-border hover:bg-muted data-[state=open]:border-border data-[state=open]:bg-muted"
     >
       <span class="relative">
-        <InitialsAvatar :initials="auth.initials" />
+        <InitialsAvatar :initials="auth.initials" :src="photo" />
         <span
           title="Online"
           class="absolute -right-px -bottom-px size-2.5 rounded-full border-2 border-card bg-success"
@@ -113,7 +117,7 @@ function signOutEverywhere() {
       class="w-(--reka-dropdown-menu-trigger-width) min-w-56 overflow-hidden rounded-[10px] p-0"
     >
       <div class="flex items-center gap-2.5 bg-muted p-3.5">
-        <InitialsAvatar :initials="auth.initials" solid />
+        <InitialsAvatar :initials="auth.initials" :src="photo" solid />
         <div class="flex min-w-0 flex-col">
           <span class="text-[13px] font-semibold">{{ auth.fullName }}</span>
           <span class="truncate text-xs text-muted-foreground">{{ auth.user?.email }}</span>

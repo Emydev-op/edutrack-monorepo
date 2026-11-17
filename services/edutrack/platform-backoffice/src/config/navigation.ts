@@ -6,6 +6,8 @@ export interface NavItem {
   route: string;
   /** Shows the number of open support issues beside the item. */
   badge?: 'openIssues';
+  /** Hidden for roles without these permissions (the page would only say "no access"). */
+  permission?: string[];
 }
 
 export interface NavGroup {
@@ -18,24 +20,37 @@ export const navigation: NavGroup[] = [
   {
     label: 'Schools',
     items: [
-      { label: 'All Schools', route: routesPath.schools.list.name },
-      { label: 'Provision School', route: routesPath.schools.provision.name },
+      { label: 'All Schools', route: routesPath.schools.list.name, permission: ['Schools.View'] },
+      {
+        label: 'Provision School',
+        route: routesPath.schools.provision.name,
+        permission: ['Schools.Create'],
+      },
     ],
   },
   {
     label: 'Subscriptions',
     items: [
-      { label: 'Plans', route: routesPath.plans.list.name },
-      { label: 'Subscriptions', route: routesPath.subscriptions.name },
+      { label: 'Plans', route: routesPath.plans.list.name, permission: ['Subscriptions.View'] },
+      {
+        label: 'Subscriptions',
+        route: routesPath.subscriptions.name,
+        permission: ['Subscriptions.View'],
+      },
     ],
   },
   {
     label: 'Operations',
     items: [
-      { label: 'Users', route: routesPath.users.list.name },
-      { label: 'Support', route: routesPath.support.list.name, badge: 'openIssues' },
-      { label: 'Activity', route: routesPath.activity.name },
-      { label: 'Audit', route: routesPath.audit.name },
+      { label: 'Users', route: routesPath.users.list.name, permission: ['Users.View'] },
+      {
+        label: 'Support',
+        route: routesPath.support.list.name,
+        badge: 'openIssues',
+        permission: ['Support.View'],
+      },
+      { label: 'Activity', route: routesPath.activity.name, permission: ['Audit.View'] },
+      { label: 'Audit', route: routesPath.audit.name, permission: ['Audit.View'] },
       { label: 'Settings', route: routesPath.settings.profile.name },
     ],
   },

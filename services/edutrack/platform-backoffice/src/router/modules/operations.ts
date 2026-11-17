@@ -8,7 +8,7 @@ export const operationsRoutes: RouteRecordRaw[] = [
   {
     ...users.list,
     component: () => import('@/views/users/UsersView.vue'),
-    meta: { title: 'Users', breadcrumb: [{ label: 'Users' }] },
+    meta: { title: 'Users', breadcrumb: [{ label: 'Users' }], permission: ['Users.View'] },
   },
   {
     path: users.detail.path,
@@ -17,6 +17,7 @@ export const operationsRoutes: RouteRecordRaw[] = [
       title: 'User',
       breadcrumb: [{ label: 'Users', to: users.list.name }],
       nav: users.list.name,
+      permission: ['Users.View'],
     },
     children: [
       {
@@ -38,7 +39,7 @@ export const operationsRoutes: RouteRecordRaw[] = [
   {
     ...support.list,
     component: () => import('@/views/support/SupportView.vue'),
-    meta: { title: 'Support', breadcrumb: [{ label: 'Support' }] },
+    meta: { title: 'Support', breadcrumb: [{ label: 'Support' }], permission: ['Support.View'] },
   },
   {
     ...support.create,
@@ -47,6 +48,7 @@ export const operationsRoutes: RouteRecordRaw[] = [
       title: 'Create issue',
       breadcrumb: [{ label: 'Support', to: support.list.name }, { label: 'Create issue' }],
       nav: support.list.name,
+      permission: ['Support.Create'],
     },
   },
   {
@@ -56,17 +58,18 @@ export const operationsRoutes: RouteRecordRaw[] = [
       title: 'Issue',
       breadcrumb: [{ label: 'Support', to: support.list.name }],
       nav: support.list.name,
+      permission: ['Support.View'],
     },
   },
   {
     ...activity,
     component: () => import('@/views/activity/ActivityView.vue'),
-    meta: { title: 'Activity', breadcrumb: [{ label: 'Activity' }] },
+    meta: { title: 'Activity', breadcrumb: [{ label: 'Activity' }], permission: ['Audit.View'] },
   },
   {
     ...audit,
     component: () => import('@/views/audit/AuditView.vue'),
-    meta: { title: 'Audit log', breadcrumb: [{ label: 'Audit' }] },
+    meta: { title: 'Audit log', breadcrumb: [{ label: 'Audit' }], permission: ['Audit.View'] },
   },
   {
     ...settings.createRole,
@@ -75,6 +78,7 @@ export const operationsRoutes: RouteRecordRaw[] = [
       title: 'Create role',
       breadcrumb: [{ label: 'Settings', to: settings.access.name }, { label: 'Create role' }],
       nav: 'settings',
+      permission: ['Users.Manage'],
     },
   },
   {
@@ -100,6 +104,7 @@ export const operationsRoutes: RouteRecordRaw[] = [
       {
         path: 'security',
         name: settings.security.name,
+        meta: { title: 'Security settings', permission: ['Settings.View'] },
         component: () => import('@/views/settings/(tabs)/SecurityTab.vue'),
       },
     ],

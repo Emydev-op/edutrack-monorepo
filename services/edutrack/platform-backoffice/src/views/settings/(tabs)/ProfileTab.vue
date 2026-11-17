@@ -4,7 +4,7 @@ import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { useForm } from 'vee-validate';
 import { computed, ref, watch } from 'vue';
-import { messageOf } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
 import {
@@ -70,9 +70,14 @@ function upload(event: Event) {
     return void (avatarError.value = `“${file.name}” is larger than 2 MB.`);
   const reader = new FileReader();
   reader.onload = async () => {
-    const profile = await updateAvatar.mutateAsync(String(reader.result));
-    toast.success(messageOf(profile, 'Profile photo updated.'));
+    try {
+      const profile = await updateAvatar.mutateAsync(String(reader.result));
+      toast.success(messageOf(profile, 'Profile photo updated.'));
+    } catch (error) {
+      avatarError.value = getApiErrorMessage(error, "Your photo couldn't be uploaded. Try again.");
+    }
   };
+  reader.onerror = () => (avatarError.value = "That file couldn't be read. Try another image.");
   reader.readAsDataURL(file);
 }
 

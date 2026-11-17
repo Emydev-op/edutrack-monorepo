@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { normalizePhone } from '../../auth/identifiers.js';
 import { InvitationService } from '../../auth/invitation.service.js';
+import { PortalLinksService } from '../../auth/portal-links.service.js';
 import { PasswordResetService } from '../../auth/password-reset.service.js';
 import { SessionService } from '../../auth/session.service.js';
 import { Clock, DAY } from '../../common/clock/clock.js';
@@ -10,6 +11,7 @@ import { AppException } from '../../common/errors/app.exception.js';
 import { paginated, toSkipTake } from '../../common/pagination/pagination.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { Portal, type SupportTeam } from '../../generated/prisma/enums.js';
+import { NotificationsService } from '../../notifications/notifications.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { PlatformAlertsService } from '../alerts/platform-alerts.service.js';
 import { toneOf } from '../shared/audit-view.js';
@@ -79,7 +81,11 @@ export class UsersService {
     private readonly passwordReset: PasswordResetService,
     private readonly sessions: SessionService,
     private readonly clock: Clock,
+    private readonly notifications: NotificationsService,
+    private readonly links: PortalLinksService,
   ) {}
+
+  private readonly logger = new Logger(UsersService.name);
 
   /* ---------- Views ---------- */
 
@@ -402,6 +408,10 @@ export class UsersService {
         );
       }
     });
+    // The new address signs in from now on: tell both addresses (an invitee just gets the next
+    // invitation at the new one). Mail goes through the queue, so this never fails the save.
+    if (dto.email !== user.email && staff.status !== 'INVITED')
+      await this.notifyEmailChanged(staff.user, dto.email, dto.firstName);
     if (roleChanged && staff.status === 'ACTIVE')
       await this.alerts.tryNotify(
         'security.alert',
@@ -415,6 +425,35 @@ export class UsersService {
         { userIds: [userId] },
       );
     return this.get(userId);
+  }
+
+  private async notifyEmailChanged(
+    user: { email: string | null },
+    newEmail: string,
+    firstName: string,
+  ) {
+    const actor = await this.prisma.user.findUnique({
+      where: { id: this.actorId() },
+      select: { firstName: true, lastName: true },
+    });
+    const base = {
+      firstName,
+      oldEmail: user.email ?? '',
+      newEmail,
+      changedBy: actor ? fullName(actor) : 'A Platform Administrator',
+      when: formatStamp(this.clock.now()),
+      link: `${this.links.base(Portal.PLATFORM)}/login`,
+    };
+    const sends = [
+      this.notifications.email(newEmail, 'email-changed', { ...base, recipient: 'new' }),
+    ];
+    if (user.email)
+      sends.push(
+        this.notifications.email(user.email, 'email-changed', { ...base, recipient: 'old' }),
+      );
+    await Promise.all(sends).catch((error: unknown) =>
+      this.logger.warn({ msg: 'Email-change notice not queued', error: String(error) }),
+    );
   }
 
   /* ---------- Lifecycle actions ---------- */

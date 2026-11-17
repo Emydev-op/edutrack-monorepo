@@ -10,7 +10,6 @@ import { AccessTokenService, type AccessClaims } from './access-token.service.js
 import type { AuthUserContext, ClientInfo } from './auth-context.js';
 import {
   membershipView,
-  platformPermissions,
   platformUser,
   schoolChoices,
   schoolPortalUser,
@@ -289,7 +288,6 @@ export class AuthService {
       return {
         ...platformUser(user, access.staff),
         portal,
-        permissions: platformPermissions(access.staff),
       };
     return {
       portal,
