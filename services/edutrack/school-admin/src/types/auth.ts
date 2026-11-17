@@ -12,6 +12,8 @@ export interface AuthUser {
 /** The school (tenant) the signed-in user works in. */
 export interface SchoolSummary {
   id: string;
+  /** `greenfield`, as in greenfield.edutrack.ng. */
+  slug?: string;
   name: string;
   initials: string;
   plan: string;
