@@ -98,7 +98,8 @@ describe('School Admin profile and branches (e2e)', () => {
         approvalNumber: 'LSMOE/PS/2009/0418',
         cacNumber: 'RC 1184206',
         certificate: { name: 'approval-certificate.pdf', size: '412 KB', dataUrl: null },
-        plan: { name: 'Growth', students: 0, studentLimit: 1500, branchLimit: 5 },
+        // The seed's 24 Greenfield students on the roll (leavers aside).
+        plan: { name: 'Growth', students: 24, studentLimit: 1500, branchLimit: 5 },
       });
       expect(res.body.data.plan.renews).toMatch(/^\d{1,2} [A-Z][a-z]{2} \d{4}$/);
       expect(res.body.data.history).toContainEqual(
