@@ -50,6 +50,17 @@ export const useAuthStore = defineStore('auth', () => {
     (remember ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(session));
   }
 
+  /** A refreshed session: the new access token (and current details), kept where it was stored. */
+  function refreshed(
+    session: StoredSession | { accessToken: string; user: AuthUser; school: SchoolSummary },
+  ) {
+    const next =
+      'accessToken' in session
+        ? { token: session.accessToken, user: session.user, school: session.school }
+        : session;
+    setSession(next, !!localStorage.getItem(STORAGE_KEY));
+  }
+
   /** Keeps the sidebar and sign-out copy in step after the school profile changes. */
   function updateSchool(patch: Partial<SchoolSummary>) {
     if (!school.value || !token.value || !user.value) return;
@@ -77,6 +88,7 @@ export const useAuthStore = defineStore('auth', () => {
     fullName,
     initials,
     setSession,
+    refreshed,
     updateSchool,
     clear,
   };
