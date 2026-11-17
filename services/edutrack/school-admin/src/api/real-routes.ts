@@ -44,6 +44,13 @@ export const REAL_ROUTES: readonly string[] = [
   'POST /v1/setup/steps/:id/complete',
   'POST /v1/setup/finish',
   'GET /v1/context-options',
+  // Students, Phase 2: admissions and the student import.
+  'GET /v1/admissions',
+  'GET /v1/admissions/options',
+  'GET /v1/admissions/matches',
+  'POST /v1/admissions',
+  'POST /v1/imports',
+  'POST /v1/imports/:id/commit',
 ];
 
 type Rule = { method: string; pattern: RegExp };

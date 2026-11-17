@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { OrganogramModule } from './organogram/organogram.module.js';
 import { AcademicsModule } from './academics/academics.module.js';
+import { AdmissionsModule } from './admissions/admissions.module.js';
 import { ContextModule } from './context/context.module.js';
 import { PublicSchoolController } from './public/public-school.controller.js';
 import { SchoolProfileModule } from './profile/profile.module.js';
@@ -24,6 +25,7 @@ import { SetupModule } from './setup/setup.module.js';
     AcademicsModule,
     SetupModule,
     ContextModule,
+    AdmissionsModule,
     StaffModule,
   ],
   controllers: [PublicSchoolController],

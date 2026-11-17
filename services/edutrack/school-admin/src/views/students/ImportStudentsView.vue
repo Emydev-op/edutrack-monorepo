@@ -5,7 +5,7 @@ import { Input } from '@edutrack/ui/components/input';
 import { Progress } from '@edutrack/ui/components/progress';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
 import { cn } from '@edutrack/ui/lib/utils';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
 import { FileSpreadsheetIcon, UploadIcon } from '@lucide/vue';
 import { computed, reactive, ref } from 'vue';
 import { RouterLink } from 'vue-router';
@@ -102,7 +102,10 @@ async function onFile(event: Event) {
     return void (uploadError.value = `“${file.name}” is larger than 10 MB.`);
   step.value = 2;
   try {
-    batch.value = await withProgress(validateFile.mutateAsync(file.name));
+    const text = await file.text();
+    batch.value = await withProgress(
+      validateFile.mutateAsync({ fileName: file.name, text, branch: context.current.branch }),
+    );
     for (const i of batch.value.issues) {
       if (i.code === 'dob') fixes[i.row] = i.value ?? '';
       if (i.code === 'duplicate') fixes[i.row] = 'new';
@@ -138,7 +141,11 @@ const errorsLeft = computed(
 const warnings = computed(
   () => batch.value?.issues.filter((i) => i.kind === 'warning').length ?? 0,
 );
-const skipped = computed(() => (fixes['7'] === 'skip' ? 1 : 0));
+const skipped = computed(
+  () =>
+    batch.value?.issues.filter((i) => i.code === 'duplicate' && fixes[i.row] === 'skip').length ??
+    0,
+);
 const importable = computed(() => {
   if (!batch.value) return 0;
   if (errorsLeft.value && !exclude.value) return 0;
@@ -149,7 +156,12 @@ const validCount = computed(() =>
     ? batch.value.valid + batch.value.issues.filter((i) => i.kind === 'error' && isFixed(i)).length
     : 0,
 );
-const linkedExtra = computed(() => (fixes['40'] === 'new' ? 0 : 1));
+/** Rows whose guardian matched by email: linked unless "Create new parent" is chosen. */
+const linkedExtra = computed(
+  () =>
+    batch.value?.issues.filter((i) => i.code === 'guardian-match' && fixes[i.row] !== 'new')
+      .length ?? 0,
+);
 
 function downloadErrors() {
   if (!batch.value) return;
@@ -172,7 +184,12 @@ async function runImport() {
       }),
     );
     step.value = 6;
-    toast.success(`${result.value.imported} students imported into ${batch.value.target}.`);
+    toast.success(
+      messageOf(
+        result.value,
+        `${result.value.imported} students imported into ${batch.value.target}.`,
+      ),
+    );
   } catch (e) {
     step.value = 4;
     toast.error(getApiErrorMessage(e, 'The import didn’t run. Nothing was imported. Try again.'));
@@ -334,6 +351,9 @@ const choice = (row: number, value: string) =>
                   :aria-label="`Date of birth for row ${i.row}`"
                   placeholder="DD/MM/YYYY"
                 />
+                <span v-else-if="i.code === 'invalid'" class="text-xs text-muted-foreground"
+                  >Fix it in the file, or exclude it below</span
+                >
                 <div v-else class="flex flex-wrap gap-1.5">
                   <template v-if="i.code === 'duplicate'">
                     <button
@@ -407,7 +427,7 @@ const choice = (row: number, value: string) =>
           {{ batch.guardiansLinked + linkedExtra }} linked to existing parents
         </dd>
         <dt class="text-faint">Invitations</dt>
-        <dd>Sent to guardians with a phone or email</dd>
+        <dd>None. Invite guardians to the parent portal from Parents when ready.</dd>
         <dt class="text-faint">Invoices</dt>
         <dd>Not created. Issue them from Finance when ready.</dd>
         <dt class="text-faint">Reversible</dt>
@@ -434,7 +454,7 @@ const choice = (row: number, value: string) =>
       <InlineNotice
         tone="success"
         :title="`${result.imported} students imported`"
-        :description="`Batch ${result.batchId} · ${result.guardiansNew} guardians created · ${result.guardiansLinked} linked · invitations queued.`"
+        :description="`Batch ${result.batchId} · ${result.guardiansNew} guardians created · ${result.guardiansLinked} linked.`"
       />
       <div class="flex flex-wrap gap-2">
         <Button as-child

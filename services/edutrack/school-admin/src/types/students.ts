@@ -123,8 +123,10 @@ export interface AdmissionOptions {
   session: string;
   term: string;
   branches: string[];
-  /** Class level → arms with how many places are used of the capacity. */
+  /** Class level → arms with how many places are used of the capacity (the first branch's). */
   arms: Record<string, { arm: string; used: number; capacity: number }[]>;
+  /** Branch → class level → arms, as each branch runs its own arms (real API only). */
+  armsByBranch?: Record<string, Record<string, { arm: string; used: number; capacity: number }[]>>;
   compulsorySubjects: string[];
   religiousSubjects: [code: string, name: string][];
   electives: string[];
@@ -203,8 +205,8 @@ export interface ImportIssue {
   row: number;
   student: string;
   kind: 'error' | 'warning';
-  /** What the issue is about, so the UI can offer the right fix. */
-  code: 'class' | 'dob' | 'duplicate' | 'no-guardian' | 'guardian-match';
+  /** What the issue is about, so the UI can offer the right fix ('invalid': exclude the row). */
+  code: 'class' | 'dob' | 'duplicate' | 'no-guardian' | 'guardian-match' | 'invalid';
   message: string;
   /** For class: the suggested class. */
   suggestion?: string;
