@@ -58,7 +58,8 @@ export interface StudentDetail extends StudentRow {
   age: number | null;
   stateOfOrigin: string;
   address: string;
-  medicalNotes: string;
+  /** Null when the viewer may not see medical notes (needs students.edit). */
+  medicalNotes: string | null;
   admittedOn: string;
   admissionType: string;
   admittedInto: string;

@@ -6,7 +6,7 @@ import { TenantPrismaService } from '../../tenancy/tenant-prisma.service.js';
 
 /** Change-history areas (Settings › History groups by these) and module names. */
 export type SchoolAuditArea =
-  'School' | 'Branches' | 'Organogram' | 'Users' | 'Staff' | 'Academic' | 'Setup';
+  'School' | 'Branches' | 'Organogram' | 'Users' | 'Staff' | 'Academic' | 'Setup' | 'Students';
 
 export interface SchoolAuditEntry {
   /** Dotted verb: branch.create, staff.deactivate, profile.update… */

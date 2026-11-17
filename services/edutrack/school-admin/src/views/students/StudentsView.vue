@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
+import { messageOf } from '@edutrack/web-core/http';
 import { ArrowRightLeftIcon, EyeIcon, MessageSquareIcon } from '@lucide/vue';
 import { refDebounced } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
@@ -111,11 +112,14 @@ function moveArm() {
     })),
     confirmLabel: 'Move students',
     action: async ({ option }) => {
-      const { moved } = await assignArm.mutateAsync({
+      const result = await assignArm.mutateAsync({
         studentIds: picked.map((s) => s.id),
         arm: option,
       });
-      toast.success(`${moved} student${moved === 1 ? '' : 's'} moved to ${level}${option}.`);
+      const { moved } = result;
+      toast.success(
+        messageOf(result, `${moved} student${moved === 1 ? '' : 's'} moved to ${level}${option}.`),
+      );
       selection.clear();
     },
   });

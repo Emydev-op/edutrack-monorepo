@@ -9,6 +9,7 @@ import { SchoolBrandingService } from './shared/school-branding.service.js';
 import { SchoolUsersModule } from './users/users.module.js';
 import { StaffModule } from './staff/staff.module.js';
 import { SetupModule } from './setup/setup.module.js';
+import { StudentsModule } from './students/students.module.js';
 
 /**
  * The school side of the API: what School Admin (admin.edutrack.ng) and the school portals
@@ -24,6 +25,7 @@ import { SetupModule } from './setup/setup.module.js';
     AcademicsModule,
     SetupModule,
     ContextModule,
+    StudentsModule,
     StaffModule,
   ],
   controllers: [PublicSchoolController],

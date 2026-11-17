@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AcademicsModule } from '../academics/academics.module.js';
 import { AcademicSetupSteps } from '../academics/academic-steps.js';
+import { StudentsModule } from '../students/students.module.js';
+import { StudentSetupSteps } from '../students/student-steps.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { SetupStateService } from '../shared/setup-state.service.js';
 import { SchoolSetupSteps } from './school-steps.js';
@@ -13,7 +15,7 @@ import { SetupService } from './setup.service.js';
  * School-section ones are read straight from their tables here until those modules provide theirs.
  */
 @Module({
-  imports: [AcademicsModule],
+  imports: [AcademicsModule, StudentsModule],
   controllers: [SetupController],
   providers: [
     SetupService,
@@ -22,7 +24,7 @@ import { SetupService } from './setup.service.js';
     SetupStateService,
     {
       provide: SETUP_STEP_SOURCES,
-      inject: [SchoolSetupSteps, AcademicSetupSteps],
+      inject: [SchoolSetupSteps, AcademicSetupSteps, StudentSetupSteps],
       useFactory: (...groups: { all: SetupStepSource[] }[]): SetupStepSource[] =>
         groups.flatMap((g) => g.all),
     },

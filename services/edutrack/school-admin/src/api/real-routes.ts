@@ -39,6 +39,13 @@ export const REAL_ROUTES: readonly string[] = [
   'PUT /v1/academics/classes/arms/:id',
   'DELETE /v1/academics/classes/arms/:id',
   'GET /v1/academics/classes/:id',
+  // Students, Phase 2: records, transfers and withdrawals, arms and enrollment.
+  'GET /v1/students',
+  'POST /v1/students/assign-arm',
+  'GET /v1/students/:id',
+  'POST /v1/students/:id/transfer',
+  'GET /v1/enrollment/options',
+  'POST /v1/enrollments',
   // Setup Center and the header's working context.
   'GET /v1/setup',
   'POST /v1/setup/steps/:id/complete',
