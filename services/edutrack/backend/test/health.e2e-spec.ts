@@ -1,3 +1,4 @@
+import { buildOpenApi } from '../src/common/http/openapi.js';
 import { createTestApp, type TestApp } from './support/test-app.js';
 
 // Requires the local stack: `npm run infra:up` from the repo root.
@@ -36,5 +37,28 @@ describe('Health and error shape (e2e)', () => {
       message: 'Sign in to continue.',
       error: { code: 'UNAUTHORIZED' },
     });
+  });
+
+  it('builds the Swagger document for every route, in the envelope', () => {
+    // A response class Swagger can't describe crashes /docs at request time; catch it here.
+    const doc = buildOpenApi(t.app);
+    const paths = Object.keys(doc.paths);
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        '/api/v1/public/school',
+        '/api/v1/branches',
+        '/api/v1/staff',
+        '/api/v1/academics/classes/{id}',
+        '/api/v1/setup',
+      ]),
+    );
+    const ok = doc.paths['/api/v1/branches']!.get!.responses['200'] as {
+      content: Record<string, { schema: { properties: Record<string, unknown> } }>;
+    };
+    expect(Object.keys(ok.content['application/json']!.schema.properties)).toEqual([
+      'success',
+      'message',
+      'data',
+    ]);
   });
 });

@@ -323,7 +323,12 @@ export class ClassDetailResponse {
   @ApiProperty({ type: [Object], example: [], description: 'Subjects phase: empty for now' })
   subjects!: unknown[];
 
-  @ApiProperty({ nullable: true, example: null, description: 'Timetable phase: null for now' })
+  @ApiProperty({
+    type: Object,
+    nullable: true,
+    example: null,
+    description: 'Timetable phase: null for now',
+  })
   timetable!: null;
 
   @ApiProperty({ type: [Object], example: [], description: 'Results phase: empty for now' })
