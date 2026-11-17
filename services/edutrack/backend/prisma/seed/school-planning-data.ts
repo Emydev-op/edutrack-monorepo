@@ -449,8 +449,15 @@ export async function seedSchoolPlanning(
           continue;
         const offset = Math.floor(seeded(r.subjectId + di) * periods.length);
         for (let k = 0; k < periods.length && left > 0; k++) {
-          const p = periods[(k + offset) % periods.length]!;
+          const idx = (k + offset) % periods.length;
+          const p = periods[idx]!;
           if (grid.has(`${d}|${p.id}`)) continue;
+          // No more than 2 lessons of a subject in a row (the timetable rule).
+          const at = (j: number) => grid.get(`${d}|${periods[j]?.id}`)?.subjectId;
+          let run = 1;
+          for (let j = idx - 1; j >= 0 && at(j) === r.subjectId; j--) run++;
+          for (let j = idx + 1; j < periods.length && at(j) === r.subjectId; j++) run++;
+          if (run > 2) continue;
           grid.set(`${d}|${p.id}`, { subjectId: r.subjectId, staffId: r.staffId });
           left--;
           if (pass === 0) break;

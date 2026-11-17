@@ -317,9 +317,12 @@ export class TimetableService {
             const i = (k + offset) % lessons.length;
             const slot = `${day}-${lessons[i]!.id}`;
             if (grid[slot] || (s.teacherId && v.busy[s.teacherId]?.[slot])) continue;
-            const before = i ? grid[`${day}-${lessons[i - 1]!.id}`] : undefined;
-            const after = grid[`${day}-${lessons[i + 1]?.id}`];
-            if (before === s.code && after === s.code) continue;
+            // Placing it here must not make a run longer than the limit.
+            const at = (j: number) => grid[`${day}-${lessons[j]?.id}`];
+            let run = 1;
+            for (let j = i - 1; j >= 0 && at(j) === s.code; j--) run++;
+            for (let j = i + 1; j < lessons.length && at(j) === s.code; j++) run++;
+            if (run > v.maxConsecutive) continue;
             grid[slot] = s.code;
             left--;
             if (pass === 0) break;
