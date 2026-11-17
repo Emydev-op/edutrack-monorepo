@@ -77,7 +77,12 @@ describe('real routes for Phase 1 academics and setup', () => {
     expect(isRealRoute('get', '/v1/academics/sessions/abc/close')).toBe(false);
     expect(isRealRoute('post', '/v1/academics/terms/abc/close')).toBe(false);
     expect(isRealRoute('get', '/v1/academics/calendar')).toBe(false);
-    expect(isRealRoute('get', '/v1/academics/curriculum')).toBe(false);
+    // Phase 3a: curriculum, assignments, timetable, assessment and attendance are real.
+    expect(isRealRoute('get', '/v1/academics/curriculum')).toBe(true);
+    expect(isRealRoute('post', '/v1/academics/timetable/suggest')).toBe(true);
+    expect(isRealRoute('get', '/v1/academics/attendance/abc')).toBe(true);
+    // Results and promotion come in 3b.
+    expect(isRealRoute('get', '/v1/academics/results')).toBe(false);
     expect(isRealRoute('get', '/v1/nav-counts')).toBe(false);
   });
 });

@@ -38,7 +38,6 @@ export type NumberingPayload = Record<NumberingKind, string>;
 /* ---------------- Academic ---------------- */
 
 export interface AcademicPolicy {
-  showPosition: boolean;
   reweightExempt: boolean;
   promotionSuggestions: boolean;
   blockPromotionOnFees: boolean;

@@ -28,6 +28,7 @@ import { seedSchoolOrgData } from './school-org-data.js';
 import { seedSchoolBranches } from './school-branches-data.js';
 import { seedSchoolStaffData } from './school-staff-data.js';
 import { seedSchoolAcademics } from './school-academics-data.js';
+import { seedSchoolPlanning } from './school-planning-data.js';
 import { seedSchoolStudents } from './school-students-data.js';
 import { seedSchoolAdmissions } from './school-admissions-data.js';
 import { seedSchoolAccounts } from './school-accounts-data.js';
@@ -732,6 +733,7 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
   await seedSupportDesk(prisma, now);
   await seedSchoolAcademics(prisma, schoolIds);
   await seedSchoolStudents(prisma, schoolIds);
+  await seedSchoolPlanning(prisma, schoolIds, now);
   await seedSchoolAdmissions(prisma, schoolIds);
   await seedSchoolAccounts(prisma, schoolIds);
 

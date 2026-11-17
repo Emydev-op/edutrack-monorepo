@@ -2,7 +2,6 @@ import axios, { isAxiosError, type AxiosInstance } from 'axios';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 import type {
-  AcademicSettings,
   FinanceSettings,
   FinanceToggles,
   LoginResponse,
@@ -98,12 +97,6 @@ describe('Settings', () => {
     expect(after.total!).toBeLessThan(before.total!);
     await api.put('/v1/settings/academic', { reweightExempt: true });
     expect(aisha(await sheet()).total).toBe(before.total);
-
-    const pos = await api.put<AcademicSettings>('/v1/settings/academic', { showPosition: false });
-    expect(pos.data.showPosition).toBe(false);
-    const assessment = await api.get<{ showPosition: boolean }>('/v1/academics/assessment');
-    expect(assessment.data.showPosition).toBe(false);
-    await api.put('/v1/settings/academic', { showPosition: true });
 
     expect(
       (await failure(api.put('/v1/settings/academic', { reweightExempt: 'yes' }))).status,

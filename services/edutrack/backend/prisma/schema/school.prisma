@@ -235,8 +235,7 @@ model SchoolSettings {
   /// e.g. STU-[YYYY]-[####]. Tokens: [YYYY] year, [BR] branch code, [#…] zero-padded counter.
   admissionNumberPattern   String   @default("STU-[YYYY]-[####]") @map("admission_number_pattern")
   staffNumberPattern       String   @default("STF-[####]") @map("staff_number_pattern")
-  /// Academic policy.
-  showPosition             Boolean  @default(false) @map("show_position")
+  /// Academic policy. (Showing class position is per section: AssessmentScheme.showPosition.)
   /// Re-spread component weights when a student is exempt (EXM).
   reweightExempt           Boolean  @default(true) @map("reweight_exempt")
   promotionSuggestions     Boolean  @default(true) @map("promotion_suggestions")
