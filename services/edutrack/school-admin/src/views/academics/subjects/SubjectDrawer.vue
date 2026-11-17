@@ -139,7 +139,13 @@ function deleteSubject() {
         title="This subject has scores this session"
         description="It can’t be deleted or taken out of a class until the session closes. You can make it inactive for future sessions."
       />
-      <FieldShell id="sub-name" label="Subject name" required :error="err('name')">
+      <FieldShell
+        id="sub-name"
+        label="Subject name"
+        required
+        :error="err('name')"
+        info="The full name printed on report cards, timetables and the Teacher Workspace, e.g. Mathematics or Christian Religious Studies. Each subject name can only be used once."
+      >
         <Input
           id="sub-name"
           v-model="form.name"
@@ -154,6 +160,7 @@ function deleteSubject() {
           required
           :error="err('code')"
           :hint="subject ? 'Can’t be changed' : '2–4 capitals, e.g. MTH'"
+          info="A short code shown where space is tight: timetable cells, score sheets and exports. Use 2 to 4 capital letters, optionally followed by one digit (MTH, ENG, FRE, BIO2). Each code is unique and can’t be changed once the subject is created."
         >
           <Input
             id="sub-code"
@@ -170,6 +177,7 @@ function deleteSubject() {
           required
           :error="err('periods')"
           hint="Timetables place this many"
+          info="How many lessons a class has each week, from 1 to 10. The timetable builder places exactly this many, and it counts towards each teacher’s weekly workload."
         >
           <Input
             id="sub-periods"
@@ -178,7 +186,11 @@ function deleteSubject() {
             :aria-invalid="!!err('periods')"
           />
         </FieldShell>
-        <FieldShell id="sub-cat" label="Category">
+        <FieldShell
+          id="sub-cat"
+          label="Category"
+          info="Groups subjects for filters and reports: Core, Science, Arts, Commercial, Technical, Language, Religious or Early years."
+        >
           <select
             id="sub-cat"
             v-model="form.category"
@@ -187,7 +199,11 @@ function deleteSubject() {
             <option v-for="c in CATEGORIES" :key="c">{{ c }}</option>
           </select>
         </FieldShell>
-        <FieldShell id="sub-status" label="Status">
+        <FieldShell
+          id="sub-status"
+          label="Status"
+          info="Active subjects can be offered in classes, assigned to teachers and placed on timetables. Make a subject inactive to stop offering it while keeping its past results; you can’t deactivate it while teachers are still assigned to it."
+        >
           <select
             id="sub-status"
             v-model="form.status"

@@ -340,6 +340,15 @@ describe('School Admin profile and branches (e2e)', () => {
       }
     });
 
+    it('accepts a one-letter school prefix (a one-word school name suggests "C-IK")', async () => {
+      const res = await admin
+        .post('/api/v1/branches')
+        .send({ ...BRANCH, name: 'Ikoyi Annex', code: 'G-IK' });
+      expect(res.status).toBe(201);
+      expect(res.body.data.code).toBe('G-IK');
+      await admin.delete(`/api/v1/branches/${res.body.data.id}`).expect(200);
+    });
+
     it('creates, edits, deactivates, reactivates and deletes a branch', async () => {
       const created = await admin.post('/api/v1/branches').send({ ...BRANCH, code: 'gfa-ik' });
       expect(created.status).toBe(201);
