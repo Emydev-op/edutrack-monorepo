@@ -41,8 +41,9 @@ if (env.useMocks) {
     const path = (config.url ?? '').split('?')[0]!;
     if (isRealRoute(config.method, path)) return network(config);
     const mock = await loadMock();
-    const email = useAuthStore().user?.email;
-    const token = email ? mock.mockTokenForEmail(email) : null;
+    const auth = useAuthStore();
+    const email = auth.user?.email;
+    const token = email ? mock.mockTokenForEmail(email, auth.school?.slug) : null;
     if (token) config.headers.set('Authorization', `Bearer ${token}`);
     return mock.mockAdapter(config);
   };

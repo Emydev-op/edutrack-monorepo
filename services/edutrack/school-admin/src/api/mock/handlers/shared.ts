@@ -5,10 +5,18 @@ import { schoolData, type SchoolData } from '../school-db';
 
 export const tokenFor = (userId: string) => `mock-token.${userId}`;
 
-/** The mock token of the mock account with this email (real sign-in, mocked section). */
-export function mockTokenForEmail(email: string): string | null {
-  const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
-  return user ? tokenFor(user.id) : null;
+/**
+ * The mock token for a real sign-in calling a section that is still mocked: the mock account with
+ * the same email, or, for someone the mock has never heard of (a newly invited admin), the
+ * school's seeded School Admin. Mock schools use the real slugs as ids. Without the fallback the
+ * mock answers 401, which the app reads as an expired session and signs the person out.
+ */
+export function mockTokenForEmail(email: string, schoolSlug?: string | null): string | null {
+  const same = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  if (same) return tokenFor(same.id);
+  const ofSchool = users.filter((u) => u.schoolId === schoolSlug);
+  const stand = ofSchool.find((u) => u.roleName === 'School Admin') ?? ofSchool[0] ?? users[0];
+  return stand ? tokenFor(stand.id) : null;
 }
 
 /** The signed-in user, from the bearer token, as the real API resolves the tenant. */
