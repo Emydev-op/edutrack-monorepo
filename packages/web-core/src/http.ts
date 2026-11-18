@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance, isAxiosError } from 'axios';
+import axios, { type AxiosInstance, type InternalAxiosRequestConfig, isAxiosError } from 'axios';
 import {
   TENANT_HEADER,
   type ApiErrorResponse,
@@ -14,6 +14,13 @@ export interface HttpClientOptions {
   getTenantId?: () => string | null | undefined;
   /** Called when the API answers 401, e.g. to clear the session and redirect to login. */
   onUnauthorized?: () => void;
+  /**
+   * Swaps the HttpOnly refresh cookie for a new access token and stores it, returning the token.
+   * With it, a 401 (the 15-minute access token ran out) is refreshed once and the request
+   * retried; `onUnauthorized` only runs when the refresh fails too (the session really ended).
+   * Without it every 401 signs the person out.
+   */
+  refreshAccessToken?: () => Promise<string>;
   timeoutMs?: number;
 }
 
@@ -34,8 +41,33 @@ export function createHttpClient(options: HttpClientOptions): AxiosInstance {
     return config;
   });
 
-  client.interceptors.response.use(undefined, (error: unknown) => {
-    if (isAxiosError(error) && error.response?.status === 401) options.onUnauthorized?.();
+  // Parallel requests that all hit an expired token share one refresh.
+  let refreshing: Promise<string> | null = null;
+  const refresh = () =>
+    (refreshing ??= options.refreshAccessToken!().finally(() => {
+      refreshing = null;
+    }));
+
+  client.interceptors.response.use(undefined, async (error: unknown) => {
+    if (!isAxiosError(error) || error.response?.status !== 401) return Promise.reject(error);
+    const config = error.config as
+      (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
+    // Sign-in, refresh and sign-out answer 401 for their own reasons; never refresh for those.
+    const authCall = config?.url?.startsWith('/v1/auth/') ?? false;
+    if (options.refreshAccessToken && config && !config._retried && !authCall) {
+      let token: string;
+      try {
+        token = await refresh();
+      } catch {
+        options.onUnauthorized?.();
+        return Promise.reject(error);
+      }
+      config._retried = true;
+      config.headers.set('Authorization', `Bearer ${token}`);
+      // A second 401 lands back here with `_retried` set and signs out below.
+      return client.request(config);
+    }
+    if (!authCall || config?.url === '/v1/auth/refresh') options.onUnauthorized?.();
     return Promise.reject(error);
   });
 

@@ -6,6 +6,7 @@ import { env } from '@/config/env';
 import router from '@/router';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
+import type { LoginResponse } from '@/types';
 
 import { isRealRoute } from './real-routes';
 
@@ -13,6 +14,20 @@ import { isRealRoute } from './real-routes';
 export const apiClient = createHttpClient({
   baseURL: env.apiUrl,
   getAccessToken: () => useAuthStore().token,
+  // Access tokens last 15 minutes; the refresh cookie keeps the session going while it's in use.
+  refreshAccessToken: async () => {
+    const call = () => apiClient.post<LoginResponse>('/v1/auth/refresh', {});
+    let session: LoginResponse;
+    try {
+      session = (await call()).data;
+    } catch (error) {
+      // Another tab refreshed at the same moment; the browser already has the new cookie.
+      if (!isAxiosError(error) || error.response?.status !== 409) throw error;
+      session = (await call()).data;
+    }
+    useAuthStore().refreshed(session);
+    return session.accessToken;
+  },
   onUnauthorized: () => {
     const auth = useAuthStore();
     if (!auth.isAuthenticated) return;
@@ -21,6 +36,7 @@ export const apiClient = createHttpClient({
   },
 });
 
+apiClient.defaults.withCredentials = true;
 // Sign-in, refresh and sign-out need to know which portal is asking (the session is per portal).
 apiClient.defaults.headers.common['X-EduTrack-Portal'] = 'school_admin';
 // Every answer is `{ success, message, data }`; screens get `data`, toasts read `messageOf()`.
