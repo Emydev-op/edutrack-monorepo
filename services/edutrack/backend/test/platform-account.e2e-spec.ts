@@ -99,9 +99,10 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
         'School provisioned',
         'Support issue created',
         'Support issue urgent',
+        'School replied to an issue',
         'Security alert',
       ]);
-      expect(res.body.data[6]).toEqual({
+      expect(res.body.data[7]).toEqual({
         event: 'Security alert',
         channels: { 'in-app': true, email: true, sms: true },
         locked: ['email'],

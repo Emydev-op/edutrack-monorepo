@@ -24,6 +24,7 @@ import { SchoolsController } from './schools/schools.controller.js';
 import { SchoolsService } from './schools/schools.service.js';
 import { PlatformAuditService } from './shared/platform-audit.service.js';
 import { SupportController } from './support/support.controller.js';
+import { SupportNoticesService } from './support/support-notices.service.js';
 import { SupportService } from './support/support.service.js';
 import { SubscriptionsController } from './subscriptions/subscriptions.controller.js';
 import { SubscriptionsService } from './subscriptions/subscriptions.service.js';
@@ -65,8 +66,9 @@ import { UsersService } from './users/users.service.js';
     SearchService,
     SubscriptionsService,
     SupportService,
+    SupportNoticesService,
     UsersService,
   ],
-  exports: [PlatformAuditService, PlatformAlertsService, DailyChecksService],
+  exports: [PlatformAuditService, PlatformAlertsService, DailyChecksService, SupportNoticesService],
 })
 export class PlatformModule {}

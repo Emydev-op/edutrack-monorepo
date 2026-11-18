@@ -23,6 +23,7 @@ export const PLATFORM_EVENTS = [
   { key: 'school.provisioned', label: 'School provisioned', on: [true, true, false] },
   { key: 'issue.created', label: 'Support issue created', on: [true, false, false] },
   { key: 'issue.urgent', label: 'Support issue urgent', on: [true, true, true] },
+  { key: 'issue.school_reply', label: 'School replied to an issue', on: [true, false, false] },
   { key: 'security.alert', label: 'Security alert', on: [true, true, true] },
 ] as const;
 export type PlatformEventKey = (typeof PLATFORM_EVENTS)[number]['key'];

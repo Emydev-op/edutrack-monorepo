@@ -67,6 +67,20 @@ export interface EmailChangedData {
   link: string;
 }
 
+/** A support ticket update for a school administrator (reply, waiting on them, resolved). */
+export interface SupportUpdateData {
+  firstName: string;
+  /** "SUP-1042". */
+  number: string;
+  subject: string;
+  /** "EduTrack support replied", "Support marked it resolved". */
+  title: string;
+  /** The reply or what to do next. */
+  detail: string;
+  /** The ticket in School Admin. */
+  link: string;
+}
+
 export interface TemplateDataMap {
   invitation: InvitationData;
   'password-reset': PasswordResetData;
@@ -75,6 +89,7 @@ export interface TemplateDataMap {
   'renewal-reminder': RenewalReminderData;
   'platform-alert': PlatformAlertData;
   'email-changed': EmailChangedData;
+  'support-update': SupportUpdateData;
 }
 
 export type TemplateName = keyof TemplateDataMap;
@@ -219,6 +234,15 @@ export function renderEmail<T extends TemplateName>(
         ),
       };
     }
+    case 'support-update': {
+      const d = data as SupportUpdateData;
+      const lines = [`Hello ${d.firstName},`, `${d.title} on ${d.number}: ${d.subject}.`, d.detail];
+      return {
+        subject: `${d.number}: ${d.title}`,
+        text: `${lines.join('\n\n')}\n\nOpen the ticket: ${d.link}`,
+        html: layout(lines, { label: 'Open the ticket', href: d.link }),
+      };
+    }
     default:
       throw new Error(`Unknown email template: ${String(template)}`);
   }
@@ -252,6 +276,10 @@ export function renderSms<T extends TemplateName>(template: T, data: TemplateDat
     case 'email-changed': {
       const d = data as EmailChangedData;
       return `Your EduTrack sign-in email is now ${d.newEmail}. Not expected? Contact your administrator.`;
+    }
+    case 'support-update': {
+      const d = data as SupportUpdateData;
+      return `EduTrack support · ${d.number}: ${d.title}. ${d.link}`;
     }
     default:
       throw new Error(`Unknown SMS template: ${String(template)}`);

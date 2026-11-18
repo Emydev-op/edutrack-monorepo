@@ -14,6 +14,7 @@ import type {
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StorageService } from '../../storage/storage.service.js';
 import { PlatformAlertsService } from '../alerts/platform-alerts.service.js';
+import { SupportNoticesService, type SchoolNotice } from './support-notices.service.js';
 import { addDays, formatShortDay, formatShortStamp } from '../shared/format.js';
 import { nextPlatformNumber } from '../shared/platform-sequence.js';
 import { PlatformAuditService } from '../shared/platform-audit.service.js';
@@ -38,6 +39,7 @@ import {
   isOverdue,
   isPaused,
   NEXT,
+  parseSupportAttachment,
   PAUSED,
   PRIORITY_BY_LABEL,
   PRIORITY_LABEL,
@@ -54,8 +56,6 @@ import { workingMsBetween, type Holidays } from './working-time.js';
 
 export const ISSUE_NOT_FOUND = 'That issue doesn’t exist.';
 const DAY = 86_400_000;
-/** Attachments: PNG, JPEG or PDF, 10 MB at most. */
-const MAX_ATTACHMENT = 10 * 1024 * 1024;
 const HOLIDAY_CACHE_MS = 10 * 60_000;
 
 const ticketInclude = {
@@ -97,6 +97,7 @@ export class SupportService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly notices: SupportNoticesService,
     private readonly audit: PlatformAuditService,
     private readonly alerts: PlatformAlertsService,
     private readonly clock: Clock,
@@ -434,23 +435,7 @@ export class SupportService {
   /* ---------- Writing ---------- */
 
   private parseAttachment(dataUrl: string) {
-    const match =
-      /^data:(image\/png|image\/jpeg|application\/pdf);base64,([A-Za-z0-9+/=\s]+)$/.exec(dataUrl);
-    const bad = () => unprocessable('Attach a PNG, JPG or PDF file.', 'ATTACHMENT_TYPE');
-    if (!match) throw bad();
-    const mime = match[1]!;
-    const bytes = Buffer.from(match[2]!, 'base64');
-    const magic =
-      mime === 'image/png'
-        ? [0x89, 0x50, 0x4e, 0x47]
-        : mime === 'image/jpeg'
-          ? [0xff, 0xd8, 0xff]
-          : [0x25, 0x50, 0x44, 0x46];
-    if (!magic.every((b, i) => bytes[i] === b)) throw bad();
-    if (bytes.length > MAX_ATTACHMENT)
-      throw unprocessable('The attachment is larger than 10 MB.', 'ATTACHMENT_TOO_LARGE');
-    const ext = mime === 'image/png' ? 'png' : mime === 'image/jpeg' ? 'jpg' : 'pdf';
-    return { bytes, mime, ext };
+    return parseSupportAttachment(dataUrl);
   }
 
   async create(dto: CreateIssueDto) {
@@ -848,6 +833,8 @@ export class SupportService {
           },
         });
     });
+    // Internal notes stay with the desk; a reply reaches the school's admins.
+    if (kind === 'AGENT') await this.notices.toSchool(t.id, 'reply', dto.text);
     return { ok: true };
   }
 
@@ -966,6 +953,22 @@ export class SupportService {
       previous: STATUS_LABEL[from],
       next: dto.to,
     });
+    const toSchool: Partial<Record<TicketStatus, SchoolNotice>> = {
+      WAITING_FOR_SCHOOL: 'waiting',
+      ON_HOLD: 'reply',
+      RESOLVED: 'resolved',
+      CLOSED: 'closed',
+    };
+    const notice = toSchool[to];
+    if (notice)
+      await this.notices.toSchool(
+        t.id,
+        notice,
+        step.message ??
+          (to === 'CLOSED'
+            ? 'The ticket is closed. Raise a follow-up if you still need help.'
+            : ''),
+      );
     return this.get(ref).then(({ messages: _m, events: _e, ...issue }) => issue);
   }
 

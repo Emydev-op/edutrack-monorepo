@@ -89,6 +89,13 @@ export const REAL_ROUTES: readonly string[] = [
   'DELETE /v1/guardians/:id/invite',
   'GET /v1/students/logins',
   'POST /v1/students/logins',
+  // Support: tickets with EduTrack, the header bell, the inbox and the sidebar counts.
+  '* /v1/support/**',
+  'GET /v1/notifications',
+  'POST /v1/notifications/read-all',
+  'POST /v1/notifications/:id/read',
+  'GET /v1/comms/inbox',
+  'GET /v1/nav-counts',
 ];
 
 type Rule = { method: string; pattern: RegExp };

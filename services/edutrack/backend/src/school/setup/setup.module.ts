@@ -8,6 +8,8 @@ import { StudentSetupSteps } from '../students/student-steps.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { SetupStateService } from '../shared/setup-state.service.js';
 import { SchoolSetupSteps } from './school-steps.js';
+import { SchoolInboxController } from '../inbox/school-inbox.controller.js';
+import { SchoolInboxService } from '../inbox/school-inbox.service.js';
 import { SetupController } from './setup.controller.js';
 import { SETUP_STEP_SOURCES, type SetupStepSource } from './setup-step-source.js';
 import { SetupService } from './setup.service.js';
@@ -18,9 +20,11 @@ import { SetupService } from './setup.service.js';
  */
 @Module({
   imports: [AcademicsModule, CurriculumModule, StudentsModule],
-  controllers: [SetupController],
+  // The inbox lives here because its sidebar counts read the Setup Center's progress.
+  controllers: [SetupController, SchoolInboxController],
   providers: [
     SetupService,
+    SchoolInboxService,
     SchoolSetupSteps,
     SchoolAuditService,
     SetupStateService,
