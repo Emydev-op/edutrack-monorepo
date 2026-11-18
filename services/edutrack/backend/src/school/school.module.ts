@@ -13,6 +13,7 @@ import { StaffModule } from './staff/staff.module.js';
 import { GuardiansModule } from './guardians/guardians.module.js';
 import { StudentLoginsModule } from './student-logins/student-logins.module.js';
 import { SetupModule } from './setup/setup.module.js';
+import { TeacherModule } from './teacher/teacher.module.js';
 import { StudentsModule } from './students/students.module.js';
 
 /**
@@ -35,6 +36,8 @@ import { StudentsModule } from './students/students.module.js';
     GuardiansModule,
     StudentsModule,
     AdmissionsModule,
+    // Teacher Workspace: /v1/me, /v1/teaching/..., /v1/class-teacher/register...
+    TeacherModule,
     StaffModule,
   ],
   controllers: [PublicSchoolController],

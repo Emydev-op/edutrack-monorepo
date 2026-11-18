@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DEFAULT_BRAND_COLOR, type PublicSchool } from '@edutrack/shared';
+import { schoolLogoAddress } from '../../auth/auth.presenter.js';
 import { initialsOf } from '../../auth/identifiers.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { StorageService } from '../../storage/storage.service.js';
@@ -39,7 +40,8 @@ export class SchoolBrandingService {
         motto: true,
         brandColor: true,
         status: true,
-        logoFile: { select: { storageKey: true, deletedAt: true } },
+        logoFileId: true,
+        logoFile: { select: { deletedAt: true } },
       },
     });
     if (!school) return null;
@@ -49,7 +51,8 @@ export class SchoolBrandingService {
       initials: initialsOf(school.name),
       motto: school.motto,
       brandColor: school.brandColor ?? DEFAULT_BRAND_COLOR,
-      logoUrl: await this.logoUrl(school.logoFile),
+      // The stable address (redirects to a fresh signed link), so a page left open keeps it.
+      logoUrl: school.logoFile?.deletedAt ? null : schoolLogoAddress(school),
       available: school.status !== 'SUSPENDED',
     };
   }

@@ -53,6 +53,18 @@ export const useAuthStore = defineStore('auth', () => {
     (remember ? localStorage : sessionStorage).setItem(STORAGE_KEY, JSON.stringify(session));
   }
 
+  /** A renewed session (token refresh): kept where it was stored, without clearing the cache. */
+  function refreshed(session: { accessToken: string; user: AuthUser; school: SchoolSummary }) {
+    token.value = session.accessToken;
+    user.value = session.user;
+    school.value = session.school;
+    const storage = localStorage.getItem(STORAGE_KEY) ? localStorage : sessionStorage;
+    storage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ token: session.accessToken, user: session.user, school: session.school }),
+    );
+  }
+
   function clear() {
     token.value = null;
     user.value = null;
@@ -61,5 +73,5 @@ export const useAuthStore = defineStore('auth', () => {
     sessionStorage.removeItem(STORAGE_KEY);
   }
 
-  return { token, user, school, isAuthenticated, fullName, initials, setSession, clear };
+  return { token, user, school, isAuthenticated, fullName, initials, setSession, refreshed, clear };
 });

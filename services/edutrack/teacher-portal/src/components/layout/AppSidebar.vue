@@ -18,11 +18,12 @@ import {
 } from '@edutrack/ui/components/sidebar';
 import { ChevronDownIcon } from '@lucide/vue';
 import { useStorage } from '@vueuse/core';
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 
 import { useMeQuery, useNavCountsQuery } from '@/api/services/shell';
 import { navigationFor, navKeyAliases, type NavItem } from '@/config/navigation';
+import { useSchoolBrand } from '@/lib/school-brand';
 import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
@@ -42,6 +43,12 @@ const toggleGroup = (label: string) =>
   (collapsed.value = { ...collapsed.value, [label]: !collapsed.value[label] });
 
 // On phones the sidebar is a sheet: close it once a page is chosen.
+// The school's logo: from the session, else the school at this address.
+const brand = useSchoolBrand();
+const logo = computed(() => auth.school?.logoUrl ?? brand.logoUrl);
+const logoFailed = ref(false);
+watch(logo, () => (logoFailed.value = false));
+
 const sidebar = useSidebar();
 watch(
   () => route.fullPath,
@@ -52,7 +59,15 @@ watch(
 <template>
   <Sidebar collapsible="offcanvas" class="border-r">
     <SidebarHeader class="flex-row items-center gap-2.5 px-4 pt-4 pb-3">
+      <img
+        v-if="logo && !logoFailed"
+        :src="logo"
+        alt=""
+        class="size-8 shrink-0 rounded-lg object-contain"
+        @error="logoFailed = true"
+      />
       <span
+        v-else
         class="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-[13px] font-semibold text-brand-subtle"
         aria-hidden="true"
         >{{ auth.school?.initials }}</span

@@ -117,6 +117,16 @@ export const DEVICE_SESSIONS: DeviceSessionRecord[] = ACCOUNTS.filter(
 export const tokenFor = (staffId: string, sessionId: string) =>
   `mock-token.${staffId}.${sessionId}`;
 
+/**
+ * The mock token for a real sign-in calling a section that is still mocked: the mock teacher with
+ * the same email, or Mrs. Okafor (a class teacher with classes) for anyone the mock doesn't know,
+ * so mocked screens show demo data instead of answering 401 and signing the teacher out.
+ */
+export function mockTokenForEmail(email: string) {
+  const staffId = accountByEmail(email)?.staffId ?? 'okafor';
+  return tokenFor(staffId, `real-${staffId}`);
+}
+
 /** Starts a signed-in device session and returns its id. */
 export function startSession(staffId: string, device = 'This browser') {
   // Unique across page reloads too, since the mock's memory starts over on each load.

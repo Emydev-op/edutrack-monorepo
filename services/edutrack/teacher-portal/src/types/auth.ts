@@ -14,6 +14,10 @@ export interface SchoolSummary {
   id: string;
   name: string;
   initials: string;
+  /** Set by the real API; the mock leaves them out. */
+  slug?: string;
+  brandColor?: string;
+  logoUrl?: string | null;
 }
 
 export interface LoginPayload {

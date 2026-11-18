@@ -19,6 +19,7 @@ import './handlers/lesson-notes';
 import './handlers/class-teacher';
 
 export { mockAdapter };
+export { mockTokenForEmail } from './accounts-db';
 
 if (import.meta.env.MODE !== 'test')
   console.info('[edutrack] Mock API enabled. Set VITE_USE_MOCKS=false to call the real backend.');
