@@ -127,3 +127,23 @@ export function getApiErrorMessage(error: unknown, fallback = 'Something went wr
   }
   return error instanceof Error ? error.message : fallback;
 }
+
+/**
+ * Matches requests against `'METHOD /path'` rules (`*` for any method; `:name` matches one path
+ * segment and a trailing `/**` anything below). Portals moving to the real API one section at a
+ * time list the routes the backend serves and send the rest to their in-browser mock.
+ */
+export function createRouteMatcher(rules: readonly string[]) {
+  const compiled = rules.map((rule) => {
+    const [method, path] = rule.split(' ') as [string, string];
+    const source = path
+      .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+      .replace(/\/\*\*$/, '(?:/.*)?')
+      .replace(/:[a-zA-Z]+/g, '[^/]+');
+    return { method: method.toUpperCase(), pattern: new RegExp(`^${source}$`) };
+  });
+  return (method: string | undefined, path: string) => {
+    const verb = (method ?? 'get').toUpperCase();
+    return compiled.some((r) => (r.method === '*' || r.method === verb) && r.pattern.test(path));
+  };
+}

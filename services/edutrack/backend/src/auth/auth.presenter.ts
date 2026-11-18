@@ -12,6 +12,13 @@ import type {
 
 const PERIOD: Record<string, string> = { ANNUAL: 'Annual', TERM: 'Termly', MONTH: 'Monthly' };
 
+/**
+ * A stable address for a school's logo, or null: it redirects to a fresh signed link (signed links
+ * expire in an hour, and portals keep this one in their session). `v` changes with the logo.
+ */
+export const schoolLogoAddress = (s: { slug: string; logoFileId: string | null }) =>
+  s.logoFileId ? `/api/v1/public/schools/${s.slug}/logo?v=${s.logoFileId.slice(-8)}` : null;
+
 export function schoolSummary(m: MembershipWithSchool) {
   const { school } = m;
   const sub = school.subscription;
@@ -24,9 +31,7 @@ export function schoolSummary(m: MembershipWithSchool) {
     brandColor: school.brandColor ?? DEFAULT_BRAND_COLOR,
     // A stable address that redirects to a fresh signed link (signed links expire in an hour,
     // and this one is kept in the portal's session). `v` changes when the logo does.
-    logoUrl: school.logoFileId
-      ? `/api/v1/public/schools/${school.slug}/logo?v=${school.logoFileId.slice(-8)}`
-      : null,
+    logoUrl: schoolLogoAddress(school),
     subscriptionStatus: (sub && ['RESTRICTED', 'EXPIRED', 'CANCELLED'].includes(sub.status)
       ? 'Restricted'
       : 'Active') as 'Active' | 'Restricted',
@@ -143,7 +148,14 @@ export function signedInBody(
     return {
       ...token,
       user: schoolPortalUser(user, access.portal, access.membership),
-      school: { id: school.id, slug: school.slug, name: school.name, initials: school.initials },
+      school: {
+        id: school.id,
+        slug: school.slug,
+        name: school.name,
+        initials: school.initials,
+        brandColor: school.brandColor,
+        logoUrl: school.logoUrl,
+      },
     };
   }
   return {

@@ -60,8 +60,14 @@ export const termById = (id: string): TermRecord =>
   TERMS.find((t) => t.id === id) ?? notFound('That term');
 export const activeTerm = (): TermRecord => TERMS.find((t) => t.status === 'Active')!;
 /** The term a request is about: `?term=` when given, else the active term. */
-export const termFor = (req: Pick<MockRequest, 'query'>): TermRecord =>
-  req.query.term ? termById(req.query.term) : activeTerm();
+export const termFor = (req: Pick<MockRequest, 'query'>): TermRecord => {
+  const id = req.query.term;
+  if (!id) return activeTerm();
+  // A real term's id (the frame is on the real API while this section is still mocked): show the
+  // mock's own active term rather than "term not found".
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(id) && !TERMS.some((t) => t.id === id)) return activeTerm();
+  return termById(id);
+};
 
 export const armById = (id: string): ArmRecord =>
   ARMS.find((a) => a.id === id) ?? notFound('That class');
