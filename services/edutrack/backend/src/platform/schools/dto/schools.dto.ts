@@ -64,6 +64,15 @@ export class UpdateSchoolDto {
   @IsString()
   @IsNotEmpty({ message: 'Select a state.' })
   state!: string;
+
+  @ApiPropertyOptional({
+    example: '#24497A',
+    description:
+      'The school’s brand colour; left out to keep it. Must reach 4.5:1 with white text.',
+  })
+  @IsOptional()
+  @Matches(/^#[0-9a-fA-F]{6}$/, { message: 'Enter a 6-digit hex color, like #24497A.' })
+  brandColor?: string;
 }
 
 export class ReasonDto {

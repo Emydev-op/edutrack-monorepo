@@ -348,6 +348,7 @@ export class ClassesService {
   private async checkClassTeacher(
     id: string | null | undefined,
     branch: { id: string; name: string },
+    armId?: string,
   ) {
     if (!id) return;
     const staff = isUuid(id)
@@ -359,6 +360,24 @@ export class ClassesService {
     if (!staff) throw fail('Choose a teacher on your staff list.', 'TEACHER_NOT_FOUND');
     if (!staff.allBranches && !staff.branches.some((b) => b.branchId === branch.id))
       throw fail(`${staffName(staff)} doesn’t work at ${branch.name}.`, 'TEACHER_OTHER_BRANCH');
+    // One class per class teacher: the Teacher Workspace's register is for their one class.
+    const session = await this.structure.currentSession();
+    const other = session
+      ? await this.db.classTeacherAssignment.findFirst({
+          where: {
+            staffId: staff.id,
+            sessionId: session.id,
+            endsOn: null,
+            ...(armId && { armId: { not: armId } }),
+          },
+          include: { arm: { include: { level: { select: { name: true } } } } },
+        })
+      : null;
+    if (other)
+      throw fail(
+        `${staffName(staff)} is already the class teacher of ${armLabel(other.arm.level.name, other.arm.name)}. Choose someone else, or change that class first.`,
+        'TEACHER_HAS_CLASS',
+      );
   }
 
   /** Makes `staffId` the arm's class teacher for the current session (ending the previous one). */
@@ -721,7 +740,8 @@ export class ClassesService {
         );
       data.capacity = p.capacity;
     }
-    if (p.classTeacherId !== undefined) await this.checkClassTeacher(p.classTeacherId, branch);
+    if (p.classTeacherId !== undefined)
+      await this.checkClassTeacher(p.classTeacherId, branch, arm.id);
     if (p.room !== undefined) data.room = p.room.trim() || null;
 
     await this.db.$transaction(async (tx) => {

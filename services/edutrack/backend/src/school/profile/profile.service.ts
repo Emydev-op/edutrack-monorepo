@@ -1,3 +1,4 @@
+import { brandColorProblem } from '@edutrack/shared';
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { isNigerianState, lgasOf, DEFAULT_BRAND_COLOR } from '@edutrack/shared';
 import { normalizePhone } from '../../auth/identifiers.js';
@@ -201,6 +202,25 @@ export class SchoolProfileService {
   async update(schoolId: string, dto: UpdateSchoolProfileDto): Promise<SchoolProfileResponse> {
     const school = await this.load(schoolId);
     const phone = this.check(dto, school.legalName);
+    // School names are unique across EduTrack (the back office enforces it when creating and
+    // editing); a rename here follows the same rule.
+    if (dto.name.trim().toLowerCase() !== school.name.toLowerCase()) {
+      const taken = await this.tenant.db.school.findFirst({
+        where: { name: { equals: dto.name.trim(), mode: 'insensitive' }, id: { not: schoolId } },
+        select: { id: true },
+      });
+      if (taken)
+        throw AppException.validation(
+          { name: 'Another school on EduTrack already uses this name.' },
+          'Another school on EduTrack already uses this name.',
+        );
+    }
+    // Only a new colour is checked, so a school whose stored colour predates the rule can still save.
+    const colour =
+      dto.brandColor && dto.brandColor.toUpperCase() !== school.brandColor?.toUpperCase()
+        ? brandColorProblem(dto.brandColor)
+        : null;
+    if (colour) throw AppException.validation({ brandColor: colour });
     const files = {
       logo: this.fileChange(schoolId, 'logo', dto.logo, school.logoFile),
       certificate: this.fileChange(

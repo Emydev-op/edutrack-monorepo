@@ -605,6 +605,18 @@ export class StaffService {
         data: { teachingAssignmentId: null },
       });
       await tx.teachingAssignment.deleteMany({ where: { id: { in: ids } } });
+      // Their lessons in this and later terms' timetables (draft and published) lose the teacher
+      // too, so the lessons show as needing one and don't come back if they're reactivated.
+      await tx.timetableSlot.updateMany({
+        where: {
+          staffId,
+          term: { status: { in: ['ACTIVE', 'UPCOMING'] } },
+          ...(keepBranches === null
+            ? {}
+            : { timetable: { arm: { branchId: { notIn: keepBranches } } } }),
+        },
+        data: { staffId: null },
+      });
     }
     const posts = await tx.classTeacherAssignment.updateMany({
       where: {

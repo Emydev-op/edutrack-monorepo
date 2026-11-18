@@ -121,18 +121,35 @@ export class TeacherScopeService {
       );
   }
 
-  /** The arm the teacher is class teacher of in the term's session, if any. */
-  async classArm(staffId: string, sessionId: string): Promise<ArmInfo | null> {
+  /**
+   * Class-teacher posts that covered the term: a post replaced mid-session still counts for the
+   * terms it overlapped, so the earlier class teacher keeps their registers for those terms.
+   */
+  private static during(term: { sessionId: string; startsOn: Date; endsOn: Date }) {
+    return {
+      sessionId: term.sessionId,
+      startsOn: { lte: term.endsOn },
+      OR: [{ endsOn: null }, { endsOn: { gte: term.startsOn } }],
+    };
+  }
+
+  /** The arm the teacher was class teacher of during the term (the latest post), if any. */
+  async classArm(
+    staffId: string,
+    term: { sessionId: string; startsOn: Date; endsOn: Date },
+  ): Promise<ArmInfo | null> {
     const ct = await this.db.classTeacherAssignment.findFirst({
-      where: { staffId, sessionId, endsOn: null },
+      where: { staffId, ...TeacherScopeService.during(term) },
       orderBy: { startsOn: 'desc' },
     });
     return ct ? this.catalog.arm(ct.armId) : null;
   }
 
-  async classTeacherOf(armId: string, sessionId: string) {
+  /** The arm's class teacher during the term (the latest post). */
+  async classTeacherOf(armId: string, term: { sessionId: string; startsOn: Date; endsOn: Date }) {
     const ct = await this.db.classTeacherAssignment.findFirst({
-      where: { armId, sessionId, endsOn: null },
+      where: { armId, ...TeacherScopeService.during(term) },
+      orderBy: { startsOn: 'desc' },
       include: { staff: { select: { id: true, title: true, firstName: true, lastName: true } } },
     });
     return ct ? { id: ct.staff.id, name: staffName(ct.staff) } : null;
@@ -172,7 +189,7 @@ export class TeacherScopeService {
   async requireArm(staffId: string, term: TermRow, armId: string) {
     const [teaches, ct] = await Promise.all([
       this.db.teachingAssignment.count({ where: { staffId, termId: term.id, armId } }),
-      this.classArm(staffId, term.sessionId),
+      this.classArm(staffId, term),
     ]);
     if (!teaches && ct?.id !== armId)
       throw new AppException(

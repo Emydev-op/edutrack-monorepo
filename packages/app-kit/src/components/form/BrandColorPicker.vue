@@ -3,11 +3,25 @@ import { CheckIcon } from '@lucide/vue';
 import { useField } from 'vee-validate';
 import { computed } from 'vue';
 
-import { BRAND_PALETTE, contrastWithWhite, isHexColor, paletteName } from '@/lib/brand-color';
-import { initials } from '@edutrack/app-kit/lib/format';
+import { BRAND_PALETTE, contrastWithWhite, isHexColor, paletteName } from '../../lib/brand-color';
+import { initials } from '../../lib/format';
 
-const props = defineProps<{ schoolName: string }>();
-const { value: color, errorMessage } = useField<string>('brandColor');
+/**
+ * A school's brand colour: the palette (each passes 4.5:1 with white text), a custom colour or hex,
+ * the contrast check and a preview of a portal in it. Bound to a vee-validate field (`brandColor`
+ * by default). Used when provisioning or editing a school (back office) and in School Admin's
+ * profile.
+ */
+const props = withDefaults(
+  defineProps<{ schoolName: string; name?: string; title?: string; description?: string }>(),
+  {
+    name: 'brandColor',
+    title: 'School brand color',
+    description:
+      'Themes the school’s workspace and the teacher, parent and student portals, and the school’s own sign-in pages.',
+  },
+);
+const { value: color, errorMessage } = useField<string>(() => props.name);
 
 const valid = computed(() => isHexColor(color.value ?? ''));
 const safe = computed(() => (valid.value ? color.value : '#E7E3DC'));
@@ -23,11 +37,8 @@ const isSelected = (hex: string) => (color.value ?? '').toLowerCase() === hex.to
 <template>
   <div class="flex flex-col gap-3 border-t border-divider pt-4">
     <div class="flex flex-col gap-0.5">
-      <span class="font-semibold">School brand color</span>
-      <span class="text-xs text-muted-foreground">
-        Themes the school’s workspace and the teacher, parent and student portals. Only EduTrack can
-        change it later.
-      </span>
+      <span class="font-semibold">{{ title }}</span>
+      <span class="text-xs text-muted-foreground">{{ description }}</span>
     </div>
     <div class="grid items-start gap-5 md:grid-cols-[minmax(0,1fr)_minmax(220px,260px)]">
       <div class="flex flex-col gap-3">

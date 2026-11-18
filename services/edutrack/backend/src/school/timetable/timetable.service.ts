@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { TimetableStatus } from '../../generated/prisma/enums.js';
 import { AcademicCatalogService, type ArmInfo } from '../academics/academic-catalog.service.js';
-import { fail, plural, staffName } from '../academics/academic-format.js';
+import { fail, plural, requireOpenTerm, staffName } from '../academics/academic-format.js';
 import { DEFAULT_PERIODS, MAX_CONSECUTIVE } from '../curriculum/curriculum-defaults.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { RequestContext } from '../../common/context/request-context.js';
@@ -279,6 +279,7 @@ export class TimetableService {
 
   async save(p: { armId: string; termId?: string; grid?: Grid }) {
     const { term } = await this.requireTerm(p.termId);
+    requireOpenTerm(term);
     const grid = p.grid ?? {};
     const existing = await this.db.timetable.findFirst({
       where: { termId: term.id, armId: p.armId },
@@ -300,6 +301,7 @@ export class TimetableService {
    */
   async suggest(p: { armId: string; termId?: string; grid?: Grid }) {
     const { term } = await this.requireTerm(p.termId);
+    requireOpenTerm(term);
     const v = await this.view(p.armId, term.id);
     if (v.status === 'Published') throw fail(LOCKED, 'TIMETABLE_LOCKED', HttpStatus.CONFLICT);
     const grid: Grid = { ...(p.grid ?? v.grid) };
@@ -335,6 +337,7 @@ export class TimetableService {
   /** Starts this term's draft from another term's timetable for the same arm. */
   async copy(p: { armId: string; termId?: string; fromTermId: string }) {
     const { term } = await this.requireTerm(p.termId);
+    requireOpenTerm(term);
     const source = await this.db.timetable.findFirst({
       where: { termId: p.fromTermId, armId: p.armId },
       include: { slots: { include: { period: true, subject: { select: { code: true } } } } },
@@ -363,6 +366,7 @@ export class TimetableService {
 
   async act(action: string, p: { armId: string; termId?: string }) {
     const { term } = await this.requireTerm(p.termId);
+    requireOpenTerm(term);
     const v = await this.view(p.armId, term.id);
     const tt = await this.db.timetable.findFirst({ where: { termId: term.id, armId: p.armId } });
     const status: TimetableStatus = tt?.status ?? 'DRAFT';

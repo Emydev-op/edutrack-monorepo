@@ -45,6 +45,8 @@ export interface UpdateSchoolPayload {
   contactEmail: string;
   phone: string;
   state: string;
+  /** Hex; left out keeps the current colour. */
+  brandColor?: string;
 }
 
 export interface SchoolAdministrator {

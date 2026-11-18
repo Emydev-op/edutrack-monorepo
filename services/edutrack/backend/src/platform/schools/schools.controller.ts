@@ -132,7 +132,7 @@ export class SchoolsController {
     return this.schools.reactivate(id);
   }
 
-  @ResponseMessage('Support session started. It ends in 30 minutes.')
+  @ResponseMessage('Support session recorded in the audit log.')
   @Post(':id/support-sessions')
   @PlatformOnly('Schools.View', 'Support.Create')
   @ApiOperation({ summary: 'Open 30 minutes of read-only access to the school’s portal' })

@@ -123,3 +123,13 @@ export const DEFAULT_LEVELS: Record<string, string[]> = {
 /** "Mrs. Lola Fashola". */
 export const staffName = (s: { title: string | null; firstName: string; lastName: string }) =>
   [s.title, s.firstName, s.lastName].filter(Boolean).join(' ');
+
+/** Past terms are history: their assignments and timetables can't change. */
+export function requireOpenTerm(term: { name: string; status: string }) {
+  if (term.status !== 'ACTIVE' && term.status !== 'UPCOMING')
+    throw fail(
+      `${term.name} has ended, so its assignments and timetables are read-only.`,
+      'TERM_CLOSED',
+      HttpStatus.CONFLICT,
+    );
+}

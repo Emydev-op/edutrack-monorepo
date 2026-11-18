@@ -25,6 +25,7 @@ import { useSchoolProfileQuery, useUpdateSchoolProfileMutation } from '@/api/ser
 import FileUpload from '@/components/school/FileUpload.vue';
 import LockedField from '@/components/school/LockedField.vue';
 import { routesPath } from '@/router/routes-path';
+import BrandColorPicker from '@edutrack/app-kit/components/form/BrandColorPicker.vue';
 import { PROFILE_STEP_FIELDS, schoolProfileSchema } from '@/schema/school';
 import { useAuthStore } from '@/stores/auth';
 import type { FileRef, SchoolProfile } from '@/types';
@@ -63,6 +64,7 @@ const toValues = (p: SchoolProfile) => ({
   approvalNumber: p.approvalNumber,
   cacNumber: p.cacNumber,
   certificate: p.certificate,
+  brandColor: p.brandColor,
 });
 
 const { values, meta, errors, validateField, validate, resetForm, setFieldValue } = useForm({
@@ -131,6 +133,8 @@ async function submit() {
       name: p.name,
       initials: initials(p.name),
       logoUrl: p.logo?.dataUrl ?? null,
+      // Re-themes School Admin straight away; the other portals pick it up on their next load.
+      brandColor: p.brandColor,
     });
     toast.success(
       fromSetup.value
@@ -146,27 +150,6 @@ async function submit() {
       'The server didn’t respond. Nothing was saved and your changes are still here. Try again.',
     );
   }
-}
-
-function requestColour() {
-  void confirm({
-    title: 'Request a brand color change?',
-    description:
-      'Edutrack support will contact you to confirm the new color. Your current color stays until they apply it.',
-    details: [
-      [
-        'Current',
-        `${paletteName(profile.value!.brandColor)} · ${profile.value!.brandColor.toUpperCase()}`,
-      ],
-    ],
-    input: {
-      label: 'What would you like to change it to?',
-      placeholder: 'e.g. Our crest uses dark green (#1F5C3A)',
-      required: true,
-    },
-    confirmLabel: 'Send request',
-    action: () => toast.success('Request sent to Edutrack support. You’ll get a reply by email.'),
-  });
 }
 
 const review = computed(() => {
@@ -222,7 +205,12 @@ const review = computed(() => {
       title: 'Branding',
       step: 3,
       rows: [
-        row('Brand color', p ? `${paletteName(p.brandColor)} · ${p.brandColor.toUpperCase()}` : ''),
+        row(
+          'Brand color',
+          values.brandColor
+            ? `${paletteName(values.brandColor)} · ${values.brandColor.toUpperCase()}`
+            : '',
+        ),
       ],
     },
   ];
@@ -428,31 +416,14 @@ const cancel = back;
       </template>
 
       <template v-else-if="step === 3">
-        <p class="text-[13px] text-muted-foreground">
-          Your brand color was chosen when Edutrack created your school. It themes every portal your
-          community uses.
-        </p>
-        <div class="flex flex-wrap items-center gap-4 rounded-lg border p-4">
-          <span
-            class="size-14 shrink-0 rounded-lg"
-            :style="{ background: profile.brandColor }"
-            aria-hidden="true"
-          />
-          <div class="flex flex-col text-[13px]">
-            <span class="font-semibold"
-              >{{ paletteName(profile.brandColor) }} · {{ profile.brandColor.toUpperCase() }}</span
-            >
-            <span class="text-muted-foreground"
-              >Passes contrast with white text on buttons and headers.</span
-            >
-          </div>
-          <Button type="button" variant="outline" class="ml-auto" @click="requestColour"
-            >Request a change</Button
-          >
-        </div>
+        <BrandColorPicker
+          :school-name="values.name || profile.name"
+          title="Brand color"
+          description="Themes School Admin, your school’s sign-in pages and the teacher, parent and student portals. Pick from the palette or use your crest’s colour; it must stay dark enough for white text."
+        />
         <div
           class="flex items-center gap-3 rounded-lg p-4 text-white"
-          :style="{ background: profile.brandColor }"
+          :style="{ background: values.brandColor || profile.brandColor }"
         >
           <span
             class="flex size-10 items-center justify-center overflow-hidden rounded-md bg-white/15 font-semibold"

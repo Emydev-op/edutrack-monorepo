@@ -1,6 +1,7 @@
 import { toTypedSchema } from '@vee-validate/yup';
 import * as yup from 'yup';
 
+import { brandColorProblem } from '@edutrack/app-kit/lib/brand-color';
 import { isNigerianState, lgasOf } from '@edutrack/app-kit/lib/nigeria-locations';
 
 import type { FileRef, SchoolSection } from '@/types';
@@ -27,6 +28,15 @@ export const CURRENT_YEAR = new Date().getFullYear();
 /** The school profile wizard. Each step validates only its own fields (see PROFILE_STEP_FIELDS). */
 export const schoolProfileSchema = toTypedSchema(
   yup.object({
+    // Portals put white text on it, so it must reach 4.5:1 (same rule as the API).
+    brandColor: yup
+      .string()
+      .required('Pick a brand color.')
+      .test(
+        'brand',
+        (v) => brandColorProblem(v.value ?? '') ?? '',
+        (v) => !brandColorProblem(v ?? ''),
+      ),
     name: yup
       .string()
       .trim()
@@ -86,7 +96,7 @@ export const PROFILE_STEP_FIELDS = [
   ['name', 'motto', 'founded'],
   ['email', 'phone', 'website', 'street', 'city', 'state', 'lga'],
   ['approvingBody', 'approvalNumber', 'cacNumber'],
-  [],
+  ['brandColor'],
   [],
 ] as const;
 

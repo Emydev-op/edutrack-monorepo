@@ -64,10 +64,12 @@ export class TeachingService {
     const term = await this.scope.term().catch(() => null);
     const [assignments, arm, branches] = await Promise.all([
       term ? this.scope.assignments(s.id, term.id) : [],
-      term ? this.scope.classArm(s.id, term.sessionId) : null,
+      term ? this.scope.classArm(s.id, term) : null,
       this.scope.catalog.structure.activeBranches(),
     ]);
-    const hod = s.hodOf[0] ?? null;
+    // HOD of a department set in the organogram, or a teacher given the HOD role (their own
+    // department), since School Admin grants it through Users & Roles.
+    const hod = s.hodOf[0] ?? (s.roleKeys.includes('hod') ? s.department : null) ?? null;
     const isAcademicHead = s.roleKeys.includes('academic_head');
     const reviews = { resultSheets: !!hod || isAcademicHead, lessonNotes: !!hod || isAcademicHead };
     const branchIds = new Set([
@@ -210,7 +212,7 @@ export class TeachingService {
     const term = await this.scope.term(termId);
     const [list, arm] = await Promise.all([
       this.summaries(s.id, term),
-      this.scope.classArm(s.id, term.sessionId),
+      this.scope.classArm(s.id, term),
     ]);
     const assignments = list.map(({ a, students }) => ({
       id: a.id,
@@ -334,7 +336,7 @@ export class TeachingService {
     const term = await this.scope.term(termId);
     const [list, arm, codes] = await Promise.all([
       this.summaries(s.id, term),
-      this.scope.classArm(s.id, term.sessionId),
+      this.scope.classArm(s.id, term),
       this.sectionCodes(),
     ]);
     return {
@@ -423,8 +425,8 @@ export class TeachingService {
     const { s, term, a, list } = await this.mine(auth, termId, armId, subject);
     const [students, ct, arm, codes, next] = await Promise.all([
       this.scope.studentsFor(term.sessionId, a),
-      this.scope.classTeacherOf(armId, term.sessionId),
-      this.scope.classArm(s.id, term.sessionId),
+      this.scope.classTeacherOf(armId, term),
+      this.scope.classArm(s.id, term),
       this.sectionCodes(),
       this.nextLesson(term.id, armId, a.subjectId, s.id),
     ]);
@@ -605,7 +607,7 @@ export class TeachingService {
     if (!enrollment?.armId) throw AppException.notFound('That student doesn’t exist.', 'NOT_FOUND');
     const [list, myArm] = await Promise.all([
       this.summaries(s.id, term),
-      this.scope.classArm(s.id, term.sessionId),
+      this.scope.classArm(s.id, term),
     ]);
     const mySubjects = list
       .filter(({ students }) => students.some((e) => e.studentId === studentId))
@@ -619,7 +621,7 @@ export class TeachingService {
       );
     const [arm, ct, codes, entries, days] = await Promise.all([
       this.scope.catalog.arm(enrollment.armId),
-      this.scope.classTeacherOf(enrollment.armId, term.sessionId),
+      this.scope.classTeacherOf(enrollment.armId, term),
       this.sectionCodes(),
       this.db.attendanceEntry.findMany({
         where: { studentId, termId: term.id },
@@ -776,7 +778,7 @@ export class TeachingService {
     if (!found) throw AppException.notFound('That lesson isn’t on your timetable.', 'NOT_FOUND');
     const [roll, ct, codes, next] = await Promise.all([
       this.scope.roll(term.sessionId, [found.lesson.armId]),
-      this.scope.classTeacherOf(found.lesson.armId, term.sessionId),
+      this.scope.classTeacherOf(found.lesson.armId, term),
       this.sectionCodes(),
       this.firstOccurrence([found.slot], term.id),
     ]);

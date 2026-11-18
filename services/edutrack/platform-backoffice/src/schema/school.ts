@@ -2,7 +2,7 @@ import { toTypedSchema } from '@vee-validate/yup';
 import * as yup from 'yup';
 
 import { isNigerianState, lgasOf } from '@edutrack/app-kit/lib/nigeria-locations';
-import { contrastWithWhite, isHexColor } from '@/lib/brand-color';
+import { brandColorProblem, contrastWithWhite, isHexColor } from '@/lib/brand-color';
 import type { AcademicSection, PlanName } from '@/types';
 
 import { email, optionalNigerianPhone } from './common';
@@ -20,6 +20,14 @@ export const editSchoolSchema = toTypedSchema(
     contactEmail: email('Enter a valid contact email'),
     phone: yup.string().trim().default(''),
     state: nigerianState(),
+    brandColor: yup
+      .string()
+      .required()
+      .test(
+        'brand',
+        (v) => brandColorProblem(v.value ?? '') ?? '',
+        (v) => !brandColorProblem(v ?? ''),
+      ),
   }),
 );
 
