@@ -111,7 +111,7 @@ export const branchSchema = (
         .test(
           'format',
           () => `Use a short code like ${prefix()}IK.`,
-          (v = '') => /^[A-Z0-9]{2,5}-[A-Z0-9]{2,4}$/.test(v),
+          (v = '') => /^[A-Z0-9]{1,5}-[A-Z0-9]{2,4}$/.test(v),
         )
         .test(
           'unique',

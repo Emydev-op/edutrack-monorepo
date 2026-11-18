@@ -226,7 +226,8 @@ mock.get('/v1/branches/:id', (req) => {
   };
 });
 
-const CODE = /^[A-Z0-9]{2,5}-[A-Z0-9]{2,4}$/;
+/** School prefix (1–5 letters or digits, e.g. "C-" for a one-word name, "GFA-"), a dash, 2–4 more. */
+const CODE = /^[A-Z0-9]{1,5}-[A-Z0-9]{2,4}$/;
 
 function validateBranch(data: SchoolData, p: BranchPayload, current?: BranchRow) {
   const name = requireText(p.name, 'Enter a branch name.');

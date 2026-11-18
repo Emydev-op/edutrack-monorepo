@@ -28,7 +28,8 @@ import {
 } from './view.js';
 
 export const BRANCH_NOT_FOUND = 'This branch doesn’t exist';
-const CODE = /^[A-Z0-9]{2,5}-[A-Z0-9]{2,4}$/;
+/** School prefix (1–5 letters or digits, e.g. "C-" for a one-word name, "GFA-"), a dash, 2–4 more. */
+const CODE = /^[A-Z0-9]{1,5}-[A-Z0-9]{2,4}$/;
 const CANT_DELETE =
   'Branches with records, or created when your school was set up, can’t be deleted. Deactivate it instead.';
 
