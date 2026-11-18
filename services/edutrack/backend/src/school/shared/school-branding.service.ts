@@ -21,6 +21,15 @@ export class SchoolBrandingService {
     return this.storage.getDownloadUrl(file.storageKey, LOGO_LINK_SECONDS).catch(() => null);
   }
 
+  /** A fresh signed link to the logo of the school with this slug, or null. */
+  async logoLinkBySlug(slug: string) {
+    const school = await this.prisma.school.findUnique({
+      where: { slug },
+      select: { logoFile: { select: { storageKey: true, deletedAt: true } } },
+    });
+    return this.logoUrl(school?.logoFile);
+  }
+
   async publicSchool(schoolId: string): Promise<PublicSchool | null> {
     const school = await this.prisma.school.findUnique({
       where: { id: schoolId },

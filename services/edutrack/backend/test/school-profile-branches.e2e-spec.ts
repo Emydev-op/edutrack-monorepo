@@ -150,6 +150,15 @@ describe('School Admin profile and branches (e2e)', () => {
       expect(again.body.data.certificate.name).toBe('approval-certificate.pdf');
       expect(again.body.data.history[0].id).toBe(saved.history[0].id);
 
+      // Sign-in carries a logo address that doesn't expire; it redirects to a fresh signed link.
+      const session = await signIn(t, 'adaeze.okonkwo@greenfield.edu.ng');
+      const logoUrl = session.body.data.school.logoUrl as string;
+      expect(logoUrl).toMatch(/^\/api\/v1\/public\/schools\/greenfield\/logo\?v=[0-9a-f]{8}$/);
+      const logo = await t.http().get(logoUrl);
+      expect(logo.status).toBe(302);
+      expect(logo.headers.location).toBe(saved.logo.dataUrl);
+      expect((await t.http().get('/api/v1/public/schools/crestview/logo')).status).toBe(404);
+
       // A new certificate (PDF) is stored; the old row is soft-deleted.
       const cert = await admin.put('/api/v1/school/profile').send({
         ...payloadOf(saved),

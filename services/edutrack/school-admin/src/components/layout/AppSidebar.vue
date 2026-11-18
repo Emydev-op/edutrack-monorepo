@@ -17,7 +17,7 @@ import {
 } from '@edutrack/ui/components/sidebar';
 import { ChevronDownIcon } from '@lucide/vue';
 import { useStorage } from '@vueuse/core';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 
 import { useSetupQuery } from '@/api/services/setup';
@@ -47,16 +47,24 @@ const activeKey = computed(() => {
 const badgeFor = (item: NavItem) => counts.value?.[item.route] || undefined;
 const toggleGroup = (label: string) =>
   (collapsed.value = { ...collapsed.value, [label]: !collapsed.value[label] });
+
+// Initials stand in if the logo can't load; a new logo gets another try.
+const logoFailed = ref(false);
+watch(
+  () => auth.school?.logoUrl,
+  () => (logoFailed.value = false),
+);
 </script>
 
 <template>
   <Sidebar collapsible="offcanvas" class="border-r">
     <SidebarHeader class="flex-row items-center gap-2.5 px-4 pt-4 pb-3">
       <img
-        v-if="auth.school?.logoUrl"
+        v-if="auth.school?.logoUrl && !logoFailed"
         :src="auth.school.logoUrl"
         alt=""
         class="size-8 shrink-0 rounded-lg object-contain"
+        @error="logoFailed = true"
       />
       <span
         v-else

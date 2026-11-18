@@ -22,8 +22,11 @@ export function schoolSummary(m: MembershipWithSchool) {
     initials: initialsOf(school.name),
     plan: sub ? `${sub.plan.name} · ${PERIOD[sub.billingPeriod] ?? sub.billingPeriod}` : '',
     brandColor: school.brandColor ?? DEFAULT_BRAND_COLOR,
-    // Logos are served from storage with signed URLs once the files module exists.
-    logoUrl: null as string | null,
+    // A stable address that redirects to a fresh signed link (signed links expire in an hour,
+    // and this one is kept in the portal's session). `v` changes when the logo does.
+    logoUrl: school.logoFileId
+      ? `/api/v1/public/schools/${school.slug}/logo?v=${school.logoFileId.slice(-8)}`
+      : null,
     subscriptionStatus: (sub && ['RESTRICTED', 'EXPIRED', 'CANCELLED'].includes(sub.status)
       ? 'Restricted'
       : 'Active') as 'Active' | 'Restricted',
