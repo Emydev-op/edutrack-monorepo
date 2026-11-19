@@ -25,9 +25,9 @@ const banner = computed<Banner | null>(() => {
   if (auth.school?.subscriptionStatus === 'Restricted')
     return {
       tone: 'error',
-      title: 'Subscription restricted',
-      text: 'Renewal is 14 days overdue. Your data is safe and you can still sign in, view records, export and pay. Admitting students, issuing invoices and publishing results are paused until renewal.',
-      link: { label: 'Renew subscription', to: { name: routesPath.settings.name } },
+      title: 'Your EduTrack subscription has lapsed',
+      text: 'School Admin is view-only until it’s renewed: you can look at every record, but not add, change or delete anything. Teachers, parents and students can’t sign in. Your data is safe.',
+      link: { label: 'Contact support', to: { name: routesPath.support.name } },
     };
   const { session } = context.current;
   switch (context.sessionStatus) {

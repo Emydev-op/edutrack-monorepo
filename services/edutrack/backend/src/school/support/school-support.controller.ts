@@ -7,7 +7,7 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import type { AuthUserContext } from '../../auth/auth-context.js';
-import { Portals } from '../../auth/decorators/auth.decorators.js';
+import { Portals, OpenWhenLapsed } from '../../auth/decorators/auth.decorators.js';
 import { CurrentUser } from '../../common/decorators/request.decorators.js';
 import { ResponseMessage } from '../../common/http/api-response.js';
 import {
@@ -25,6 +25,8 @@ import { SchoolSupportService } from './school-support.service.js';
  */
 @ApiTags('school support')
 @Portals('SCHOOL_ADMIN')
+// Support stays open on a lapsed subscription: it's how the school sorts it out.
+@OpenWhenLapsed()
 @Controller('support/tickets')
 export class SchoolSupportController {
   constructor(private readonly support: SchoolSupportService) {}

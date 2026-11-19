@@ -49,7 +49,7 @@ type Notice = {
   text: string;
 };
 const OFFICE = 'Contact the school office if you think this is a mistake.';
-const NOTICES: Record<AccountBlock | 'expired' | 'signedout' | 'reset', Notice> = {
+const NOTICES: Record<AccountBlock | 'expired' | 'signedout' | 'reset' | 'lapsed', Notice> = {
   expired: {
     tone: 'info',
     title: 'Your session has ended. Please sign in again.',
@@ -85,6 +85,21 @@ const NOTICES: Record<AccountBlock | 'expired' | 'signedout' | 'reset', Notice> 
     title: 'Too many unsuccessful attempts. Please wait before trying again.',
     text: 'Sign-in is paused for 15 minutes on this account. You can still reset your password.',
   },
+  SUBSCRIPTION_LAPSED: {
+    tone: 'warning',
+    title: 'The Teacher Workspace is closed for now.',
+    text: 'Your school’s EduTrack subscription has lapsed. It opens again as soon as the school renews. Contact the school office.',
+  },
+  lapsed: {
+    tone: 'warning',
+    title: 'The Teacher Workspace is closed for now.',
+    text: 'Your school’s EduTrack subscription has lapsed, so you’ve been signed out. It opens again as soon as the school renews.',
+  },
+  SCHOOL_SUSPENDED: {
+    tone: 'error',
+    title: 'Your school’s access to EduTrack is suspended.',
+    text: OFFICE,
+  },
   PASSWORD_EXPIRED: {
     tone: 'warning',
     title: 'Your password has expired.',
@@ -101,7 +116,7 @@ const notice = computed<Notice | null>(() => {
       ? { ...base, text: `${blockMessage.value} ${base.text}` }
       : base;
   }
-  return reason === 'expired' || reason === 'signedout' || reason === 'reset'
+  return reason === 'expired' || reason === 'signedout' || reason === 'reset' || reason === 'lapsed'
     ? NOTICES[reason]
     : null;
 });

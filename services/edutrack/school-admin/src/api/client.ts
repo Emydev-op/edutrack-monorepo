@@ -1,4 +1,9 @@
-import { createHttpClient, getApiErrorMessage, unwrapEnvelope } from '@edutrack/web-core/http';
+import {
+  createHttpClient,
+  getApiErrorCode,
+  getApiErrorMessage,
+  unwrapEnvelope,
+} from '@edutrack/web-core/http';
 import axios, { isAxiosError } from 'axios';
 import { toast } from 'vue-sonner';
 
@@ -68,6 +73,10 @@ if (env.useMocks) {
 // Server and network failures get a toast here; 4xx errors are shown by the screen that made the
 // request (inline form errors, empty states), so they are not toasted twice.
 apiClient.interceptors.response.use(undefined, (error: unknown) => {
+  // The subscription lapsed while signed in: show the view-only banner. The screen that made the
+  // request shows the API's message, as for any other refusal.
+  if (getApiErrorCode(error) === 'SUBSCRIPTION_READ_ONLY')
+    useAuthStore().updateSchool({ subscriptionStatus: 'Restricted' });
   if (isAxiosError(error) && (!error.response || error.response.status >= 500)) {
     toast.error(getApiErrorMessage(error, 'The server did not respond. Try again in a moment.'));
   }
