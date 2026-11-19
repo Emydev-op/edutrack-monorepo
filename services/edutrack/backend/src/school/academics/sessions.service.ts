@@ -233,9 +233,10 @@ export class SessionsService {
         label: 'Results published',
         detail: armIds.length
           ? `${pub} of ${plural(armIds.length, 'class', 'classes')} published`
-          : 'Nothing to publish yet',
+          : 'No results recorded this term',
+        // A term with no result sheets (results not kept in EduTrack yet) has nothing to wait for.
         status:
-          armIds.length && pub === armIds.length ? 'Complete' : pub ? 'In progress' : 'Pending',
+          !armIds.length || pub === armIds.length ? 'Complete' : pub ? 'In progress' : 'Pending',
         to: results,
       },
       {
@@ -584,5 +585,200 @@ export class SessionsService {
       );
     });
     return this.sessionView(session.id);
+  }
+
+  /* ---------------- Close a term ---------------- */
+
+  /**
+   * Closes the active term once its end date has passed and its results are done: its registers,
+   * scores, assignments and timetables become read-only, and the session's next term becomes the
+   * active one (teachers plan and the office sets up for it; its registers open on its first day).
+   * The last term of a session stays closed until the next session starts.
+   */
+  async closeTerm(id: string) {
+    const session = await this.db.academicSession.findFirst({
+      where: { status: 'ACTIVE' },
+      include: termInclude,
+    });
+    const term = session?.terms.find((t) => t.status === 'ACTIVE');
+    if (!session || !term || term.id !== id)
+      throw fail('Only the active term can be closed.', 'TERM_NOT_ACTIVE', HttpStatus.CONFLICT);
+    const checklist = await this.termChecklist(session);
+    if (!checklist?.canClose)
+      throw fail(
+        checklist?.reason || 'Resolve the blocking items first.',
+        'TERM_NOT_READY',
+        HttpStatus.CONFLICT,
+      );
+    const next = session.terms.find((t) => t.sequence > term.sequence && t.status === 'UPCOMING');
+    await this.db.$transaction(async (tx) => {
+      await tx.term.update({
+        where: { id: term.id },
+        data: { status: 'CLOSED', closedAt: this.clock.now() },
+      });
+      if (next) await tx.term.update({ where: { id: next.id }, data: { status: 'ACTIVE' } });
+      await this.audit.record(
+        {
+          action: 'term.close',
+          area: 'Academic',
+          entity: 'Term',
+          entityId: term.id,
+          summary: `${term.name} closed · ${session.name}`,
+          detail: next
+            ? `Now read-only · ${next.name} is the active term`
+            : `Now read-only · the last term of ${session.name}`,
+        },
+        asTx(tx),
+      );
+    });
+    return { ok: true as const, next: next?.name ?? null };
+  }
+
+  /* ---------------- Close a session ---------------- */
+
+  /**
+   * Whether a session can close. A session moves to Closing when the next one starts; it closes
+   * once every term is closed. Promotion and fees are reminders, not blockers: schools often
+   * settle promotion appeals and old balances into the new session.
+   */
+  async sessionChecklist(id: string) {
+    const session = await this.db.academicSession.findUnique({
+      where: { id },
+      include: termInclude,
+    });
+    if (!session) throw AppException.notFound(SESSION_NOT_FOUND, 'SESSION_NOT_FOUND');
+    const termIds = session.terms.map((t) => t.id);
+    const [open, sheets, published, left, notPlaced] = await Promise.all([
+      Promise.resolve(session.terms.filter((t) => t.status !== 'CLOSED')),
+      this.db.resultSheet.findMany({
+        where: { termId: { in: termIds } },
+        select: { status: true, armId: true, termId: true },
+      }),
+      this.db.resultPublication.findMany({
+        where: { termId: { in: termIds } },
+        select: { armId: true, termId: true },
+      }),
+      this.db.enrollment.findMany({
+        where: { sessionId: id, status: 'LEFT' },
+        select: { student: { select: { status: true } } },
+      }),
+      this.db.enrollment.count({ where: { sessionId: id, status: 'ACTIVE', armId: null } }),
+    ]);
+    const unapproved = sheets.filter((x) => x.status !== 'APPROVED').length;
+    const published_ = new Set(published.map((p) => `${p.termId}:${p.armId}`));
+    const toPublish = new Set(sheets.map((x) => `${x.termId}:${x.armId}`));
+    const unpublished = [...toPublish].filter((k) => !published_.has(k)).length;
+    const transfers = left.filter((e) => e.student.status === 'TRANSFERRED').length;
+    const withdrawals = left.filter((e) => e.student.status === 'WITHDRAWN').length;
+    const sessions = { name: 'sessions' };
+    const items: ChecklistItemView[] = [
+      {
+        label: 'Terms closed',
+        detail: open.length
+          ? `${open.map((t) => t.name).join(', ')} still open`
+          : `All ${plural(session.terms.length, 'term')} closed`,
+        status: open.length ? 'Blocking' : 'Complete',
+        to: sessions,
+      },
+      {
+        label: 'Results complete and approved',
+        detail: sheets.length
+          ? unapproved
+            ? `${plural(unapproved, 'sheet')} not approved`
+            : `All ${plural(sheets.length, 'sheet')} approved`
+          : 'No results recorded this session',
+        status: unapproved ? 'Blocking' : 'Complete',
+        to: { name: 'results' },
+      },
+      {
+        label: 'Results published',
+        detail: toPublish.size
+          ? unpublished
+            ? `${plural(unpublished, 'class result', 'class results')} not published`
+            : 'Every class’s results are published'
+          : 'Nothing to publish',
+        status: unpublished ? 'Blocking' : 'Complete',
+        to: { name: 'results' },
+      },
+      {
+        label: 'Students awaiting a class',
+        detail: notPlaced
+          ? `${plural(notPlaced, 'student')} admitted but never placed in an arm`
+          : 'Every student was placed in a class',
+        status: notPlaced ? 'Review needed' : 'Complete',
+        to: { name: 'students' },
+      },
+      {
+        label: 'Transfers and withdrawals processed',
+        detail: `${plural(transfers, 'transfer')} · ${plural(withdrawals, 'withdrawal')}`,
+        status: 'Complete',
+        to: null,
+      },
+      {
+        label: 'Promotion',
+        detail: 'Promote or repeat each class before the new session’s classes start.',
+        status: 'Review needed',
+        to: { name: 'promotion' },
+      },
+      {
+        label: 'Financial review',
+        detail: 'Outstanding balances carry over to the new session and don’t block closing.',
+        status: 'Optional',
+        to: null,
+      },
+    ];
+    const blocking = items.filter((i) => i.status === 'Blocking').length;
+    const done = session.status === 'CLOSED' || session.status === 'ARCHIVED';
+    const reason = done
+      ? `${session.name} is closed.`
+      : session.status !== 'CLOSING'
+        ? `${session.name} is ${SESSION_STATUS[session.status].toLowerCase()}. A session closes after the next one starts.`
+        : blocking
+          ? `Blocked by ${plural(blocking, 'item')} above.`
+          : '';
+    return {
+      session: this.toView(session, (await this.studentCounts()).get(id) ?? 0),
+      checklist: {
+        title: `Close ${session.name}`,
+        items,
+        canClose: session.status === 'CLOSING' && !blocking,
+        reason,
+      },
+    };
+  }
+
+  /** Closes a session: everything in it becomes read-only and its enrollments are complete. */
+  async closeSession(id: string) {
+    const { checklist } = await this.sessionChecklist(id);
+    if (!checklist.canClose)
+      throw fail(
+        checklist.reason || 'Resolve the blocking items first.',
+        'SESSION_NOT_READY',
+        HttpStatus.CONFLICT,
+      );
+    const session = await this.db.academicSession.findUniqueOrThrow({ where: { id } });
+    await this.db.$transaction(async (tx) => {
+      await tx.academicSession.update({
+        where: { id },
+        data: { status: 'CLOSED', closedAt: this.clock.now() },
+      });
+      // Students who finished the year in this session: their place in it is complete.
+      const { count } = await tx.enrollment.updateMany({
+        where: { sessionId: id, status: 'ACTIVE' },
+        data: { status: 'COMPLETED' },
+      });
+      await this.audit.record(
+        {
+          action: 'session.close',
+          area: 'Academic',
+          entity: 'AcademicSession',
+          entityId: id,
+          summary: `Session ${session.name} closed`,
+          detail: `Now read-only · ${plural(count, 'enrollment')} completed`,
+        },
+        asTx(tx),
+      );
+    });
+    return this.sessionChecklist(id);
   }
 }

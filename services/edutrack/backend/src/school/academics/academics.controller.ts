@@ -13,7 +13,9 @@ import { CurrentTenant } from '../../common/decorators/request.decorators.js';
 import { ResponseMessage, type MessageRequest } from '../../common/http/api-response.js';
 import { RecordIdPipe } from '../../platform/shared/params.js';
 import { plural } from './academic-format.js';
+import { CalendarService } from './calendar.service.js';
 import { ClassesService, type ClassesView } from './classes.service.js';
+import { CalendarEventDto } from './dto/calendar.dto.js';
 import {
   ArmInputDto,
   LevelInputDto,
@@ -36,6 +38,10 @@ import { SectionsService } from './sections.service.js';
 import { SessionsService, type SessionView } from './sessions.service.js';
 
 const sessionId = new RecordIdPipe('Session not found');
+const termId = new RecordIdPipe('Term not found');
+const eventId = new RecordIdPipe(
+  'Only school events can be edited here. Term events are edited in Sessions & Terms.',
+);
 
 /**
  * Academics › Sections, Sessions & Terms, Classes & Arms (Phase 1). Calendar, subjects,
@@ -49,6 +55,7 @@ export class AcademicsController {
     private readonly sections: SectionsService,
     private readonly sessions: SessionsService,
     private readonly classes: ClassesService,
+    private readonly calendarService: CalendarService,
   ) {}
 
   /* ---------------- Sections ---------------- */
@@ -139,6 +146,89 @@ export class AcademicsController {
   @ApiConflictResponse({ description: 'SESSION_NOT_UPCOMING · SESSION_TERMS_OPEN' })
   startSession(@Param('id', sessionId) id: string) {
     return this.sessions.start(id);
+  }
+
+  @ResponseMessage((r: { next: string | null }) =>
+    r.next ? `Term closed. ${r.next} is now the active term.` : 'Term closed.',
+  )
+  @Post('terms/:id/close')
+  @HttpCode(200)
+  @RequirePermission('academics.configure')
+  @ApiOperation({
+    summary: 'Close the active term',
+    description:
+      'After its end date, once its results are entered, approved and published. Its registers, ' +
+      'scores, assignments and timetables become read-only; the next term becomes active.',
+  })
+  @ApiConflictResponse({ description: 'TERM_NOT_ACTIVE · TERM_NOT_READY' })
+  closeTerm(@Param('id', termId) id: string) {
+    return this.sessions.closeTerm(id);
+  }
+
+  @ResponseMessage('Closing checklist loaded.')
+  @Get('sessions/:id/close')
+  @RequirePermission('academics.view')
+  @ApiOperation({ summary: 'What still stands between a session and closing' })
+  @ApiNotFoundResponse({ description: 'SESSION_NOT_FOUND' })
+  sessionChecklist(@Param('id', sessionId) id: string) {
+    return this.sessions.sessionChecklist(id);
+  }
+
+  @ResponseMessage(
+    (r: { session: SessionView }) => `${r.session.name} closed. It is now read-only.`,
+  )
+  @Post('sessions/:id/close')
+  @HttpCode(200)
+  @RequirePermission('academics.configure')
+  @ApiOperation({
+    summary: 'Close a session (Closing, every term closed, results done)',
+    description: 'The session becomes read-only and its remaining enrollments are completed.',
+  })
+  @ApiNotFoundResponse({ description: 'SESSION_NOT_FOUND' })
+  @ApiConflictResponse({ description: 'SESSION_NOT_READY' })
+  closeSession(@Param('id', sessionId) id: string) {
+    return this.sessions.closeSession(id);
+  }
+
+  /* ---------------- Academic calendar ---------------- */
+
+  @ResponseMessage('Calendar loaded.')
+  @Get('calendar')
+  @RequirePermission('academics.view')
+  @ApiOperation({
+    summary:
+      'The current session’s calendar: term dates and events, public holidays, school events',
+  })
+  calendar() {
+    return this.calendarService.view();
+  }
+
+  @ResponseMessage((e: { title: string }) => `${e.title} added to the calendar.`)
+  @Post('calendar/events')
+  @RequirePermission('academics.configure')
+  @ApiOperation({ summary: 'Add a school event (Holiday and Break days have no classes)' })
+  @ApiConflictResponse({ description: 'NO_SESSION' })
+  @ApiUnprocessableEntityResponse({ description: 'VALIDATION' })
+  addEvent(@CurrentTenant() schoolId: string, @Body() dto: CalendarEventDto) {
+    return this.calendarService.create(schoolId, dto);
+  }
+
+  @ResponseMessage((e: { title: string }) => `${e.title} updated.`)
+  @Put('calendar/events/:id')
+  @RequirePermission('academics.configure')
+  @ApiOperation({ summary: 'Change a school event (term events are edited in Sessions & Terms)' })
+  @ApiNotFoundResponse({ description: 'EVENT_NOT_FOUND' })
+  updateEvent(@Param('id', eventId) id: string, @Body() dto: CalendarEventDto) {
+    return this.calendarService.update(id, dto);
+  }
+
+  @ResponseMessage((r: { title: string }) => `${r.title} removed from the calendar.`)
+  @Delete('calendar/events/:id')
+  @RequirePermission('academics.configure')
+  @ApiOperation({ summary: 'Remove a school event' })
+  @ApiNotFoundResponse({ description: 'EVENT_NOT_FOUND' })
+  removeEvent(@Param('id', eventId) id: string) {
+    return this.calendarService.remove(id);
   }
 
   /* ---------------- Classes & arms ---------------- */
