@@ -73,10 +73,11 @@ describe('real routes for Phase 1 academics and setup', () => {
     expect(isRealRoute('put', '/v1/academics/sessions/abc/terms')).toBe(true);
     expect(isRealRoute('delete', '/v1/academics/classes/levels/a~b')).toBe(true);
     expect(isRealRoute('get', '/v1/academics/classes/abc')).toBe(true);
-    expect(isRealRoute('post', '/v1/academics/sessions/abc/close')).toBe(false);
-    expect(isRealRoute('get', '/v1/academics/sessions/abc/close')).toBe(false);
-    expect(isRealRoute('post', '/v1/academics/terms/abc/close')).toBe(false);
-    expect(isRealRoute('get', '/v1/academics/calendar')).toBe(false);
+    expect(isRealRoute('post', '/v1/academics/sessions/abc/close')).toBe(true);
+    expect(isRealRoute('get', '/v1/academics/sessions/abc/close')).toBe(true);
+    expect(isRealRoute('post', '/v1/academics/terms/abc/close')).toBe(true);
+    expect(isRealRoute('get', '/v1/academics/calendar')).toBe(true);
+    expect(isRealRoute('delete', '/v1/academics/calendar/events/abc')).toBe(true);
     // Phase 3a: curriculum, assignments, timetable, assessment and attendance are real.
     expect(isRealRoute('get', '/v1/academics/curriculum')).toBe(true);
     expect(isRealRoute('post', '/v1/academics/timetable/suggest')).toBe(true);
