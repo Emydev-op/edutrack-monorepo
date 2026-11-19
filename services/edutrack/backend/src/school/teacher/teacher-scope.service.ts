@@ -1,3 +1,4 @@
+import { armRollSpans, covers } from '../shared/arm-roll.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { RequestContext } from '../../common/context/request-context.js';
@@ -153,6 +154,17 @@ export class TeacherScopeService {
       include: { staff: { select: { id: true, title: true, firstName: true, lastName: true } } },
     });
     return ct ? { id: ct.staff.id, name: staffName(ct.staff) } : null;
+  }
+
+  /** Who was in the arm on a day: the arm they were in that day, counting moves between arms. */
+  async rollOn(sessionId: string, armId: string, date: string) {
+    const spans = await armRollSpans(this.db, sessionId, [armId]);
+    return spans.filter((e) => covers(e.span, date));
+  }
+
+  /** Everyone who spent part of the session in these arms, with the stretch they were there. */
+  rollSpans(sessionId: string, armIds: string[]) {
+    return armRollSpans(this.db, sessionId, armIds);
   }
 
   /** Students on an arm's roll in a session (still enrolled), by surname. */

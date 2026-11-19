@@ -180,7 +180,8 @@ export interface TeachingStudentDetail extends TermLock {
   lastName: string;
   admissionNo: string;
   gender: 'Male' | 'Female';
-  status: 'Active' | 'Transferred';
+  /** Why a student who left is no longer on the roll. */
+  status: 'Active' | 'Transferred' | 'Withdrawn' | 'Graduated';
   /** The arm in the selected term. */
   armId: string;
   armName: string;

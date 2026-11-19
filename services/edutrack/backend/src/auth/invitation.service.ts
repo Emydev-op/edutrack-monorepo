@@ -194,9 +194,11 @@ export class InvitationService {
       return tx.user.update({
         where: { id: inv.userId },
         data: {
-          firstName: dto.firstName,
-          lastName: dto.lastName,
-          ...(phone && { phone }),
+          // A new account takes the name and phone from the form. Someone who already has an
+          // account (another school, or the back office) keeps theirs: one school's invitation
+          // must not rename them everywhere. They change it from their own profile.
+          ...(!inv.user.passwordHash && { firstName: dto.firstName, lastName: dto.lastName }),
+          ...(phone && (!inv.user.passwordHash || !inv.user.phone) && { phone }),
           ...(passwordHash && { passwordHash, passwordChangedAt: now, mustChangePassword: false }),
           // The link went to this address, so following it proves the user controls it.
           ...(inv.email && inv.email === inv.user.email && !inv.user.emailVerifiedAt

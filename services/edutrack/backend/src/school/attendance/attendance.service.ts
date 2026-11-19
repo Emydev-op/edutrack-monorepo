@@ -1,3 +1,4 @@
+import { armRollSpans, covers } from '../shared/arm-roll.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { Clock } from '../../common/clock/clock.js';
 import type { AttendanceMark } from '../../generated/prisma/enums.js';
@@ -253,8 +254,10 @@ export class AttendanceService {
     const allWeekdays: string[] = [];
     for (let d = isoDate(term.startsOn); d <= isoDate(term.endsOn); d = addDays(d, 1))
       if (!isWeekend(d)) allWeekdays.push(d);
-    const [roll, regs, teachers] = await Promise.all([
+    const [roll, spans, regs, teachers] = await Promise.all([
       this.roll(session.id, [arm.id]),
+      // Everyone who was in the class at some point this term, for their days in it.
+      armRollSpans(this.db, session.id, [arm.id]),
       this.registers(term.id, [arm.id], allWeekdays),
       this.classTeachers(session.id),
     ]);
@@ -294,12 +297,12 @@ export class AttendanceService {
           rate: reg ? attendanceRate(c) : null,
         };
       }),
-      students: roll.map((e) => {
+      students: spans.map((e) => {
         const c = emptyCounts();
         const marks: Record<string, { status: string; reason: string }> = {};
         for (const r of regs) {
           const date = isoDate(r.date);
-          if (!dayset.has(date)) continue;
+          if (!dayset.has(date) || !covers(e.span, date)) continue;
           const m = r.marks.find((x) => x.studentId === e.studentId);
           if (!m) continue;
           c[KEY[m.mark]]++;

@@ -4,7 +4,7 @@ import { normalizePhone } from '../../auth/identifiers.js';
 import { Clock } from '../../common/clock/clock.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import { Prisma } from '../../generated/prisma/client.js';
-import { displayPhone } from '../../platform/shared/format.js';
+import { displayPhone, lagosToday } from '../../platform/shared/format.js';
 import { isUuid } from '../../platform/shared/params.js';
 import { TenantPrismaService } from '../../tenancy/tenant-prisma.service.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
@@ -483,6 +483,34 @@ export class BranchesService {
         where: { id },
         data: { status: 'INACTIVE', deactivatedAt: this.clock.now() },
       });
+      // A closed campus has no lessons: its classes keep their history (registers, results), but
+      // nobody teaches or runs them from now on. Teachers stop seeing them in the Teacher
+      // Workspace, and reactivating the branch means assigning teachers again.
+      const open = { status: { in: ['ACTIVE' as const, 'UPCOMING' as const] } };
+      const gone = await tx.teachingAssignment.findMany({
+        where: { arm: { branchId: id }, term: open },
+        select: { id: true },
+      });
+      const ids = gone.map((a) => a.id);
+      if (ids.length) {
+        await tx.resultSheet.updateMany({
+          where: { teachingAssignmentId: { in: ids } },
+          data: { teachingAssignmentId: null },
+        });
+        await tx.assessmentSchedule.updateMany({
+          where: { teachingAssignmentId: { in: ids } },
+          data: { teachingAssignmentId: null },
+        });
+        await tx.teachingAssignment.deleteMany({ where: { id: { in: ids } } });
+      }
+      await tx.timetableSlot.updateMany({
+        where: { term: open, timetable: { arm: { branchId: id } }, staffId: { not: null } },
+        data: { staffId: null },
+      });
+      const posts = await tx.classTeacherAssignment.updateMany({
+        where: { arm: { branchId: id }, endsOn: null, session: open },
+        data: { endsOn: lagosToday(this.clock.now()) },
+      });
       await this.audit.record(
         {
           action: 'branch.deactivate',
@@ -490,7 +518,13 @@ export class BranchesService {
           entity: 'Branch',
           entityId: id,
           summary: 'Deactivated branch',
-          detail: reason.trim(),
+          detail: [
+            reason.trim(),
+            (ids.length || posts.count) &&
+              `${ids.length} teaching assignment${ids.length === 1 ? '' : 's'} and ${posts.count} class-teacher role${posts.count === 1 ? '' : 's'} ended`,
+          ]
+            .filter(Boolean)
+            .join(' · '),
         },
         plainTx(tx),
       );

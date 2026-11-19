@@ -640,7 +640,15 @@ export class TeachingService {
       lastName: st.surname,
       admissionNo: st.admissionNo,
       gender: GENDER[st.gender as keyof typeof GENDER] ?? 'Male',
-      status: enrollment.status === 'LEFT' ? ('Transferred' as const) : ('Active' as const),
+      // Why they left comes from the student record: transferred, withdrawn or graduated.
+      status:
+        enrollment.status !== 'LEFT'
+          ? ('Active' as const)
+          : st.status === 'WITHDRAWN'
+            ? ('Withdrawn' as const)
+            : st.status === 'GRADUATED'
+              ? ('Graduated' as const)
+              : ('Transferred' as const),
       armId: enrollment.armId,
       armName: arm?.label ?? '',
       branchName: arm?.branch ?? '',

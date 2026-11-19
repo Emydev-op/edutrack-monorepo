@@ -370,6 +370,8 @@ model ClassArm {
   announcementArms    AnnouncementArm[]
   invoices            Invoice[]
   enrollments         Enrollment[]
+  movesOut            ArmMove[]                @relation("ArmMoveFrom")
+  movesIn             ArmMove[]                @relation("ArmMoveTo")
   resultSheets        ResultSheet[]
   resultPublications  ResultPublication[]
   reportCards         ReportCard[]
