@@ -16,7 +16,6 @@ import FormCombobox from '@edutrack/app-kit/components/form/FormCombobox.vue';
 import FormInput from '@edutrack/app-kit/components/form/FormInput.vue';
 import FormSelect from '@edutrack/app-kit/components/form/FormSelect.vue';
 import FormTextarea from '@edutrack/app-kit/components/form/FormTextarea.vue';
-import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 import { useUnsavedChanges } from '@edutrack/app-kit/composables/useUnsavedChanges';
 import { initials } from '@edutrack/app-kit/lib/format';
 import { lgasOf, NIGERIAN_STATES } from '@edutrack/app-kit/lib/nigeria-locations';
@@ -38,7 +37,6 @@ const LOCK = 'Set by Edutrack. Contact support to change it.';
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
-const confirm = useConfirm();
 const { data: profile, isPending } = useSchoolProfileQuery();
 const save = useUpdateSchoolProfileMutation();
 
