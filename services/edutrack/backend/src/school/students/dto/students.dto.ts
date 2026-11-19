@@ -37,6 +37,16 @@ export class StudentQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsIn(GENDERS, { message: 'Choose Female or Male.' })
   gender?: string;
+
+  @ApiPropertyOptional({
+    example: 'Main Campus',
+    description: 'The header’s branch (its name); left out or "All branches" for every branch',
+  })
+  @IsOptional()
+  @Transform(trim)
+  @MaxLength(120)
+  @IsString()
+  branch?: string;
 }
 
 /** `GET /v1/enrollment/options`. */

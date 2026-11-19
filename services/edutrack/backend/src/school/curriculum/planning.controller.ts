@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Put,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
 import {
   ApiConflictResponse,
   ApiNotFoundResponse,
@@ -9,7 +20,13 @@ import {
 } from '@nestjs/swagger';
 import { Portals, RequirePermission } from '../../auth/decorators/auth.decorators.js';
 import { CurrentTenant } from '../../common/decorators/request.decorators.js';
-import { ResponseMessage, type MessageRequest } from '../../common/http/api-response.js';
+import {
+  RawResponse,
+  ResponseMessage,
+  type MessageRequest,
+} from '../../common/http/api-response.js';
+import { SubjectImportCommitDto, SubjectImportFileDto } from './dto/subject-import.dto.js';
+import { SubjectImportService } from './subject-import.service.js';
 import { plural } from '../academics/academic-format.js';
 import { AssessmentService, type AssessmentInput } from '../assessment/assessment.service.js';
 import { AssignmentsService } from '../assignments/assignments.service.js';
@@ -47,6 +64,7 @@ const branchQuery = ApiQuery({
 export class PlanningController {
   constructor(
     private readonly curriculum: CurriculumService,
+    private readonly subjectImport: SubjectImportService,
     private readonly assignments: AssignmentsService,
     private readonly timetable: TimetableService,
     private readonly assessment: AssessmentService,
@@ -79,6 +97,52 @@ export class PlanningController {
   @ApiConflictResponse({ description: 'NO_SESSION · SUBJECTS_EXIST · NO_LEVELS' })
   applyDefaults(@CurrentTenant() schoolId: string) {
     return this.curriculum.applyDefaults(schoolId);
+  }
+
+  /* ---------------- Subject bulk upload ---------------- */
+
+  @RawResponse()
+  @Get('subjects/template')
+  @RequirePermission('academics.configure')
+  @ApiOperation({
+    summary: 'The bulk-upload template (.xlsx, with dropdowns for section, category and status)',
+  })
+  async subjectTemplate() {
+    return new StreamableFile(await this.subjectImport.template(), {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      disposition: 'attachment; filename="edutrack-subjects-template.xlsx"',
+    });
+  }
+
+  @ResponseMessage((r: { total: number; withIssues: number }) =>
+    r.withIssues
+      ? `${plural(r.total, 'subject')} read. ${plural(r.withIssues, 'row')} need fixing.`
+      : `${plural(r.total, 'subject')} ready to import.`,
+  )
+  @Post('subjects/import')
+  @HttpCode(200)
+  @RequirePermission('academics.configure')
+  @ApiOperation({
+    summary: 'Read an uploaded template and check every row (nothing is saved)',
+    description:
+      'Duplicates are caught inside the file and against existing subjects (codes unique in the ' +
+      'school, names unique per section). Blank codes get a suggestion.',
+  })
+  @ApiUnprocessableEntityResponse({ description: 'IMPORT_INVALID' })
+  previewSubjects(@Body() dto: SubjectImportFileDto) {
+    return this.subjectImport.preview(dto.fileName, dto.content);
+  }
+
+  @ResponseMessage((r: { imported: number }) => `${plural(r.imported, 'subject')} imported.`)
+  @Post('subjects/import/commit')
+  @RequirePermission('academics.configure')
+  @ApiOperation({
+    summary: 'Import the checked (and corrected) rows: all of them, or none',
+    description: '422 IMPORT_HAS_ISSUES lists problems as fields "<row>.<field>".',
+  })
+  @ApiUnprocessableEntityResponse({ description: 'IMPORT_HAS_ISSUES · IMPORT_INVALID' })
+  importSubjects(@CurrentTenant() schoolId: string, @Body() dto: SubjectImportCommitDto) {
+    return this.subjectImport.commit(schoolId, dto.rows);
   }
 
   @ResponseMessage(

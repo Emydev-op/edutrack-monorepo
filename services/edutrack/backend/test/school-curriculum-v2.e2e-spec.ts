@@ -21,6 +21,8 @@ describe('Sections, per-arm curriculum and co-teachers (e2e)', () => {
   let admin: Api;
   let primaryAdmin: Api;
   const suffix = Date.now().toString(36);
+  // The class and subject the co-teacher test assigns, removed again afterwards.
+  let assigned: { armId: string; code: string } | null = null;
 
   const curriculum = async (api: Api = admin) =>
     (await api.get('/api/v1/academics/curriculum')).body.data;
@@ -76,6 +78,12 @@ describe('Sections, per-arm curriculum and co-teachers (e2e)', () => {
 
   afterAll(async () => {
     await removeAdded();
+    if (assigned) {
+      // The seed puts back its own assignments; this leaves no extra workload for other files.
+      await t.prisma.teachingAssignment.deleteMany({
+        where: { armId: assigned.armId, subject: { code: assigned.code } },
+      });
+    }
     await t.reseed();
     await t.close();
   });
@@ -164,6 +172,7 @@ describe('Sections, per-arm curriculum and co-teachers (e2e)', () => {
       ] as { id: string; name: string; branch: string }[];
       const main = arms.filter((a) => a.branch === 'Main Campus');
       const [armA, armB] = [main.find((a) => a.name === 'A')!, main.find((a) => a.name === 'B')!];
+      assigned = { armId: armA.id, code };
 
       const res = await saveCurriculum(admin, {
         curriculum: v.curriculum,
