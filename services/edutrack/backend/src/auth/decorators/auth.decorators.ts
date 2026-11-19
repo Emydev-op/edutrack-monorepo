@@ -42,3 +42,12 @@ export const PlatformOnly = (...permissions: PlatformPermission[]) =>
 /** Swagger: a route that needs the bearer access token. */
 export const Authenticated = () =>
   applyDecorators(ApiBearerAuth(), ApiUnauthorizedResponse({ description: 'Not signed in' }));
+
+export const OPEN_WHEN_LAPSED = 'auth:open-when-lapsed';
+
+/**
+ * Writes that keep working in School Admin while the school's subscription has lapsed (Support,
+ * marking notifications read, the person's own sign-in and password). Every other write is
+ * refused then; reads always work.
+ */
+export const OpenWhenLapsed = () => SetMetadata(OPEN_WHEN_LAPSED, true);

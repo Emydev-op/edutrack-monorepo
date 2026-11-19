@@ -9,6 +9,7 @@ import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { CredentialsService } from './credentials.service.js';
 import { AccessTokenGuard } from './guards/access-token.guard.js';
+import { SubscriptionGuard } from './guards/subscription.guard.js';
 import { PermissionGuard } from './guards/permission.guard.js';
 import { InvitationService } from './invitation.service.js';
 import { PasswordResetService } from './password-reset.service.js';
@@ -38,9 +39,10 @@ import { SessionService } from './session.service.js';
     RateLimitService,
     RefreshCookieService,
     SessionService,
-    // Order matters: authenticate first, then check permissions.
+    // Order matters: authenticate first, then check permissions, then the school's subscription.
     { provide: APP_GUARD, useClass: AccessTokenGuard },
     { provide: APP_GUARD, useClass: PermissionGuard },
+    { provide: APP_GUARD, useClass: SubscriptionGuard },
   ],
   exports: [
     AccessTokenService,

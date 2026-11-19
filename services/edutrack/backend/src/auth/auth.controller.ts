@@ -35,7 +35,7 @@ import type { AuthSession } from '../generated/prisma/client.js';
 import { AccessTokenService } from './access-token.service.js';
 import type { AuthUserContext, ClientInfo } from './auth-context.js';
 import { AuthService, portalName, type SignedIn } from './auth.service.js';
-import { Authenticated, Public } from './decorators/auth.decorators.js';
+import { Authenticated, Public, OpenWhenLapsed } from './decorators/auth.decorators.js';
 import {
   AcceptInvitationDto,
   ChangePasswordDto,
@@ -81,6 +81,8 @@ const portalHeader = ApiHeader({
 const refreshCookieDoc = ApiCookieAuth('refresh-cookie');
 
 @ApiTags('auth')
+// Signing in and out, sessions and the person's own password work whatever the subscription.
+@OpenWhenLapsed()
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);

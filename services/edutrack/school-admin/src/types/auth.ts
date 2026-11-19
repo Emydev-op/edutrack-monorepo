@@ -21,7 +21,7 @@ export interface SchoolSummary {
   brandColor: string;
   /** Uploaded in School Profile; the sidebar shows initials until there is one. */
   logoUrl: string | null;
-  /** Restricted: the renewal is overdue, so creating records is paused. */
+  /** Restricted: the subscription lapsed (restricted, expired or cancelled), so School Admin is view-only. */
   subscriptionStatus: 'Active' | 'Restricted';
 }
 

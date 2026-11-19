@@ -38,7 +38,9 @@ export type AccountBlock =
   | 'ACCOUNT_DEACTIVATED'
   | 'ACCOUNT_PENDING'
   | 'ACCOUNT_LOCKED'
-  | 'PASSWORD_EXPIRED';
+  | 'PASSWORD_EXPIRED'
+  | 'SUBSCRIPTION_LAPSED'
+  | 'SCHOOL_SUSPENDED';
 
 export interface Invitation {
   token: string;
