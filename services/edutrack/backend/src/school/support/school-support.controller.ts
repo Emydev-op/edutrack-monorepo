@@ -30,6 +30,7 @@ export class SchoolSupportController {
   constructor(private readonly support: SchoolSupportService) {}
 
   @Get()
+  @ResponseMessage('Tickets loaded.')
   @ApiOperation({
     summary: 'The school’s tickets by tab, with counts and those waiting on the school',
   })
@@ -38,6 +39,7 @@ export class SchoolSupportController {
   }
 
   @Get(':id')
+  @ResponseMessage('Ticket loaded.')
   @ApiOperation({ summary: 'One ticket: the conversation (no internal notes) and its history' })
   @ApiNotFoundResponse({ description: 'Not this school’s ticket' })
   get(@Param('id') id: string) {
