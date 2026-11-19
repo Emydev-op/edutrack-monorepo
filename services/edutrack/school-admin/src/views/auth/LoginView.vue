@@ -46,7 +46,7 @@ type Notice = {
   title: string;
   text: string;
 };
-const CONTACT = 'Contact platform support at support@schoolplatform.ng or +234 1 700 2200.';
+const CONTACT = 'Contact platform support at support@edutrack.ng or +234 1 700 2200.';
 const NOTICES: Record<AccountBlock | 'expired' | 'signedout' | 'reset', Notice> = {
   expired: {
     tone: 'info',
@@ -189,8 +189,8 @@ const onSubmit = handleSubmit(async (values) => {
     </form>
     <p class="text-[13px] text-muted-foreground">
       Can’t access your account? Contact platform support at
-      <a href="mailto:support@schoolplatform.ng" class="font-medium text-primary hover:underline"
-        >support@schoolplatform.ng</a
+      <a href="mailto:support@edutrack.ng" class="font-medium text-primary hover:underline"
+        >support@edutrack.ng</a
       >.
     </p>
   </AuthLayout>

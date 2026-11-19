@@ -60,6 +60,7 @@ export type SchoolProfilePayload = Pick<
   | 'approvalNumber'
   | 'cacNumber'
   | 'certificate'
+  | 'brandColor'
 >;
 
 export interface Branch {

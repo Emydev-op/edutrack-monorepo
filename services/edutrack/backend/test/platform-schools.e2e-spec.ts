@@ -186,6 +186,27 @@ describe('Platform schools and subscriptions (e2e)', () => {
       });
       const audit = await api.get(`/api/v1/platform/schools/${ids.hillcrest}/audit`);
       expect(audit.body.data[0]).toMatchObject({ action: 'school.update', actor: 'Tolu Bamidele' });
+
+      // The brand colour: too light for white text is refused; a dark one is saved and is what
+      // the school's own address serves.
+      const details = {
+        name: 'Hillcrest Nursery & Primary School',
+        contactEmail: 'office@hillcrest.edu.ng',
+        phone: '0803 111 2222',
+        state: 'Oyo',
+      };
+      const light = await api
+        .patch(`/api/v1/platform/schools/${ids.hillcrest}`)
+        .send({ ...details, brandColor: '#F5C542' });
+      expect(light.status).toBe(422);
+      expect(light.body.error.fields.brandColor).toMatch(/too light for white text/);
+      const navy = await api
+        .patch(`/api/v1/platform/schools/${ids.hillcrest}`)
+        .send({ ...details, brandColor: '#24497a' });
+      expect(navy.body.data.brandColor).toBe('#24497A');
+      const slug = (await t.prisma.school.findUniqueOrThrow({ where: { id: ids.hillcrest } })).slug;
+      const pub = await t.http().get('/api/v1/public/school').set('Host', `${slug}.localhost`);
+      expect(pub.body.data.brandColor).toBe('#24497A');
       expect(audit.body.data[0].ipDevice).toMatch(/^10\.\d+\.\d+\.\d+ · /);
     });
 
@@ -285,6 +306,17 @@ describe('Platform schools and subscriptions (e2e)', () => {
         .post(`/api/v1/platform/schools/${ids.kingsway}/administrators`)
         .send({ name: 'Ada Deputy', email, role: 'Owner', scope: 'All branches' });
       expect(dup.body.error.code).toBe('ALREADY_MEMBER');
+
+      // Someone whose access was revoked can be invited again on the same membership.
+      await t.prisma.schoolMembership.update({
+        where: { id: res.body.data.id },
+        data: { status: 'REVOKED' },
+      });
+      const again = await api
+        .post(`/api/v1/platform/schools/${ids.kingsway}/administrators`)
+        .send({ name: 'Ada Deputy', email, role: 'School Admin', scope: 'GRA Campus' });
+      expect(again.status).toBe(201);
+      expect(again.body.data).toMatchObject({ id: res.body.data.id, status: 'Invited' });
 
       const resent = await api.post(
         `/api/v1/platform/schools/${ids.kingsway}/administrators/${res.body.data.id}/resend`,

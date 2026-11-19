@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { TeachingAssignmentType } from '../../generated/prisma/enums.js';
 import { AcademicCatalogService, type ArmInfo } from '../academics/academic-catalog.service.js';
-import { fail, plural, staffName } from '../academics/academic-format.js';
+import { fail, plural, requireOpenTerm, staffName } from '../academics/academic-format.js';
 import { SCORED } from '../curriculum/curriculum.service.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { SetupStateService } from '../shared/setup-state.service.js';
@@ -294,6 +294,7 @@ export class AssignmentsService {
 
   async assign(schoolId: string, p: AssignmentInput, termId?: string | null) {
     const { session, term } = await this.requireTerm(termId);
+    requireOpenTerm(term);
     const teacher = p.teacherId
       ? await this.db.staff.findFirst({
           where: { id: p.teacherId, kind: 'TEACHING', status: 'ACTIVE' },
@@ -379,6 +380,8 @@ export class AssignmentsService {
       },
     });
     if (!a) throw fail('Assignment not found', 'ASSIGNMENT_NOT_FOUND', HttpStatus.NOT_FOUND);
+    const term = await this.db.term.findFirst({ where: { id: a.termId } });
+    if (term) requireOpenTerm(term);
     if (
       await this.db.resultSheet.count({
         where: { teachingAssignmentId: id, status: { in: SCORED as never } },
@@ -417,6 +420,7 @@ export class AssignmentsService {
    */
   async copyPrevious(schoolId: string, termId?: string | null) {
     const { session, term } = await this.requireTerm(termId);
+    requireOpenTerm(term);
     const previous = await this.catalog.previousTerm(term.id);
     const source = previous
       ? await this.db.teachingAssignment.findMany({

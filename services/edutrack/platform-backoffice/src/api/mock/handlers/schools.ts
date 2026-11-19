@@ -49,6 +49,7 @@ mock.patch('/v1/platform/schools/:id', ({ params, body }) => {
     contactEmail: requireText(payload.contactEmail, 'Enter a contact email'),
     phone: payload.phone,
     state: payload.state,
+    ...(payload.brandColor && { brandColor: payload.brandColor.toUpperCase() }),
   });
   audit({
     summary: `Edited school details · ${school.name}`,

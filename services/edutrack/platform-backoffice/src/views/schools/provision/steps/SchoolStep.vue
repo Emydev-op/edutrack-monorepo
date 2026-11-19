@@ -7,7 +7,7 @@ import FormInput from '@edutrack/app-kit/components/form/FormInput.vue';
 import FormSelect from '@edutrack/app-kit/components/form/FormSelect.vue';
 import { lgasOf, NIGERIAN_STATES } from '@edutrack/app-kit/lib/nigeria-locations';
 
-import BrandColorPicker from './BrandColorPicker.vue';
+import BrandColorPicker from '@edutrack/app-kit/components/form/BrandColorPicker.vue';
 
 defineProps<{ schoolName: string }>();
 
@@ -57,5 +57,8 @@ watch(state, () => {
       empty-text="No LGA matches that name."
     />
   </div>
-  <BrandColorPicker :school-name="schoolName" />
+  <BrandColorPicker
+    :school-name="schoolName"
+    description="Themes the school’s workspace, its sign-in pages and the teacher, parent and student portals. The school’s admins and EduTrack can change it later."
+  />
 </template>

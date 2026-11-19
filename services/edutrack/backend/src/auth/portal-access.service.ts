@@ -67,7 +67,10 @@ const activeRoleKeys = (m: MembershipWithSchool) =>
 export function opensPortal(m: MembershipWithSchool, portal: SchoolPortal): boolean {
   if (m.kind !== 'STAFF') return false;
   const keys = activeRoleKeys(m);
-  if (portal === 'TEACHER') return keys.some((k) => k !== null && TEACHER_PORTAL_ROLE_KEYS.has(k));
+  // The Teacher Workspace works from the teacher's staff record (assignments, class, register),
+  // so an account with a teaching role but no staff record can't open it.
+  if (portal === 'TEACHER')
+    return !!m.staffId && keys.some((k) => k !== null && TEACHER_PORTAL_ROLE_KEYS.has(k));
   return keys.some((k) => k === null || !TEACHING_ONLY_ROLE_KEYS.has(k));
 }
 

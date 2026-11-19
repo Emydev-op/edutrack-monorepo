@@ -48,13 +48,12 @@ const tabs = computed(() =>
 function startSupportSession() {
   if (!school.value) return;
   void confirm({
-    title: `Start a support session in ${school.value.name}?`,
+    title: `Record a support session in ${school.value.name}?`,
     description:
-      "This is a privileged action. The school's administrators are notified and everything you do is logged against your name.",
+      "This records that you're supporting the school, with your reason, in the school's audit log. Signing in to the school's workspace as support isn't available yet.",
     details: [
-      ['Access', 'Read-only · ends after 30 minutes'],
-      ['Approved by', 'Support lead · Ngozi Okafor'],
-      ['Audit', 'Session start, every page and every change are recorded'],
+      ['Access', 'Read-only · 30 minutes'],
+      ['Recorded', 'Your name, the reason and the time, in the audit log'],
     ],
     input: {
       label: 'Reason',
@@ -62,15 +61,10 @@ function startSupportSession() {
       required: true,
     },
     acknowledgement: "I have the school's consent for this session",
-    confirmLabel: 'Start audited session',
+    confirmLabel: 'Record session',
     action: async ({ text }) => {
       const session = await supportSession.mutateAsync(text);
-      toast.success(
-        messageOf(
-          session,
-          `Support session started in ${school.value?.name}. It ends in 30 minutes.`,
-        ),
-      );
+      toast.success(messageOf(session, `Support session recorded for ${school.value?.name}.`));
     },
   });
 }

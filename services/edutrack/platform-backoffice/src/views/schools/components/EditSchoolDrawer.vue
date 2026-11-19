@@ -8,7 +8,9 @@ import { toast } from 'vue-sonner';
 
 import { useUpdateSchoolMutation } from '@/api/services/schools';
 import FormCombobox from '@edutrack/app-kit/components/form/FormCombobox.vue';
+import BrandColorPicker from '@edutrack/app-kit/components/form/BrandColorPicker.vue';
 import FormInput from '@edutrack/app-kit/components/form/FormInput.vue';
+import { DEFAULT_BRAND_COLOR } from '@edutrack/shared';
 import SideDrawer from '@edutrack/app-kit/components/overlays/SideDrawer.vue';
 import { NIGERIAN_STATES } from '@/config/options';
 import { editSchoolSchema } from '@/schema/school';
@@ -23,8 +25,9 @@ const initial = () => ({
   contactEmail: props.school.contactEmail,
   phone: props.school.phone,
   state: props.school.state,
+  brandColor: props.school.brandColor ?? DEFAULT_BRAND_COLOR,
 });
-const { handleSubmit, meta, resetForm } = useForm({
+const { handleSubmit, meta, resetForm, values } = useForm({
   validationSchema: editSchoolSchema,
   initialValues: initial(),
 });
@@ -41,7 +44,7 @@ const save = handleSubmit(async (values) => {
   <SideDrawer
     v-model:open="open"
     :title="`Edit ${school.name}`"
-    description="Tenant details. The school manages its own profile inside its workspace."
+    description="Tenant details and brand color. The school manages the rest of its profile inside its workspace."
     :dirty="meta.dirty"
   >
     <form id="edit-school" class="flex flex-col gap-3.5" novalidate @submit="save">
@@ -61,6 +64,10 @@ const save = handleSubmit(async (values) => {
         :options="NIGERIAN_STATES"
         placeholder="Select a state"
         search-placeholder="Search states"
+      />
+      <BrandColorPicker
+        :school-name="values.name || school.name"
+        description="Themes the school’s workspace, its sign-in pages and the teacher, parent and student portals. The school’s admins can also change it in School Profile."
       />
     </form>
     <template #footer>

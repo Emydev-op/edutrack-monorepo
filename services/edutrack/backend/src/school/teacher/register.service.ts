@@ -69,7 +69,7 @@ export class RegisterService {
   private async myArm(auth: AuthUserContext, termId?: string) {
     const s = await this.scope.staff(auth);
     const term = await this.scope.term(termId);
-    const arm = await this.scope.classArm(s.id, term.sessionId);
+    const arm = await this.scope.classArm(s.id, term);
     if (!arm)
       throw new AppException(
         HttpStatus.FORBIDDEN,
@@ -221,6 +221,18 @@ export class RegisterService {
   async save(auth: AuthUserContext, date: string, input: { marks?: MarkInput[] }, termId?: string) {
     RegisterService.dateParam(date);
     const { s, term, arm, ref } = await this.myArm(auth, termId);
+    // A teacher replaced as class teacher keeps reading the registers they took, but only the
+    // current class teacher takes new ones.
+    const current = await this.db.classTeacherAssignment.findFirst({
+      where: { armId: arm.id, sessionId: term.sessionId, endsOn: null },
+      select: { staffId: true },
+    });
+    if (current?.staffId !== s.id)
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        `You’re no longer the class teacher of ${arm.label}, so its register is read-only for you.`,
+        'FORBIDDEN',
+      );
     const { closed } = await this.attendance.schoolDays(term);
     const editable = await this.editableDays(term, closed);
     const lock = await this.lock(term, date, closed, editable);

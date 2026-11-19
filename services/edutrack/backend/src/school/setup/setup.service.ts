@@ -198,6 +198,12 @@ export class SetupService {
         where: { id: schoolId },
         data: { setupFinishedAt: this.clock.now() },
       });
+      // Finishing setup ends onboarding: the back office now shows the school as Active (with its
+      // subscription status) and renewal reminders apply. A suspended school stays suspended.
+      await tx.school.updateMany({
+        where: { id: schoolId, status: 'ONBOARDING' },
+        data: { status: 'ACTIVE' },
+      });
     });
     return { ...view, finished: true, foundationComplete: true };
   }

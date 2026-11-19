@@ -1,3 +1,4 @@
+import { brandColorProblem } from '@edutrack/shared';
 import { Injectable, Logger } from '@nestjs/common';
 import { isNigerianState, lgasOf } from '@edutrack/shared';
 import { normalizePhone } from '../../auth/identifiers.js';
@@ -67,6 +68,8 @@ export class ProvisioningService {
 
   private async validate(dto: ProvisionSchoolDto) {
     await this.schools.ensureNameFree(dto.name);
+    const colour = dto.brandColor ? brandColorProblem(dto.brandColor) : null;
+    if (colour) throw AppException.validation({ brandColor: colour });
     if (!isNigerianState(dto.state))
       throw AppException.validation({ state: 'Select a Nigerian state.' });
     if (!lgasOf(dto.state).includes(dto.lga))

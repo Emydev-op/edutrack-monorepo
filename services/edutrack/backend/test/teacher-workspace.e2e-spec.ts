@@ -308,6 +308,76 @@ describe('Teacher Workspace (e2e)', () => {
     });
   });
 
+  describe('class teachers and access', () => {
+    it('allows one class per class teacher', async () => {
+      const admin = authed(t, (await signIn(t, 'adaeze.okonkwo@greenfield.edu.ng')).token);
+      const okaforStaff = await t.prisma.staff.findFirstOrThrow({ where: { email: OKAFOR } });
+      const other = await t.prisma.classArm.findFirstOrThrow({
+        where: { name: 'A', level: { name: 'JSS 2' }, branch: { code: 'GFA-MC' } },
+      });
+      const res = await admin
+        .put(`/api/v1/academics/classes/arms/${other.id}`)
+        .send({ classTeacherId: okaforStaff.id });
+      expect(res.status).toBe(422);
+      expect(res.body.error.code).toBe('TEACHER_HAS_CLASS');
+      expect(res.body.message).toMatch(/already the class teacher of JSS 2B/);
+    });
+
+    it('keeps a replaced class teacher’s registers readable but not editable', async () => {
+      const day = await register(okafor);
+      const post = await t.prisma.classTeacherAssignment.findFirstOrThrow({
+        where: { staff: { email: OKAFOR }, endsOn: null },
+      });
+      // Mrs. Okafor hands JSS 2B to Mr. Ade today.
+      const ade = await t.prisma.staff.findFirstOrThrow({ where: { email: ADE } });
+      await t.prisma.classTeacherAssignment.update({
+        where: { id: post.id },
+        data: { endsOn: new Date(`${day.today}T00:00:00Z`) },
+      });
+      await t.prisma.classTeacherAssignment.deleteMany({
+        where: { staffId: ade.id, endsOn: null },
+      });
+      await t.prisma.classTeacherAssignment.create({
+        data: {
+          schoolId: post.schoolId,
+          sessionId: post.sessionId,
+          armId: post.armId,
+          staffId: ade.id,
+          startsOn: new Date(`${day.today}T00:00:00Z`),
+        },
+      });
+      const still = await register(okafor);
+      expect(still.arm).toBe('JSS 2B');
+      const date = still.editableDays[0];
+      if (date) {
+        const rows = still.rows as { studentId: string }[];
+        const res = await okafor
+          .put(`/api/v1/class-teacher/register/${date}`)
+          .send({ marks: rows.map((r) => ({ studentId: r.studentId, status: 'Present' })) });
+        expect(res.status).toBe(403);
+        expect(res.body.message).toMatch(/no longer the class teacher of JSS 2B/);
+      }
+    });
+
+    it('needs a staff record to open the Teacher Workspace', async () => {
+      const m = await t.prisma.schoolMembership.findFirstOrThrow({
+        where: { user: { email: OKAFOR } },
+      });
+      await t.prisma.schoolMembership.update({ where: { id: m.id }, data: { staffId: null } });
+      const res = await t
+        .http()
+        .post('/api/v1/auth/login')
+        .set('Host', HOST)
+        .set('X-EduTrack-Portal', 'teacher')
+        .send({ email: OKAFOR, password: 'Edutrack2026!' });
+      expect(res.status).toBe(403);
+      await t.prisma.schoolMembership.update({
+        where: { id: m.id },
+        data: { staffId: m.staffId },
+      });
+    });
+  });
+
   describe('portal isolation', () => {
     it('needs a Teacher Workspace session', async () => {
       const admin = authed(t, (await signIn(t, 'adaeze.okonkwo@greenfield.edu.ng')).token);

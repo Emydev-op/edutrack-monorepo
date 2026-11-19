@@ -36,10 +36,12 @@ const PROFILE_FIELDS: (keyof SchoolProfilePayload)[] = [
   'approvalNumber',
   'cacNumber',
   'certificate',
+  'brandColor',
 ];
 const FIELD_LABELS: Record<string, string> = {
   name: 'display name',
   motto: 'motto',
+  brandColor: 'brand colour',
   founded: 'year founded',
   logo: 'logo',
   email: 'email',

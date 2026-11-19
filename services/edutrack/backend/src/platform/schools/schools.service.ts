@@ -1,3 +1,4 @@
+import { brandColorProblem } from '@edutrack/shared';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { isNigerianState } from '@edutrack/shared';
@@ -125,17 +126,28 @@ export class SchoolsService {
       throw AppException.validation({ phone: 'Enter a phone number, like 0809 120 4400.' });
     if (!isNigerianState(dto.state))
       throw AppException.validation({ state: 'Select a Nigerian state.' });
-    await this.ensureNameFree(dto.name, id);
+    // Only a new name is checked, so a school can still edit its phone or colour if another school
+    // already shares its current name.
+    if (dto.name.toLowerCase() !== school.name.toLowerCase())
+      await this.ensureNameFree(dto.name, id);
+    // Only a new colour is checked, so an older stored colour doesn't block other edits.
+    const colour =
+      dto.brandColor && dto.brandColor.toUpperCase() !== school.brandColor?.toUpperCase()
+        ? brandColorProblem(dto.brandColor)
+        : null;
+    if (colour) throw AppException.validation({ brandColor: colour });
+    const brandColor = dto.brandColor ? dto.brandColor.toUpperCase() : school.brandColor;
     const changed: string[] = [];
     if (school.name !== dto.name) changed.push('name');
     if ((school.email ?? '') !== dto.contactEmail) changed.push('email');
     if ((school.phone ?? '') !== phone) changed.push('phone');
     if ((school.state ?? '') !== dto.state) changed.push('state');
+    if ((school.brandColor ?? '') !== (brandColor ?? '')) changed.push('brand colour');
     if (changed.length === 0) return this.view(school);
     await this.prisma.$transaction(async (tx) => {
       await tx.school.update({
         where: { id },
-        data: { name: dto.name, email: dto.contactEmail, phone, state: dto.state },
+        data: { name: dto.name, email: dto.contactEmail, phone, state: dto.state, brandColor },
       });
       await this.audit.record(
         {
@@ -151,8 +163,9 @@ export class SchoolsService {
             email: school.email,
             phone: school.phone,
             state: school.state,
+            brandColor: school.brandColor,
           },
-          after: { name: dto.name, email: dto.contactEmail, phone, state: dto.state },
+          after: { name: dto.name, email: dto.contactEmail, phone, state: dto.state, brandColor },
         },
         tx,
       );
@@ -239,7 +252,8 @@ export class SchoolsService {
       select: { before: true },
     });
     const previous = (lastSuspension?.before as { status?: string } | null)?.status;
-    const status = previous === 'ONBOARDING' ? 'ONBOARDING' : 'ACTIVE';
+    // Back to onboarding only if the school hadn't finished setup.
+    const status = previous === 'ONBOARDING' && !school.setupFinishedAt ? 'ONBOARDING' : 'ACTIVE';
     await this.prisma.$transaction(async (tx) => {
       await tx.school.update({
         where: { id },
@@ -424,26 +438,49 @@ export class SchoolsService {
         (await t.user.create({ data: { email: dto.email, firstName: firstName!, lastName } }));
       const existing = await t.schoolMembership.findUnique({
         where: { schoolId_userId_kind: { schoolId: id, userId: user.id, kind: 'STAFF' } },
-        select: { id: true },
+        select: { id: true, status: true },
       });
-      if (existing)
+      // Someone whose access was revoked or deactivated can be invited again (as in School
+      // Admin's Users & Roles); anyone current or already invited can't.
+      if (existing && !['DEACTIVATED', 'REVOKED'].includes(existing.status))
         throw AppException.conflict(
           `${dto.email} already has access to ${school.name}.`,
           'ALREADY_MEMBER',
         );
       const now = this.clock.now();
-      const membership = await t.schoolMembership.create({
-        data: {
-          schoolId: id,
-          userId: user.id,
-          kind: 'STAFF',
-          status: 'INVITED',
-          scope: branchId ? 'BRANCH' : 'SCHOOL',
-          invitedAt: now,
-          roles: { create: { roleId: role.id } },
-          ...(branchId && { branches: { create: { branchId } } }),
-        },
-      });
+      const access = {
+        status: 'INVITED' as const,
+        scope: branchId ? ('BRANCH' as const) : ('SCHOOL' as const),
+        invitedAt: now,
+      };
+      let membership: { id: string };
+      if (existing) {
+        await t.membershipRole.deleteMany({ where: { membershipId: existing.id } });
+        await t.membershipBranch.deleteMany({ where: { membershipId: existing.id } });
+        await t.invitation.updateMany({
+          where: { membershipId: existing.id, status: 'PENDING' },
+          data: { status: 'REVOKED' },
+        });
+        membership = await t.schoolMembership.update({
+          where: { id: existing.id },
+          data: {
+            ...access,
+            statusReason: null,
+            roles: { create: { roleId: role.id } },
+            ...(branchId && { branches: { create: { branchId } } }),
+          },
+        });
+      } else
+        membership = await t.schoolMembership.create({
+          data: {
+            schoolId: id,
+            userId: user.id,
+            kind: 'STAFF',
+            ...access,
+            roles: { create: { roleId: role.id } },
+            ...(branchId && { branches: { create: { branchId } } }),
+          },
+        });
       const invitation = await t.invitation.create({
         data: {
           kind: 'SCHOOL_STAFF',

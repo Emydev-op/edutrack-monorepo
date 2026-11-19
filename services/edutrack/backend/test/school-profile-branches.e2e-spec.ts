@@ -111,6 +111,22 @@ describe('School Admin profile and branches (e2e)', () => {
       );
     });
 
+    it('lets the school change its brand colour, but not to one too light for white text', async () => {
+      const current = (await admin.get('/api/v1/school/profile')).body.data;
+      const light = await admin
+        .put('/api/v1/school/profile')
+        .send({ ...payloadOf(current), brandColor: '#F5C542' });
+      expect(light.status).toBe(422);
+      expect(light.body.error.fields.brandColor).toMatch(/too light for white text/);
+      // The session (sign-in, refresh) carries the new colour.
+      await admin
+        .put('/api/v1/school/profile')
+        .send({ ...payloadOf(current), brandColor: '#2F6B4F' })
+        .expect(200);
+      const session = await signIn(t, 'adaeze.okonkwo@greenfield.edu.ng');
+      expect(session.body.data.school.brandColor).toBe('#2F6B4F');
+    });
+
     it('saves details, uploads, keeps and removes the logo, and records history', async () => {
       const current = (await admin.get('/api/v1/school/profile')).body.data;
       const res = await admin.put('/api/v1/school/profile').send({

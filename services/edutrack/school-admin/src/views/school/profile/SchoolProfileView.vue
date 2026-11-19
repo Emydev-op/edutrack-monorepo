@@ -104,7 +104,7 @@ const cards = computed(() => {
       title: 'Branding',
       rows: rows([
         ['Brand color', `${paletteName(p.brandColor)} · ${p.brandColor.toUpperCase()}`],
-        ['Set by', 'Edutrack · request changes from support'],
+        ['Applies to', 'School Admin, sign-in pages and every portal'],
       ]),
     },
   ];
