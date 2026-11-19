@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Clock, DAY } from '../common/clock/clock.js';
+import { isSubscriptionLocked, lapsedMessage } from '../common/subscription/subscription-lock.js';
 import { AppException } from '../common/errors/app.exception.js';
 import type { Env } from '../config/env.validation.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -74,16 +75,26 @@ export function opensPortal(m: MembershipWithSchool, portal: SchoolPortal): bool
   return keys.some((k) => k === null || !TEACHING_ONLY_ROLE_KEYS.has(k));
 }
 
-const isUsable = (m: MembershipWithSchool) =>
-  m.status === 'ACTIVE' && m.school.status !== 'SUSPENDED';
+/** School Admin stays open (view-only) on a lapsed subscription; the school's other portals close. */
+const lapsedFor = (m: MembershipWithSchool, portal: Portal) =>
+  portal !== 'SCHOOL_ADMIN' && isSubscriptionLocked(m.school.subscription?.status);
+
+const isUsable = (m: MembershipWithSchool, portal: Portal) =>
+  m.status === 'ACTIVE' && m.school.status !== 'SUSPENDED' && !lapsedFor(m, portal);
 
 /** Why a membership that opens the portal can't be used right now. */
-function blockOf(m: MembershipWithSchool): AppException {
+function blockOf(m: MembershipWithSchool, portal: Portal): AppException {
   if (m.school.status === 'SUSPENDED')
     return new AppException(
       HttpStatus.FORBIDDEN,
       `${m.school.name}’s access to EduTrack is suspended. Contact the school.`,
       'SCHOOL_SUSPENDED',
+    );
+  if (m.status === 'ACTIVE' && lapsedFor(m, portal))
+    return new AppException(
+      HttpStatus.FORBIDDEN,
+      lapsedMessage(m.school.name),
+      'SUBSCRIPTION_LAPSED',
     );
   switch (m.status) {
     case 'SUSPENDED':
@@ -107,7 +118,12 @@ function blockOf(m: MembershipWithSchool): AppException {
   }
 }
 
-const BLOCK_PRIORITY = ['SCHOOL_SUSPENDED', 'ACCOUNT_SUSPENDED', 'ACCOUNT_DEACTIVATED'];
+const BLOCK_PRIORITY = [
+  'SCHOOL_SUSPENDED',
+  'SUBSCRIPTION_LAPSED',
+  'ACCOUNT_SUSPENDED',
+  'ACCOUNT_DEACTIVATED',
+];
 
 const NO_ACCESS: Record<Portal, string> = {
   PLATFORM: 'This account doesn’t have access to the EduTrack back office.',
@@ -208,9 +224,9 @@ export class PortalAccessService {
       ? eligible.filter((m) => m.schoolId === target.schoolId)
       : eligible;
     if (scoped.length === 0) throw noAccess(portal);
-    const usable = scoped.filter(isUsable);
+    const usable = scoped.filter((m) => isUsable(m, portal));
     if (usable.length === 0) {
-      const blocks = scoped.map(blockOf);
+      const blocks = scoped.map((m) => blockOf(m, portal));
       blocks.sort(
         (a, b) => rank(a.code, BLOCK_PRIORITY) - rank(b.code, BLOCK_PRIORITY), // most final first
       );
@@ -221,7 +237,7 @@ export class PortalAccessService {
       [...usable].sort(
         (a, b) => (b.lastActiveAt?.getTime() ?? 0) - (a.lastActiveAt?.getTime() ?? 0),
       )[0]!;
-    return { portal, membership: chosen, choices: eligible.filter(isUsable) };
+    return { portal, membership: chosen, choices: eligible.filter((m) => isUsable(m, portal)) };
   }
 
   /**
@@ -247,7 +263,7 @@ export class PortalAccessService {
       include: membershipInclude,
     });
     if (!m || m.status === 'REVOKED') throw noAccess(portal);
-    if (!isUsable(m)) throw blockOf(m);
+    if (!isUsable(m, portal)) throw blockOf(m, portal);
     if (portal === 'PARENT') {
       if (!m.guardian || m.guardian.deletedAt || m.guardian.mergedIntoId) throw noAccess(portal);
       const children = await this.parentChildren(schoolId, m.guardian.id);

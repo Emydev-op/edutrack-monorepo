@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Clock } from '../../common/clock/clock.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { SupportService } from '../support/support.service.js';
-import { overdueInvoice } from '../subscriptions/subscriptions.service.js';
+import { GRACE_DAYS, overdueInvoice } from '../subscriptions/subscriptions.service.js';
 import { addDays, daysBetween, formatDay, formatNaira, lagosToday } from '../shared/format.js';
 import { PlatformAlertsService } from './platform-alerts.service.js';
 
@@ -27,6 +27,7 @@ export class DailyChecksService {
 
   async run() {
     const result = {
+      subscriptions: await this.moveSubscriptions(),
       invitationsExpired: await this.expireInvitations(),
       expiring: await this.subscriptionsExpiring(),
       overdue: await this.overdueInvoices(),
@@ -34,6 +35,86 @@ export class DailyChecksService {
     };
     this.logger.log({ msg: 'Daily back-office checks', ...result });
     return result;
+  }
+
+  /**
+   * Moves subscriptions along by date: Active → Expiring inside the renewal window, then a
+   * 14-day grace period once the renewal date passes (still fully open), then Expired, which
+   * makes School Admin view-only and closes the school's other portals. Restricted and Cancelled
+   * are only set by EduTrack staff; Extend and Reactivate bring a school back. The school's
+   * admins hear about the grace period and the expiry.
+   */
+  private async moveSubscriptions() {
+    const today = lagosToday(this.clock.now());
+    const moved = { expiring: 0, grace: 0, expired: 0 };
+    const subs = await this.prisma.subscription.findMany({
+      where: { status: { in: ['ACTIVE', 'EXPIRING', 'GRACE_PERIOD'] } },
+      include: { school: { select: { name: true } } },
+    });
+    for (const s of subs) {
+      const graceEnds = s.graceEndsOn ?? addDays(s.renewsOn, GRACE_DAYS);
+      const next =
+        s.renewsOn >= today
+          ? s.renewsOn <= addDays(today, EXPIRING_WINDOW_DAYS)
+            ? 'EXPIRING'
+            : 'ACTIVE'
+          : graceEnds >= today
+            ? 'GRACE_PERIOD'
+            : 'EXPIRED';
+      // Never back to Active by date alone: Extend and Reactivate do that.
+      if (next === s.status || next === 'ACTIVE') continue;
+      const { count } = await this.prisma.subscription.updateMany({
+        where: { id: s.id, status: s.status },
+        data: {
+          status: next,
+          ...(next === 'GRACE_PERIOD' && { graceEndsOn: graceEnds }),
+        },
+      });
+      if (!count) continue;
+      if (next === 'EXPIRING') moved.expiring++;
+      if (next === 'GRACE_PERIOD') {
+        moved.grace++;
+        await this.tellSchool(
+          s.schoolId,
+          'Subscription renewal is overdue',
+          `Renew by ${formatDay(graceEnds, { calendar: true })} to keep EduTrack open. After that, School Admin becomes view-only and teachers, parents and students can’t sign in.`,
+        );
+      }
+      if (next === 'EXPIRED') {
+        moved.expired++;
+        await this.tellSchool(
+          s.schoolId,
+          'Subscription expired',
+          'School Admin is view-only and teachers, parents and students can’t sign in until it’s renewed. Your data is safe. Raise a support ticket if you need help.',
+        );
+      }
+    }
+    return moved;
+  }
+
+  /** An in-app notice to the school's owners and admins (School Admin's bell). */
+  private async tellSchool(schoolId: string, title: string, body: string) {
+    const admins = await this.prisma.schoolMembership.findMany({
+      where: {
+        schoolId,
+        kind: 'STAFF',
+        status: 'ACTIVE',
+        roles: { some: { role: { key: { in: ['owner', 'school_admin'] }, archivedAt: null } } },
+      },
+      select: { userId: true },
+    });
+    const now = this.clock.now();
+    await this.prisma.notification.createMany({
+      data: admins.map((a) => ({
+        userId: a.userId,
+        schoolId,
+        category: 'subscription',
+        title,
+        body,
+        link: '/settings',
+        createdAt: now,
+      })),
+    });
   }
 
   /** Marks lapsed back-office invitations Expired and tells the people who manage users. */

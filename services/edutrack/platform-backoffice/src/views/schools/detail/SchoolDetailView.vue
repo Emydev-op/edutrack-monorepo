@@ -3,15 +3,12 @@ import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { computed, watch } from 'vue';
 import { RouterLink, RouterView, useRoute } from 'vue-router';
-import { messageOf } from '@edutrack/web-core/http';
-import { toast } from 'vue-sonner';
 
-import { useSchoolQuery, useStartSupportSessionMutation } from '@/api/services/schools';
+import { useSchoolQuery } from '@/api/services/schools';
 import EmptyState from '@edutrack/app-kit/components/common/EmptyState.vue';
 import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 import PageHeader from '@edutrack/app-kit/components/common/PageHeader.vue';
 import TabNav from '@edutrack/app-kit/components/common/TabNav.vue';
-import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 import { formatCount } from '@edutrack/app-kit/lib/format';
 import { routesPath } from '@/router/routes-path';
 import { useLayoutStore } from '@/stores/layout';
@@ -22,9 +19,7 @@ const route = useRoute();
 const id = computed(() => String(route.params.id));
 const { data: school, isPending, isError } = useSchoolQuery(id);
 const layout = useLayoutStore();
-const confirm = useConfirm();
 const { suspend, reactivate } = useSchoolActions();
-const supportSession = useStartSupportSessionMutation(id);
 
 watch(school, (s) => layout.setRecordLabel(s?.name ?? null), { immediate: true });
 
@@ -44,30 +39,6 @@ const tabs = computed(() =>
     active: route.name === name,
   })),
 );
-
-function startSupportSession() {
-  if (!school.value) return;
-  void confirm({
-    title: `Record a support session in ${school.value.name}?`,
-    description:
-      "This records that you're supporting the school, with your reason, in the school's audit log. Signing in to the school's workspace as support isn't available yet.",
-    details: [
-      ['Access', 'Read-only · 30 minutes'],
-      ['Recorded', 'Your name, the reason and the time, in the audit log'],
-    ],
-    input: {
-      label: 'Reason',
-      placeholder: 'e.g. SUP-1182: checking result approval state',
-      required: true,
-    },
-    acknowledgement: "I have the school's consent for this session",
-    confirmLabel: 'Record session',
-    action: async ({ text }) => {
-      const session = await supportSession.mutateAsync(text);
-      toast.success(messageOf(session, `Support session recorded for ${school.value?.name}.`));
-    },
-  });
-}
 </script>
 
 <template>
@@ -104,7 +75,13 @@ function startSupportSession() {
             >Create issue</RouterLink
           >
         </Button>
-        <Button variant="outline" @click="startSupportSession">Log in as school</Button>
+        <!-- Muted until EduTrack decides what support staff may do inside a school. -->
+        <Button
+          variant="outline"
+          disabled
+          title="Not available yet: signing in to a school as support is switched off for now."
+          >Log in as school</Button
+        >
         <Button v-if="school.status === 'Suspended'" @click="reactivate(school)">Reactivate</Button>
         <Button v-else variant="destructive-outline" @click="suspend([school])">Suspend</Button>
       </template>

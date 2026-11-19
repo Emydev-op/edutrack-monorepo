@@ -2,7 +2,7 @@ import { Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@n
 import { ApiOperation, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { IsIn, IsOptional } from 'class-validator';
 import type { AuthUserContext } from '../../auth/auth-context.js';
-import { Portals } from '../../auth/decorators/auth.decorators.js';
+import { Portals, OpenWhenLapsed } from '../../auth/decorators/auth.decorators.js';
 import { CurrentUser } from '../../common/decorators/request.decorators.js';
 import { ResponseMessage } from '../../common/http/api-response.js';
 import { PaginationQueryDto } from '../../common/pagination/pagination.js';
@@ -18,6 +18,7 @@ class InboxQuery extends PaginationQueryDto {
 /** School Admin's header bell, Communication › Inbox and sidebar counts. */
 @ApiTags('school inbox')
 @Portals('SCHOOL_ADMIN')
+@OpenWhenLapsed()
 @Controller()
 export class SchoolInboxController {
   constructor(private readonly inbox: SchoolInboxService) {}

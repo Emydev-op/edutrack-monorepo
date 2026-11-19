@@ -1,4 +1,9 @@
-import { createHttpClient, getApiErrorMessage, unwrapEnvelope } from '@edutrack/web-core/http';
+import {
+  createHttpClient,
+  getApiErrorCode,
+  getApiErrorMessage,
+  unwrapEnvelope,
+} from '@edutrack/web-core/http';
 import axios, { isAxiosError } from 'axios';
 import { toast } from 'vue-sonner';
 
@@ -66,6 +71,15 @@ if (env.useMocks) {
 // Server and network failures get a toast here; 4xx errors are shown by the screen that made the
 // request (inline errors, access notices, empty states), so they are not toasted twice.
 apiClient.interceptors.response.use(undefined, (error: unknown) => {
+  // The school's subscription lapsed while signed in: the workspace closes until it's renewed.
+  if (getApiErrorCode(error) === 'SUBSCRIPTION_LAPSED') {
+    const auth = useAuthStore();
+    if (auth.isAuthenticated) {
+      auth.clear();
+      void router.replace({ name: routesPath.auth.login.name, query: { reason: 'lapsed' } });
+    }
+    return Promise.reject(error);
+  }
   if (isAxiosError(error) && (!error.response || error.response.status >= 500)) {
     toast.error(getApiErrorMessage(error, 'The server did not respond. Try again in a moment.'));
   }
