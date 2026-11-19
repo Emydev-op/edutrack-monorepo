@@ -243,7 +243,8 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
       expect(unity.body.data[0]).toMatchObject({
         type: 'School',
         title: 'Unity Model College',
-        meta: expect.stringContaining('Grace period'),
+        // The daily checks above ran 8 days on, past the end of Unity's 7-day grace period.
+        meta: expect.stringContaining('Expired'),
         to: expect.stringMatching(/^\/schools\//),
       });
       const people = await api.get('/api/v1/platform/search?q=okafor');
