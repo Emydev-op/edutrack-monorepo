@@ -1,5 +1,6 @@
 import { plainToInstance, Transform } from 'class-transformer';
 import {
+  Matches,
   IsBoolean,
   IsEmail,
   IsEnum,
@@ -195,15 +196,21 @@ export class Env {
   SCHOOL_ADMIN_PORTAL_URL = 'http://admin.localhost';
 
   /** Teacher Workspace base URL; `{slug}` is replaced with the school's slug. */
-  @IsString()
+  @Matches(/^https?:\/\/[^/]*\{slug\}[^/]*\/teacher\/?$/, {
+    message: `TEACHER_PORTAL_URL_TEMPLATE must put {slug} in the host and end with /teacher, e.g. http://{slug}.localhost:5172/teacher (or https://{slug}.edutrack.ng/teacher when deployed)`,
+  })
   TEACHER_PORTAL_URL_TEMPLATE = 'http://{slug}.localhost/teacher';
 
   /** Parent Portal base URL; `{slug}` is replaced with the school's slug. */
-  @IsString()
+  @Matches(/^https?:\/\/[^/]*\{slug\}[^/]*\/parent\/?$/, {
+    message: `PARENT_PORTAL_URL_TEMPLATE must put {slug} in the host and end with /parent, e.g. http://{slug}.localhost:5174/parent (or https://{slug}.edutrack.ng/parent when deployed)`,
+  })
   PARENT_PORTAL_URL_TEMPLATE = 'http://{slug}.localhost/parent';
 
   /** Student Portal base URL (also printed on login slips); `{slug}` is the school's slug. */
-  @IsString()
+  @Matches(/^https?:\/\/[^/]*\{slug\}[^/]*\/student\/?$/, {
+    message: `STUDENT_PORTAL_URL_TEMPLATE must put {slug} in the host and end with /student, e.g. http://{slug}.localhost:5173/student (or https://{slug}.edutrack.ng/student when deployed)`,
+  })
   STUDENT_PORTAL_URL_TEMPLATE = 'http://{slug}.localhost/student';
 
   /* ---------- Mail and SMS ---------- */

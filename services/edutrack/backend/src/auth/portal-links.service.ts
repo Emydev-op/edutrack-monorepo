@@ -15,6 +15,11 @@ export class PortalLinksService {
       case Portal.SCHOOL_ADMIN:
         return this.config.get('SCHOOL_ADMIN_PORTAL_URL', { infer: true }).replace(/\/$/, '');
       default:
+        // A school portal lives on the school's own address; never send a link without it.
+        if (!schoolSlug)
+          throw new Error(
+            `A ${portal} link needs the school's address (slug), and none was given.`,
+          );
         return this.config
           .get(
             portal === Portal.PARENT
@@ -24,7 +29,7 @@ export class PortalLinksService {
                 : 'TEACHER_PORTAL_URL_TEMPLATE',
             { infer: true },
           )
-          .replace('{slug}', schoolSlug ?? '')
+          .replace('{slug}', schoolSlug)
           .replace(/\/$/, '');
     }
   }
