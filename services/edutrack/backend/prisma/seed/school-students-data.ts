@@ -343,6 +343,8 @@ export async function seedSchoolStudents(
     await prisma.studentDocument.deleteMany({
       where: { schoolId, studentId: { in: extraStudents } },
     });
+    // Class moves made while using the demo go too: every seeded student is back in their arm.
+    await prisma.armMove.deleteMany({ where: { schoolId } });
     await prisma.enrollment.deleteMany({ where: { schoolId, studentId: { in: extraStudents } } });
     await prisma.student.deleteMany({ where: { id: { in: extraStudents } } });
     await prisma.guardian.updateMany({

@@ -1,3 +1,4 @@
+import { covers, daysIn, type RollSpan } from '../shared/arm-roll.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { Clock } from '../../common/clock/clock.js';
@@ -144,10 +145,10 @@ export class RegisterService {
     return null;
   }
 
-  /** Who is on the roll on a date: enrolled in the arm by then. */
-  private async rollOn(sessionId: string, armId: string, date: string) {
-    const roll = await this.scope.roll(sessionId, [armId]);
-    return roll.filter((e) => isoDate(e.enrolledOn) <= date);
+  /** Who is on the roll on a date: in this arm that day (a student who moved is on each arm's
+   *  roll only for the days they were in it). */
+  private rollOn(sessionId: string, armId: string, date: string) {
+    return this.scope.rollOn(sessionId, armId, date);
   }
 
   private async day(
@@ -412,7 +413,7 @@ export class RegisterService {
           takenByStaff: { select: { title: true, firstName: true, lastName: true } },
         },
       }),
-      this.scope.roll(term.sessionId, [arm.id]),
+      this.scope.rollSpans(term.sessionId, [arm.id]),
     ]);
     const byDate = new Map(registers.map((r) => [isoDate(r.date), r]));
     const dayRows = [...days].reverse().map((date) => {
@@ -426,7 +427,7 @@ export class RegisterService {
         takenAt: r ? TeacherScopeService.local(r.takenAt) : null,
         ...c,
         percent: r ? attendanceRate(c) : null,
-        students: roll.filter((e) => isoDate(e.enrolledOn) <= date).length,
+        students: roll.filter((e) => covers(e.span, date)).length,
       };
     });
     const total = emptyCounts();
@@ -434,9 +435,10 @@ export class RegisterService {
       for (const k of ['present', 'absent', 'late', 'excused'] as const) total[k] += d[k];
     const daySet = new Set(days);
     const students = roll.map((e) => {
+      // A student who moved arms during the term shows here only for their days in this arm.
       const c = emptyCounts();
       for (const r of registers)
-        if (daySet.has(isoDate(r.date)))
+        if (daySet.has(isoDate(r.date)) && covers(e.span, isoDate(r.date)))
           for (const m of r.marks) if (m.studentId === e.studentId) c[KEY[m.mark]]++;
       const marked = c.present + c.absent + c.late + c.excused;
       return {
@@ -444,10 +446,10 @@ export class RegisterService {
         name: `${e.student.firstName} ${e.student.surname}`,
         admissionNo: e.student.admissionNo,
         ...c,
-        schoolDays: days.filter((d) => d >= isoDate(e.enrolledOn)).length,
+        schoolDays: daysIn(e.span, days).length,
         percent: attendanceRate(c),
         marked,
-        note: joinedLate(e.enrolledOn, term) ?? '',
+        note: spanNote(e, term) ?? '',
       };
     });
     const taken = dayRows.filter((d) => d.taken).length;
@@ -463,4 +465,14 @@ export class RegisterService {
       students,
     };
   }
+}
+
+/** "Joined on …", "Moved in on …" or "Moved out on …" for a student's stretch in an arm. */
+function spanNote(e: RollSpan, term: { startsOn: Date; endsOn: Date }): string | null {
+  const start = isoDate(term.startsOn);
+  const movedIn = e.armMoves.some((m) => isoDate(m.movedOn) === e.span.from);
+  if (e.span.to && e.span.to < isoDate(term.endsOn) && e.armMoves.length)
+    return `Moved to another class on ${dayLabel(addDays(e.span.to, 1))}`;
+  if (movedIn && e.span.from > start) return `Moved in on ${dayLabel(e.span.from)}`;
+  return joinedLate(e.enrolledOn, term);
 }

@@ -183,6 +183,7 @@ model School {
   studentDocuments         StudentDocument[]
   admissionApplications    AdmissionApplication[]
   enrollments              Enrollment[]
+  armMoves                 ArmMove[]
   subscription             Subscription?
   platformInvoices         PlatformInvoice[]
   supportSessions          SupportSession[]

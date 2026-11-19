@@ -438,7 +438,8 @@ model AdmissionApplication {
 }
 
 /// A student's place in one session: branch, level and (once placed) arm. The class history on
-/// the student page is these rows. Arm moves within a session update armId (audited).
+/// the student page is these rows. armId is the arm now; a move within the session also writes
+/// an ArmMove, so registers and rolls for earlier dates still show the arm they were in then.
 model Enrollment {
   id         String            @id @default(uuid(7)) @db.Uuid
   schoolId   String            @map("school_id") @db.Uuid
@@ -464,6 +465,7 @@ model Enrollment {
   level              ClassLevel          @relation(fields: [schoolId, levelId], references: [schoolId, id], onDelete: Restrict)
   arm                ClassArm?           @relation(fields: [schoolId, armId], references: [schoolId, id], onDelete: Restrict)
   promotionDecisions PromotionDecision[]
+  armMoves           ArmMove[]
 
   @@unique([schoolId, id])
   @@unique([studentId, sessionId])
@@ -471,4 +473,29 @@ model Enrollment {
   @@index([schoolId, sessionId, levelId])
   @@index([schoolId, sessionId, branchId])
   @@map("enrollments")
+}
+
+/// A student moved to another arm during a session (arm change, or a branch move). From
+/// `movedOn` they are on `toArmId`'s roll; before it, on `fromArmId`'s. Past registers, marks
+/// and attendance rates stay with the arm the student was in on each day.
+model ArmMove {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  schoolId     String   @map("school_id") @db.Uuid
+  enrollmentId String   @map("enrollment_id") @db.Uuid
+  fromArmId    String   @map("from_arm_id") @db.Uuid
+  /// Null when a branch move left them awaiting an arm at the new branch.
+  toArmId      String?  @map("to_arm_id") @db.Uuid
+  /// First day in the new arm.
+  movedOn      DateTime @map("moved_on") @db.Date
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  school     School     @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  enrollment Enrollment @relation(fields: [schoolId, enrollmentId], references: [schoolId, id], onDelete: Cascade)
+  fromArm    ClassArm   @relation("ArmMoveFrom", fields: [schoolId, fromArmId], references: [schoolId, id], onDelete: Cascade)
+  toArm      ClassArm?  @relation("ArmMoveTo", fields: [schoolId, toArmId], references: [schoolId, id], onDelete: Cascade)
+
+  @@index([schoolId, enrollmentId, movedOn])
+  @@index([schoolId, fromArmId])
+  @@index([schoolId, toArmId])
+  @@map("arm_moves")
 }

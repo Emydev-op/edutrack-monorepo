@@ -66,6 +66,12 @@ const attendanceRows = computed(() => {
     { label: 'Excused', value: a.excused },
   ];
 });
+
+const LEFT_REASON: Partial<Record<string, string>> = {
+  Transferred: 'Transferred to another school.',
+  Withdrawn: 'Withdrawn from the school.',
+  Graduated: 'Graduated.',
+};
 </script>
 
 <template>
@@ -83,7 +89,7 @@ const attendanceRows = computed(() => {
     <PageHeader
       :title="s.name"
       :initials="initials(s.name)"
-      :status="s.status === 'Transferred' ? 'Transferred' : undefined"
+      :status="s.status === 'Active' ? undefined : s.status"
       :description="`${s.armName} · ${s.branchName} · ${term?.label ?? ''}`"
       :meta="[
         { label: 'Admission no.', value: s.admissionNo },
@@ -94,7 +100,7 @@ const attendanceRows = computed(() => {
       v-if="s.leftOn"
       tone="warning"
       :title="`Left the school on ${formatDay(s.leftOn)}`"
-      description="Transferred to another school. Their records stay for history and are read-only."
+      :description="`${LEFT_REASON[s.status] ?? 'Left the school.'} Their records stay for history and are read-only.`"
     />
     <div class="grid gap-4 md:grid-cols-2">
       <KeyValueCard

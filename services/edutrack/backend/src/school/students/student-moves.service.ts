@@ -286,11 +286,23 @@ export class StudentMovesService {
     const to = enrollment && arm ? armLabel(enrollment.level.name, arm.name) : '';
     await this.db.$transaction(async (tx) => {
       await tx.student.update({ where: { id: s.id }, data: { branchId: branch.id } });
-      if (enrollment)
+      if (enrollment) {
         await tx.enrollment.update({
           where: { id: enrollment.id },
           data: { branchId: branch.id, armId: arm?.id ?? null },
         });
+        // Their days in the old arm stay with it (registers, attendance rates).
+        if (enrollment.armId && enrollment.armId !== arm?.id)
+          await tx.armMove.create({
+            data: {
+              schoolId: this.students.schoolId(),
+              enrollmentId: enrollment.id,
+              fromArmId: enrollment.armId,
+              toArmId: arm?.id ?? null,
+              movedOn: this.students.today(),
+            },
+          });
+      }
       await this.audit.record(
         {
           action: 'student.branch_transfer',
@@ -358,6 +370,17 @@ export class StudentMovesService {
     await this.db.$transaction(async (tx) => {
       for (const { s, e } of moving) {
         await tx.enrollment.update({ where: { id: e.id }, data: { armId: arm.id } });
+        // From today they're on the new arm's roll; earlier days stay with the old arm.
+        if (e.armId)
+          await tx.armMove.create({
+            data: {
+              schoolId: this.students.schoolId(),
+              enrollmentId: e.id,
+              fromArmId: e.armId,
+              toArmId: arm.id,
+              movedOn: this.students.today(),
+            },
+          });
         const from = classOf(e);
         await this.audit.record(
           {
