@@ -145,12 +145,14 @@ model Section {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  school           School             @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  school           School              @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   branches         BranchSection[]
   levels           ClassLevel[]
   electiveGroups   ElectiveGroup[]
   schemes          AssessmentScheme[]
   timetablePeriods TimetablePeriod[]
+  subjects         Subject[]
+  admins           MembershipSection[]
 
   @@unique([schoolId, id])
   @@unique([schoolId, code])
@@ -371,6 +373,7 @@ model ClassArm {
   invoices            Invoice[]
   enrollments         Enrollment[]
   movesOut            ArmMove[]                @relation("ArmMoveFrom")
+  curriculumArms      CurriculumArm[]
   movesIn             ArmMove[]                @relation("ArmMoveTo")
   resultSheets        ResultSheet[]
   resultPublications  ResultPublication[]
@@ -421,14 +424,18 @@ model Subject {
   name           String
   category       SubjectCategory
   status         SubjectStatus   @default(ACTIVE)
-  /// Default lessons per week; timetables place this many.
+  /// Default lessons per week; each class level (and arm) can set its own in the curriculum.
   periodsPerWeek Int             @default(4) @map("periods_per_week")
+  /// The section the subject belongs to (Nursery English and Senior Secondary English are
+  /// different subjects). Null: a shared subject, offered across sections.
+  sectionId      String?         @map("section_id") @db.Uuid
   departmentId   String?         @map("department_id") @db.Uuid
   createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   school              School                 @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   department          Department?            @relation(fields: [schoolId, departmentId], references: [schoolId, id], onDelete: Restrict)
+  section             Section?               @relation(fields: [schoolId, sectionId], references: [schoolId, id], onDelete: Restrict)
   qualifiedStaff      StaffQualification[]
   curriculum          CurriculumEntry[]
   electiveGroups      ElectiveGroupSubject[]
@@ -444,34 +451,59 @@ model Subject {
   @@unique([schoolId, id])
   @@unique([schoolId, code])
   @@index([schoolId, departmentId])
+  @@index([schoolId, sectionId])
   @@map("subjects")
 }
 
 /// Which subjects a level offers, compulsory or elective.
 model CurriculumEntry {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  schoolId  String   @map("school_id") @db.Uuid
+  id             String   @id @default(uuid(7)) @db.Uuid
+  schoolId       String   @map("school_id") @db.Uuid
   /// Each session keeps what it offered, so past report cards and transcripts list the right
   /// subjects. Copied into a new session and edited there.
-  sessionId String   @map("session_id") @db.Uuid
-  levelId   String   @map("level_id") @db.Uuid
-  subjectId String   @map("subject_id") @db.Uuid
-  offering  Offering
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessionId      String   @map("session_id") @db.Uuid
+  levelId        String   @map("level_id") @db.Uuid
+  subjectId      String   @map("subject_id") @db.Uuid
+  offering       Offering
+  /// Lessons per week at this level; null uses the subject's default.
+  periodsPerWeek Int?     @map("periods_per_week")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   school              School               @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   session             AcademicSession      @relation(fields: [schoolId, sessionId], references: [schoolId, id], onDelete: Restrict)
   level               ClassLevel           @relation(fields: [schoolId, levelId], references: [schoolId, id], onDelete: Restrict)
   subject             Subject              @relation(fields: [schoolId, subjectId], references: [schoolId, id], onDelete: Restrict)
+  /// Only these arms take it (e.g. Chemistry in SS 1 A Science). None: every arm of the level.
+  arms                CurriculumArm[]
   teachingAssignments TeachingAssignment[]
   resultSheets        ResultSheet[]
 
   @@unique([sessionId, levelId, subjectId])
   // Target for sheets and teaching assignments: the subject was offered at that level that session.
   @@unique([schoolId, sessionId, levelId, subjectId])
+  @@unique([schoolId, id])
   @@index([schoolId, subjectId])
   @@map("curriculum_entries")
+}
+
+/// A curriculum subject offered only in some arms of its level (SS 1 A Science takes Further
+/// Mathematics, SS 1 B Arts takes Literature), with that arm's lessons per week if different.
+model CurriculumArm {
+  schoolId       String   @map("school_id") @db.Uuid
+  entryId        String   @map("entry_id") @db.Uuid
+  armId          String   @map("arm_id") @db.Uuid
+  /// Null uses the level's (or the subject's) lessons per week.
+  periodsPerWeek Int?     @map("periods_per_week")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  school School          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  entry  CurriculumEntry @relation(fields: [schoolId, entryId], references: [schoolId, id], onDelete: Cascade)
+  arm    ClassArm        @relation(fields: [schoolId, armId], references: [schoolId, id], onDelete: Cascade)
+
+  @@id([entryId, armId])
+  @@index([schoolId, armId])
+  @@map("curriculum_arms")
 }
 
 /// A choose-n-of group in a section, e.g. Religious Studies (CRS or IRS), pick 1.
@@ -553,6 +585,9 @@ model TeachingAssignment {
   subjectId      String                 @map("subject_id") @db.Uuid
   staffId        String                 @map("staff_id") @db.Uuid
   type           TeachingAssignmentType @default(SUBJECT_TEACHER)
+  /// The lead teacher submits the class's results and owns its timetable lessons; co-teachers
+  /// (lead = false) share the class and enter scores with them.
+  lead           Boolean                @default(true)
   /// Lessons per week for this arm (defaults to the subject's periods).
   periodsPerWeek Int                    @map("periods_per_week")
   createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -568,8 +603,9 @@ model TeachingAssignment {
   assessmentSchedules AssessmentSchedule[]
 
   @@unique([schoolId, id])
-  // One teacher per subject per arm per term.
-  @@unique([termId, armId, subjectId])
+  // One lead teacher per subject per arm per term, and any number of co-teachers.
+  @@unique([termId, armId, subjectId], map: "teaching_assignments_one_lead_key", where: raw("lead"))
+  @@unique([termId, armId, subjectId, staffId])
   @@index([schoolId, termId, staffId])
   @@index([schoolId, termId, subjectId])
   @@map("teaching_assignments")

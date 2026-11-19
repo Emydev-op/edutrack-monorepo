@@ -1,3 +1,5 @@
+import { offeredInArm } from '../academics/academic-catalog.service.js';
+import { SectionAccessService } from '../shared/section-access.service.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { TimetableStatus } from '../../generated/prisma/enums.js';
 import { AcademicCatalogService, type ArmInfo } from '../academics/academic-catalog.service.js';
@@ -42,6 +44,7 @@ export class TimetableService {
   constructor(
     private readonly catalog: AcademicCatalogService,
     private readonly audit: SchoolAuditService,
+    private readonly sectionAccess: SectionAccessService,
   ) {}
 
   private get db() {
@@ -139,8 +142,9 @@ export class TimetableService {
         },
       }),
       this.catalog.offeredByLevel(session.id),
+      // Lessons belong to each subject's lead teacher.
       this.db.teachingAssignment.findMany({
-        where: { termId: term.id, armId: arm.id },
+        where: { termId: term.id, armId: arm.id, lead: true },
         include: { staff: { select: { title: true, firstName: true, lastName: true } } },
       }),
       this.busy(term.id, arm, periods),
@@ -165,7 +169,7 @@ export class TimetableService {
         isBreak: p.isBreak,
       })),
       grid,
-      palette: (offered.get(arm.levelId) ?? []).map((s) => {
+      palette: offeredInArm(offered.get(arm.levelId), arm.id).map((s) => {
         const a = assignments.find((x) => x.subjectId === s.subjectId);
         return {
           code: s.code,
@@ -256,7 +260,7 @@ export class TimetableService {
     const [periods, subjects, assignments] = await Promise.all([
       this.periods(schoolId, arm.sectionId, tx),
       tx.subject.findMany({ where: { code: { in: [...new Set(Object.values(grid))] } } }),
-      tx.teachingAssignment.findMany({ where: { termId, armId: arm.id } }),
+      tx.teachingAssignment.findMany({ where: { termId, armId: arm.id, lead: true } }),
     ]);
     await tx.timetableSlot.deleteMany({ where: { timetableId: ttId, layer: 'DRAFT' } });
     await tx.timetableSlot.createMany({
@@ -278,6 +282,7 @@ export class TimetableService {
   }
 
   async save(p: { armId: string; termId?: string; grid?: Grid }) {
+    await this.sectionAccess.requireArm(p.armId, 'timetables');
     const { term } = await this.requireTerm(p.termId);
     requireOpenTerm(term);
     const grid = p.grid ?? {};
@@ -300,6 +305,7 @@ export class TimetableService {
    * lesson of a subject per day first, then doubles if it still needs more.
    */
   async suggest(p: { armId: string; termId?: string; grid?: Grid }) {
+    await this.sectionAccess.requireArm(p.armId, 'timetables');
     const { term } = await this.requireTerm(p.termId);
     requireOpenTerm(term);
     const v = await this.view(p.armId, term.id);
@@ -336,6 +342,7 @@ export class TimetableService {
 
   /** Starts this term's draft from another term's timetable for the same arm. */
   async copy(p: { armId: string; termId?: string; fromTermId: string }) {
+    await this.sectionAccess.requireArm(p.armId, 'timetables');
     const { term } = await this.requireTerm(p.termId);
     requireOpenTerm(term);
     const source = await this.db.timetable.findFirst({
@@ -365,6 +372,7 @@ export class TimetableService {
   }
 
   async act(action: string, p: { armId: string; termId?: string }) {
+    await this.sectionAccess.requireArm(p.armId, 'timetables');
     const { term } = await this.requireTerm(p.termId);
     requireOpenTerm(term);
     const v = await this.view(p.armId, term.id);

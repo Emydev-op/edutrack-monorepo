@@ -1,10 +1,28 @@
-import type { AxiosRequestConfig } from 'axios';
+import { isAxiosError, type AxiosRequestConfig } from 'axios';
 
 import { apiClient } from './client';
 
 export async function getRequest<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
   const { data } = await apiClient.get<T>(url, config);
   return data;
+}
+
+/** A raw file (not the JSON envelope), e.g. an Excel template. Sent with the user's token. */
+export async function getBlob(url: string, config?: AxiosRequestConfig): Promise<Blob> {
+  try {
+    const { data } = await apiClient.get<Blob>(url, { ...config, responseType: 'blob' });
+    return data;
+  } catch (error) {
+    // Errors come back as a Blob too; parse it so getApiErrorMessage() can read the message.
+    if (isAxiosError(error) && error.response?.data instanceof Blob) {
+      try {
+        error.response.data = JSON.parse(await error.response.data.text());
+      } catch {
+        // Not JSON: keep the generic message.
+      }
+    }
+    throw error;
+  }
 }
 
 export async function postRequest<T, B = unknown>(

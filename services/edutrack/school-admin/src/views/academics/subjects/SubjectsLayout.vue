@@ -17,6 +17,7 @@ import SetupStepBar from '@/components/academics/SetupStepBar.vue';
 import { routesPath } from '@/router/routes-path';
 
 import SubjectDrawer from './SubjectDrawer.vue';
+import SubjectImportDialog from './SubjectImportDialog.vue';
 
 const a = routesPath.academics;
 const route = useRoute();
@@ -24,6 +25,7 @@ const { data: view, isPending } = useCurriculumQuery();
 const applyDefaults = useApplyDefaultSubjectsMutation();
 const startedBlank = ref(false);
 const adding = ref(false);
+const importing = ref(false);
 
 const noLevels = computed(() => !!view.value && !view.value.levels.length);
 const choosing = computed(
@@ -79,6 +81,7 @@ async function useSuggested() {
     description="Your school owns its curriculum. Offerings are set per session, so changing them never rewrites past sessions."
   >
     <template #actions>
+      <Button variant="outline" :disabled="noLevels" @click="importing = true">Bulk upload</Button>
       <Button :disabled="noLevels" @click="adding = true">Add subject</Button>
     </template>
   </PageHeader>
@@ -147,5 +150,6 @@ async function useSuggested() {
     </template>
   </template>
 
-  <SubjectDrawer v-if="view" v-model:open="adding" :subject="null" :subjects="view.subjects" />
+  <SubjectDrawer v-if="view" v-model:open="adding" :subject="null" :view="view" />
+  <SubjectImportDialog v-if="view" v-model:open="importing" :view="view" />
 </template>

@@ -35,6 +35,20 @@ export class AccessDto {
   @ArrayMaxSize(50)
   @IsArray({ message: 'Choose at least one branch.' })
   branches!: string[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['Nursery', 'Primary'],
+    description:
+      'Academic sections this person manages (their names). Empty or left out: every section. ' +
+      'A section admin only changes their sections’ classes, subjects, curriculum, assignments and timetables.',
+  })
+  @IsOptional()
+  @MaxLength(80, { each: true })
+  @IsString({ each: true, message: 'One of those sections doesn’t exist.' })
+  @ArrayMaxSize(20)
+  @IsArray()
+  sections?: string[];
 }
 
 export class InviteUserDto extends AccessDto {

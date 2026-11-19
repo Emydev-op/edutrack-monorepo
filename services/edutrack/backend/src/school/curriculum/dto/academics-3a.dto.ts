@@ -46,9 +46,19 @@ export class SubjectInputDto {
   @IsIn(['Active', 'Inactive'])
   status?: 'Active' | 'Inactive';
 
-  @ApiProperty({ example: 5, description: 'Lessons per week, 1–10' })
+  @ApiProperty({ example: 5, description: 'Default lessons per week, 1–10' })
   @IsInt({ message: 'Lessons per week must be between 1 and 10.' })
   periods!: number;
+
+  @ApiPropertyOptional({
+    example: 'Junior Secondary',
+    nullable: true,
+    description: 'The section it belongs to (its name). Empty or null: shared by every section.',
+  })
+  @IsOptional()
+  @MaxLength(80)
+  @IsString()
+  section?: string | null;
 }
 
 export class ElectiveGroupDto {
@@ -100,6 +110,27 @@ export class SaveCurriculumDto {
   @Type(() => ElectiveGroupDto)
   @IsArray()
   groups!: ElectiveGroupDto[];
+
+  @ApiPropertyOptional({
+    type: Object,
+    description:
+      'Lessons per week where a level differs from the subject’s default: section → level → code → 1–10',
+    example: { Primary: { 'Primary 1': { MTH: 6 } } },
+  })
+  @IsOptional()
+  @IsObject()
+  periods?: Record<string, Record<string, Record<string, number>>>;
+
+  @ApiPropertyOptional({
+    type: Object,
+    description:
+      'Subjects only some arms take: section → level → code → arm id → lessons per week ' +
+      '(null: the level’s). A subject not listed here is taken by every arm.',
+    example: { 'Senior Secondary': { 'SS 1': { CHE: { '<armId>': null } } } },
+  })
+  @IsOptional()
+  @IsObject()
+  arms?: Record<string, Record<string, Record<string, Record<string, number | null>>>>;
 }
 
 /* ---------------- Teacher assignments ---------------- */
@@ -121,6 +152,17 @@ export class AssignmentInputDto {
   @IsOptional()
   @IsIn(['Subject teacher', 'Temporary', 'Part-time'], { message: 'Choose the assignment type.' })
   type?: string;
+
+  @ApiPropertyOptional({
+    enum: ['Lead', 'Co-teacher'],
+    default: 'Lead',
+    description:
+      'Lead replaces the class’s lead teacher for the subject; a co-teacher joins them (both see ' +
+      'the class and enter scores; the lead submits results).',
+  })
+  @IsOptional()
+  @IsIn(['Lead', 'Co-teacher'], { message: 'Choose lead or co-teacher.' })
+  role?: 'Lead' | 'Co-teacher';
 }
 
 /* ---------------- Timetable ---------------- */

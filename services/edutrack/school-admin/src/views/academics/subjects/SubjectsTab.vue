@@ -6,6 +6,7 @@ import { computed, ref } from 'vue';
 import { toast } from 'vue-sonner';
 
 import DataTable, { type Column } from '@edutrack/app-kit/components/common/DataTable.vue';
+import FilterMenu from '@edutrack/app-kit/components/common/FilterMenu.vue';
 import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 import type { RowAction } from '@edutrack/app-kit/components/common/RowActions.vue';
 import SearchInput from '@edutrack/app-kit/components/common/SearchInput.vue';
@@ -21,16 +22,23 @@ const emit = defineEmits<{ add: [] }>();
 const confirm = useConfirm();
 const remove = useDeleteSubjectMutation();
 const search = ref('');
+const sectionFilter = ref('');
 const editing = ref<Subject | null>(null);
 const open = ref(false);
 
+const SHARED = 'Shared';
+const sectionLabel = (s: Subject) => s.section ?? SHARED;
+const sectionNames = computed(() => props.view.levels.map((l) => l.section));
+const sectionOptions = computed(() => [SHARED, ...sectionNames.value]);
 const rows = computed(() => {
   const q = search.value.trim().toLowerCase();
   return props.view.subjects.filter(
     (s) =>
-      !q || `${s.code} ${s.name} ${s.category} ${s.teachers.join(' ')}`.toLowerCase().includes(q),
+      (!sectionFilter.value || sectionLabel(s) === sectionFilter.value) &&
+      (!q || `${s.code} ${s.name} ${s.category} ${s.teachers.join(' ')}`.toLowerCase().includes(q)),
   );
 });
+const LOCKED = 'You manage other sections';
 const unused = computed(() =>
   props.view.subjects.filter((s) => s.status === 'Active' && !s.levels.length),
 );
@@ -50,6 +58,7 @@ function levelSummary(s: Subject) {
 }
 
 function edit(s: Subject) {
+  if (!s.canEdit) return;
   editing.value = s;
   open.value = true;
 }
@@ -72,12 +81,26 @@ function del(s: Subject) {
   });
 }
 const actions = (s: Subject): RowAction[] => [
-  { label: 'Edit subject', icon: PencilIcon, onSelect: () => edit(s) },
-  { label: 'Delete subject', icon: Trash2Icon, destructive: true, onSelect: () => del(s) },
+  {
+    label: 'Edit subject',
+    icon: PencilIcon,
+    onSelect: () => edit(s),
+    disabled: !s.canEdit,
+    disabledReason: LOCKED,
+  },
+  {
+    label: 'Delete subject',
+    icon: Trash2Icon,
+    destructive: true,
+    onSelect: () => del(s),
+    disabled: !s.canEdit,
+    disabledReason: LOCKED,
+  },
 ];
 const columns: Column[] = [
   { key: 'code', label: 'Code', width: '76px' },
   { key: 'name', label: 'Subject', width: 'minmax(180px,1.5fr)' },
+  { key: 'section', label: 'Section', width: 'minmax(120px,0.9fr)' },
   { key: 'category', label: 'Category', width: '120px' },
   { key: 'levels', label: 'Levels', width: 'minmax(170px,1.4fr)' },
   { key: 'teachers', label: 'Teachers', width: 'minmax(170px,1.4fr)' },
@@ -101,14 +124,17 @@ const columns: Column[] = [
     :row-key="(s) => s.code"
     :row-label="(s) => s.name"
     :actions="actions"
-    min-width="980px"
+    min-width="1100px"
     :empty-text="
       view.subjects.length
-        ? 'No subjects match your search.'
+        ? 'No subjects match your search or filter.'
         : 'No subjects yet. Add them one by one.'
     "
   >
     <template #search><SearchInput v-model="search" placeholder="Search subjects" /></template>
+    <template v-if="sectionNames.length > 1" #filters>
+      <FilterMenu v-model="sectionFilter" label="Section" :options="sectionOptions" />
+    </template>
     <template #toolbar>
       <Button variant="outline" size="sm" @click="emit('add')">Add subject</Button>
     </template>
@@ -116,10 +142,23 @@ const columns: Column[] = [
       ><span class="font-mono text-xs font-semibold">{{ row.code }}</span></template
     >
     <template #cell-name="{ row }"
-      ><button type="button" class="text-left font-medium hover:text-primary" @click="edit(row)">
+      ><button
+        v-if="row.canEdit"
+        type="button"
+        class="text-left font-medium hover:text-primary"
+        @click="edit(row)"
+      >
         {{ row.name }}
-      </button></template
+      </button>
+      <span v-else class="font-medium" :title="LOCKED">{{ row.name }}</span></template
     >
+    <template #cell-section="{ row }">
+      <StatusBadge
+        :label="row.section ?? 'Shared'"
+        :tone="row.section ? 'info' : 'neutral'"
+        :title="row.section ? undefined : 'Shared by every section'"
+      />
+    </template>
     <template #cell-levels="{ row }">
       <span :class="!row.levels.length && 'text-warning-strong'">{{ levelSummary(row) }}</span>
     </template>
@@ -134,5 +173,5 @@ const columns: Column[] = [
     </template>
     <template #cell-status="{ row }"><StatusBadge :label="row.status" /></template>
   </DataTable>
-  <SubjectDrawer v-model:open="open" :subject="editing" :subjects="view.subjects" />
+  <SubjectDrawer v-model:open="open" :subject="editing" :view="view" />
 </template>

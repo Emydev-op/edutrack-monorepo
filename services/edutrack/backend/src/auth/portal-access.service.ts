@@ -20,6 +20,7 @@ export const membershipInclude = {
   staff: { include: { department: true } },
   roles: { include: { role: true } },
   branches: { select: { branchId: true } },
+  sections: { select: { section: { select: { name: true } } } },
   guardian: true,
   student: true,
 } satisfies Prisma.SchoolMembershipInclude;

@@ -7,6 +7,8 @@ export interface AuthUser {
   position: string;
   roleName: string;
   avatarUrl: string | null;
+  /** Sections they manage; null = every section. */
+  sections: string[] | null;
 }
 
 /** The school (tenant) the signed-in user works in. */

@@ -6,9 +6,12 @@
  * Setup Center.
  */
 import type {
+  CurriculumArms,
+  CurriculumPeriods,
   AcademicSession,
   AssessmentConfig,
   AssessmentScheme,
+  AssignmentRole,
   AssignmentType,
   CalendarEvent,
   CorrectionStatus,
@@ -62,6 +65,8 @@ export interface SubjectRec {
   category: SubjectCategory;
   status: 'Active' | 'Inactive';
   periods: number;
+  /** Section name; unset/null = shared by every section. */
+  section?: string | null;
 }
 
 export interface TeacherRec {
@@ -80,6 +85,8 @@ export interface AssignmentRec {
   subject: string;
   armId: string;
   type: AssignmentType;
+  /** Unset = Lead. */
+  role?: AssignmentRole;
 }
 
 export interface TimetableRec {
@@ -174,6 +181,10 @@ export interface AcademicsData {
   levels: LevelRec[];
   subjects: SubjectRec[];
   curriculum: Record<string, Record<string, Record<string, Offering>>>;
+  /** Lessons per week where a level differs from the subject's default (unset = none). */
+  periods?: CurriculumPeriods;
+  /** Subjects only some arms take (unset = none). */
+  arms?: CurriculumArms;
   groups: ElectiveGroup[];
   teachers: TeacherRec[];
   assignments: AssignmentRec[];

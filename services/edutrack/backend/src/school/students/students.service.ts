@@ -143,9 +143,11 @@ export class StudentsService {
   /* ---------------- List ---------------- */
 
   async list(query: StudentQueryDto) {
+    // The header's branch switcher: only that campus's students.
+    const branchName = query.branch && query.branch !== 'All branches' ? query.branch : null;
     const [students, session, balances] = await Promise.all([
       this.db.student.findMany({
-        where: { deletedAt: null },
+        where: { deletedAt: null, ...(branchName && { branch: { name: branchName } }) },
         include: studentInclude,
         orderBy: [{ surname: 'asc' }, { firstName: 'asc' }, { admissionNo: 'asc' }],
       }),

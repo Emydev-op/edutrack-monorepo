@@ -9,7 +9,7 @@ import {
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { BellIcon, ChevronDownIcon, LogOutIcon, UserIcon } from '@lucide/vue';
 import { useQueryClient } from '@tanstack/vue-query';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 
 import InitialsAvatar from '@edutrack/app-kit/components/common/InitialsAvatar.vue';
@@ -25,6 +25,13 @@ const queryClient = useQueryClient();
 const confirm = useConfirm();
 const logout = useLogoutMutation();
 const signingOut = ref(false);
+
+/** "Primary admin", or "Nursery, Primary" for several; nothing for whole-school admins. */
+const sectionsLabel = computed(() => {
+  const list = auth.user?.sections;
+  if (!list?.length) return '';
+  return list.length === 1 ? `${list[0]} admin` : list.join(', ');
+});
 
 const links = [
   {
@@ -78,7 +85,7 @@ function signOut() {
       <span class="flex min-w-0 flex-col max-lg:hidden">
         <span class="truncate text-[13px] leading-tight font-medium">{{ auth.fullName }}</span>
         <span class="truncate text-xs text-faint"
-          >{{ auth.user?.position }} · {{ auth.user?.roleName }}</span
+          >{{ auth.user?.position }} · {{ sectionsLabel || auth.user?.roleName }}</span
         >
       </span>
       <ChevronDownIcon class="size-3.5 text-muted-foreground max-lg:hidden" />
@@ -91,6 +98,9 @@ function signOut() {
           <span class="text-xs text-muted-foreground"
             >{{ auth.user?.position }} · {{ auth.user?.roleName }}</span
           >
+          <span v-if="sectionsLabel" class="text-xs text-muted-foreground">{{
+            sectionsLabel
+          }}</span>
           <span class="truncate text-xs text-faint">{{ auth.user?.email }}</span>
         </div>
       </div>

@@ -41,6 +41,11 @@ const scopeText = computed(() =>
     : '',
 );
 
+/** Empty = every section. */
+const sectionsText = computed(() =>
+  user.value?.sections?.length ? user.value.sections.join(', ') : 'All sections',
+);
+
 function run(action: UserAction, request: Omit<ConfirmRequest, 'action'>, done: string) {
   void confirm({
     ...request,
@@ -184,6 +189,7 @@ const account = computed(() => [
       :meta="[
         { label: 'Roles', value: user.roles.join(', ') || 'None' },
         { label: 'Scope', value: scopeText },
+        { label: 'Sections', value: sectionsText },
       ]"
     >
       <template #actions>
@@ -240,6 +246,7 @@ const account = computed(() => [
             value:
               user.scope === 'School' ? 'Whole school' : `Branch · ${user.branches.join(', ')}`,
           },
+          { label: 'Sections', value: sectionsText },
         ]"
       >
         <template v-if="['Active', 'Invited'].includes(user.status)" #action>

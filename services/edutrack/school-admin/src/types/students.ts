@@ -25,6 +25,8 @@ export interface StudentQuery extends PageQuery {
   status?: string;
   className?: string;
   gender?: string;
+  /** The header's branch; "All branches" (or none) for every branch. */
+  branch?: string;
 }
 
 export interface StudentGuardianLink {

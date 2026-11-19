@@ -70,6 +70,8 @@ export function schoolAdminUser(user: User, m: MembershipWithSchool) {
     roleName: roles[0]?.name ?? '',
     roles: roles.map((r) => r.name),
     avatarUrl: null as string | null,
+    /** The academic sections they manage; null for every section. */
+    sections: m.sections.length ? m.sections.map((s) => s.section.name) : null,
   };
 }
 
@@ -173,6 +175,7 @@ export function membershipView(m: MembershipWithSchool) {
     kind: m.kind,
     scope: m.scope,
     branchIds: m.branches.map((b) => b.branchId),
+    sectionNames: m.sections.map((s) => s.section.name),
     roles: roles.map((r) => ({ id: r.id, key: r.key, name: r.name })),
     permissions: flattenPermissions(roles.map((r) => r.permissions)),
   };

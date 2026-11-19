@@ -24,6 +24,7 @@ const initial = () => ({
   roles: [...props.user.roles],
   scope: props.user.scope as AccessScope,
   branches: [...props.user.branches],
+  sections: [...(props.user.sections ?? [])],
 });
 const form = reactive(initial());
 const showErrors = ref(false);
@@ -35,6 +36,8 @@ watch(open, (o) => {
   serverError.value = '';
 });
 
+/** The school's sections, set in Academics → Academic Sections. */
+const schoolSections = computed(() => branches.value?.offering ?? []);
 const activeBranches = computed(() =>
   (branches.value?.branches ?? []).filter((b) => b.status === 'Active').map((b) => b.name),
 );
@@ -60,6 +63,7 @@ async function submit() {
       roles: form.roles,
       scope: form.scope,
       branches: form.scope === 'Branch' ? form.branches : [],
+      sections: form.sections,
     });
     open.value = false;
     toast.success(messageOf(result, `${props.user.name}’s access updated.`));
@@ -107,6 +111,17 @@ async function submit() {
         required
         :options="activeBranches"
         :error="err('branches')"
+      />
+      <ChipGroup
+        v-if="schoolSections.length"
+        v-model="form.sections"
+        label="Sections they manage"
+        :options="schoolSections"
+        :hint="
+          form.sections.length
+            ? `They can only change ${form.sections.join(', ')} records.`
+            : 'None picked: every section.'
+        "
       />
       <p
         v-if="added.length || removed.length"

@@ -17,7 +17,9 @@ const findUser = (data: SchoolData, id: string) => {
 
 const isYou = (data: SchoolData, u: UserRow) => u.staffId === data.adminStaffId;
 
-mock.get('/v1/users', (req) => schoolDataFor(req).data.users);
+const withSections = (u: UserRow) => ({ ...u, sections: u.sections ?? [] });
+
+mock.get('/v1/users', (req) => schoolDataFor(req).data.users.map(withSections));
 
 mock.get('/v1/users/:id', (req) => {
   const { data } = schoolDataFor(req);
@@ -33,7 +35,7 @@ mock.get('/v1/users/:id', (req) => {
       : null;
   }).filter((x): x is [string, string] => !!x);
   return {
-    ...u,
+    ...withSections(u),
     isYou: isYou(data, u),
     staffNumber: data.staff.find((s) => s.id === u.staffId)?.staffNumber ?? null,
     can,
@@ -90,6 +92,7 @@ mock.post('/v1/users/invitations', (req) => {
     roles: p.roles,
     scope: p.scope,
     branches: p.scope === 'Branch' ? p.branches : [],
+    sections: p.sections ?? [],
     status: 'Invited',
     lastActive: '—',
     created: 'Today',
@@ -108,7 +111,7 @@ mock.post('/v1/users/invitations', (req) => {
     `Invited as ${p.roles.join(', ')}`,
     p.scope === 'School' ? 'Whole school' : p.branches.join(', '),
   );
-  return user;
+  return withSections(user);
 });
 
 mock.patch('/v1/users/:id/access', (req) => {
@@ -124,6 +127,7 @@ mock.patch('/v1/users/:id/access', (req) => {
     roles: p.roles,
     scope: p.scope,
     branches: p.scope === 'Branch' ? p.branches : [],
+    ...(p.sections && { sections: p.sections }),
   });
   log(
     `User:${u.id}`,
@@ -136,7 +140,7 @@ mock.patch('/v1/users/:id/access', (req) => {
       .filter(Boolean)
       .join(' · '),
   );
-  return u;
+  return withSections(u);
 });
 
 type UserAction = 'suspend' | 'reactivate' | 'deactivate' | 'password-reset' | 'resend' | 'revoke';

@@ -1,3 +1,4 @@
+import { SectionAccessService } from '../shared/section-access.service.js';
 import { Injectable } from '@nestjs/common';
 import { TenantPrismaService } from '../../tenancy/tenant-prisma.service.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
@@ -25,6 +26,7 @@ export class SectionsService {
     private readonly tenant: TenantPrismaService,
     private readonly structure: AcademicStructureService,
     private readonly audit: SchoolAuditService,
+    private readonly sectionAccess: SectionAccessService,
   ) {}
 
   async view(): Promise<SectionsView> {
@@ -40,6 +42,7 @@ export class SectionsService {
    * the section's id); removed sections leave their branches; a section with class levels can't go.
    */
   async save(schoolId: string, input: SectionInputDto[]): Promise<SectionsView> {
+    await this.sectionAccess.require(null, 'the school’s sections');
     if (!input.length) throw fail('Add at least one section.', 'SECTIONS_REQUIRED');
     const names = new Set<string>();
     const codes = new Set<string>();

@@ -158,6 +158,8 @@ export interface UserRow {
   roles: string[];
   scope: 'School' | 'Branch';
   branches: string[];
+  /** Sections they manage; unset/empty = every section. */
+  sections?: string[];
   status: UserStatus;
   lastActive: string;
   created: string;

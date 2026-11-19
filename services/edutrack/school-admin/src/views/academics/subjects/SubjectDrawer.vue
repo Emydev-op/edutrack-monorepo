@@ -12,20 +12,34 @@ import SideDrawer from '@edutrack/app-kit/components/overlays/SideDrawer.vue';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 
 import { useDeleteSubjectMutation, useSaveSubjectMutation } from '@/api/services/academics';
-import type { Subject, SubjectCategory } from '@/types';
+import type { CurriculumView, Subject, SubjectCategory } from '@/types';
 
 import { CATEGORIES } from './subject-categories';
 
 /** Add a subject to the school's list, or edit one. The code can't change once created. */
-const props = defineProps<{ subject: Subject | null; subjects: Subject[] }>();
+const props = defineProps<{ subject: Subject | null; view: CurriculumView }>();
 const open = defineModel<boolean>('open', { required: true });
 
 const confirm = useConfirm();
 const save = useSaveSubjectMutation();
 const remove = useDeleteSubjectMutation();
 
+/** '' = shared by every section. Section admins can only add to the sections they manage. */
+const SHARED = '';
+const sectionOptions = computed(() => {
+  const mine = props.view.mySections;
+  const names = props.view.levels.map((l) => l.section).filter((n) => !mine || mine.includes(n));
+  return [
+    ...(mine ? [] : [{ value: SHARED, label: 'Shared by every section' }]),
+    ...names.map((n) => ({ value: n, label: n })),
+  ];
+});
+
 const initial = () => ({
   name: props.subject?.name ?? '',
+  section: props.subject
+    ? (props.subject.section ?? SHARED)
+    : (props.view.mySections?.[0] ?? SHARED),
   code: props.subject?.code ?? '',
   category: props.subject?.category ?? ('Core' as SubjectCategory),
   periods: String(props.subject?.periods ?? 2),
@@ -55,18 +69,25 @@ watch(
 const errors = computed(() => {
   const e: Record<string, string> = {};
   const name = form.name.trim();
+  const subjects = props.view.subjects;
+  // Names are unique within a section: Primary and Senior Secondary can each have English.
   if (!name) e.name = 'Name the subject.';
   else if (
-    props.subjects.some(
-      (s) => s.code !== props.subject?.code && s.name.toLowerCase() === name.toLowerCase(),
+    subjects.some(
+      (s) =>
+        s.code !== props.subject?.code &&
+        (s.section ?? SHARED) === form.section &&
+        s.name.toLowerCase() === name.toLowerCase(),
     )
   )
-    e.name = `${name} already exists.`;
+    e.name = `${name} already exists${form.section ? ` in ${form.section}` : ''}.`;
   if (!props.subject) {
     if (!/^[A-Z]{2,4}\d?$/.test(form.code)) e.code = '2–4 capitals, e.g. MTH.';
-    else if (props.subjects.some((s) => s.code === form.code))
-      e.code = `Already used by ${props.subjects.find((s) => s.code === form.code)!.name}.`;
+    else if (subjects.some((s) => s.code === form.code))
+      e.code = `Already used by ${subjects.find((s) => s.code === form.code)!.name}.`;
   }
+  if (!sectionOptions.value.some((o) => o.value === form.section))
+    e.section = 'Choose one of the sections you manage.';
   const p = Number(form.periods);
   if (!Number.isInteger(p) || p < 1 || p > 10) e.periods = 'Between 1 and 10.';
   return e;
@@ -86,6 +107,7 @@ async function submit() {
       category: form.category,
       periods: Number(form.periods),
       status: form.status,
+      section: form.section || null,
     });
     open.value = false;
     toast.success(
@@ -144,7 +166,7 @@ function deleteSubject() {
         label="Subject name"
         required
         :error="err('name')"
-        info="The full name printed on report cards, timetables and the Teacher Workspace, e.g. Mathematics or Christian Religious Studies. Each subject name can only be used once."
+        info="The full name printed on report cards, timetables and the Teacher Workspace, e.g. Mathematics or Christian Religious Studies. Each name can only be used once in a section."
       >
         <Input
           id="sub-name"
@@ -152,6 +174,28 @@ function deleteSubject() {
           placeholder="e.g. Mathematics"
           :aria-invalid="!!err('name')"
         />
+      </FieldShell>
+      <FieldShell
+        id="sub-section"
+        label="Section"
+        :error="err('section')"
+        :hint="
+          form.section
+            ? `Only ${form.section} classes can take it`
+            : 'Any section can add it to its classes'
+        "
+        info="A shared subject can be added to classes in every section. A section’s own subject is only offered in that section; admins of other sections can’t change it."
+      >
+        <select
+          id="sub-section"
+          v-model="form.section"
+          class="h-9 rounded-md border bg-card px-2.5 text-sm"
+          :aria-invalid="!!err('section')"
+        >
+          <option v-for="o in sectionOptions" :key="o.value" :value="o.value">
+            {{ o.label }}
+          </option>
+        </select>
       </FieldShell>
       <div class="grid gap-4 sm:grid-cols-2">
         <FieldShell
