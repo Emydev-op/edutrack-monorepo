@@ -88,5 +88,9 @@ describe('real routes for Phase 1 academics and setup', () => {
     expect(isRealRoute('get', '/v1/nav-counts')).toBe(true);
     expect(isRealRoute('post', '/v1/support/tickets/SUP-1042/replies')).toBe(true);
     expect(isRealRoute('post', '/v1/notifications/abc/read')).toBe(true);
+    // Every Settings tab is on the API.
+    expect(isRealRoute('get', '/v1/settings/school')).toBe(true);
+    expect(isRealRoute('put', '/v1/settings/security/rules')).toBe(true);
+    expect(isRealRoute('delete', '/v1/settings/security/sessions/abc')).toBe(true);
   });
 });

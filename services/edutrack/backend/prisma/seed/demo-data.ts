@@ -506,10 +506,29 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
       update: data,
     });
     schoolIds[key] = school.id;
+    // Settings › School, Academic, Finance and Security back to their defaults (the staff seed
+    // then puts the school's staff ID prefix back).
+    const settings = {
+      admissionNumberPattern: 'STU-[YYYY]-[####]',
+      staffNumberPattern: 'STF-[####]',
+      reweightExempt: true,
+      promotionSuggestions: true,
+      blockPromotionOnFees: false,
+      idleTimeoutMinutes: 30,
+      lockoutAttempts: 5,
+      lockoutMinutes: 15,
+      passwordExpiryDays: 90,
+    };
     await prisma.schoolSettings.upsert({
       where: { schoolId: school.id },
-      create: { schoolId: school.id },
-      update: { lockoutAttempts: 5, lockoutMinutes: 15, passwordExpiryDays: 90 },
+      create: { schoolId: school.id, ...settings },
+      update: settings,
+    });
+    const finance = { allowPartial: true, autoSibling: true, verifyTransfers: true };
+    await prisma.financeSettings.upsert({
+      where: { schoolId: school.id },
+      create: { schoolId: school.id, ...finance },
+      update: finance,
     });
     const plan = PLAN_SEEDS.find((p) => p.name === s.plan)!;
     const subscription = {

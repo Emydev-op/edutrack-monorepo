@@ -13,6 +13,7 @@ import { StaffModule } from './staff/staff.module.js';
 import { GuardiansModule } from './guardians/guardians.module.js';
 import { StudentLoginsModule } from './student-logins/student-logins.module.js';
 import { SetupModule } from './setup/setup.module.js';
+import { SchoolSettingsModule } from './settings/settings.module.js';
 import { SchoolSupportModule } from './support/school-support.module.js';
 import { TeacherModule } from './teacher/teacher.module.js';
 import { StudentsModule } from './students/students.module.js';
@@ -41,6 +42,8 @@ import { StudentsModule } from './students/students.module.js';
     TeacherModule,
     // School Admin › Support: /v1/support/tickets (the school’s side of the EduTrack desk).
     SchoolSupportModule,
+    // School Admin › Settings: /v1/settings/*.
+    SchoolSettingsModule,
     StaffModule,
   ],
   controllers: [PublicSchoolController],

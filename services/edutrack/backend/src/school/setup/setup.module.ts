@@ -35,5 +35,7 @@ import { SetupService } from './setup.service.js';
         groups.flatMap((g) => g.all),
     },
   ],
+  // Settings › School shows the setup progress.
+  exports: [SetupService],
 })
 export class SetupModule {}

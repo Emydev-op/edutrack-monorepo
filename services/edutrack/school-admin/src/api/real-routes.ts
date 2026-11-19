@@ -105,6 +105,8 @@ export const REAL_ROUTES: readonly string[] = [
   'POST /v1/notifications/:id/read',
   'GET /v1/comms/inbox',
   'GET /v1/nav-counts',
+  // Settings: school, academic, finance, subscription, modules, security and change history.
+  '* /v1/settings/**',
 ];
 
 type Rule = { method: string; pattern: RegExp };

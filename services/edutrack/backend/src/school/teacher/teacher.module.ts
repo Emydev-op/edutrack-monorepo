@@ -3,6 +3,7 @@ import { AcademicsModule } from '../academics/academics.module.js';
 import { CurriculumModule } from '../curriculum/curriculum.module.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { RegisterService } from './register.service.js';
+import { TeacherFrameService } from './teacher-frame.service.js';
 import { TeacherScopeService } from './teacher-scope.service.js';
 import { TeacherController } from './teacher.controller.js';
 import { TeachingService } from './teaching.service.js';
@@ -11,6 +12,13 @@ import { TeachingService } from './teaching.service.js';
 @Module({
   imports: [AcademicsModule, CurriculumModule],
   controllers: [TeacherController],
-  providers: [TeacherScopeService, TeachingService, RegisterService, SchoolAuditService],
+  providers: [
+    TeacherScopeService,
+    TeachingService,
+    RegisterService,
+    TeacherFrameService,
+    SchoolAuditService,
+  ],
+  exports: [TeacherFrameService],
 })
 export class TeacherModule {}
