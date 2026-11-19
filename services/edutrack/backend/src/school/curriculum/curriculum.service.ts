@@ -1,3 +1,4 @@
+import { SectionAccessService } from '../shared/section-access.service.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { Offering } from '../../generated/prisma/enums.js';
 import { AcademicCatalogService } from '../academics/academic-catalog.service.js';
@@ -31,6 +32,8 @@ export interface SubjectInput {
   category: string;
   status?: 'Active' | 'Inactive';
   periods: number;
+  /** Section name; empty or null for a subject shared by every section. */
+  section?: string | null;
 }
 
 export interface GroupInput {
@@ -58,6 +61,7 @@ export class CurriculumService {
     private readonly catalog: AcademicCatalogService,
     private readonly audit: SchoolAuditService,
     private readonly setup: SetupStateService,
+    private readonly sectionAccess: SectionAccessService,
   ) {}
 
   private get db() {
@@ -84,16 +88,25 @@ export class CurriculumService {
   }
 
   async view() {
-    const [session, term, subjects, bySection, confirmed] = await Promise.all([
+    const [session, term, subjects, bySection, confirmed, mine, arms] = await Promise.all([
       this.catalog.currentSession(),
       this.catalog.currentTerm(),
-      this.db.subject.findMany({ orderBy: { name: 'asc' } }),
+      this.db.subject.findMany({ orderBy: { name: 'asc' }, include: { section: true } }),
       this.levelsBySection(),
       this.setup.isConfirmed(CURRICULUM_STEP),
+      this.sectionAccess.mine(),
+      this.db.classArm.findMany({
+        where: { archivedAt: null, branch: { status: 'ACTIVE' } },
+        include: { branch: { select: { name: true } } },
+        orderBy: [{ branch: { name: 'asc' } }, { name: 'asc' }],
+      }),
     ]);
     const [entries, groups, assignments, scored] = session
       ? await Promise.all([
-          this.db.curriculumEntry.findMany({ where: { sessionId: session.id } }),
+          this.db.curriculumEntry.findMany({
+            where: { sessionId: session.id },
+            include: { arms: true },
+          }),
           this.db.electiveGroup.findMany({
             where: { sessionId: session.id },
             include: { subjects: { select: { subjectId: true } }, section: true },
@@ -116,6 +129,11 @@ export class CurriculumService {
       : [[], [], [], []];
     const code = new Map(subjects.map((s) => [s.id, s.code]));
     const curriculum: CurriculumMap = {};
+    const periods: Record<string, Record<string, Record<string, number>>> = {};
+    const armOffers: Record<
+      string,
+      Record<string, Record<string, Record<string, number | null>>>
+    > = {};
     for (const { section, levels } of bySection)
       for (const lv of levels) {
         const offered = entries.filter((e) => e.levelId === lv.id);
@@ -124,6 +142,15 @@ export class CurriculumService {
         curriculum[section][lv.name] = Object.fromEntries(
           offered.map((e) => [code.get(e.subjectId)!, OFFERING_LABEL[e.offering]]),
         );
+        for (const e of offered) {
+          const c = code.get(e.subjectId)!;
+          if (e.periodsPerWeek != null)
+            ((periods[section] ??= {})[lv.name] ??= {})[c] = e.periodsPerWeek;
+          if (e.arms.length)
+            ((armOffers[section] ??= {})[lv.name] ??= {})[c] = Object.fromEntries(
+              e.arms.map((a) => [a.armId, a.periodsPerWeek]),
+            );
+        }
       }
     const levelOrder = bySection.flatMap((x) => x.levels);
     const scoredIds = new Set(scored.map((s) => s.subjectId));
@@ -134,6 +161,8 @@ export class CurriculumService {
         category: CATEGORY_LABEL[s.category],
         status: s.status === 'ACTIVE' ? ('Active' as const) : ('Inactive' as const),
         periods: s.periodsPerWeek,
+        section: s.section?.name ?? null,
+        canEdit: !mine || (!!s.sectionId && mine.has(s.sectionId)),
         levels: levelOrder
           .filter((lv) => entries.some((e) => e.levelId === lv.id && e.subjectId === s.id))
           .map((lv) => lv.name),
@@ -145,6 +174,8 @@ export class CurriculumService {
         hasScores: scoredIds.has(s.id),
       })),
       curriculum,
+      periods,
+      arms: armOffers,
       groups: groups.map((g) => ({
         id: g.id,
         name: g.name,
@@ -154,7 +185,22 @@ export class CurriculumService {
         max: g.maxPicks,
         note: g.note,
       })),
-      levels: bySection.map((x) => ({ section: x.section, levels: x.levels.map((l) => l.name) })),
+      levels: bySection.map((x) => ({
+        section: x.section,
+        levels: x.levels.map((l) => l.name),
+        // The arms of each level (every branch), for subjects only some arms take.
+        arms: Object.fromEntries(
+          x.levels.map((l) => [
+            l.name,
+            arms
+              .filter((a) => a.levelId === l.id)
+              .map((a) => ({ id: a.id, name: a.name, branch: a.branch.name })),
+          ]),
+        ),
+        canEdit: !mine || mine.has(x.id),
+      })),
+      // The sections this admin manages (null: every section).
+      mySections: mine ? bySection.filter((x) => mine.has(x.id)).map((x) => x.section) : null,
       confirmed,
     };
   }
@@ -169,6 +215,7 @@ export class CurriculumService {
   /* ---------------- Subjects ---------------- */
 
   async applyDefaults(schoolId: string) {
+    await this.sectionAccess.require(null, 'the suggested subjects');
     const session = await this.requireSession();
     if (await this.db.subject.count())
       throw fail(
@@ -243,23 +290,36 @@ export class CurriculumService {
       if (taken)
         throw fail(`The code ${p.code} is already used by ${taken.name}.`, 'SUBJECT_CODE_TAKEN');
     }
+    const sectionName = (p.section ?? '').trim();
+    const section = sectionName
+      ? await this.db.section.findFirst({ where: { name: sectionName } })
+      : null;
+    if (sectionName && !section)
+      throw fail(`${sectionName} isn’t one of your sections.`, 'VALIDATION');
+    // Names are unique within a section: Primary and Senior Secondary can each have English.
     const clash = await this.db.subject.findFirst({
       where: {
         name: { equals: name, mode: 'insensitive' },
+        sectionId: section?.id ?? null,
         ...(existingId && { id: { not: existingId } }),
       },
     });
-    if (clash) throw fail(`${name} already exists.`, 'SUBJECT_NAME_TAKEN');
+    if (clash)
+      throw fail(
+        `${name} already exists${section ? ` in ${section.name}` : ''}.`,
+        'SUBJECT_NAME_TAKEN',
+      );
     const periods = Number(p.periods);
     if (!Number.isInteger(periods) || periods < 1 || periods > 10)
       throw fail('Lessons per week must be between 1 and 10.', 'VALIDATION');
     const category = CATEGORY_BY_LABEL[p.category];
     if (!category) throw fail('Choose a category.', 'VALIDATION');
-    return { name, periods, category };
+    return { name, periods, category, sectionId: section?.id ?? null };
   }
 
   async createSubject(schoolId: string, p: SubjectInput) {
-    const { name, periods, category } = await this.checkSubject(p);
+    const { name, periods, category, sectionId } = await this.checkSubject(p);
+    await this.sectionAccess.require(sectionId, 'subjects');
     await this.db.$transaction(async (tx) => {
       await tx.subject.create({
         data: {
@@ -268,6 +328,7 @@ export class CurriculumService {
           name,
           category,
           periodsPerWeek: periods,
+          sectionId,
           status: p.status === 'Inactive' ? 'INACTIVE' : 'ACTIVE',
         },
       });
@@ -293,7 +354,31 @@ export class CurriculumService {
 
   async updateSubject(code: string, p: SubjectInput) {
     const s = await this.subjectByCode(code);
-    const { name, periods, category } = await this.checkSubject(p, s.id);
+    await this.sectionAccess.require(s.sectionId, 'subjects');
+    // Leaving section out keeps the subject where it is.
+    const current = s.sectionId
+      ? (await this.db.section.findFirst({ where: { id: s.sectionId } }))?.name
+      : null;
+    const { name, periods, category, sectionId } = await this.checkSubject(
+      { ...p, section: p.section === undefined ? current : p.section },
+      s.id,
+    );
+    if (sectionId !== s.sectionId) {
+      await this.sectionAccess.require(sectionId, 'subjects');
+      // A subject that now belongs to one section can't stay on another section's classes.
+      if (sectionId) {
+        const elsewhere = await this.db.curriculumEntry.findFirst({
+          where: { subjectId: s.id, level: { sectionId: { not: sectionId } } },
+          include: { level: { select: { name: true } } },
+        });
+        if (elsewhere)
+          throw fail(
+            `${s.name} is offered in ${elsewhere.level.name}, which is in another section. Take it off there first, or keep it shared.`,
+            'SUBJECT_IN_OTHER_SECTION',
+            HttpStatus.CONFLICT,
+          );
+      }
+    }
     const status = p.status === 'Inactive' ? 'INACTIVE' : 'ACTIVE';
     if (status === 'INACTIVE' && s.status === 'ACTIVE') {
       const term = await this.catalog.currentTerm();
@@ -310,7 +395,7 @@ export class CurriculumService {
     await this.db.$transaction(async (tx) => {
       await tx.subject.update({
         where: { id: s.id },
-        data: { name, periodsPerWeek: periods, category, status },
+        data: { name, periodsPerWeek: periods, category, status, sectionId },
       });
       await this.audit.record(
         {
@@ -334,6 +419,7 @@ export class CurriculumService {
    */
   async removeSubject(code: string) {
     const s = await this.subjectByCode(code);
+    await this.sectionAccess.require(s.sectionId, 'subjects');
     const session = await this.catalog.currentSession();
     const term = await this.catalog.currentTerm();
     if (
@@ -402,19 +488,36 @@ export class CurriculumService {
    * it's refused once teachers have handed in scores for it this term, or taught it in an
    * earlier term of the session.
    */
-  async save(schoolId: string, p: { curriculum?: CurriculumMap; groups?: GroupInput[] }) {
+  async save(
+    schoolId: string,
+    p: {
+      curriculum?: CurriculumMap;
+      groups?: GroupInput[];
+      periods?: Record<string, Record<string, Record<string, number>>>;
+      arms?: Record<string, Record<string, Record<string, Record<string, number | null>>>>;
+    },
+  ) {
     const session = await this.requireSession();
     const term = await this.catalog.currentTerm();
     const [subjects, bySection, current] = await Promise.all([
       this.db.subject.findMany(),
       this.levelsBySection(),
-      this.db.curriculumEntry.findMany({ where: { sessionId: session.id } }),
+      this.db.curriculumEntry.findMany({
+        where: { sessionId: session.id },
+        include: { arms: true },
+      }),
     ]);
+    const levelArms = await this.db.classArm.findMany({
+      where: { archivedAt: null },
+      select: { id: true, levelId: true },
+    });
     const subjectByCode = new Map(subjects.map((s) => [s.code, s]));
     const nameOf = (id: string) => subjects.find((s) => s.id === id)?.name ?? 'A subject';
 
-    // What should be offered: levelId → subjectId → offering.
+    // What should be offered: levelId → subjectId → offering, lessons per week and arms.
     const wanted = new Map<string, Offering>();
+    const wantedPeriods = new Map<string, number | null>();
+    const wantedArms = new Map<string, { armId: string; periodsPerWeek: number | null }[]>();
     for (const [section, levels] of Object.entries(p.curriculum ?? {})) {
       const sec = bySection.find((x) => x.section === section);
       if (!sec) throw fail(`${section} isn't one of your sections.`, 'VALIDATION');
@@ -425,7 +528,41 @@ export class CurriculumService {
           if (o !== 'C' && o !== 'E') continue;
           const subject = subjectByCode.get(code);
           if (!subject) throw fail(`There is no subject with the code ${code}.`, 'VALIDATION');
-          wanted.set(`${lv.id}|${subject.id}`, OFFERING[o]);
+          if (subject.sectionId && subject.sectionId !== sec.id)
+            throw fail(
+              `${subject.name} (${code}) belongs to another section, so ${levelName} can’t offer it.`,
+              'SUBJECT_IN_OTHER_SECTION',
+            );
+          const key = `${lv.id}|${subject.id}`;
+          wanted.set(key, OFFERING[o]);
+          // A save without lessons per week or arms (an older screen) keeps what's there.
+          const before = current.find((e) => `${e.levelId}|${e.subjectId}` === key);
+          if (!p.periods && before?.periodsPerWeek != null)
+            wantedPeriods.set(key, before.periodsPerWeek);
+          if (!p.arms && before?.arms.length)
+            wantedArms.set(
+              key,
+              before.arms.map((x) => ({ armId: x.armId, periodsPerWeek: x.periodsPerWeek })),
+            );
+          // Lessons per week at this level, when it differs from the subject's default.
+          const n = p.periods?.[section]?.[levelName]?.[code];
+          if (n !== undefined && n !== null) {
+            if (!Number.isInteger(n) || n < 1 || n > 10)
+              throw fail(`${levelName} ${code}: lessons per week must be 1–10.`, 'VALIDATION');
+            wantedPeriods.set(`${lv.id}|${subject.id}`, n === subject.periodsPerWeek ? null : n);
+          }
+          // Only some arms take it.
+          const onlyArms = p.arms?.[section]?.[levelName]?.[code];
+          if (onlyArms && Object.keys(onlyArms).length) {
+            const rows = Object.entries(onlyArms).map(([armId, per]) => {
+              if (!levelArms.some((a) => a.id === armId && a.levelId === lv.id))
+                throw fail(`${levelName} ${code}: choose arms of ${levelName}.`, 'VALIDATION');
+              if (per !== null && (!Number.isInteger(per) || per < 1 || per > 10))
+                throw fail(`${levelName} ${code}: lessons per week must be 1–10.`, 'VALIDATION');
+              return { armId, periodsPerWeek: per };
+            });
+            wantedArms.set(`${lv.id}|${subject.id}`, rows);
+          }
         }
       }
     }
@@ -469,6 +606,30 @@ export class CurriculumService {
     if (dup) throw fail(`Two elective groups are called ${dup.name}.`, 'VALIDATION');
 
     const dropped = current.filter((e) => !wanted.has(`${e.levelId}|${e.subjectId}`));
+    // A section admin may only change their own sections' classes.
+    const had = new Map(current.map((e) => [`${e.levelId}|${e.subjectId}`, e.offering]));
+    const armKey = (rows: { armId: string; periodsPerWeek: number | null }[]) =>
+      rows
+        .map((r) => `${r.armId}:${r.periodsPerWeek ?? ''}`)
+        .sort()
+        .join(',');
+    const byKey = new Map(current.map((e) => [`${e.levelId}|${e.subjectId}`, e]));
+    const touched = new Set([
+      ...dropped.map((d) => d.levelId),
+      ...[...wanted]
+        .filter(([k, o]) => {
+          const e = byKey.get(k);
+          return (
+            had.get(k) !== o ||
+            (e?.periodsPerWeek ?? null) !== (wantedPeriods.get(k) ?? null) ||
+            armKey(e?.arms ?? []) !== armKey(wantedArms.get(k) ?? [])
+          );
+        })
+        .map(([k]) => k.split('|')[0]!),
+    ]);
+    for (const sec of bySection)
+      if (sec.levels.some((l) => touched.has(l.id)))
+        await this.sectionAccess.require(sec.id, 'the curriculum');
     const levelName = (id: string) =>
       bySection.flatMap((x) => x.levels).find((l) => l.id === id)?.name ?? 'a class';
     if (dropped.length && term) {
@@ -516,11 +677,20 @@ export class CurriculumService {
         await tx.curriculumEntry.deleteMany({ where: { id: { in: dropped.map((d) => d.id) } } });
       for (const [key, offering] of wanted) {
         const [levelId, subjectId] = key.split('|') as [string, string];
-        await tx.curriculumEntry.upsert({
+        const periodsPerWeek = wantedPeriods.get(key) ?? null;
+        const entry = await tx.curriculumEntry.upsert({
           where: { sessionId_levelId_subjectId: { sessionId: session.id, levelId, subjectId } },
-          create: { schoolId, sessionId: session.id, levelId, subjectId, offering },
-          update: { offering },
+          create: { schoolId, sessionId: session.id, levelId, subjectId, offering, periodsPerWeek },
+          update: { offering, periodsPerWeek },
         });
+        const onlyArms = wantedArms.get(key) ?? [];
+        if (armKey(byKey.get(key)?.arms ?? []) !== armKey(onlyArms)) {
+          await tx.curriculumArm.deleteMany({ where: { entryId: entry.id } });
+          if (onlyArms.length)
+            await tx.curriculumArm.createMany({
+              data: onlyArms.map((r) => ({ schoolId, entryId: entry.id, ...r })),
+            });
+        }
       }
       await this.saveGroups(tx, schoolId, session.id, groups);
       await this.audit.record(

@@ -255,13 +255,14 @@ model SchoolMembership {
   createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  school      School             @relation(fields: [schoolId], references: [id], onDelete: Restrict)
-  user        User               @relation(fields: [userId], references: [id], onDelete: Restrict)
-  staff       Staff?             @relation(fields: [schoolId, staffId], references: [schoolId, id], onDelete: Restrict)
-  guardian    Guardian?          @relation(fields: [schoolId, guardianId], references: [schoolId, id], onDelete: Restrict)
-  student     Student?           @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  school      School              @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  staff       Staff?              @relation(fields: [schoolId, staffId], references: [schoolId, id], onDelete: Restrict)
+  guardian    Guardian?           @relation(fields: [schoolId, guardianId], references: [schoolId, id], onDelete: Restrict)
+  student     Student?            @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
   roles       MembershipRole[]
   branches    MembershipBranch[]
+  sections    MembershipSection[]
   invitations Invitation[]
 
   @@unique([schoolId, id])
@@ -319,6 +320,24 @@ model MembershipRole {
 }
 
 /// Branches a BRANCH-scoped membership can see.
+/// The academic sections (Nursery, Primary, JSS, SSS…) an admin manages. None means every
+/// section. A section admin sees the whole school but only changes their sections' classes,
+/// subjects, curriculum, teachers' assignments and timetables.
+model MembershipSection {
+  schoolId     String   @map("school_id") @db.Uuid
+  membershipId String   @map("membership_id") @db.Uuid
+  sectionId    String   @map("section_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  school     School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  membership SchoolMembership @relation(fields: [schoolId, membershipId], references: [schoolId, id], onDelete: Cascade)
+  section    Section          @relation(fields: [schoolId, sectionId], references: [schoolId, id], onDelete: Cascade)
+
+  @@id([membershipId, sectionId])
+  @@index([schoolId, sectionId])
+  @@map("membership_sections")
+}
+
 model MembershipBranch {
   schoolId     String   @map("school_id") @db.Uuid
   membershipId String   @map("membership_id") @db.Uuid

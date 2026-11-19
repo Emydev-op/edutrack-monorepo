@@ -1,3 +1,5 @@
+import { offeredInArm } from '../academics/academic-catalog.service.js';
+import { SectionAccessService } from '../shared/section-access.service.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { TeachingAssignmentType } from '../../generated/prisma/enums.js';
 import { AcademicCatalogService, type ArmInfo } from '../academics/academic-catalog.service.js';
@@ -24,6 +26,8 @@ export interface AssignmentInput {
   subject: string;
   armId: string;
   type?: string;
+  /** Lead (default) replaces the class's lead teacher; a co-teacher joins them. */
+  role?: 'Lead' | 'Co-teacher';
 }
 
 export interface AssignmentWarning {
@@ -43,6 +47,7 @@ export class AssignmentsService {
     private readonly catalog: AcademicCatalogService,
     private readonly audit: SchoolAuditService,
     private readonly setup: SetupStateService,
+    private readonly sectionAccess: SectionAccessService,
   ) {}
 
   private get db() {
@@ -118,7 +123,7 @@ export class AssignmentsService {
       { code: string; name: string; arms: { id: string; name: string }[] }
     >();
     for (const arm of arms)
-      for (const s of offered.get(arm.levelId) ?? [])
+      for (const s of offeredInArm(offered.get(arm.levelId), arm.id))
         if (!rows.some((r) => r.armId === arm.id && r.subjectId === s.subjectId)) {
           const g = gaps.get(s.code) ?? { code: s.code, name: s.name, arms: [] };
           g.arms.push({ id: arm.id, name: arm.label });
@@ -141,6 +146,7 @@ export class AssignmentsService {
             arm: arm.label,
             branch: arm.branch,
             type: TYPE_LABEL[r.type],
+            role: r.lead ? ('Lead' as const) : ('Co-teacher' as const),
             periods: r.periodsPerWeek,
           };
         }),
@@ -160,7 +166,7 @@ export class AssignmentsService {
         name: a.label,
         branch: a.branch,
         branchId: a.branchId,
-        subjects: (offered.get(a.levelId) ?? []).map((s) => s.code),
+        subjects: offeredInArm(offered.get(a.levelId), a.id).map((s) => s.code),
       })),
       subjects: subjects.map((s) => ({ code: s.code, name: s.name })),
       confirmed,
@@ -192,6 +198,7 @@ export class AssignmentsService {
         subjectId: subject.id,
         subject: { status: 'ACTIVE' },
       },
+      include: { arms: true },
     });
     if (!offered)
       out.push({
@@ -199,29 +206,46 @@ export class AssignmentsService {
         kind: 'duplicate',
         text: `${arm.level} doesn’t offer ${subjectLabel}. Add it to the curriculum first.`,
       });
-    const [existing, mine] = await Promise.all([
+    else if (offered.arms.length && !offered.arms.some((a) => a.armId === arm.id))
+      out.push({
+        tone: 'error',
+        kind: 'duplicate',
+        text: `${arm.label} doesn’t take ${subjectLabel}; only some ${arm.level} arms do. Change that in the curriculum first.`,
+      });
+    const co = p.role === 'Co-teacher';
+    const [existing, already, mine] = await Promise.all([
       this.db.teachingAssignment.findFirst({
-        where: { termId: term.id, armId: arm.id, subjectId: subject.id },
+        where: { termId: term.id, armId: arm.id, subjectId: subject.id, lead: true },
         include: { staff: { select: { title: true, firstName: true, lastName: true } } },
+      }),
+      this.db.teachingAssignment.findFirst({
+        where: { termId: term.id, armId: arm.id, subjectId: subject.id, staffId: t.id },
       }),
       this.db.teachingAssignment.findMany({
         where: { termId: term.id, staffId: t.id },
         select: { staffId: true, periodsPerWeek: true },
       }),
     ]);
-    if (existing && existing.staffId !== t.id)
+    if (!co && existing && existing.staffId !== t.id)
       out.push({
         tone: 'warning',
         kind: 'duplicate',
-        text: `Replaces ${staffName(existing.staff)} for ${arm.label} ${subjectLabel}.`,
+        text: `Replaces ${staffName(existing.staff)} as lead for ${arm.label} ${subjectLabel}.`,
       });
-    if (existing?.staffId === t.id)
+    if (co && !existing)
+      out.push({
+        tone: 'error',
+        kind: 'duplicate',
+        text: `${arm.label} ${subjectLabel} has no lead teacher yet. Assign the lead first.`,
+      });
+    if (already && (co ? !already.lead : already.lead))
       out.push({
         tone: 'warning',
         kind: 'duplicate',
         text: `${t.name} already teaches ${arm.label} ${subjectLabel}.`,
       });
-    const add = existing?.staffId === t.id ? 0 : subject.periodsPerWeek;
+    const periods = offered ? effectivePeriods(offered, arm.id, subject.periodsPerWeek) : 0;
+    const add = already ? 0 : periods;
     const load = mine.reduce((n, r) => n + r.periodsPerWeek, 0);
     if (load + add > t.maxPeriods)
       out.push({
@@ -295,6 +319,7 @@ export class AssignmentsService {
   async assign(schoolId: string, p: AssignmentInput, termId?: string | null) {
     const { session, term } = await this.requireTerm(termId);
     requireOpenTerm(term);
+    await this.sectionAccess.requireArm(p.armId, 'teacher assignments');
     const teacher = p.teacherId
       ? await this.db.staff.findFirst({
           where: { id: p.teacherId, kind: 'TEACHING', status: 'ACTIVE' },
@@ -316,17 +341,22 @@ export class AssignmentsService {
     );
     if (blocking.length) throw fail(blocking[0]!.text, 'ASSIGNMENT_INVALID');
     const name = staffName(teacher);
+    const co = p.role === 'Co-teacher';
+    const entry = await this.db.curriculumEntry.findFirst({
+      where: { sessionId: session.id, levelId: arm.levelId, subjectId: subject.id },
+      include: { arms: true },
+    });
+    const periodsPerWeek = entry
+      ? effectivePeriods(entry, arm.id, subject.periodsPerWeek)
+      : subject.periodsPerWeek;
     await this.db.$transaction(async (tx) => {
-      const existing = await tx.teachingAssignment.findFirst({
-        where: { termId: term.id, armId: arm.id, subjectId: subject.id },
-      });
-      if (existing)
-        await tx.teachingAssignment.update({
-          where: { id: existing.id },
-          data: { staffId: teacher.id, type },
-        });
-      else
-        await tx.teachingAssignment.create({
+      const where = { termId: term.id, armId: arm.id, subjectId: subject.id };
+      const [lead, mineRow] = await Promise.all([
+        tx.teachingAssignment.findFirst({ where: { ...where, lead: true } }),
+        tx.teachingAssignment.findFirst({ where: { ...where, staffId: teacher.id } }),
+      ]);
+      const create = (isLead: boolean) =>
+        tx.teachingAssignment.create({
           data: {
             schoolId,
             sessionId: session.id,
@@ -336,20 +366,39 @@ export class AssignmentsService {
             subjectId: subject.id,
             staffId: teacher.id,
             type,
-            periodsPerWeek: subject.periodsPerWeek,
+            lead: isLead,
+            periodsPerWeek,
           },
         });
-      // Lessons already placed follow the new teacher.
-      await tx.timetableSlot.updateMany({
-        where: { termId: term.id, subjectId: subject.id, timetable: { armId: arm.id } },
-        data: { staffId: teacher.id },
-      });
+      if (co) {
+        // A co-teacher joins the lead; they share the class's lessons.
+        if (mineRow)
+          await tx.teachingAssignment.update({ where: { id: mineRow.id }, data: { type } });
+        else await create(false);
+      } else {
+        // The new lead may have been a co-teacher on this class.
+        if (mineRow && !mineRow.lead) {
+          await AssignmentsService.detach(tx, [mineRow.id]);
+          await tx.teachingAssignment.delete({ where: { id: mineRow.id } });
+        }
+        if (lead)
+          await tx.teachingAssignment.update({
+            where: { id: lead.id },
+            data: { staffId: teacher.id, type, periodsPerWeek },
+          });
+        else await create(true);
+        // Lessons already placed follow the lead teacher.
+        await tx.timetableSlot.updateMany({
+          where: { termId: term.id, subjectId: subject.id, timetable: { armId: arm.id } },
+          data: { staffId: teacher.id },
+        });
+      }
       await this.audit.record(
         {
           action: 'assignment.save',
           area: 'Academic',
           entity: 'TeachingAssignment',
-          summary: `${name} assigned`,
+          summary: `${name} assigned${co ? ' as co-teacher' : ''}`,
           detail: `${subject.name} · ${arm.label} · ${TYPE_LABEL[type]}`,
         },
         asTx(tx),
@@ -380,6 +429,7 @@ export class AssignmentsService {
       },
     });
     if (!a) throw fail('Assignment not found', 'ASSIGNMENT_NOT_FOUND', HttpStatus.NOT_FOUND);
+    await this.sectionAccess.requireArm(a.armId, 'teacher assignments');
     const term = await this.db.term.findFirst({ where: { id: a.termId } });
     if (term) requireOpenTerm(term);
     if (
@@ -394,11 +444,20 @@ export class AssignmentsService {
       );
     await this.db.$transaction(async (tx) => {
       await AssignmentsService.detach(tx, [id]);
-      await tx.timetableSlot.updateMany({
-        where: { termId: a.termId, subjectId: a.subjectId, timetable: { armId: a.armId } },
-        data: { staffId: null },
-      });
       await tx.teachingAssignment.delete({ where: { id } });
+      if (a.lead) {
+        // The first co-teacher takes over as lead; with none, the lessons need a teacher.
+        const next = await tx.teachingAssignment.findFirst({
+          where: { termId: a.termId, armId: a.armId, subjectId: a.subjectId, lead: false },
+          orderBy: { createdAt: 'asc' },
+        });
+        if (next)
+          await tx.teachingAssignment.update({ where: { id: next.id }, data: { lead: true } });
+        await tx.timetableSlot.updateMany({
+          where: { termId: a.termId, subjectId: a.subjectId, timetable: { armId: a.armId } },
+          data: { staffId: next?.staffId ?? null },
+        });
+      }
       await this.audit.record(
         {
           action: 'assignment.delete',
@@ -419,6 +478,7 @@ export class AssignmentsService {
    * or stopped teaching, archived arms and subjects this session doesn't offer there.
    */
   async copyPrevious(schoolId: string, termId?: string | null) {
+    await this.sectionAccess.require(null, 'every class’s assignments at once');
     const { session, term } = await this.requireTerm(termId);
     requireOpenTerm(term);
     const previous = await this.catalog.previousTerm(term.id);
@@ -485,4 +545,20 @@ export class AssignmentsService {
       assignments: v.assignments.length,
     };
   }
+}
+
+/** Lessons per week for a subject in an arm: the arm's own, else its level's, else the default. */
+export function effectivePeriods(
+  entry: {
+    periodsPerWeek: number | null;
+    arms: { armId: string; periodsPerWeek: number | null }[];
+  },
+  armId: string,
+  subjectDefault: number,
+) {
+  return (
+    entry.arms.find((a) => a.armId === armId)?.periodsPerWeek ??
+    entry.periodsPerWeek ??
+    subjectDefault
+  );
 }

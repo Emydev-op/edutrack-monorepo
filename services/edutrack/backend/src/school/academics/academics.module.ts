@@ -1,3 +1,4 @@
+import { SectionAccessService } from '../shared/section-access.service.js';
 import { CalendarService } from './calendar.service.js';
 import { Module } from '@nestjs/common';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
@@ -18,6 +19,7 @@ import { SessionsService } from './sessions.service.js';
 @Module({
   controllers: [AcademicsController],
   providers: [
+    SectionAccessService,
     CalendarService,
     AcademicStructureService,
     AcademicCatalogService,

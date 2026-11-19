@@ -1,3 +1,5 @@
+import { effectivePeriods } from '../assignments/assignments.service.js';
+import { SectionAccessService } from '../shared/section-access.service.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { Clock } from '../../common/clock/clock.js';
@@ -102,6 +104,7 @@ export class ClassesService {
     private readonly audit: SchoolAuditService,
     private readonly clock: Clock,
     private readonly modules: ModuleRef,
+    private readonly sectionAccess: SectionAccessService,
   ) {}
 
   private get db() {
@@ -263,12 +266,18 @@ export class ClassesService {
     if (!sessionId || !term) return { subjects: [], timetable: null };
     const [offered, assignments, tt] = await Promise.all([
       this.db.curriculumEntry.findMany({
-        where: { sessionId, levelId, subject: { status: 'ACTIVE' } },
-        include: { subject: true },
+        // Subjects only some arms take show on those arms only.
+        where: {
+          sessionId,
+          levelId,
+          subject: { status: 'ACTIVE' },
+          OR: [{ arms: { none: {} } }, { arms: { some: { armId } } }],
+        },
+        include: { subject: true, arms: true },
         orderBy: { subject: { name: 'asc' } },
       }),
       this.db.teachingAssignment.findMany({
-        where: { termId: term.id, armId },
+        where: { termId: term.id, armId, lead: true },
         include: { staff: { select: { title: true, firstName: true, lastName: true } } },
       }),
       this.db.timetable.findFirst({ where: { termId: term.id, armId } }),
@@ -284,7 +293,7 @@ export class ClassesService {
           type: e.offering === 'COMPULSORY' ? 'Compulsory' : 'Elective',
           teacherId: a?.staffId ?? null,
           teacher: a ? staffName(a.staff) : null,
-          periods: a?.periodsPerWeek ?? e.subject.periodsPerWeek,
+          periods: a?.periodsPerWeek ?? effectivePeriods(e, armId, e.subject.periodsPerWeek),
         };
       }),
       timetable: tt
@@ -426,6 +435,7 @@ export class ClassesService {
 
   /** Adds the standard Nigerian levels for every section each active branch runs, with arm A. */
   async applyDefaults(schoolId: string): Promise<ClassesView> {
+    await this.sectionAccess.require(null, 'the default classes');
     const confirmed = await this.structure.confirmedKeys();
     if (!confirmed.has(ACADEMIC_STEP.sections))
       throw fail('Finish Academic Sections first.', 'SECTIONS_NOT_CONFIRMED', HttpStatus.CONFLICT);
@@ -497,6 +507,7 @@ export class ClassesService {
         'SECTION_NOT_AT_BRANCH',
       );
     const sectionId = branch.sectionIds[sectionIndex]!;
+    await this.sectionAccess.require(sectionId, 'class levels');
     const name = (p.name ?? '').trim();
     if (!name) throw fail('Name the class level, e.g. JSS 1.', 'VALIDATION');
     const atBranch = await this.db.branchLevel.findMany({
@@ -563,6 +574,7 @@ export class ClassesService {
   /** Renames the level. Levels are shared by name, so every branch running it sees the new name. */
   async renameLevel(key: string, rawName: string): Promise<ClassesView> {
     const bl = await this.findBranchLevel(key);
+    await this.sectionAccess.requireLevel(bl.levelId, 'class levels');
     const name = (rawName ?? '').trim();
     if (!name) throw fail('Name the class level.', 'VALIDATION');
     const old = bl.level.name;
@@ -600,6 +612,7 @@ export class ClassesService {
   /** Moves the level up or down its section (the order is the school's promotion path). */
   async moveLevel(key: string, direction: 'up' | 'down'): Promise<ClassesView> {
     const bl = await this.findBranchLevel(key);
+    await this.sectionAccess.requireLevel(bl.levelId, 'class levels');
     const atBranch = new Set(
       (
         await this.db.branchLevel.findMany({
@@ -636,6 +649,7 @@ export class ClassesService {
   /** Removes the level from the branch with its arms. Refused while an arm has students. */
   async deleteLevel(key: string): Promise<ClassesView & { removed: string }> {
     const bl = await this.findBranchLevel(key);
+    await this.sectionAccess.requireLevel(bl.levelId, 'class levels');
     const arms = await this.db.classArm.findMany({
       where: { levelId: bl.levelId, branchId: bl.branchId },
     });
@@ -680,6 +694,7 @@ export class ClassesService {
     p: ArmInputDto,
   ): Promise<ClassesView & { added: string }> {
     const bl = await this.findBranchLevel(key);
+    await this.sectionAccess.requireLevel(bl.levelId, 'class arms');
     const existing = await this.db.classArm.findMany({
       where: { levelId: bl.levelId, branchId: bl.branchId },
       select: { name: true },
@@ -720,6 +735,7 @@ export class ClassesService {
 
   async updateArm(schoolId: string, id: string, p: UpdateArmDto): Promise<ClassArmView> {
     const { arm, level, branch } = await this.findArm(id);
+    await this.sectionAccess.requireArm(arm.id, 'class arms');
     const label = armLabel(level.name, arm.name);
     const data: Prisma.ClassArmUpdateInput = {};
     if (p.arm !== undefined && p.arm.trim() !== arm.name) {
@@ -775,6 +791,7 @@ export class ClassesService {
 
   async deleteArm(id: string): Promise<ClassesView & { removed: string }> {
     const { arm, level, branch } = await this.findArm(id);
+    await this.sectionAccess.requireArm(arm.id, 'class arms');
     const label = armLabel(level.name, arm.name);
     const n = (await this.studentsIn([arm.id])).get(arm.id) ?? 0;
     if (n)

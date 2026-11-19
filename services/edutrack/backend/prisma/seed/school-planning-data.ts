@@ -97,12 +97,17 @@ export async function seedSchoolPlanning(
     where: { schoolId, branchLevels: { some: {} } },
   });
   const subjectId = new Map<string, string>();
+  // Lessons per week per arm go back to the defaults.
+  await prisma.curriculumArm.deleteMany({ where: { schoolId } });
   for (const [name, code, category, periods, by] of SUGGESTED_SUBJECTS) {
     if (!sections.some((s) => by[s.code])) continue;
+    // A subject only one section offers belongs to it; the rest are shared.
+    const offeredBy = sections.filter((x) => by[x.code]);
+    const sectionId = offeredBy.length === 1 ? offeredBy[0]!.id : null;
     const row = await prisma.subject.upsert({
       where: { schoolId_code: { schoolId, code } },
-      create: { schoolId, code, name, category, periodsPerWeek: periods },
-      update: { name, category, periodsPerWeek: periods, status: 'ACTIVE' },
+      create: { schoolId, code, name, category, periodsPerWeek: periods, sectionId },
+      update: { name, category, periodsPerWeek: periods, status: 'ACTIVE', sectionId },
     });
     subjectId.set(code, row.id);
     for (const s of sections.filter((x) => by[x.code]))
@@ -122,7 +127,7 @@ export async function seedSchoolPlanning(
             subjectId: row.id,
             offering: OFFERING[by[s.code]!],
           },
-          update: { offering: OFFERING[by[s.code]!] },
+          update: { offering: OFFERING[by[s.code]!], periodsPerWeek: null },
         });
   }
   for (const s of sections)

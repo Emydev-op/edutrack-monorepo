@@ -39,6 +39,7 @@ const userInclude = {
   staff: true,
   roles: { include: { role: true } },
   branches: { include: { branch: { select: { name: true } } } },
+  sections: { include: { section: { select: { name: true, sortOrder: true } } } },
 } satisfies Prisma.SchoolMembershipInclude;
 
 type MembershipRow = Prisma.SchoolMembershipGetPayload<{ include: typeof userInclude }>;
@@ -104,6 +105,10 @@ export class SchoolUsersService {
       scope: m.scope === 'BRANCH' ? ('Branch' as const) : ('School' as const),
       branches:
         m.scope === 'BRANCH' ? m.branches.map((b) => b.branch.name).sort() : ([] as string[]),
+      // Empty: every section.
+      sections: [...m.sections]
+        .sort((a, b) => a.section.sortOrder - b.section.sortOrder)
+        .map((s) => s.section.name),
       status: MEMBERSHIP_STATUS_LABEL[m.status],
       lastActive: m.status === 'ACTIVE' && lastSeen ? ago(lastSeen, now) : '—',
       created: monthYear(m.staff?.startedOn ?? m.activatedAt ?? m.createdAt, now),
@@ -211,7 +216,16 @@ export class SchoolUsersService {
       if (branches.length !== wanted.length)
         throw AppException.validation({ branches: 'One of those branches doesn’t exist.' });
     }
-    return { roles, branches };
+    const wantedSections = [...new Set(dto.sections ?? [])];
+    const sections = wantedSections.length
+      ? await db.section.findMany({
+          where: { name: { in: wantedSections } },
+          select: { id: true, name: true },
+        })
+      : [];
+    if (sections.length !== wantedSections.length)
+      throw AppException.validation({ sections: 'One of those sections doesn’t exist.' });
+    return { roles, branches, sections };
   }
 
   /** The caller holds the Owner role. */
@@ -275,7 +289,7 @@ export class SchoolUsersService {
     const email = dto.email;
     if (dto.roles.includes(OWNER_ROLE_NAME))
       throw AppException.validation({ roles: 'The Owner role can’t be given by invitation.' });
-    const { roles, branches } = await this.resolveAccess(dto);
+    const { roles, branches, sections } = await this.resolveAccess(dto);
     const now = this.clock.now();
 
     const { membershipId, invitationId } = await this.db.$transaction(async (tx) => {
@@ -320,6 +334,7 @@ export class SchoolUsersService {
       if (existing) {
         await tx.membershipRole.deleteMany({ where: { membershipId: existing.id } });
         await tx.membershipBranch.deleteMany({ where: { membershipId: existing.id } });
+        await tx.membershipSection.deleteMany({ where: { membershipId: existing.id } });
         await tx.invitation.updateMany({
           where: { membershipId: existing.id, status: { in: ['PENDING', 'EXPIRED'] } },
           data: { status: 'REVOKED', revokedAt: now },
@@ -330,6 +345,7 @@ export class SchoolUsersService {
             ...access,
             roles: { create: roles.map((r) => ({ roleId: r.id })) },
             branches: { create: branches.map((b) => ({ branchId: b.id })) },
+            sections: { create: sections.map((s) => ({ sectionId: s.id })) },
           },
         });
       } else {
@@ -341,6 +357,7 @@ export class SchoolUsersService {
             ...access,
             roles: { create: roles.map((r) => ({ roleId: r.id })) },
             branches: { create: branches.map((b) => ({ branchId: b.id })) },
+            sections: { create: sections.map((s) => ({ sectionId: s.id })) },
           },
         });
       }
@@ -396,7 +413,7 @@ export class SchoolUsersService {
 
   async updateAccess(id: string, dto: AccessDto) {
     const m = await this.load(id);
-    const { roles, branches } = await this.resolveAccess(dto);
+    const { roles, branches, sections } = await this.resolveAccess(dto);
     const before = liveRoles(m);
     const beforeNames = before.map((r) => r.name);
     const afterNames = roles.map((r) => r.name);
@@ -453,6 +470,15 @@ export class SchoolUsersService {
       if (branches.length)
         await tx.membershipBranch.createMany({
           data: branches.map((b) => ({ schoolId: m.schoolId, membershipId: m.id, branchId: b.id })),
+        });
+      await tx.membershipSection.deleteMany({ where: { membershipId: m.id } });
+      if (sections.length)
+        await tx.membershipSection.createMany({
+          data: sections.map((s) => ({
+            schoolId: m.schoolId,
+            membershipId: m.id,
+            sectionId: s.id,
+          })),
         });
       await tx.schoolMembership.update({
         where: { id: m.id },

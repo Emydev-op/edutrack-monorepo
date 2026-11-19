@@ -173,6 +173,8 @@ model School {
   schoolRoles              SchoolRole[]
   membershipRoles          MembershipRole[]
   membershipBranches       MembershipBranch[]
+  membershipSections       MembershipSection[]
+  curriculumArms           CurriculumArm[]
   staff                    Staff[]
   staffBranches            StaffBranch[]
   staffQualifications      StaffQualification[]

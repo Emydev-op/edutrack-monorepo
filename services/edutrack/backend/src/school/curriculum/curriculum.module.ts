@@ -1,3 +1,4 @@
+import { SectionAccessService } from '../shared/section-access.service.js';
 import { Module } from '@nestjs/common';
 import { AcademicsModule } from '../academics/academics.module.js';
 import { AssessmentService } from '../assessment/assessment.service.js';
@@ -19,6 +20,7 @@ import { PlanningController } from './planning.controller.js';
   imports: [AcademicsModule],
   controllers: [PlanningController],
   providers: [
+    SectionAccessService,
     CurriculumService,
     AssignmentsService,
     TimetableService,

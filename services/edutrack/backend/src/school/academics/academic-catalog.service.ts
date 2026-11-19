@@ -26,9 +26,20 @@ export interface OfferedSubject {
   code: string;
   name: string;
   offering: Offering;
-  /** Default lessons per week. */
+  /** Lessons per week at the level (its own, else the subject's default). */
   periods: number;
+  /** When only some arms take it: those arms and their lessons per week (null: the level's). */
+  onlyArms: { armId: string; periods: number | null }[];
 }
+
+/** What one arm offers: subjects only some arms take are left out of the others. */
+export const offeredInArm = (list: OfferedSubject[] | undefined, armId: string) =>
+  (list ?? [])
+    .filter((s) => !s.onlyArms.length || s.onlyArms.some((a) => a.armId === armId))
+    .map((s) => ({
+      ...s,
+      periods: s.onlyArms.find((a) => a.armId === armId)?.periods ?? s.periods,
+    }));
 
 /**
  * The academic catalogue the Phase 3 screens share: the current session and term, the arms (in
@@ -141,7 +152,10 @@ export class AcademicCatalogService {
   async offeredByLevel(sessionId: string): Promise<Map<string, OfferedSubject[]>> {
     const rows = await this.db.curriculumEntry.findMany({
       where: { sessionId, subject: { status: 'ACTIVE' } },
-      include: { subject: { select: { code: true, name: true, periodsPerWeek: true } } },
+      include: {
+        subject: { select: { code: true, name: true, periodsPerWeek: true } },
+        arms: { select: { armId: true, periodsPerWeek: true } },
+      },
     });
     const out = new Map<string, OfferedSubject[]>();
     for (const r of rows.sort((a, b) => a.subject.name.localeCompare(b.subject.name)))
@@ -152,7 +166,8 @@ export class AcademicCatalogService {
           code: r.subject.code,
           name: r.subject.name,
           offering: r.offering,
-          periods: r.subject.periodsPerWeek,
+          periods: r.periodsPerWeek ?? r.subject.periodsPerWeek,
+          onlyArms: r.arms.map((a) => ({ armId: a.armId, periods: a.periodsPerWeek })),
         },
       ]);
     return out;
