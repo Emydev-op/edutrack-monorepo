@@ -253,7 +253,7 @@ export class SchoolSupportService {
       this.db.supportTicketMessage.findMany({
         where: { ticketId: t.id, kind: { not: 'NOTE' } },
         include: { attachments: { include: { file: true } } },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       }),
       this.db.supportTicketEvent.findMany({
         where: { ticketId: t.id, visibleToSchool: true },
