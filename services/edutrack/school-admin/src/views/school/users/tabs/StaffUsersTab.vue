@@ -43,6 +43,7 @@ const columns: Column[] = [
   { key: 'position', label: 'Position', width: 'minmax(150px,1.3fr)' },
   { key: 'roles', label: 'System roles', width: 'minmax(150px,1.3fr)' },
   { key: 'scope', label: 'Scope', width: 'minmax(120px,1fr)' },
+  { key: 'sections', label: 'Sections', width: 'minmax(130px,1fr)' },
   { key: 'status', label: 'Account', width: '110px' },
   { key: 'lastActive', label: 'Last active', width: '100px' },
 ];
@@ -56,7 +57,7 @@ const columns: Column[] = [
     :row-label="(u) => u.name"
     :actions="actions"
     :loading="isPending"
-    min-width="1000px"
+    min-width="1130px"
     empty-text="No users match your search."
   >
     <template #search><SearchInput v-model="search" placeholder="Search users" /></template>
@@ -74,6 +75,9 @@ const columns: Column[] = [
     <template #cell-roles="{ row }">{{ row.roles.join(', ') || 'None' }}</template>
     <template #cell-scope="{ row }">{{
       row.scope === 'School' ? 'Whole school' : row.branches.join(', ')
+    }}</template>
+    <template #cell-sections="{ row }">{{
+      row.sections?.length ? row.sections.join(', ') : 'All sections'
     }}</template>
     <template #cell-status="{ row }"
       ><StatusBadge :label="row.status" :tone="accountTone(row.status)"

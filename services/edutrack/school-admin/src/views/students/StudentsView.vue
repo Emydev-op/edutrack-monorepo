@@ -57,6 +57,7 @@ const { data, isPending } = useStudentsQuery(() => ({
   status: status.value || undefined,
   className: className.value || undefined,
   gender: gender.value || undefined,
+  branch: context.current.branch || undefined,
   page: Number(page.value),
   pageSize: Number(pageSize.value),
 }));

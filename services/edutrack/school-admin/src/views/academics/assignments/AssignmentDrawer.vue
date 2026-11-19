@@ -25,11 +25,12 @@ const open = defineModel<boolean>('open', { required: true });
 const save = useSaveAssignmentMutation();
 const TYPES: AssignmentType[] = ['Subject teacher', 'Temporary', 'Part-time'];
 
-const blank = (): AssignmentInput => ({
+const blank = (): Required<AssignmentInput> => ({
   teacherId: props.preset?.teacherId ?? '',
   subject: props.preset?.subject ?? '',
   armId: props.preset?.armId ?? '',
   type: props.preset?.type ?? 'Subject teacher',
+  role: props.preset?.role ?? 'Lead',
 });
 const form = reactive(blank());
 const initial = ref(JSON.stringify(blank()));
@@ -89,7 +90,7 @@ const runCheck = useDebounceFn(async () => {
     checking.value = false;
   }
 }, 250);
-watch(() => [form.teacherId, form.subject, form.armId], runCheck, { immediate: true });
+watch(() => [form.teacherId, form.subject, form.armId, form.role], runCheck, { immediate: true });
 
 const loadText = computed(() =>
   teacher.value
@@ -105,7 +106,11 @@ async function submit() {
     await save.mutateAsync({ ...form });
     const arm = props.view.arms.find((a) => a.id === form.armId)?.name;
     const subject = props.view.subjects.find((s) => s.code === form.subject)?.name;
-    toast.success(`${teacher.value?.name} now teaches ${subject} in ${arm}.`);
+    toast.success(
+      form.role === 'Co-teacher'
+        ? `${teacher.value?.name} now co-teaches ${subject} in ${arm}.`
+        : `${teacher.value?.name} now leads ${subject} in ${arm}.`,
+    );
     open.value = false;
   } catch (e) {
     serverError.value = getApiErrorMessage(e, 'We couldn’t save the assignment. Try again.');
@@ -116,7 +121,13 @@ async function submit() {
 <template>
   <SideDrawer
     v-model:open="open"
-    :title="preset?.teacherId ? 'Reassign subject' : 'Add assignment'"
+    :title="
+      preset?.teacherId
+        ? 'Reassign subject'
+        : preset?.role === 'Co-teacher'
+          ? 'Add co-teacher'
+          : 'Add assignment'
+    "
     :description="`Applies to ${view.term || 'this term'} and carries through the rest of the session.`"
     :dirty="dirty"
   >
@@ -183,6 +194,23 @@ async function submit() {
           </option>
         </select>
       </FieldShell>
+      <ChoiceCards
+        v-model="form.role"
+        label="Role"
+        :columns="2"
+        :choices="[
+          {
+            value: 'Lead',
+            label: 'Lead teacher',
+            description: 'Replaces the class’s current lead',
+          },
+          {
+            value: 'Co-teacher',
+            label: 'Co-teacher',
+            description: 'Joins the lead; the class needs a lead first',
+          },
+        ]"
+      />
       <ChoiceCards
         v-model="form.type"
         label="Type"

@@ -277,6 +277,10 @@ export interface Subject {
   teachers: string[];
   /** Scored this session; can't be deleted. */
   hasScores: boolean;
+  /** The section that owns it; null = shared by every section. */
+  section: string | null;
+  /** False when it belongs to a section this admin doesn't manage (or is shared, for section admins). */
+  canEdit: boolean;
 }
 
 export type Offering = 'C' | 'E';
@@ -292,14 +296,46 @@ export interface ElectiveGroup {
   note: string;
 }
 
+/** section → level → subject code → lessons per week, where a level differs from the default. */
+export type CurriculumPeriods = Record<string, Record<string, Record<string, number>>>;
+/**
+ * section → level → subject code → arm id → lessons per week (null: the level's), for subjects
+ * only some arms take. A subject/level not listed is taken by every arm.
+ */
+export type CurriculumArms = Record<
+  string,
+  Record<string, Record<string, Record<string, number | null>>>
+>;
+
+export interface CurriculumLevels {
+  section: string;
+  /** In promotion order. */
+  levels: string[];
+  /** The arms of each level, across every branch. */
+  arms: Record<string, { id: string; name: string; branch: string }[]>;
+  /** False for sections this admin doesn't manage. */
+  canEdit: boolean;
+}
+
 export interface CurriculumView {
   subjects: Subject[];
   /** section → level → subject code → Compulsory/Elective. */
   curriculum: Record<string, Record<string, Record<string, Offering>>>;
+  periods: CurriculumPeriods;
+  arms: CurriculumArms;
   groups: ElectiveGroup[];
   /** Levels per section, in promotion order. */
-  levels: { section: string; levels: string[] }[];
+  levels: CurriculumLevels[];
+  /** The sections this admin manages; null = whole-school admin. */
+  mySections: string[] | null;
   confirmed: boolean;
+}
+
+export interface CurriculumInput {
+  curriculum: CurriculumView['curriculum'];
+  groups: ElectiveGroup[];
+  periods?: CurriculumPeriods;
+  arms?: CurriculumArms;
 }
 
 export interface SubjectInput {
@@ -308,6 +344,38 @@ export interface SubjectInput {
   category: SubjectCategory;
   status: 'Active' | 'Inactive';
   periods: number;
+  /** Section name; null = shared by every section. */
+  section: string | null;
+}
+
+/** One subject row of a bulk upload, as the school edits it in the preview. */
+export interface SubjectImportRow {
+  /** The row in the file, for messages. */
+  row: number;
+  name: string;
+  /** Blank in the file: the API suggests one. */
+  code: string;
+  /** A section name; '' = shared by every section. */
+  section: string;
+  category: string;
+  periods: number | string;
+  status: string;
+}
+
+export type SubjectImportField =
+  'name' | 'code' | 'section' | 'category' | 'periods' | 'status' | 'row';
+
+export interface SubjectImportIssue {
+  field: SubjectImportField;
+  message: string;
+}
+
+/** The checked file. Nothing is saved until the rows are committed. */
+export interface SubjectImportPreview {
+  rows: (SubjectImportRow & { issues: SubjectImportIssue[] })[];
+  total: number;
+  ready: number;
+  withIssues: number;
 }
 
 /* ---------------- Teachers & assignments ---------------- */
@@ -325,6 +393,8 @@ export interface Teacher {
 }
 
 export type AssignmentType = 'Subject teacher' | 'Temporary' | 'Part-time';
+/** A lead teaches the class; co-teachers join them. */
+export type AssignmentRole = 'Lead' | 'Co-teacher';
 
 export interface Assignment {
   id: string;
@@ -336,6 +406,7 @@ export interface Assignment {
   arm: string;
   branch: string;
   type: AssignmentType;
+  role: AssignmentRole;
   periods: number;
 }
 
@@ -363,6 +434,8 @@ export interface AssignmentInput {
   subject: string;
   armId: string;
   type: AssignmentType;
+  /** Defaults to Lead. */
+  role?: AssignmentRole;
 }
 
 export interface AssignmentWarning {

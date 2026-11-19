@@ -19,8 +19,8 @@ import type {
   ClassDetail,
   ClassesView,
   Correction,
+  CurriculumInput,
   CurriculumView,
-  ElectiveGroup,
   LevelInput,
   NewSessionPayload,
   PromotionDecisionInput,
@@ -32,13 +32,22 @@ import type {
   SectionInput,
   SectionsView,
   SessionsView,
+  SubjectImportPreview,
+  SubjectImportRow,
   SubjectInput,
   TermInput,
   TimetableArmOption,
   TimetableView,
 } from '@/types';
 
-import { cleanParams, deleteRequest, getRequest, postRequest, putRequest } from '../helpers';
+import {
+  cleanParams,
+  deleteRequest,
+  getBlob,
+  getRequest,
+  postRequest,
+  putRequest,
+} from '../helpers';
 import { queryKeys } from '../query-keys';
 
 /**
@@ -191,8 +200,34 @@ export const useSaveSubjectMutation = () =>
 export const useDeleteSubjectMutation = () =>
   useAcademicsMutation((code: string) => deleteRequest<CurriculumView>(`${A}/subjects/${code}`));
 
+/* Bulk upload: download the template, check a filled-in file, then import the corrected rows. */
+
+/** The Excel template (a raw file, not the JSON envelope), saved to the browser's downloads. */
+export async function downloadSubjectTemplate() {
+  const url = URL.createObjectURL(await getBlob(`${A}/subjects/template`));
+  const link = Object.assign(document.createElement('a'), {
+    href: url,
+    download: 'edutrack-subjects-template.xlsx',
+  });
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Reads and checks the file; nothing is saved. `content`: base64 for .xlsx, text for .csv. */
+export const useSubjectImportPreviewMutation = () =>
+  useMutation({
+    mutationFn: (p: { fileName: string; content: string }) =>
+      postRequest<SubjectImportPreview>(`${A}/subjects/import`, p),
+  });
+
+/** All rows or none: a 422 IMPORT_HAS_ISSUES carries `<row>.<field>` messages. */
+export const useSubjectImportCommitMutation = () =>
+  useAcademicsMutation((rows: SubjectImportRow[]) =>
+    postRequest<{ imported: number }>(`${A}/subjects/import/commit`, { rows }),
+  );
+
 export const useSaveCurriculumMutation = () =>
-  useAcademicsMutation((p: { curriculum: CurriculumView['curriculum']; groups: ElectiveGroup[] }) =>
+  useAcademicsMutation((p: CurriculumInput) =>
     putRequest<CurriculumView & { cleared: number }>(`${A}/curriculum`, p),
   );
 

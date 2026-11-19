@@ -21,6 +21,9 @@ export interface RowAction {
   onSelect?: () => void;
   /** Styles the item as destructive and separates it from the safe actions above. */
   destructive?: boolean;
+  /** Greys the item out; `disabledReason` says why (also the item's tooltip). */
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
 defineProps<{ actions: RowAction[]; label: string }>();
@@ -46,7 +49,9 @@ const run = (action: RowAction) => action.onSelect && setTimeout(action.onSelect
       <template v-for="(action, i) in actions" :key="action.label">
         <DropdownMenuSeparator v-if="action.destructive && i > 0 && !actions[i - 1]?.destructive" />
         <DropdownMenuItem
-          :as-child="!!action.to"
+          :as-child="!!action.to && !action.disabled"
+          :disabled="action.disabled"
+          :title="action.disabled ? action.disabledReason : undefined"
           :class="
             cn(
               'gap-2.5 text-[13px]',
@@ -55,7 +60,7 @@ const run = (action: RowAction) => action.onSelect && setTimeout(action.onSelect
           "
           @select="run(action)"
         >
-          <RouterLink v-if="action.to" :to="action.to">
+          <RouterLink v-if="action.to && !action.disabled" :to="action.to">
             <component :is="action.icon" v-if="action.icon" class="text-muted-foreground" />{{
               action.label
             }}
@@ -65,7 +70,12 @@ const run = (action: RowAction) => action.onSelect && setTimeout(action.onSelect
               :is="action.icon"
               v-if="action.icon"
               :class="action.destructive ? 'text-destructive' : 'text-muted-foreground'"
-            />{{ action.label }}
+            /><span class="flex flex-col">
+              {{ action.label }}
+              <span v-if="action.disabled && action.disabledReason" class="text-xs text-faint">{{
+                action.disabledReason
+              }}</span>
+            </span>
           </template>
         </DropdownMenuItem>
       </template>

@@ -40,6 +40,7 @@ const blank = () => ({
   roles: [...(props.preset?.roles ?? [])],
   scope: 'School' as AccessScope,
   branches: [] as string[],
+  sections: [] as string[],
 });
 const form = reactive(blank());
 const showErrors = ref(false);
@@ -57,6 +58,8 @@ const candidates = computed(() =>
 const roleNames = computed(() =>
   (roles.value ?? []).map((r) => r.name).filter((n) => n !== 'Owner'),
 );
+/** The school's sections, set in Academics → Academic Sections. */
+const schoolSections = computed(() => branches.value?.offering ?? []);
 const activeBranches = computed(() =>
   (branches.value?.branches ?? []).filter((b) => b.status === 'Active').map((b) => b.name),
 );
@@ -86,6 +89,7 @@ async function send() {
       roles: form.roles,
       scope: form.scope,
       branches: form.scope === 'Branch' ? form.branches : [],
+      sections: form.sections,
     });
     open.value = false;
     toast.success(messageOf(user, `Invitation sent to ${user.email}.`));
@@ -190,6 +194,17 @@ async function send() {
         required
         :options="activeBranches"
         :error="err('branches')"
+      />
+      <ChipGroup
+        v-if="schoolSections.length"
+        v-model="form.sections"
+        label="Sections they manage"
+        :options="schoolSections"
+        :hint="
+          form.sections.length
+            ? `They can only change ${form.sections.join(', ')} records.`
+            : 'None picked: every section.'
+        "
       />
     </div>
     <template #footer>

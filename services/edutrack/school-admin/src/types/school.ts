@@ -148,6 +148,8 @@ export interface SchoolUserRow {
   roles: string[];
   scope: AccessScope;
   branches: string[];
+  /** Sections they manage; empty = every section. */
+  sections: string[];
   status: UserStatus;
   lastActive: string;
   created: string;
@@ -169,12 +171,16 @@ export interface InvitePayload {
   roles: string[];
   scope: AccessScope;
   branches: string[];
+  /** Section names; empty = every section. */
+  sections?: string[];
 }
 
 export interface AccessPayload {
   roles: string[];
   scope: AccessScope;
   branches: string[];
+  /** Section names; empty = every section. */
+  sections?: string[];
 }
 
 export type RoleScope =

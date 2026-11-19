@@ -16,8 +16,8 @@ import type {
   ClassDetail,
   ClassesView,
   CopyArea,
+  CurriculumInput,
   CurriculumView,
-  ElectiveGroup,
   LevelInput,
   NewSessionPayload,
   Offering,
@@ -1097,7 +1097,7 @@ export function weighted(acad: AcademicsData, section: string, values: (number |
 
 /* ======================= Subjects & curriculum ======================= */
 
-function curriculumView(acad: AcademicsData): CurriculumView {
+function curriculumView(schoolId: string, acad: AcademicsData): CurriculumView {
   const term = currentTerm(acad);
   return {
     subjects: acad.subjects.map((s) => {
@@ -1113,6 +1113,9 @@ function curriculumView(acad: AcademicsData): CurriculumView {
       ];
       return {
         ...s,
+        section: s.section ?? null,
+        // The mock signs in a whole-school admin.
+        canEdit: true,
         levels,
         teachers,
         hasScores: acad.sheets.some(
@@ -1124,16 +1127,41 @@ function curriculumView(acad: AcademicsData): CurriculumView {
       };
     }),
     curriculum: acad.curriculum,
+    periods: acad.periods ?? {},
+    arms: acad.arms ?? {},
     groups: acad.groups,
-    levels: levelsBySection(acad).filter((x) => x.levels.length),
+    levels: levelsBySection(acad)
+      .filter((x) => x.levels.length)
+      .map((x) => ({
+        ...x,
+        arms: Object.fromEntries(
+          x.levels.map((lv) => [
+            lv,
+            acad.levels
+              .filter((l) => l.section === x.section && l.name === lv)
+              .flatMap((l) =>
+                l.arms.map((a) => ({
+                  id: a.id,
+                  name: armLabel(l.name, a.arm),
+                  branch: branchName(schoolId, l.branchId),
+                })),
+              ),
+          ]),
+        ),
+        canEdit: true,
+      })),
+    mySections: null,
     confirmed: acad.confirmed.subjects,
   };
 }
 
-mock.get('/v1/academics/curriculum', (req) => curriculumView(acadFor(req).acad));
+mock.get('/v1/academics/curriculum', (req) => {
+  const { acad, schoolId } = acadFor(req);
+  return curriculumView(schoolId, acad);
+});
 
 mock.post('/v1/academics/subjects/defaults', (req) => {
-  const { acad, log } = acadFor(req);
+  const { acad, log, schoolId } = acadFor(req);
   if (acad.subjects.length) fail('You already have subjects. Add more one by one.', 409);
   if (!acad.levels.length) fail('Add class levels in Classes & Arms first.', 409);
   const by: Record<string, string[]> = Object.fromEntries(
@@ -1141,7 +1169,7 @@ mock.post('/v1/academics/subjects/defaults', (req) => {
   );
   Object.assign(acad, curriculumFromSuggestions(acad, by));
   log('Academics', 'Suggested subjects added', plural(acad.subjects.length, 'subject'));
-  return curriculumView(acad);
+  return curriculumView(schoolId, acad);
 });
 
 function checkSubject(acad: AcademicsData, p: SubjectInput, existing?: string) {
@@ -1150,47 +1178,59 @@ function checkSubject(acad: AcademicsData, p: SubjectInput, existing?: string) {
     fail('Use 2–4 capitals for the code, e.g. MTH.');
   if (!existing && acad.subjects.some((s) => s.code === p.code))
     fail(`The code ${p.code} is already used by ${subjectName(acad, p.code)}.`);
-  if (acad.subjects.some((s) => s.code !== existing && s.name.toLowerCase() === name.toLowerCase()))
-    fail(`${name} already exists.`);
+  const section = (p.section ?? '').trim() || null;
+  if (section && !acad.sections.some((s) => s.name === section))
+    fail(`${section} isn’t one of your sections.`);
+  // Names are unique within a section.
+  if (
+    acad.subjects.some(
+      (s) =>
+        s.code !== existing &&
+        (s.section ?? null) === section &&
+        s.name.toLowerCase() === name.toLowerCase(),
+    )
+  )
+    fail(`${name} already exists${section ? ` in ${section}` : ''}.`);
   const periods = Number(p.periods);
   if (!Number.isInteger(periods) || periods < 1 || periods > 10)
     fail('Lessons per week must be between 1 and 10.');
-  return { name, periods };
+  return { name, periods, section };
 }
 
 mock.post('/v1/academics/subjects', (req) => {
-  const { acad, log } = acadFor(req);
+  const { acad, log, schoolId } = acadFor(req);
   const p = req.body as SubjectInput;
-  const { name, periods } = checkSubject(acad, p);
+  const { name, periods, section } = checkSubject(acad, p);
   acad.subjects.push({
     code: p.code,
     name,
     category: p.category,
     status: p.status ?? 'Active',
     periods,
+    section,
   });
   log('Academics', `Subject added: ${name}`, p.code);
-  return curriculumView(acad);
+  return curriculumView(schoolId, acad);
 });
 
 mock.put('/v1/academics/subjects/:code', (req) => {
-  const { acad, log } = acadFor(req);
+  const { acad, log, schoolId } = acadFor(req);
   const s = acad.subjects.find((x) => x.code === req.params.code) ?? fail('Subject not found', 404);
   const p = req.body as SubjectInput;
-  const { name, periods } = checkSubject(acad, p, s.code);
+  const { name, periods, section } = checkSubject(acad, p, s.code);
   if (
     p.status === 'Inactive' &&
     s.status === 'Active' &&
     acad.assignments.some((a) => a.subject === s.code)
   )
     fail(`${s.name} is still assigned to teachers. Remove those assignments first.`, 409);
-  Object.assign(s, { name, periods, category: p.category, status: p.status });
+  Object.assign(s, { name, periods, section, category: p.category, status: p.status });
   log('Academics', `Subject updated: ${name}`, s.code);
-  return curriculumView(acad);
+  return curriculumView(schoolId, acad);
 });
 
 mock.delete('/v1/academics/subjects/:code', (req) => {
-  const { acad, log } = acadFor(req);
+  const { acad, log, schoolId } = acadFor(req);
   const code = req.params.code!;
   const s = acad.subjects.find((x) => x.code === code) ?? fail('Subject not found', 404);
   if (acad.sheets.some((x) => x.subject === code && !['Not started'].includes(x.status)))
@@ -1202,12 +1242,12 @@ mock.delete('/v1/academics/subjects/:code', (req) => {
     for (const lv of Object.values(sec)) delete lv[code];
   acad.groups.forEach((g) => (g.subjects = g.subjects.filter((c) => c !== code)));
   log('Academics', `Subject removed: ${s.name}`, code);
-  return curriculumView(acad);
+  return curriculumView(schoolId, acad);
 });
 
 mock.put('/v1/academics/curriculum', (req) => {
-  const { acad, log } = acadFor(req);
-  const p = req.body as { curriculum: CurriculumView['curriculum']; groups: ElectiveGroup[] };
+  const { acad, log, schoolId } = acadFor(req);
+  const p = req.body as CurriculumInput;
   const term = currentTerm(acad);
   for (const [i, g] of (p.groups ?? []).entries()) {
     const name = requireText(g.name, `Name elective group ${i + 1}.`);
@@ -1261,6 +1301,22 @@ mock.put('/v1/academics/curriculum', (req) => {
       ),
     ]),
   );
+  // Omitted maps keep what's there; levels no longer offering a subject drop its overrides.
+  const offered = (sec: string, lv: string, code: string) => !!acad.curriculum[sec]?.[lv]?.[code];
+  const keepOffered = <T>(m: Record<string, Record<string, Record<string, T>>>) =>
+    Object.fromEntries(
+      Object.entries(m).map(([sec, lvs]) => [
+        sec,
+        Object.fromEntries(
+          Object.entries(lvs).map(([lv, subs]) => [
+            lv,
+            Object.fromEntries(Object.entries(subs).filter(([code]) => offered(sec, lv, code))),
+          ]),
+        ),
+      ]),
+    );
+  acad.periods = keepOffered(p.periods ?? acad.periods ?? {});
+  acad.arms = keepOffered(p.arms ?? acad.arms ?? {});
   acad.groups = (p.groups ?? []).map((g, i) => ({
     ...g,
     id: g.id || `g${Date.now()}${i}`,
@@ -1272,7 +1328,7 @@ mock.put('/v1/academics/curriculum', (req) => {
     'Curriculum saved',
     `${plural(acad.groups.length, 'elective group')}${cleared ? ` · ${plural(cleared, 'assignment')} cleared` : ''}`,
   );
-  return { ...curriculumView(acad), cleared };
+  return { ...curriculumView(schoolId, acad), cleared };
 });
 
 /* ======================= Teachers & assignments ======================= */
@@ -1313,6 +1369,7 @@ function assignmentsView(schoolId: string, acad: AcademicsData, branch?: string)
         const { level, arm } = findArm(acad, a.armId);
         return {
           ...a,
+          role: a.role ?? 'Lead',
           teacher: teacherName(acad, a.teacherId) ?? 'Removed staff',
           subjectName: subjectName(acad, a.subject),
           arm: armLabel(level.name, arm.arm),
@@ -1371,12 +1428,21 @@ function assignmentWarnings(
       kind: 'duplicate',
       text: `${level.name} doesn’t offer ${subjectName(acad, p.subject)}. Add it to the curriculum first.`,
     });
-  const existing = acad.assignments.find((a) => a.armId === p.armId && a.subject === p.subject);
-  if (existing && existing.teacherId !== p.teacherId)
+  const co = p.role === 'Co-teacher';
+  const existing = acad.assignments.find(
+    (a) => a.armId === p.armId && a.subject === p.subject && (a.role ?? 'Lead') === 'Lead',
+  );
+  if (!co && existing && existing.teacherId !== p.teacherId)
     out.push({
       tone: 'warning',
       kind: 'duplicate',
-      text: `Replaces ${teacherName(acad, existing.teacherId)} for ${label} ${subjectName(acad, p.subject)}.`,
+      text: `Replaces ${teacherName(acad, existing.teacherId)} as lead for ${label} ${subjectName(acad, p.subject)}.`,
+    });
+  if (co && !existing)
+    out.push({
+      tone: 'error',
+      kind: 'duplicate',
+      text: `${label} ${subjectName(acad, p.subject)} has no lead teacher yet. Assign the lead first.`,
     });
   if (existing?.teacherId === p.teacherId)
     out.push({
@@ -1434,8 +1500,15 @@ mock.post('/v1/academics/assignments', (req) => {
     (w) => w.tone === 'error' && w.kind !== 'conflict',
   );
   if (blocking.length) fail(blocking[0]!.text);
+  const role = p.role === 'Co-teacher' ? 'Co-teacher' : 'Lead';
+  // A lead replaces the class's lead; a co-teacher joins them. Either way, one row per teacher.
   acad.assignments = acad.assignments.filter(
-    (a) => !(a.armId === p.armId && a.subject === p.subject),
+    (a) =>
+      !(
+        a.armId === p.armId &&
+        a.subject === p.subject &&
+        (a.teacherId === t.id || (role === 'Lead' && (a.role ?? 'Lead') === 'Lead'))
+      ),
   );
   const rec = {
     id: nextId(acad, 'as'),
@@ -1443,13 +1516,14 @@ mock.post('/v1/academics/assignments', (req) => {
     subject: p.subject,
     armId: p.armId,
     type: p.type ?? 'Subject teacher',
-  };
+    role,
+  } as const;
   acad.assignments.push(rec);
   const { level, arm } = findArm(acad, p.armId);
   log(
     'Academics',
     `${t.name} assigned`,
-    `${subjectName(acad, p.subject)} · ${armLabel(level.name, arm.arm)} · ${rec.type}`,
+    `${subjectName(acad, p.subject)} · ${armLabel(level.name, arm.arm)} · ${rec.type}${role === 'Co-teacher' ? ' · co-teacher' : ''}`,
   );
   return assignmentsView(schoolId, acad);
 });
@@ -1459,6 +1533,11 @@ mock.delete('/v1/academics/assignments/:id', (req) => {
   const a =
     acad.assignments.find((x) => x.id === req.params.id) ?? fail('Assignment not found', 404);
   acad.assignments.splice(acad.assignments.indexOf(a), 1);
+  // Removing a lead promotes the first co-teacher.
+  if ((a.role ?? 'Lead') === 'Lead') {
+    const next = acad.assignments.find((x) => x.armId === a.armId && x.subject === a.subject);
+    if (next) next.role = 'Lead';
+  }
   log(
     'Academics',
     `Assignment removed: ${teacherName(acad, a.teacherId)}`,

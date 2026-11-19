@@ -46,6 +46,8 @@ export const authUser = (u: SchoolUser) => ({
   position: u.position,
   roleName: u.roleName,
   avatarUrl: null,
+  // The mock admins manage every section.
+  sections: null,
 });
 
 export function requireText(value: unknown, message: string): string {

@@ -23,6 +23,7 @@ const user = {
   position: 'Principal',
   roleName: 'School Admin',
   avatarUrl: null,
+  sections: null,
 };
 const primary = () => document.documentElement.style.getPropertyValue('--primary');
 

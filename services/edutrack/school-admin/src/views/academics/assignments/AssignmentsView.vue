@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
+import { StatusBadge } from '@edutrack/ui/components/status-badge';
 import { cn } from '@edutrack/ui/lib/utils';
 import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
@@ -58,7 +59,10 @@ const rows = computed(() => {
       (a) =>
         (!teacherFilter.value || a.teacher === teacherFilter.value) &&
         (!subjectFilter.value || a.subjectName === subjectFilter.value) &&
-        (!q || `${a.teacher} ${a.subjectName} ${a.subject} ${a.arm}`.toLowerCase().includes(q)),
+        (!q ||
+          `${a.teacher} ${a.subjectName} ${a.subject} ${a.arm} ${a.role}`
+            .toLowerCase()
+            .includes(q)),
     )
     .sort((a, b) => a.teacher.localeCompare(b.teacher) || a.arm.localeCompare(b.arm));
 });
@@ -85,7 +89,7 @@ const slots = computed(() => {
   const v = view.value;
   if (!v) return { total: 0, filled: 0 };
   const total = v.arms.reduce((n, a) => n + a.subjects.length, 0);
-  return { total, filled: v.assignments.length };
+  return { total, filled: v.assignments.filter((a) => a.role !== 'Co-teacher').length };
 });
 
 const gapSummary = computed(() =>
@@ -124,12 +128,20 @@ function copyPrevious() {
 }
 
 function removeRow(a: Assignment) {
+  const coTeachers = (view.value?.assignments ?? []).filter(
+    (x) => x.armId === a.armId && x.subject === a.subject && x.role === 'Co-teacher',
+  );
   void confirm({
     title: `Remove ${a.teacher} from ${a.arm} ${a.subjectName}?`,
-    details: [
-      ['After', `${a.arm} ${a.subjectName} has no teacher until you assign one`],
-      ['Timetable', 'Lessons stay placed but show “No teacher”'],
-    ],
+    details:
+      a.role === 'Co-teacher'
+        ? [['After', 'The lead teacher keeps the class']]
+        : coTeachers.length
+          ? [['After', `${coTeachers[0]!.teacher} becomes the lead teacher`]]
+          : [
+              ['After', `${a.arm} ${a.subjectName} has no teacher until you assign one`],
+              ['Timetable', 'Lessons stay placed but show “No teacher”'],
+            ],
     confirmLabel: 'Remove assignment',
     tone: 'destructive',
     action: async () => {
@@ -140,11 +152,37 @@ function removeRow(a: Assignment) {
 }
 
 const actions = (a: Assignment) => [
-  {
-    label: 'Reassign',
-    onSelect: () =>
-      openDrawer({ teacherId: a.teacherId, subject: a.subject, armId: a.armId, type: a.type }),
-  },
+  ...(a.role === 'Co-teacher'
+    ? [
+        {
+          label: 'Make lead teacher',
+          onSelect: () =>
+            openDrawer({
+              teacherId: a.teacherId,
+              subject: a.subject,
+              armId: a.armId,
+              type: a.type,
+              role: 'Lead',
+            }),
+        },
+      ]
+    : [
+        {
+          label: 'Reassign',
+          onSelect: () =>
+            openDrawer({
+              teacherId: a.teacherId,
+              subject: a.subject,
+              armId: a.armId,
+              type: a.type,
+              role: 'Lead',
+            }),
+        },
+        {
+          label: 'Add co-teacher',
+          onSelect: () => openDrawer({ subject: a.subject, armId: a.armId, role: 'Co-teacher' }),
+        },
+      ]),
   { label: 'Remove', destructive: true, onSelect: () => removeRow(a) },
 ];
 
@@ -295,7 +333,10 @@ const empty = computed(() => {
           </template>
           <template #cell-teacher="{ row }">
             <span class="flex flex-col">
-              <span class="font-medium">{{ row.teacher }}</span>
+              <span class="flex items-center gap-1.5">
+                <span class="font-medium">{{ row.teacher }}</span>
+                <StatusBadge v-if="row.role === 'Co-teacher'" label="Co-teacher" tone="info" />
+              </span>
               <span
                 v-if="loadOf(row.teacherId)?.classTeacherOf.length"
                 class="text-xs text-muted-foreground"
