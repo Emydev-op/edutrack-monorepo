@@ -1,3 +1,4 @@
+import { unprocessable } from '../shared/staff.js';
 import type {
   SupportTeam,
   TicketCategory,
@@ -185,4 +186,29 @@ export function isOverdue(t: SlaTicket, now: Date, holidays: Holidays) {
   if (isDone(t.status)) return false;
   const { firstReply, resolution } = slaOf(t, now, holidays);
   return firstReply.state === 'over' || resolution.state === 'over';
+}
+
+/** Attachments: PNG, JPEG or PDF, 10 MB at most, checked by their first bytes too. */
+export const MAX_SUPPORT_ATTACHMENT = 10 * 1024 * 1024;
+
+/** A `data:` URL as bytes, refusing anything that isn't really a PNG, JPEG or PDF. */
+export function parseSupportAttachment(dataUrl: string) {
+  const match = /^data:(image\/png|image\/jpeg|application\/pdf);base64,([A-Za-z0-9+/=\s]+)$/.exec(
+    dataUrl,
+  );
+  const bad = () => unprocessable('Attach a PNG, JPG or PDF file.', 'ATTACHMENT_TYPE');
+  if (!match) throw bad();
+  const mime = match[1]!;
+  const bytes = Buffer.from(match[2]!, 'base64');
+  const magic =
+    mime === 'image/png'
+      ? [0x89, 0x50, 0x4e, 0x47]
+      : mime === 'image/jpeg'
+        ? [0xff, 0xd8, 0xff]
+        : [0x25, 0x50, 0x44, 0x46];
+  if (!magic.every((b, i) => bytes[i] === b)) throw bad();
+  if (bytes.length > MAX_SUPPORT_ATTACHMENT)
+    throw unprocessable('The attachment is larger than 10 MB.', 'ATTACHMENT_TOO_LARGE');
+  const ext = mime === 'image/png' ? 'png' : mime === 'image/jpeg' ? 'jpg' : 'pdf';
+  return { bytes, mime, ext };
 }
