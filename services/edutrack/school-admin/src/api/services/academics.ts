@@ -352,6 +352,13 @@ export const useSheetActionMutation = () =>
     }) => postRequest<ResultSheet>(`${A}/results/sheets/${armId}/${subject}/${action}`, { note }),
   );
 
+/** Reopens score entry on one sheet for some days after the term's result deadline. */
+export const useReopenEntryMutation = () =>
+  useAcademicsMutation(
+    ({ armId, subject, days }: { armId: string; subject: string; days: number }) =>
+      postRequest<ResultSheet>(`${A}/results/sheets/${armId}/${subject}/reopen`, { days }),
+  );
+
 export const getPublishCheck = (armId: string) =>
   getRequest<PublishCheck>(`${A}/results/publish/${armId}`);
 

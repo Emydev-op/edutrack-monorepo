@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import { useIdleSignOut } from '@edutrack/app-kit/composables/useIdleSignOut';
+import { useQueryClient } from '@tanstack/vue-query';
+import { useRouter } from 'vue-router';
+
+import { useLogoutMutation } from '@/api/services/auth';
+import { routesPath as idleRoutes } from '@/router/routes-path';
+import { useAuthStore as useIdleAuth } from '@/stores/auth';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { SidebarInset, SidebarProvider } from '@edutrack/ui/components/sidebar';
 import { ref, watch } from 'vue';
@@ -35,6 +42,25 @@ const content = ref<HTMLElement | null>(null);
 watch(
   () => route.path,
   () => content.value?.scrollTo({ top: 0 }),
+);
+
+// Shared computers: sign out after the school's idle time, unless "Remember this device".
+const idleAuth = useIdleAuth();
+const idleRouter = useRouter();
+const idleQueries = useQueryClient();
+const logoutIdle = useLogoutMutation();
+useIdleSignOut(
+  () => (idleAuth.remembered() ? null : (idleAuth.school?.idleTimeoutMinutes ?? 30)),
+  async () => {
+    try {
+      await logoutIdle.mutateAsync();
+    } catch {
+      // Signed out locally even if the server can't be reached.
+    }
+    idleAuth.clear();
+    await idleRouter.replace({ name: idleRoutes.auth.login.name, query: { reason: 'idle' } });
+    idleQueries.clear();
+  },
 );
 </script>
 

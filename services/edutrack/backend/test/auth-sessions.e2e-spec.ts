@@ -137,6 +137,11 @@ describe('Sessions, refresh and sign-out (e2e)', () => {
     it('ends a browser-session sign-in after 12 hours on the server', async () => {
       const { cookie } = await signIn(t, ADAEZE);
       t.clock.advance(11 * HOUR);
+      // In use all day (otherwise the school's idle sign-out ends it first).
+      await t.prisma.authSession.updateMany({
+        where: { user: { email: ADAEZE }, revokedAt: null },
+        data: { lastSeenAt: t.clock.now() },
+      });
       const stillOk = await refresh(cookie);
       expect(stillOk.status).toBe(200);
       expect(setCookieLine(stillOk, COOKIE)).not.toMatch(/Max-Age/);

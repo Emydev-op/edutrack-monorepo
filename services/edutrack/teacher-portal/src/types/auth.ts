@@ -11,6 +11,8 @@ export interface AuthUser {
 }
 
 export interface SchoolSummary {
+  /** Staff are signed out after this many minutes without using the page (unless remembered). */
+  idleTimeoutMinutes?: number;
   id: string;
   name: string;
   initials: string;
