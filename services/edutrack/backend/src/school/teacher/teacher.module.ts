@@ -20,6 +20,6 @@ import { TeachingService } from './teaching.service.js';
     TeacherFrameService,
     SchoolAuditService,
   ],
-  exports: [TeacherFrameService],
+  exports: [TeacherFrameService, TeachingService],
 })
 export class TeacherModule {}

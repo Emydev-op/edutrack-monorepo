@@ -10,6 +10,7 @@ import { SchoolAuditService } from './shared/school-audit.service.js';
 import { SchoolBrandingService } from './shared/school-branding.service.js';
 import { SchoolUsersModule } from './users/users.module.js';
 import { StaffModule } from './staff/staff.module.js';
+import { InsightsModule } from './insights/insights.module.js';
 import { GuardiansModule } from './guardians/guardians.module.js';
 import { StudentLoginsModule } from './student-logins/student-logins.module.js';
 import { SetupModule } from './setup/setup.module.js';
@@ -51,6 +52,9 @@ import { StudentsModule } from './students/students.module.js';
     SchoolSupportModule,
     // School Admin › Settings: /v1/settings/*.
     SchoolSettingsModule,
+    // School Admin's dashboard, search and Reports; /v1/dashboard and /v1/search also answer the
+    // Teacher Workspace.
+    InsightsModule,
     StaffModule,
   ],
   controllers: [PublicSchoolController],

@@ -152,7 +152,10 @@ const printReport = () => window.print();
 const others = computed(() =>
   (catalog.value?.groups ?? []).map((g) => ({
     name: g.name,
-    reports: g.reports.map((r) => ({ ...r, active: r.id === id.value })),
+    // Reports waiting for a module that isn't built yet aren't offered here.
+    reports: g.reports
+      .filter((r) => r.available !== false)
+      .map((r) => ({ ...r, active: r.id === id.value })),
   })),
 );
 const filterId = (f: ReportFilter) => `report-filter-${f.key}`;
@@ -161,7 +164,11 @@ const filterId = (f: ReportFilter) => `report-filter-${f.key}`;
 <template>
   <div class="grid gap-5 lg:grid-cols-[220px_1fr] [&>*]:min-w-0">
     <nav aria-label="Reports" class="hidden flex-col gap-4 lg:flex print:hidden">
-      <div v-for="g in others" :key="g.name" class="flex flex-col gap-1">
+      <div
+        v-for="g in others.filter((x) => x.reports.length)"
+        :key="g.name"
+        class="flex flex-col gap-1"
+      >
         <span class="px-2.5 text-[11px] font-semibold tracking-wide text-faint uppercase">{{
           g.name
         }}</span>

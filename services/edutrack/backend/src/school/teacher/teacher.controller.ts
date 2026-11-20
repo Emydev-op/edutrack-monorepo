@@ -27,7 +27,8 @@ const termQuery = ApiQuery({
  * Teacher Workspace (`<slug>.edutrack.ng/teacher`): the frame, Teaching (my classes, subjects,
  * students, timetable, lessons) and My class › Register. Every answer is scoped to the signed-in
  * teacher: their assignments, and their class when they're a class teacher. Results, lesson notes,
- * assignments and materials come with Phase 3b.
+ * assignments and materials come with Phase 3b. `GET /v1/dashboard` and `GET /v1/search` are served
+ * with School Admin's by `SchoolFrameController` (insights), on the same paths.
  */
 @ApiTags('teacher workspace')
 @Portals('TEACHER')
@@ -40,17 +41,6 @@ export class TeacherController {
   ) {}
 
   /* ---------------- Frame ---------------- */
-
-  @ResponseMessage('Dashboard loaded.')
-  @Get('dashboard')
-  @termQuery
-  @ApiOperation({
-    summary: 'Today at a glance: lessons, the next class, today’s register and the to-do list',
-    description: 'Each block (metrics, lessons, to-do) is { ok, data } or { ok: false, error }.',
-  })
-  dashboard(@CurrentUser() auth: AuthUserContext, @Query('term') term?: string) {
-    return this.frame.dashboard(auth, term);
-  }
 
   @ResponseMessage('Profile loaded.')
   @Get('profile')
@@ -118,19 +108,6 @@ export class TeacherController {
   @ApiOperation({ summary: 'My teaching assignments and my class for a term' })
   myScope(@CurrentUser() auth: AuthUserContext, @Query('term') term?: string) {
     return this.teaching.myScope(auth, term);
-  }
-
-  @ResponseMessage('Search results.')
-  @Get('search')
-  @termQuery
-  @ApiQuery({ name: 'q', required: false })
-  @ApiOperation({ summary: 'My classes, subjects and students, and pages, for the command menu' })
-  search(
-    @CurrentUser() auth: AuthUserContext,
-    @Query('q') q?: string,
-    @Query('term') term?: string,
-  ) {
-    return this.teaching.search(auth, q, term);
   }
 
   /* ---------------- Teaching ---------------- */

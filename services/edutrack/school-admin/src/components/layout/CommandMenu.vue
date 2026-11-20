@@ -61,7 +61,7 @@ const abbreviation = (type: SearchResult['type']) => type.slice(0, 2).toUpperCas
     >
       <DialogTitle class="sr-only">Search</DialogTitle>
       <DialogDescription class="sr-only"
-        >Search students, parents, staff, classes and finance records</DialogDescription
+        >Search students, parents, staff, classes, subjects and support tickets</DialogDescription
       >
       <div class="flex h-13 items-center gap-2.5 border-b px-4">
         <Spinner v-if="isFetching" class="size-4 text-muted-foreground" />
@@ -72,7 +72,7 @@ const abbreviation = (type: SearchResult['type']) => type.slice(0, 2).toUpperCas
           aria-expanded="true"
           aria-controls="command-results"
           :aria-activedescendant="results?.length ? `command-result-${active}` : undefined"
-          placeholder="Search students, parents, staff, invoices…"
+          placeholder="Search students, parents, staff, classes…"
           class="flex-1 bg-transparent text-[15px] outline-none placeholder:text-faint"
           @keydown="onKeydown"
         />
@@ -109,7 +109,13 @@ const abbreviation = (type: SearchResult['type']) => type.slice(0, 2).toUpperCas
           >
         </li>
         <li
-          v-if="results && !results.length"
+          v-if="results && !results.length && debounced.trim().length < 2"
+          class="px-4 py-7 text-center text-[13px] text-muted-foreground"
+        >
+          Type a name, admission or staff number, class, subject or ticket number.
+        </li>
+        <li
+          v-else-if="results && !results.length"
           class="px-4 py-7 text-center text-[13px] text-muted-foreground"
         >
           No matches for “{{ debounced }}” in records you can access.

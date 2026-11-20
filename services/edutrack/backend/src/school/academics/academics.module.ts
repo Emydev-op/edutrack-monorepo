@@ -30,6 +30,6 @@ import { SessionsService } from './sessions.service.js';
     SchoolAuditService,
     SetupStateService,
   ],
-  exports: [AcademicStructureService, AcademicCatalogService, AcademicSetupSteps],
+  exports: [AcademicStructureService, AcademicCatalogService, AcademicSetupSteps, CalendarService],
 })
 export class AcademicsModule {}

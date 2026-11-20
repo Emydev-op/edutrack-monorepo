@@ -100,5 +100,13 @@ describe('real routes for Phase 1 academics and setup', () => {
     expect(isRealRoute('get', '/v1/settings/school')).toBe(true);
     expect(isRealRoute('put', '/v1/settings/security/rules')).toBe(true);
     expect(isRealRoute('delete', '/v1/settings/security/sessions/abc')).toBe(true);
+    // The dashboard, search and Reports are on the API.
+    expect(isRealRoute('get', '/v1/dashboard')).toBe(true);
+    expect(isRealRoute('get', '/v1/dashboard/finance')).toBe(true);
+    expect(isRealRoute('get', '/v1/search')).toBe(true);
+    expect(isRealRoute('get', '/v1/reports')).toBe(true);
+    expect(isRealRoute('get', '/v1/reports/enrollment')).toBe(true);
+    // Finance itself is still on the mock.
+    expect(isRealRoute('get', '/v1/finance/invoices')).toBe(false);
   });
 });

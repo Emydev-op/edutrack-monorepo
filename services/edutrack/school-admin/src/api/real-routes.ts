@@ -122,6 +122,13 @@ export const REAL_ROUTES: readonly string[] = [
   'GET /v1/nav-counts',
   // Settings: school, academic, finance, subscription, modules, security and change history.
   '* /v1/settings/**',
+  // Dashboard (the fee card answers "not available" until Finance is built), the header's
+  // search, and Reports (Financial and Communication reports wait for those modules).
+  'GET /v1/dashboard',
+  'GET /v1/dashboard/finance',
+  'GET /v1/search',
+  'GET /v1/reports',
+  'GET /v1/reports/:id',
 ];
 
 type Rule = { method: string; pattern: RegExp };

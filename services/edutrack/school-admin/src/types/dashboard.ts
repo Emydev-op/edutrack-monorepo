@@ -38,6 +38,10 @@ export interface DashboardSummary {
 
 /** Fee figures come from the finance service and can fail on their own. */
 export interface DashboardFinance {
+  /** False until Finance is set up: the fee cards say so instead of showing empty charts. */
+  available?: boolean;
+  /** Why the figures aren't available, e.g. "Fees and payments arrive with Finance." */
+  note?: string;
   /** Receipts per week in naira; the last week is still in progress. */
   weekly: { label: string; value: number }[];
   /** Share of First Term fees collected, by section. */
