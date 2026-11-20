@@ -88,6 +88,8 @@ describe('School Admin admissions and student import (e2e)', () => {
       where: { schoolId, studentId: { in: ids } },
       data: { studentId: null, stage: 'OFFER_ACCEPTED' },
     });
+    // Draft invoices made at admission (lines and discounts go with them).
+    await t.prisma.invoice.deleteMany({ where: { studentId: { in: ids } } });
     await t.prisma.enrollment.deleteMany({ where: { studentId: { in: ids } } });
     await t.prisma.studentSubject.deleteMany({ where: { studentId: { in: ids } } });
     await t.prisma.studentGuardian.deleteMany({ where: { studentId: { in: ids } } });
@@ -177,10 +179,22 @@ describe('School Admin admissions and student import (e2e)', () => {
         session: '2026/2027',
         term: 'First Term',
         branches: ['Main Campus', 'Lekki Campus'],
-        feeItems: [],
-        feeLines: {},
-        feesReady: false,
+        feesReady: true,
       });
+      // This term's fees per branch and class, from Finance's published First Term structure.
+      expect(o.feeLines['Main Campus|JSS 1']).toEqual({
+        items: [
+          ['Tuition', 220000],
+          ['Development levy', 25000],
+          ['Examination fee', 15000],
+          ['ICT fee', 10000],
+          ['PTA levy', 5000],
+        ],
+        once: [['Admission fee (one-time)', 25000]],
+        sibling: 22000,
+      });
+      expect(o.feeLines['Lekki Campus|Nursery 1'].items[0]).toEqual(['Tuition', 120000]);
+      expect(o.admissionFee).toBe(25000);
       expect(Object.keys(o.arms)).toContain('JSS 1');
       expect(o.arms['JSS 1'].map((a: { arm: string }) => a.arm)).toEqual(['A', 'B', 'C']);
       expect(o.arms['JSS 1'][0]).toMatchObject({ capacity: 35 });
@@ -218,9 +232,16 @@ describe('School Admin admissions and student import (e2e)', () => {
         branch: 'Main Campus',
         guardianName: 'Mr. Obinna Nwosu',
         invited: false,
-        invoiceTotal: 0,
+        // First Term's fees for a new JSS 1 student, as a draft for Finance to issue.
+        invoiceTotal: 300000,
       });
       expect(res.body.message).toBe(`Kamsi Nwosu admitted to JSS 1A as ${admissionNo}.`);
+      const draft = await t.prisma.invoice.findFirstOrThrow({
+        where: { studentId: res.body.data.studentId },
+        include: { lines: true },
+      });
+      expect(draft).toMatchObject({ status: 'DRAFT', totalKobo: 30_000_000n });
+      expect(draft.lines.map((l) => l.label)).toContain('Admission fee');
 
       const student = await t.prisma.student.findUniqueOrThrow({
         where: { id: res.body.data.studentId },

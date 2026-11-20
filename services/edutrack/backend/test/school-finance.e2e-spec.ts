@@ -123,6 +123,52 @@ describe('Finance (e2e)', () => {
       expect(daniel.payTo).toMatchObject({ bank: 'GTBank', reference: 'STU-2025-0055' });
     });
 
+    it('shows the student page’s Finance tab from the ledger', async () => {
+      const id = student['STU-2025-0055']!;
+      const page = await ok(principal.get(`/api/v1/students/${id}`));
+      const acct = await account(id);
+      expect(page.financeKey).toBe(id);
+      expect(page.credit).toBe(acct.credit);
+      expect(page.invoices.map((i: { period: string }) => i.period)).toEqual([
+        '2026/2027 · First Term',
+        '2025/2026 · Third Term',
+      ]);
+      expect(page.invoices[0]).toMatchObject({ balance: acct.outstanding, status: 'Overdue' });
+      expect(page.balance).toBe(acct.outstanding);
+      expect(page.payments.length).toBe(2);
+      expect(page.payments[0]).toMatchObject({
+        title: expect.stringMatching(/^₦200,000 · Bank transfer · RCT-2026-\d{4}$/),
+        tone: 'success',
+      });
+    });
+
+    it('shows each branch’s figures for the term', async () => {
+      const branch = await ok(principal.get(`/api/v1/branches/${mainId}`));
+      const report = await ok(bursar.get(`${F}/reports/collection?term=${firstTermId}`));
+      expect(branch.finance).toMatchObject({
+        term: 'First Term 2026/2027',
+        billed: expect.stringMatching(/^₦/),
+        collected: expect.stringMatching(new RegExp(`· ${report.totals.rate}%$`)),
+        outstanding: expect.stringMatching(/ students$/),
+      });
+      // Lekki Campus has a published structure but nobody billed there yet.
+      const lekki = await t.prisma.branch.findFirstOrThrow({ where: { schoolId, code: 'GFA-LK' } });
+      expect((await ok(principal.get(`/api/v1/branches/${lekki.id}`))).finance).toBeNull();
+    });
+
+    it('marks the Setup Center’s Fees step done from the published structure', async () => {
+      const setup = await ok(principal.get('/api/v1/setup'));
+      const fees = setup.steps.find((x: { id: string }) => x.id === 'fees');
+      expect(fees).toMatchObject({
+        done: true,
+        auto: true,
+        to: { name: 'fees', query: { from: 'setup' } },
+        description: expect.stringMatching(
+          /^10 fee items · First Term published · \d+ invoices issued$/,
+        ),
+      });
+    });
+
     it('shows the pending parent claims with their proof', async () => {
       const list = await ok(bursar.get(`${F}/payments?tab=pending`));
       expect(list.summary.pendingCount).toBe(2);

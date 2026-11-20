@@ -7,6 +7,7 @@ import type {
   ReportRow,
 } from '../insights/reports-catalog.js';
 import { FinanceCore } from './finance-core.service.js';
+import { termFigures } from './finance-summaries.js';
 import type { InvoiceRec, TermRef } from './finance-data.js';
 import {
   ALL_METHODS,
@@ -123,24 +124,7 @@ export class FinanceOverviewService {
 
   /** Billed / collected / outstanding for one term (and branch), from issued invoices. */
   termFigures(v: FinView, termId: string, branchId: string | null) {
-    const invs = v.fin.invoices.filter(
-      (i) => i.termId === termId && (!branchId || i.branchId === branchId) && i.status === 'Issued',
-    );
-    const states = invs.map((inv) => ({ inv, st: v.ledger.invoice(inv.id) }));
-    const billed = sum(states.map((x) => x.st.total));
-    const collected = sum(states.map((x) => x.st.paid));
-    const owing = states.filter((x) => x.st.balance > 0);
-    return {
-      invoices: invs.length,
-      billed,
-      collected,
-      outstanding: billed - collected,
-      owingStudents: new Set(owing.map((x) => x.inv.studentKey)).size,
-      overdue: sum(owing.filter((x) => x.st.overdue).map((x) => x.st.balance)),
-      overdueCount: owing.filter((x) => x.st.overdue).length,
-      rate: billed ? Math.round((collected / billed) * 100) : 0,
-      states,
-    };
+    return termFigures(v, termId, branchId);
   }
 
   private inBranch(v: FinView, branchId: string | null, studentKey: string) {

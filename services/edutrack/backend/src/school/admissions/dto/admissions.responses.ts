@@ -77,7 +77,7 @@ export class AdmissionOptionsDto {
     type: 'array',
     items: { type: 'array', items: {} },
     example: [],
-    description: 'Fee lines; empty until Finance is on the real API',
+    description: 'The first class’s fee lines (see `feeLines` for every branch and class)',
   })
   feeItems!: [string, number][];
   @ApiProperty({ example: 0 }) admissionFee!: number;
@@ -135,7 +135,10 @@ export class AdmitResultDto {
   guardianName!: string | null;
   @ApiProperty({ example: false, description: 'Always false: admission sends no invitations' })
   invited!: boolean;
-  @ApiProperty({ example: 0, description: 'Draft invoice total (0 until Finance is built)' })
+  @ApiProperty({
+    example: 0,
+    description: 'The draft first invoice’s total (0: no invoice, e.g. no published fees)',
+  })
   invoiceTotal!: number;
 }
 

@@ -136,10 +136,22 @@ export class BranchDetailResponse extends BranchResponse {
   @ApiProperty({
     nullable: true,
     type: Object,
-    example: null,
+    example: {
+      term: 'First Term 2026/2027',
+      billed: '₦6.2M',
+      collected: '₦3.1M · 50%',
+      outstanding: '₦3.1M · 18 students',
+      expenses: '₦441k',
+    },
     description: 'The current term’s figures; null until Finance bills anything at the branch.',
   })
-  finance!: null;
+  finance!: {
+    term: string;
+    billed: string;
+    collected: string;
+    outstanding: string;
+    expenses: string;
+  } | null;
 
   @ApiProperty({ type: [TimelineEntryResponse] })
   history!: TimelineEntryResponse[];

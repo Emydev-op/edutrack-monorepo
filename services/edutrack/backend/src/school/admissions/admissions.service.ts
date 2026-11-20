@@ -1,8 +1,10 @@
 import { NIGERIAN_STATES } from '@edutrack/shared';
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../../common/clock/clock.js';
+import { RequestContext } from '../../common/context/request-context.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import { displayPhone, formatDay } from '../../platform/shared/format.js';
+import { admissionFees, draftAdmissionInvoice, financeView } from '../finance/finance-summaries.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { asAuditDb, withNotice } from '../staff/staff-audit.js';
 import { isUuid } from '../staff/staff-records.service.js';
@@ -111,6 +113,9 @@ export class AdmissionsService {
           })
         : Promise.resolve([]),
     ]);
+    const fees = admissionFees(
+      await financeView(this.db, this.records.schoolId(), this.clock.now()),
+    );
     const unique = (names: string[]) => [...new Set(names)];
     const electives = curriculum.filter(
       (c) => c.offering === 'ELECTIVE' && c.subject.category !== 'RELIGIOUS',
@@ -132,12 +137,12 @@ export class AdmissionsService {
         ? unique(electives.filter((c) => !staffed.has(c.subject.id)).map((c) => c.subject.name))
         : [],
       states: [...NIGERIAN_STATES],
-      // Fees come from Finance, which isn't on the real API yet: the wizard shows no fee lines.
-      feeItems: [] as [string, number][],
-      admissionFee: 0,
-      siblingDiscount: 0,
-      feeLines: {},
-      feesReady: false,
+      // This term's fees per "branch|level", from Finance's published fee structures.
+      feeItems: Object.values(fees.feeLines)[0]?.items ?? [],
+      admissionFee: fees.admissionFee,
+      siblingDiscount: fees.siblingDiscount,
+      feeLines: fees.feeLines,
+      feesReady: fees.feesReady,
       requiredDocuments: REQUIRED_DOCUMENTS.map((d) => ({ ...d })),
     };
   }
@@ -449,6 +454,28 @@ export class AdmissionsService {
           skipDuplicates: true,
         });
 
+      // The first invoice, as a draft for Finance to issue, unless billing waits for next term.
+      const invoice =
+        dto.billing === 'full'
+          ? await draftAdmissionInvoice(tx, schoolId, this.clock.now(), {
+              studentId: student.id,
+              sibling: dto.siblingDiscount !== false,
+              createdById: RequestContext.get()?.userId ?? null,
+            })
+          : null;
+      if (invoice)
+        await this.audit.record(
+          {
+            action: 'invoice.create',
+            area: 'Finance',
+            entity: 'Invoice',
+            entityId: invoice.invoiceId,
+            summary: 'Draft invoice created at admission',
+            detail: `${name} · ${arm.label}`,
+          },
+          asAuditDb(tx),
+        );
+
       if (application) {
         const moved = await tx.admissionApplication.updateMany({
           where: { id: application.id, studentId: null, stage: { not: 'ADMITTED' } },
@@ -486,7 +513,7 @@ export class AdmissionsService {
         branch: branch.name,
         guardianName: guardianRow?.fullName ?? null,
         invited: false,
-        invoiceTotal: 0,
+        invoiceTotal: invoice?.total ?? 0,
       };
     });
     return withNotice(result, `${name} admitted to ${arm.label} as ${result.admissionNo}.`);
