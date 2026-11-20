@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AcademicsModule } from '../academics/academics.module.js';
 import { CurriculumModule } from '../curriculum/curriculum.module.js';
+import { FinanceModule } from '../finance/finance.module.js';
 import { ResultsModule } from '../results/results.module.js';
 import { TeacherModule } from '../teacher/teacher.module.js';
 import { DashboardService } from './dashboard.service.js';
@@ -16,7 +17,7 @@ import { SearchService } from './search.service.js';
  * shared with the Teacher Workspace, whose answers come from `TeacherModule`.
  */
 @Module({
-  imports: [AcademicsModule, CurriculumModule, ResultsModule, TeacherModule],
+  imports: [AcademicsModule, CurriculumModule, FinanceModule, ResultsModule, TeacherModule],
   controllers: [SchoolFrameController, SchoolReportsController],
   providers: [
     InsightsScopeService,

@@ -59,6 +59,8 @@ export interface FinanceToggles {
   allowPartial: boolean;
   autoSibling: boolean;
   verifyTransfers: boolean;
+  /** Publishing results holds the report cards of students who owe fees. */
+  holdReportCards: boolean;
 }
 
 /* ---------------- Subscription & modules ---------------- */

@@ -5,7 +5,7 @@ import { authed, createTestApp, signIn, type TestApp } from './support/test-app.
  * for the session's three terms; the Junior Secondary rule (45% annual average and a pass in
  * English and Mathematics) suggests decisions, the school overrides some with reasons, and
  * applying enrolls the class into 2027/2028. Then Primary 6 → JSS 1 across the section boundary,
- * SSS 3 graduating, section admins, the fees setting and the session-closing checklist.
+ * SSS 3 graduating, section admins, the fees block (with Finance's balances) and the session-closing checklist.
  */
 
 type Api = ReturnType<typeof authed>;
@@ -480,15 +480,44 @@ describe('Promotion (e2e)', () => {
       }
     });
 
-    it('doesn’t block on fees while Finance has no balances', async () => {
+    it('blocks promoting a student who owes fees when the school says so', async () => {
       await settings({ blockPromotionOnFees: true });
+      // Halima paid First Term in full; a bill she hasn't paid stops her promotion.
+      const halima = (await view('SSS 1')).students[0]!;
+      const sss1 = await t.prisma.classLevel.findFirstOrThrow({
+        where: { schoolId, name: 'SSS 1' },
+      });
+      const term = await t.prisma.term.findFirstOrThrow({
+        where: { schoolId, sessionId, name: 'First Term' },
+      });
+      const unpaid = await t.prisma.invoice.create({
+        data: {
+          schoolId,
+          number: 'INV-2026-9001',
+          studentId: halima.id,
+          termId: term.id,
+          branchId,
+          levelId: sss1.id,
+          kind: 'AD_HOC',
+          title: 'Excursion',
+          status: 'ISSUED',
+          subtotalKobo: 2_500_000n,
+          totalKobo: 2_500_000n,
+          dueOn: new Date('2026-11-30'),
+        },
+      });
       try {
-        const halima = (await view('SSS 1')).students[0]!;
         await decide('SSS 1', [{ studentId: halima.id, decision: 'Promote' }]);
+        const blocked = await admin.post(`${P}/${key('SSS 1')}/apply`);
+        expect(blocked.status).toBe(422);
+        expect(blocked.body.error.code).toBe('FEES_OUTSTANDING');
+        expect(blocked.body.message).toContain(halima.name);
+        await t.prisma.invoice.delete({ where: { id: unpaid.id } });
         const res = await admin.post(`${P}/${key('SSS 1')}/apply`);
         expect(res.status).toBe(200);
         expect(res.body.data.feesBlock).toBe(true);
       } finally {
+        await t.prisma.invoice.deleteMany({ where: { id: unpaid.id } });
         await settings({ blockPromotionOnFees: false });
       }
     });

@@ -64,6 +64,11 @@ export class FinanceTogglesDto {
   @IsOptional()
   @IsBoolean(onOrOff(FINANCE_LABEL.verifyTransfers))
   verifyTransfers?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean(onOrOff(FINANCE_LABEL.holdReportCards))
+  holdReportCards?: boolean;
 }
 
 export class SignInRulesDto {

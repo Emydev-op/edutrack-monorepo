@@ -125,7 +125,14 @@ describe('real routes for Phase 1 academics and setup', () => {
     expect(isRealRoute('put', '/v1/comms/settings/quiet-hours')).toBe(true);
     expect(isRealRoute('post', '/v1/comms/settings/sender-id')).toBe(true);
     expect(isRealRoute('get', '/v1/comms/inbox')).toBe(true);
-    // Finance itself is still on the mock.
-    expect(isRealRoute('get', '/v1/finance/invoices')).toBe(false);
+    // Finance: every screen is on the API.
+    expect(isRealRoute('get', '/v1/finance/options')).toBe(true);
+    expect(isRealRoute('get', '/v1/finance/invoices')).toBe(true);
+    expect(isRealRoute('post', '/v1/finance/invoices/generate')).toBe(true);
+    expect(isRealRoute('delete', '/v1/finance/invoices/abc/lines/def')).toBe(true);
+    expect(isRealRoute('post', '/v1/finance/payments/abc/verify')).toBe(true);
+    expect(isRealRoute('put', '/v1/finance/statements/abc/lines/def')).toBe(true);
+    expect(isRealRoute('post', '/v1/finance/expenses/abc/approve')).toBe(true);
+    expect(isRealRoute('get', '/v1/finance/reports/cash-book')).toBe(true);
   });
 });

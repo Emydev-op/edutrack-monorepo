@@ -38,7 +38,7 @@ export class SchoolFrameController {
     summary:
       'School Admin: the working branch at a glance (figures, what needs attention, calendar, enrolment, results by subject, activity). Teacher Workspace: lessons, the next class, today’s register and the to-do list',
     description:
-      'Teacher Workspace blocks (metrics, lessons, to-do) are { ok, data } or { ok: false, error }. School Admin fee figures arrive with Finance.',
+      'Teacher Workspace blocks (metrics, lessons, to-do) are { ok, data } or { ok: false, error }. School Admin fee figures come from Finance.',
   })
   dashboard(@CurrentUser() auth: AuthUserContext, @Query() q: DashboardQueryDto) {
     return auth.portal === 'TEACHER'
@@ -74,10 +74,10 @@ export class SchoolReportsController {
   @ApiOperation({
     summary: 'The dashboard’s fee receipts and collection by section',
     description:
-      'Finance isn’t built yet: answers `available: false` with empty lists, so the dashboard shows that fees arrive with Finance.',
+      'Confirmed collections in each of the last 8 weeks and the current term’s collection rate per section, at the working branch (empty lists when nothing is invoiced yet).',
   })
-  finance(@Query() _q: DashboardFinanceQueryDto) {
-    return this.dashboards.finance();
+  finance(@Query() q: DashboardFinanceQueryDto) {
+    return this.dashboards.finance(q);
   }
 
   @ResponseMessage('Reports loaded.')
@@ -85,7 +85,7 @@ export class SchoolReportsController {
   @ApiOperation({
     summary: 'Every report, grouped as the Reports page lists them',
     description:
-      'Financial and Communication reports have `available: false` (and `availableWith`) until those modules are built.',
+      'Reports whose module isn’t built yet have `available: false` (and `availableWith`).',
   })
   catalog() {
     return this.reports.catalog();

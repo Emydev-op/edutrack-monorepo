@@ -73,6 +73,7 @@ export const FINANCE_LABEL = {
   verifyTransfers: 'Verify bank transfers before confirming',
   allowPartial: 'Allow part payments',
   autoSibling: 'Apply the sibling discount automatically',
+  holdReportCards: 'Hold report cards with unpaid fees',
 } as const;
 export type FinanceKey = keyof typeof FINANCE_LABEL;
 

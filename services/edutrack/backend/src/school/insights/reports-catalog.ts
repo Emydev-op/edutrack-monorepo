@@ -80,7 +80,6 @@ export interface Built {
   emptyText: string;
 }
 
-const FINANCE = 'Finance';
 const COMMS = 'Communication';
 
 type Seed = [SchoolReportId, ReportGroup, string, string, ReportFilterKey[], string?];
@@ -155,7 +154,6 @@ const SEEDS: Seed[] = [
     'Fee collection by class',
     'How much of the term’s billing has been collected, per class.',
     ['term'],
-    FINANCE,
   ],
   [
     'outstanding',
@@ -163,7 +161,6 @@ const SEEDS: Seed[] = [
     'Outstanding balances',
     'Students who owe, including earlier sessions, by how long it has been overdue.',
     [],
-    FINANCE,
   ],
   [
     'income-expenditure',
@@ -171,7 +168,6 @@ const SEEDS: Seed[] = [
     'Income vs expenditure',
     'Money received and spent each month this session.',
     [],
-    FINANCE,
   ],
   [
     'cash-book',
@@ -179,7 +175,6 @@ const SEEDS: Seed[] = [
     'Cash book',
     'Opening balance, money in, money out and closing balance per account.',
     ['term'],
-    FINANCE,
   ],
   [
     'payments',
@@ -187,7 +182,6 @@ const SEEDS: Seed[] = [
     'Payments by method & account',
     'Payments received in a period, by payment method and the account paid into.',
     ['status', 'from', 'to'],
-    FINANCE,
   ],
   [
     'discounts',
@@ -195,7 +189,6 @@ const SEEDS: Seed[] = [
     'Discounts & waivers',
     'Discounts given on the term’s invoices, by type, and their share of billing.',
     ['term'],
-    FINANCE,
   ],
   [
     'message-delivery',

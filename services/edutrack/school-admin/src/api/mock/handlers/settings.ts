@@ -175,7 +175,10 @@ const FINANCE_LABEL: Record<keyof FinanceToggles, string> = {
   verifyTransfers: 'Verify bank transfers before confirming',
   allowPartial: 'Allow part payments',
   autoSibling: 'Apply the sibling discount automatically',
+  holdReportCards: 'Hold report cards with unpaid fees',
 };
+/** Off by default; the mock keeps it apart from Finance's own billing settings. */
+const holdCards = new Map<string, boolean>();
 
 const financeToggles = (schoolId: string): FinanceToggles => {
   const s = financeSnapshot(schoolId).fin.settings;
@@ -183,6 +186,7 @@ const financeToggles = (schoolId: string): FinanceToggles => {
     allowPartial: s.allowPartial,
     autoSibling: s.autoSibling,
     verifyTransfers: s.verifyTransfers,
+    holdReportCards: holdCards.get(schoolId) ?? false,
   };
 };
 
@@ -196,8 +200,14 @@ mock.put('/v1/settings/finance', (req) => {
     const v = p[key];
     if (v === undefined) continue;
     if (typeof v !== 'boolean') fail(`${FINANCE_LABEL[key]} must be on or off.`);
-    log('Finance', FINANCE_LABEL[key], onOff(fin.settings[key]), onOff(v));
-    fin.settings[key] = v;
+    if (key === 'holdReportCards') {
+      log('Finance', FINANCE_LABEL[key], onOff(holdCards.get(schoolId) ?? false), onOff(v));
+      holdCards.set(schoolId, v);
+      continue;
+    }
+    const k = key as Exclude<keyof FinanceToggles, 'holdReportCards'>;
+    log('Finance', FINANCE_LABEL[k], onOff(fin.settings[k]), onOff(v));
+    fin.settings[k] = v;
   }
   return financeToggles(schoolId);
 });

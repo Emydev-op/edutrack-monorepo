@@ -37,6 +37,12 @@ const ITEMS: { key: keyof FinanceToggles; label: string; description: string }[]
     description:
       'Added to new invoices for the 2nd and later child of the same fee payer. Finance can remove it per invoice.',
   },
+  {
+    key: 'holdReportCards',
+    label: 'Hold report cards with unpaid fees',
+    description:
+      'When results are published, report cards of students who owe fees are held automatically. Release them one by one from Results.',
+  },
 ];
 const items = computed(() =>
   ITEMS.map((i) => ({ ...i, enabled: !!data.value?.[i.key], disabled: save.isPending.value })),

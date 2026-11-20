@@ -340,13 +340,19 @@ export class SchoolSettingsService {
 
   async finance() {
     const row = await this.db.financeSettings.findFirst({
-      select: { allowPartial: true, autoSibling: true, verifyTransfers: true },
+      select: {
+        allowPartial: true,
+        autoSibling: true,
+        verifyTransfers: true,
+        holdReportCards: true,
+      },
     });
     // Defaults as the column defaults, until Finance saves its first settings.
     return {
       allowPartial: row?.allowPartial ?? true,
       autoSibling: row?.autoSibling ?? true,
       verifyTransfers: row?.verifyTransfers ?? true,
+      holdReportCards: row?.holdReportCards ?? false,
     };
   }
 
