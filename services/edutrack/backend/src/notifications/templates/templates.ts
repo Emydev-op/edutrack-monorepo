@@ -81,6 +81,17 @@ export interface SupportUpdateData {
   link: string;
 }
 
+/**
+ * A school's own message: an announcement or an automatic message (absence alert, report card
+ * ready…) already worded from the school's template. The body is plain text; blank lines split
+ * paragraphs.
+ */
+export interface AnnouncementData {
+  subject: string;
+  body: string;
+  schoolName: string;
+}
+
 export interface TemplateDataMap {
   invitation: InvitationData;
   'password-reset': PasswordResetData;
@@ -90,6 +101,7 @@ export interface TemplateDataMap {
   'platform-alert': PlatformAlertData;
   'email-changed': EmailChangedData;
   'support-update': SupportUpdateData;
+  announcement: AnnouncementData;
 }
 
 export type TemplateName = keyof TemplateDataMap;
@@ -243,6 +255,19 @@ export function renderEmail<T extends TemplateName>(
         html: layout(lines, { label: 'Open the ticket', href: d.link }),
       };
     }
+    case 'announcement': {
+      const d = data as AnnouncementData;
+      const lines = d.body
+        .split(/\n{2,}/)
+        .map((p) => p.trim())
+        .filter(Boolean);
+      const footer = `Sent by ${d.schoolName} through EduTrack.`;
+      return {
+        subject: d.subject,
+        text: `${lines.join('\n\n')}\n\n${footer}`,
+        html: layout(lines, undefined, footer),
+      };
+    }
     default:
       throw new Error(`Unknown email template: ${String(template)}`);
   }
@@ -281,6 +306,8 @@ export function renderSms<T extends TemplateName>(template: T, data: TemplateDat
       const d = data as SupportUpdateData;
       return `EduTrack support · ${d.number}: ${d.title}. ${d.link}`;
     }
+    case 'announcement':
+      return (data as AnnouncementData).body;
     default:
       throw new Error(`Unknown SMS template: ${String(template)}`);
   }

@@ -28,7 +28,7 @@ const patternStyle = { backgroundImage: `url("${authPattern}")`, backgroundSize:
 <template>
   <div class="flex h-svh overflow-hidden bg-background text-sm">
     <aside
-      class="relative flex w-[46%] max-w-[560px] shrink-0 flex-col overflow-hidden bg-primary text-[#FFF8EE] max-lg:hidden"
+      class="relative flex w-[46%] max-w-140 shrink-0 flex-col overflow-hidden bg-primary text-[#FFF8EE] max-lg:hidden"
     >
       <div
         aria-hidden="true"
@@ -59,7 +59,7 @@ const patternStyle = { backgroundImage: `url("${authPattern}")`, backgroundSize:
             <span class="truncate text-lg font-semibold text-white">{{ school.name }}</span>
           </span>
         </div>
-        <div class="flex max-w-[420px] flex-col gap-3">
+        <div class="flex max-w-105 flex-col gap-3">
           <h2
             class="text-[30px] leading-[1.15] font-semibold tracking-[-0.01em] text-balance text-white"
           >
@@ -70,10 +70,10 @@ const patternStyle = { backgroundImage: `url("${authPattern}")`, backgroundSize:
             {{ school.name }}.
           </p>
         </div>
-        <div class="max-w-[460px]">
+        <div class="max-w-115">
           <AuthHero />
         </div>
-        <ul class="flex max-w-[460px] flex-wrap gap-x-4.5 gap-y-2">
+        <ul class="flex max-w-115 flex-wrap gap-x-4.5 gap-y-2">
           <li v-for="h in HIGHLIGHTS" :key="h.label" class="flex items-center gap-2">
             <span
               class="flex size-6.5 items-center justify-center rounded-[7px] bg-[#FFF8EE] text-primary"
@@ -84,7 +84,7 @@ const patternStyle = { backgroundImage: `url("${authPattern}")`, backgroundSize:
           </li>
         </ul>
         <div class="mt-auto flex flex-col gap-4">
-          <p class="max-w-[300px] text-xs text-pretty text-brand-subtle">
+          <p class="max-w-75 text-xs text-pretty text-brand-subtle">
             Teacher accounts are created by your school’s administrator. There is no public sign-up.
           </p>
           <p class="flex items-center gap-2 text-xs text-brand-subtle">
@@ -95,9 +95,7 @@ const patternStyle = { backgroundImage: `url("${authPattern}")`, backgroundSize:
       </div>
     </aside>
     <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
-      <div
-        class="m-auto flex w-full max-w-[400px] flex-col gap-4.5 px-5 pt-7 pb-8 max-lg:max-w-[420px]"
-      >
+      <div class="m-auto flex w-full max-w-100 flex-col gap-4.5 px-5 pt-7 pb-8 max-lg:max-w-105">
         <div class="flex items-center gap-2.5 lg:hidden">
           <img
             v-if="school.logoUrl"

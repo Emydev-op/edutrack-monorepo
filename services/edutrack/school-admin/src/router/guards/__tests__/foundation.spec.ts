@@ -106,6 +106,25 @@ describe('real routes for Phase 1 academics and setup', () => {
     expect(isRealRoute('get', '/v1/search')).toBe(true);
     expect(isRealRoute('get', '/v1/reports')).toBe(true);
     expect(isRealRoute('get', '/v1/reports/enrollment')).toBe(true);
+    // Communication: announcements, delivery logs, templates and notification settings.
+    expect(isRealRoute('get', '/v1/comms/options')).toBe(true);
+    expect(isRealRoute('get', '/v1/comms/announcements')).toBe(true);
+    expect(isRealRoute('post', '/v1/comms/announcements')).toBe(true);
+    expect(isRealRoute('post', '/v1/comms/announcements/preview')).toBe(true);
+    expect(isRealRoute('put', '/v1/comms/announcements/abc')).toBe(true);
+    expect(isRealRoute('delete', '/v1/comms/announcements/abc')).toBe(true);
+    expect(isRealRoute('post', '/v1/comms/announcements/abc/withdraw')).toBe(true);
+    expect(isRealRoute('get', '/v1/comms/deliveries')).toBe(true);
+    expect(isRealRoute('post', '/v1/comms/deliveries/retry-failed')).toBe(true);
+    expect(isRealRoute('post', '/v1/comms/deliveries/abc/retry')).toBe(true);
+    expect(isRealRoute('get', '/v1/comms/templates')).toBe(true);
+    expect(isRealRoute('put', '/v1/comms/templates/attendance.absent')).toBe(true);
+    expect(isRealRoute('post', '/v1/comms/templates/fee.reminder/reset')).toBe(true);
+    expect(isRealRoute('get', '/v1/comms/events')).toBe(true);
+    expect(isRealRoute('get', '/v1/comms/settings')).toBe(true);
+    expect(isRealRoute('put', '/v1/comms/settings/quiet-hours')).toBe(true);
+    expect(isRealRoute('post', '/v1/comms/settings/sender-id')).toBe(true);
+    expect(isRealRoute('get', '/v1/comms/inbox')).toBe(true);
     // Finance itself is still on the mock.
     expect(isRealRoute('get', '/v1/finance/invoices')).toBe(false);
   });

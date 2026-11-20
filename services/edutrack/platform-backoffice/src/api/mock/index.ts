@@ -5,6 +5,7 @@ import { createMockAdapter } from '@edutrack/web-core/mock';
 import './handlers/auth';
 import './handlers/dashboard';
 import './handlers/schools';
+import './handlers/sms';
 import './handlers/plans';
 import './handlers/users';
 import './handlers/support';

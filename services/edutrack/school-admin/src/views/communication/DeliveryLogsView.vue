@@ -92,9 +92,9 @@ const eventColumns: Column[] = [
 function retry() {
   const n = data.value?.summary.retryable ?? 0;
   void confirm({
-    title: `Retry ${fmtCount(n)} SMS?`,
+    title: `Retry ${fmtCount(n)} ${n === 1 ? 'message' : 'messages'}?`,
     description:
-      'Messages that failed because the phone was off or out of coverage, and messages waiting for credit, are sent again. Each retry uses SMS credit.',
+      'SMS not sent for lack of units, and email or SMS the provider didn’t take, are sent again. Each SMS uses SMS units.',
     details: [
       ['Not retried', 'Missing or invalid numbers. Fix them on the record, then send again.'],
     ],
@@ -219,7 +219,7 @@ const filtered = computed(
         label="Queued"
         :value="data ? fmtCount(data.summary.queued) : undefined"
         :loading="!data"
-        hint="Quiet hours, credit or portal not activated"
+        hint="Quiet hours or portal not activated"
       />
     </MetricGrid>
 

@@ -33,6 +33,7 @@ import { seedSchoolStudents } from './school-students-data.js';
 import { seedSchoolAdmissions } from './school-admissions-data.js';
 import { seedSchoolAccounts } from './school-accounts-data.js';
 import { seedSupportDesk } from './support-data.js';
+import { clearSchoolComms, seedSchoolComms } from './school-comms-data.js';
 
 export const DEMO_PASSWORD = 'Edutrack2026!';
 const DAY = 86_400_000;
@@ -476,6 +477,9 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
   }
   const tolu = userIds.get('tolu@edutrack.ng')!;
 
+  // Messages point at students, guardians and staff the school seeds may remove.
+  await clearSchoolComms(prisma);
+
   /* ---------- Plans and schools ---------- */
 
   const planIds = await seedPlans(prisma, { now, passwordHash, tolu });
@@ -755,6 +759,7 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
   await seedSchoolPlanning(prisma, schoolIds, now);
   await seedSchoolAdmissions(prisma, schoolIds);
   await seedSchoolAccounts(prisma, schoolIds);
+  await seedSchoolComms(prisma, schoolIds, now);
 
   return { schools: schoolIds, users: userIds.size };
 }

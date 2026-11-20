@@ -202,7 +202,6 @@ export interface CommsData {
   busy: boolean;
 }
 
-export const SMS_UNIT_PRICE = 4;
 export const LOW_CREDIT = 2000;
 
 const comms: Record<string, CommsData> = {};

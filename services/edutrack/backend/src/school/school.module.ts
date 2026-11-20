@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { OrganogramModule } from './organogram/organogram.module.js';
 import { AcademicsModule } from './academics/academics.module.js';
 import { AdmissionsModule } from './admissions/admissions.module.js';
+import { CommunicationModule } from './communication/communication.module.js';
 import { ContextModule } from './context/context.module.js';
 import { CurriculumModule } from './curriculum/curriculum.module.js';
 import { PublicSchoolController } from './public/public-school.controller.js';
@@ -52,6 +53,9 @@ import { StudentsModule } from './students/students.module.js';
     SchoolSupportModule,
     // School Admin › Settings: /v1/settings/*.
     SchoolSettingsModule,
+    // School Admin › Communication: /v1/comms/* (announcements, delivery logs, templates,
+    // notification settings). The inbox (/v1/comms/inbox) is SetupModule's.
+    CommunicationModule,
     // School Admin's dashboard, search and Reports; /v1/dashboard and /v1/search also answer the
     // Teacher Workspace.
     InsightsModule,

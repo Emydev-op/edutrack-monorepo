@@ -19,6 +19,7 @@ import {
   emptyCounts,
   MARK_LABEL,
 } from '../attendance/attendance.service.js';
+import { CommsDispatchService } from '../communication/comms-dispatch.service.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { asTx } from '../shared/tenant-tx.js';
 import { joinedLate, TeacherScopeService, type TermRow } from './teacher-scope.service.js';
@@ -59,6 +60,7 @@ export class RegisterService {
     private readonly scope: TeacherScopeService,
     private readonly attendance: AttendanceService,
     private readonly audit: SchoolAuditService,
+    private readonly comms: CommsDispatchService,
     private readonly clock: Clock,
   ) {}
 
@@ -288,6 +290,7 @@ export class RegisterService {
     const now = this.clock.now();
     const name = staffName(s);
     const notified: string[] = [];
+    let flush: (() => Promise<void>) | null = null;
     await this.db.$transaction(async (tx) => {
       const existing = await tx.attendanceRegister.findFirst({
         where: { armId: arm.id, date: fromIso(date) },
@@ -319,35 +322,62 @@ export class RegisterService {
       const newlyAbsent = [...marks].filter(
         ([id, m]) => m.mark === 'ABSENT' && before.get(id)?.mark !== 'ABSENT',
       );
-      // In-app alerts to the guardians with Parent Portal accounts (no SMS: the school's
-      // decision). A student only counts as notified when at least one guardian was told.
+      // Absence alerts to the guardians, through the school's Communication settings (the
+      // event's switch, channels and wording; SMS only if switched on and units are left). A
+      // student only counts as notified when at least one guardian was reached.
       const alerted = new Set<string>();
       if (newlyAbsent.length) {
         const links = await tx.studentGuardian.findMany({
           where: { studentId: { in: newlyAbsent.map(([id]) => id) } },
           include: {
             student: { select: { id: true, firstName: true, surname: true } },
-            guardian: { select: { membership: { select: { userId: true, status: true } } } },
+            guardian: {
+              select: {
+                id: true,
+                title: true,
+                fullName: true,
+                email: true,
+                phone: true,
+                membership: { select: { userId: true, status: true } },
+              },
+            },
           },
         });
-        for (const l of links) {
-          const userId =
-            l.guardian.membership?.status === 'ACTIVE' ? l.guardian.membership.userId : null;
-          if (!userId) continue;
-          await tx.notification.create({
-            data: {
-              userId,
-              schoolId,
-              category: 'register',
-              title: `${l.student.firstName} was marked absent`,
-              body: `${l.student.firstName} ${l.student.surname} was marked absent from ${arm.label} on ${dayLabel(date)}. If this is a mistake, contact the class teacher or the school office.`,
-              link: '/attendance',
-              entityType: 'Student',
-              entityId: l.student.id,
+        const guardian = (g: { title: string | null; fullName: string }) =>
+          [g.title, g.fullName].filter(Boolean).join(' ');
+        const sent = await this.comms.dispatch(asTx(tx), schoolId, {
+          event: 'attendance.absent',
+          title: `Absence alert · ${arm.label} · ${dayLabel(date)}`,
+          audienceLabel:
+            links.length === 1
+              ? guardian(links[0]!.guardian)
+              : `${links.length} guardians · ${arm.label}`,
+          recipients: links.map((l) => ({
+            key: `${l.guardianId}#${l.studentId}`,
+            role: 'PARENT' as const,
+            name: guardian(l.guardian),
+            userId:
+              l.guardian.membership?.status === 'ACTIVE' ? l.guardian.membership.userId : null,
+            guardianId: l.guardianId,
+            studentId: l.studentId,
+            email: l.guardian.email,
+            phone: l.guardian.phone,
+            vars: {
+              parent_name: guardian(l.guardian),
+              student_name: `${l.student.firstName} ${l.student.surname}`,
+              first_name: l.student.firstName,
+              class: arm.label,
+              date: dayLabel(date),
             },
-          });
-          alerted.add(l.studentId);
-        }
+            entity: { type: 'Student', id: l.student.id },
+          })),
+          createdById: auth.userId,
+          source: { type: 'AttendanceRegister', id: register.id },
+          inApp: { category: 'register', link: '/attendance' },
+        });
+        flush = sent.flush;
+        for (const l of links)
+          if (sent.reached.has(`${l.guardianId}#${l.studentId}`)) alerted.add(l.studentId);
         for (const [id] of newlyAbsent)
           if (alerted.has(id)) {
             const e = roll.find((x) => x.studentId === id)!;
@@ -398,6 +428,8 @@ export class RegisterService {
           asTx(tx),
         );
     });
+    // Email and SMS go to the transports once the register is saved.
+    if (flush) await (flush as () => Promise<void>)();
     return { register: await this.day(ref, term, date), notified };
   }
 

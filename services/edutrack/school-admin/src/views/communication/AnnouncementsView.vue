@@ -172,7 +172,7 @@ const filtered = computed(() => !!status.value || !!debounced.value);
       :to="{ query: { status: 'Draft' } }"
     />
     <MetricCard
-      label="SMS credit"
+      label="SMS units"
       :value="data ? `${fmtCount(data.smsCredit)} units` : undefined"
       :loading="!data"
       :hint="data && data.smsCredit < 2000 ? 'Running low' : 'Used by SMS'"

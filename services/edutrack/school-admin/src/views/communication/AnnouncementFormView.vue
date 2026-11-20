@@ -18,7 +18,6 @@ import ChoiceCards from '@edutrack/app-kit/components/form/ChoiceCards.vue';
 import FieldShell from '@edutrack/app-kit/components/form/FieldShell.vue';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 import { useUnsavedChanges } from '@edutrack/app-kit/composables/useUnsavedChanges';
-import { formatNaira } from '@edutrack/app-kit/lib/format';
 
 import {
   useAnnouncementQuery,
@@ -56,7 +55,7 @@ const AUDIENCES: { value: AudienceKind; label: string; description: string }[] =
 const CHANNELS: { value: Channel; hint: string }[] = [
   { value: 'In-app', hint: 'Portals and the app. Free.' },
   { value: 'Email', hint: 'Free.' },
-  { value: 'SMS', hint: 'Uses SMS credit per page.' },
+  { value: 'SMS', hint: 'Uses one SMS unit per page.' },
 ];
 
 const blank = () => ({
@@ -278,18 +277,18 @@ function send() {
     serverError.value = 'Nobody is in this audience yet. Choose another audience or branch.';
     return;
   }
-  if (!p.enough) {
-    serverError.value = `This needs ${fmtCount(p.smsUnits)} SMS units but your school has ${fmtCount(p.credit)}.`;
-    return;
-  }
   const later = form.when === 'later';
   const details: [string, string][] = [
     ['Audience', p.label],
     ['Channels', form.channels.join(', ')],
     ['Reach', form.channels.map((ch) => `${ch} ${fmtCount(p.reach[ch])}`).join(' · ')],
     [
-      'SMS cost',
-      hasSms.value ? `${fmtCount(p.smsUnits)} units (about ${formatNaira(p.smsCost)})` : 'None',
+      'SMS units',
+      !hasSms.value
+        ? 'None'
+        : p.enough
+          ? `${fmtCount(p.smsUnits)} of ${fmtCount(p.credit)} left`
+          : `Only ${fmtCount(p.smsSendable)} of ${fmtCount(p.reach.SMS)} SMS can go out (${fmtCount(p.credit)} units left). The rest are marked “Not sent · out of SMS units”; in-app and email still go.`,
     ],
     ['Expires', form.expiresOn ? fmtStamp(form.expiresOn) : 'Stays until withdrawn'],
     [
@@ -563,15 +562,13 @@ const selectClass = 'h-9 w-full rounded-md border bg-card px-2.5 text-sm';
               <template v-if="hasSms">
                 <dt class="text-muted-foreground">SMS units</dt>
                 <dd class="text-right tabular-nums">{{ fmtCount(pv.smsUnits) }}</dd>
-                <dt class="text-muted-foreground">Estimated cost</dt>
-                <dd class="text-right tabular-nums">{{ formatNaira(pv.smsCost) }}</dd>
-                <dt class="text-muted-foreground">Credit left after</dt>
+                <dt class="text-muted-foreground">Units left after</dt>
                 <dd
                   :class="
                     cn('text-right tabular-nums', !pv.enough && 'font-medium text-error-strong')
                   "
                 >
-                  {{ fmtCount(pv.credit - pv.smsUnits) }}
+                  {{ fmtCount(Math.max(0, pv.credit - pv.smsUnits)) }}
                 </dd>
                 <dt class="text-muted-foreground">Sender</dt>
                 <dd class="text-right">{{ pv.sender }}</dd>
@@ -579,9 +576,9 @@ const selectClass = 'h-9 w-full rounded-md border bg-card px-2.5 text-sm';
             </dl>
             <InlineNotice
               v-if="hasSms && !pv.enough"
-              tone="error"
-              title="Not enough SMS credit"
-              :description="`This needs ${fmtCount(pv.smsUnits)} units and your school has ${fmtCount(pv.credit)}. Remove SMS, shorten the text, narrow the audience, or ask EduTrack support to top up.`"
+              tone="warning"
+              title="Not enough SMS units"
+              :description="`This needs ${fmtCount(pv.smsUnits)} units and your school has ${fmtCount(pv.credit)}, so ${fmtCount(pv.smsSendable)} of ${fmtCount(pv.reach.SMS)} SMS can go out. The rest are marked “Not sent · out of SMS units” (retry them from Delivery logs after a top-up); in-app and email still go. Shorten the SMS, narrow the audience, or ask EduTrack to top up.`"
             />
             <InlineNotice
               v-if="hasSms && pv.senderNote"

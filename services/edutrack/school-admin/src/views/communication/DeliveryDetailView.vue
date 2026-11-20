@@ -71,8 +71,8 @@ const columns: Column[] = [
 function doRetry() {
   const n = m.value?.retryable ?? 0;
   void confirm({
-    title: `Retry ${fmtCount(n)} SMS?`,
-    description: 'Each retry uses SMS credit. Missing or invalid numbers aren’t retried.',
+    title: `Retry ${fmtCount(n)} ${n === 1 ? 'message' : 'messages'}?`,
+    description: 'Each SMS retried uses SMS units. Missing or invalid numbers aren’t retried.',
     confirmLabel: 'Retry',
     action: async () => {
       const r = await retry.mutateAsync(id.value);

@@ -14,7 +14,6 @@ import { toast } from 'vue-sonner';
 import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 import SectionCard from '@edutrack/app-kit/components/common/SectionCard.vue';
 import FieldShell from '@edutrack/app-kit/components/form/FieldShell.vue';
-import { formatNaira } from '@edutrack/app-kit/lib/format';
 
 import {
   useCommsSettingsQuery,
@@ -134,8 +133,8 @@ async function submitSender() {
 const buyCredit = computed(() =>
   supportLink(
     'Account & billing',
-    'Buy SMS credit',
-    `We’d like to top up our SMS credit. Current balance: ${fmtCount(s.value?.credit.units ?? 0)} units. Units needed: `,
+    'Buy SMS units',
+    `We’d like to top up our SMS units. Current balance: ${fmtCount(s.value?.credit.units ?? 0)} units. Units needed: `,
   ),
 );
 const timeClass = 'h-9 w-full rounded-md border bg-card px-2.5 text-sm';
@@ -188,26 +187,27 @@ const timeClass = 'h-9 w-full rounded-md border bg-card px-2.5 text-sm';
         </div>
       </SectionCard>
 
-      <SectionCard title="SMS credit" description="Used by SMS only. In-app and email are free.">
+      <SectionCard
+        title="SMS units"
+        description="Prepaid: your plan's units each term, plus any top-ups. In-app and email are free."
+      >
         <div class="flex flex-col gap-3 text-[13px]">
           <div class="flex items-baseline gap-2">
             <span class="text-2xl font-semibold tabular-nums">{{ fmtCount(s.credit.units) }}</span>
-            <span class="text-muted-foreground"
-              >units · about {{ formatNaira(s.credit.units * s.credit.unitPrice) }}</span
-            >
+            <span class="text-muted-foreground">units left</span>
           </div>
           <p class="text-muted-foreground">
             {{ fmtCount(s.credit.usedThisTerm) }} units used this term. One unit sends one SMS page
-            to one person.
+            (160 characters, or 70 with emoji) to one person.
           </p>
           <InlineNotice
             v-if="s.credit.low"
             tone="warning"
-            :title="s.credit.units ? 'Credit is running low' : 'No SMS credit'"
-            description="SMS waits in the queue until there’s credit. EduTrack support can top it up."
+            :title="s.credit.units ? 'SMS units are running low' : 'No SMS units left'"
+            description="Without units SMS isn’t sent (in-app and email still go). EduTrack can top up; then retry from Delivery logs."
           />
           <Button as-child variant="outline" class="self-start">
-            <RouterLink :to="buyCredit">Buy SMS credit</RouterLink>
+            <RouterLink :to="buyCredit">Buy SMS units</RouterLink>
           </Button>
         </div>
       </SectionCard>
