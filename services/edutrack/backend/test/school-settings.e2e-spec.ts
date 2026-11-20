@@ -129,7 +129,11 @@ describe('School settings (e2e)', () => {
 
     it('refuses a format whose next number is already in use (409)', async () => {
       const before = (await admin.get(api('/school'))).body.data.numbering[0];
-      const student = await t.prisma.student.findFirstOrThrow({ where: { schoolId } });
+      // Not the student holding the highest number, or renaming them would lower the next one.
+      const student = await t.prisma.student.findFirstOrThrow({
+        where: { schoolId },
+        orderBy: { admissionNo: 'asc' },
+      });
       const clash = `OLD-${String(before.nextSeq).padStart(4, '0')}`;
       await t.prisma.student.update({ where: { id: student.id }, data: { admissionNo: clash } });
       try {

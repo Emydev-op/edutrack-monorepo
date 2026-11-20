@@ -43,6 +43,7 @@ import {
   timezoneLabel,
 } from './settings-view.js';
 import { ruleText } from '../promotion/promotion-rules.js';
+import { SmsLedgerService } from '../communication/sms-ledger.service.js';
 
 const KINDS: readonly NumberingKind[] = ['admission', 'staff'];
 const DEFAULT_PATTERN: Record<NumberingKind, string> = {
@@ -73,6 +74,7 @@ export class SchoolSettingsService {
     private readonly setup: SetupService,
     private readonly catalog: AcademicCatalogService,
     private readonly assessment: AssessmentService,
+    private readonly ledger: SmsLedgerService,
   ) {}
 
   private get db() {
@@ -389,6 +391,8 @@ export class SchoolSettingsService {
   /** The plan, renewal and usage. Read-only: renewing and changing plan go through Support. */
   async subscription() {
     const sub = await this.subscriptionRow();
+    // The plan's SMS units for the term are credited the first time anyone looks this term.
+    await this.ledger.addTermAllowance(RequestContext.schoolId()!);
     const today = lagosToday(this.clock.now());
     const days = daysBetween(today, sub.renewsOn);
     const term = await this.catalog.currentTerm();

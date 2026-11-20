@@ -7,7 +7,19 @@ export const NOTIFICATIONS_QUEUE = 'notifications';
 
 export type NotificationJob =
   | { channel: 'email'; to: string; template: TemplateName; data: TemplateDataMap[TemplateName] }
-  | { channel: 'sms'; to: string; template: TemplateName; data: TemplateDataMap[TemplateName] };
+  | {
+      channel: 'sms';
+      to: string;
+      template: TemplateName;
+      data: TemplateDataMap[TemplateName];
+      /** A school's approved sender ID; EduTrack's (SMS_SENDER_ID) when absent. */
+      senderId?: string;
+    };
+
+export interface SmsOptions {
+  /** What the SMS shows as its sender (a school's approved sender ID). */
+  senderId?: string;
+}
 
 /**
  * Jobs carry links with secrets (reset, invitation), so completed jobs are removed at once and
@@ -36,7 +48,22 @@ export class NotificationsService {
     );
   }
 
-  async sms<T extends TemplateName>(to: string, template: T, data: TemplateDataMap[T]) {
-    await this.queue.add(`sms:${template}`, { channel: 'sms', to, template, data }, JOB_OPTIONS);
+  async sms<T extends TemplateName>(
+    to: string,
+    template: T,
+    data: TemplateDataMap[T],
+    options: SmsOptions = {},
+  ) {
+    await this.queue.add(
+      `sms:${template}`,
+      {
+        channel: 'sms',
+        to,
+        template,
+        data,
+        ...(options.senderId && { senderId: options.senderId }),
+      },
+      JOB_OPTIONS,
+    );
   }
 }

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CommsCoreModule } from '../communication/comms-core.module.js';
 import { AcademicsModule } from '../academics/academics.module.js';
 import { CurriculumModule } from '../curriculum/curriculum.module.js';
 import { ResultsModule } from '../results/results.module.js';
@@ -11,7 +12,7 @@ import { TeachingService } from './teaching.service.js';
 
 /** Teacher Workspace API (`/v1/me`, `/v1/teaching/...`, `/v1/class-teacher/register...`). */
 @Module({
-  imports: [AcademicsModule, CurriculumModule, ResultsModule],
+  imports: [AcademicsModule, CurriculumModule, ResultsModule, CommsCoreModule],
   controllers: [TeacherController],
   providers: [
     TeacherScopeService,

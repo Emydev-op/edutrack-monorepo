@@ -120,6 +120,14 @@ export const REAL_ROUTES: readonly string[] = [
   'POST /v1/notifications/:id/read',
   'GET /v1/comms/inbox',
   'GET /v1/nav-counts',
+  // Communication: announcements, delivery logs, templates and notification settings (SMS units,
+  // sender ID, quiet hours).
+  'GET /v1/comms/options',
+  '* /v1/comms/announcements/**',
+  '* /v1/comms/deliveries/**',
+  '* /v1/comms/templates/**',
+  'GET /v1/comms/events',
+  '* /v1/comms/settings/**',
   // Settings: school, academic, finance, subscription, modules, security and change history.
   '* /v1/settings/**',
   // Dashboard (the fee card answers "not available" until Finance is built), the header's

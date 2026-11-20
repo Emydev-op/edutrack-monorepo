@@ -22,6 +22,9 @@ import { PlansService } from './plans/plans.service.js';
 import { ProvisioningService } from './schools/provisioning.service.js';
 import { SchoolsController } from './schools/schools.controller.js';
 import { SchoolsService } from './schools/schools.service.js';
+import { PlatformSmsController } from './sms/platform-sms.controller.js';
+import { PlatformSmsService } from './sms/platform-sms.service.js';
+import { CommsCoreModule } from '../school/communication/comms-core.module.js';
 import { PlatformAuditService } from './shared/platform-audit.service.js';
 import { SupportController } from './support/support.controller.js';
 import { SupportNoticesService } from './support/support-notices.service.js';
@@ -34,7 +37,7 @@ import { UsersService } from './users/users.service.js';
 
 /** The platform back office's API: everything under /api/v1/platform. */
 @Module({
-  imports: [AuthModule, BullModule.registerQueue({ name: PLATFORM_JOBS_QUEUE })],
+  imports: [AuthModule, CommsCoreModule, BullModule.registerQueue({ name: PLATFORM_JOBS_QUEUE })],
   controllers: [
     ActivityController,
     AuditController,
@@ -42,6 +45,7 @@ import { UsersService } from './users/users.service.js';
     MeController,
     NotificationsController,
     PlansController,
+    PlatformSmsController,
     RolesController,
     SchoolsController,
     SearchController,
@@ -60,6 +64,7 @@ import { UsersService } from './users/users.service.js';
     PlansService,
     PlatformAlertsService,
     PlatformAuditService,
+    PlatformSmsService,
     ProvisioningService,
     RolesService,
     SchoolsService,

@@ -19,6 +19,7 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.schools.all, 'detail', id] as const,
     section: (id: string, section: string) => [...queryKeys.schools.detail(id), section] as const,
   },
+  senderIds: { all: ['sender-ids'] as const },
   subscriptions: {
     all: ['subscriptions'] as const,
     list: (params: object) => [...queryKeys.subscriptions.all, 'list', params] as const,

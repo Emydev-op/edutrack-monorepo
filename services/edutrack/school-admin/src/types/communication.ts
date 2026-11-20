@@ -28,6 +28,7 @@ export type CommsEvent =
   | 'student.exit'
   | 'graduation'
   | 'timetable.published'
+  | 'attendance.absent'
   | 'announcement';
 
 export type RecipientRole = 'Parent' | 'Student' | 'Teacher' | 'Staff';
@@ -37,7 +38,6 @@ export interface CommsOptions {
   /** Class arms with active students, e.g. "JSS 2B". */
   classes: { label: string; level: string; branchId: string; students: number }[];
   events: { key: CommsEvent; label: string }[];
-  smsUnitPrice: number;
 }
 
 /* ---------------- Announcements ---------------- */
@@ -76,10 +76,14 @@ export interface AudiencePreview {
   /** Why some recipients can't get a channel. */
   gaps: string[];
   smsPages: number;
+  /** SMS units (prepaid, one per page per recipient) the send needs. */
   smsUnits: number;
-  smsCost: number;
+  /** Units the school has left. */
   credit: number;
+  /** False: SMS beyond the units left is marked "Not sent · out of SMS units" (in-app and email still go). */
   enough: boolean;
+  /** How many SMS go out with the units left. */
+  smsSendable: number;
   sender: string;
   senderNote: string;
   quietHoursNote: string;
@@ -292,7 +296,8 @@ export interface CommsSettings {
   senderId: SenderIdState;
   /** What SMS goes out as right now. */
   sender: string;
-  credit: { units: number; usedThisTerm: number; low: boolean; unitPrice: number };
+  /** Prepaid SMS units: the plan's allowance each term plus top-ups EduTrack records. */
+  credit: { units: number; usedThisTerm: number; low: boolean };
   quietHours: { enabled: boolean; start: string; end: string };
   history: { id: string; at: string; atLabel: string; by: string; what: string; detail: string }[];
 }

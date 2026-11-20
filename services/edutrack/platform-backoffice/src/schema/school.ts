@@ -160,3 +160,21 @@ export const PROVISION_STEP_FIELDS = [
   'all',
   [],
 ] as const;
+
+export const smsTopUpSchema = toTypedSchema(
+  yup.object({
+    units: yup
+      .number()
+      .typeError('Enter the number of units')
+      .required('Enter the number of units')
+      .integer('Enter a whole number of units')
+      .min(1, 'Add at least 1 unit')
+      .max(1_000_000, 'Add at most 1,000,000 units at a time'),
+    reference: yup.string().trim().max(60, 'Keep the reference under 60 characters').default(''),
+    note: yup
+      .string()
+      .trim()
+      .required('Add a note about the top-up')
+      .max(300, 'Keep the note under 300 characters'),
+  }),
+);

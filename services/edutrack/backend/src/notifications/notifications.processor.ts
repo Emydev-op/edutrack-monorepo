@@ -46,7 +46,7 @@ export class NotificationsProcessor extends WorkerHost {
     const result = await this.sms.send({
       to,
       body: renderSms(template, data),
-      senderId: this.senderId,
+      senderId: (job.data.channel === 'sms' && job.data.senderId) || this.senderId,
     });
     this.logger.log({ msg: 'SMS sent', template, jobId: job.id, driver: this.sms.name });
     return result;

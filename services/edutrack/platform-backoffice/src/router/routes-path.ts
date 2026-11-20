@@ -19,6 +19,7 @@ export const routesPath = {
     subscription: { name: 'school-subscription', path: 'subscription' },
     administrators: { name: 'school-administrators', path: 'administrators' },
     usage: { name: 'school-usage', path: 'usage' },
+    sms: { name: 'school-sms', path: 'sms' },
     billing: { name: 'school-billing', path: 'billing' },
     activity: { name: 'school-activity', path: 'activity' },
     audit: { name: 'school-audit', path: 'audit' },

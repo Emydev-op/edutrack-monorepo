@@ -20,19 +20,30 @@ export interface SentMessage {
   to: string;
   template: TemplateName;
   data: TemplateDataMap[TemplateName];
+  /** SMS: the sender ID it goes out as (undefined: EduTrack's default). */
+  senderId?: string;
 }
 
 /** Captures what would be queued, so tests can follow reset and invitation links. */
 export class FakeNotifications {
   readonly sent: SentMessage[] = [];
+  /** Addresses the fake transport refuses (a provider error), to test failed deliveries. */
+  readonly failFor = new Set<string>();
 
   email<T extends TemplateName>(to: string, template: T, data: TemplateDataMap[T]) {
+    if (this.failFor.has(to)) return Promise.reject(new Error('Provider unavailable'));
     this.sent.push({ channel: 'email', to, template, data });
     return Promise.resolve();
   }
 
-  sms<T extends TemplateName>(to: string, template: T, data: TemplateDataMap[T]) {
-    this.sent.push({ channel: 'sms', to, template, data });
+  sms<T extends TemplateName>(
+    to: string,
+    template: T,
+    data: TemplateDataMap[T],
+    options: { senderId?: string } = {},
+  ) {
+    if (this.failFor.has(to)) return Promise.reject(new Error('Provider unavailable'));
+    this.sent.push({ channel: 'sms', to, template, data, senderId: options.senderId });
     return Promise.resolve();
   }
 
@@ -53,6 +64,7 @@ export class FakeNotifications {
 
   clear() {
     this.sent.length = 0;
+    this.failFor.clear();
   }
 }
 

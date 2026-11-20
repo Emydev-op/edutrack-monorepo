@@ -30,6 +30,7 @@ const tabs = computed(() =>
     ['Subscription', r.subscription.name],
     ['Administrators', r.administrators.name],
     ['Usage', r.usage.name],
+    ['SMS', r.sms.name],
     ['Billing', r.billing.name],
     ['Activity', r.activity.name],
     ['Audit', r.audit.name],

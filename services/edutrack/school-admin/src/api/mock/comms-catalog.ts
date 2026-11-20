@@ -514,6 +514,38 @@ export const EVENTS: EventDef[] = [
     },
   },
   {
+    key: 'attendance.absent',
+    label: 'Absence alert',
+    description: 'Tells guardians their child was marked absent in the class register.',
+    who: 'Guardians',
+    available: ['In-app', 'Email', 'SMS'],
+    defaults: ['In-app'],
+    locked: '',
+    trigger: 'Teacher Workspace → Class register',
+    quiet: false,
+    variables: [
+      PARENT,
+      STUDENT,
+      v('first_name', 'Student’s first name', 'Emmanuel'),
+      v('class', 'Class', 'JSS 2B'),
+      v('date', 'Day of the register', 'Thu 19 Nov'),
+    ],
+    templates: {
+      'In-app': {
+        subject: '[first_name] was marked absent',
+        body: '[student_name] was marked absent from [class] on [date]. If this is a mistake, contact the class teacher or the school office.',
+      },
+      Email: {
+        subject: '[first_name] was absent today',
+        body: 'Dear [parent_name],\n\n[student_name] was marked absent from [class] on [date]. If this is a mistake, please contact the class teacher or the school office.',
+      },
+      SMS: {
+        subject: '',
+        body: '[school_name]: [student_name] was marked absent from [class] on [date]. Please contact the school if this is a mistake.',
+      },
+    },
+  },
+  {
     key: 'announcement',
     label: 'Announcement',
     description: 'Written by staff. Channels are chosen on each announcement.',

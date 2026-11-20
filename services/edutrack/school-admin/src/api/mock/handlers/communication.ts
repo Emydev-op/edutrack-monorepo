@@ -34,7 +34,6 @@ import {
 } from '../comms-catalog';
 import {
   LOW_CREDIT,
-  SMS_UNIT_PRICE,
   addMinutes,
   atLabel,
   audienceLabel,
@@ -104,7 +103,6 @@ mock.get('/v1/comms/options', (req) => {
       .map((b) => ({ id: b.id, name: b.name })),
     classes: classOptions(schoolId),
     events: EVENTS.map((e) => ({ key: e.key, label: e.label })),
-    smsUnitPrice: SMS_UNIT_PRICE,
   };
 });
 
@@ -335,9 +333,9 @@ function preview(
     gaps,
     smsPages: pages,
     smsUnits: units,
-    smsCost: units * SMS_UNIT_PRICE,
     credit: c.credit,
     enough: units <= c.credit,
+    smsSendable: pages ? Math.min(reach.SMS, Math.floor(c.credit / pages)) : reach.SMS,
     sender: smsSender(c),
     senderNote:
       c.senderId.status === 'Approved'
@@ -403,11 +401,8 @@ function validate(c: CommsData, body: unknown) {
   let pv: AudiencePreview | null = null;
   if (final) {
     pv = preview(c, audience, channels, smsText);
+    // Too few SMS units doesn't stop a send: SMS beyond them waits for a top-up (as the API).
     if (!pv.recipients) fail('Nobody is in this audience yet. Choose another audience or branch.');
-    if (!pv.enough)
-      fail(
-        `This needs ${pv.smsUnits.toLocaleString('en-NG')} SMS units but your school has ${pv.credit.toLocaleString('en-NG')}. Remove SMS, shorten the SMS text, narrow the audience, or ask EduTrack support to top up.`,
-      );
   }
   return {
     action: action!,
@@ -902,7 +897,6 @@ function settingsOf(c: CommsData): CommsSettings {
       units: c.credit,
       usedThisTerm: unitsUsedThisTerm(c.schoolId),
       low: c.credit < LOW_CREDIT,
-      unitPrice: SMS_UNIT_PRICE,
     },
     quietHours: c.quietHours,
     history: c.history.map((h) => ({ ...h, atLabel: atLabel(h.at) })),

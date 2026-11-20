@@ -244,9 +244,9 @@ const followUpLink = computed(() => {
         : 'Check your connection and try again.'
     "
   >
-    <Button as-child variant="outline"
-      ><RouterLink :to="{ name: routesPath.support.name }">Back to support</RouterLink></Button
-    >
+    <Button as-child variant="outline">
+      <RouterLink :to="{ name: routesPath.support.name }">Back to support</RouterLink>
+    </Button>
   </EmptyState>
   <p v-else-if="isPending || !t" class="text-sm text-muted-foreground">Loading…</p>
   <template v-else>
@@ -259,9 +259,9 @@ const followUpLink = computed(() => {
         <Button v-if="t.can.close" variant="outline" @click="doClose(t)">Close ticket</Button>
         <Button v-if="t.can.reopen" variant="outline" @click="doReopen(t)">Reopen</Button>
         <Button v-if="t.can.confirm" @click="doConfirm(t)">Confirm it’s fixed</Button>
-        <Button v-if="t.can.followUp && followUpLink" as-child
-          ><RouterLink :to="followUpLink">Open a follow-up</RouterLink></Button
-        >
+        <Button v-if="t.can.followUp && followUpLink" as-child>
+          <RouterLink :to="followUpLink">Open a follow-up</RouterLink>
+        </Button>
       </template>
     </PageHeader>
 
@@ -272,7 +272,7 @@ const followUpLink = computed(() => {
       :description="notice.description"
     />
 
-    <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px] [&>*]:min-w-0">
+    <div class="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px] *:min-w-0">
       <div class="flex flex-col gap-4">
         <SectionCard title="Conversation">
           <ol class="flex flex-col gap-3">
@@ -293,7 +293,7 @@ const followUpLink = computed(() => {
                 >
                 <span class="text-xs text-faint">{{ fmtWhen(m.at) }}</span>
               </div>
-              <p class="break-words whitespace-pre-line">{{ m.text }}</p>
+              <p class="wrap-break-word whitespace-pre-line">{{ m.text }}</p>
               <ul v-if="m.attachments.length" class="flex flex-wrap gap-2">
                 <li v-for="a in m.attachments" :key="a.name">
                   <component
@@ -302,7 +302,7 @@ const followUpLink = computed(() => {
                     :download="a.dataUrl ? a.name : undefined"
                     :class="
                       cn(
-                        'inline-flex max-w-[260px] items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-xs',
+                        'inline-flex max-w-65 items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-xs',
                         a.dataUrl && 'hover:bg-surface-warm',
                       )
                     "
@@ -363,8 +363,8 @@ const followUpLink = computed(() => {
               <RouterLink
                 class="font-medium text-primary hover:underline"
                 :to="{ name: routesPath.supportTicket.name, params: { id: t.followUpOf } }"
-                >{{ t.followUpOf }}</RouterLink
-              >
+                >{{ t.followUpOf }}
+              </RouterLink>
             </li>
             <li v-for="f in t.followUps" :key="f">
               Followed up in

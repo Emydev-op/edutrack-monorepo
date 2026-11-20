@@ -1,9 +1,11 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { AuthUserContext } from '../../auth/auth-context.js';
+import { RequestContext } from '../../common/context/request-context.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { ArmInfo } from '../academics/academic-catalog.service.js';
 import { plural } from '../academics/academic-format.js';
+import { CommsDispatchService } from '../communication/comms-dispatch.service.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { SectionAccessService } from '../shared/section-access.service.js';
 import { asTx, type TenantTx } from '../shared/tenant-tx.js';
@@ -30,6 +32,7 @@ export class PublishingService {
     private readonly scope: TeacherScopeService,
     private readonly sections: SectionAccessService,
     private readonly audit: SchoolAuditService,
+    private readonly comms: CommsDispatchService,
   ) {}
 
   private get db() {
@@ -154,6 +157,7 @@ export class PublishingService {
       where: { termId: term.id, studentId: { in: results.students.map((s) => s.student.id) } },
     });
     const classTeacher = await this.scope.classTeacherOf(arm.id, term);
+    let flush: () => Promise<void> = () => Promise.resolve();
     await this.db.$transaction(
       async (tx) => {
         for (const ctx of results.sheets) {
@@ -226,10 +230,12 @@ export class PublishingService {
           link: '/my-class/report-cards',
         });
         const held = new Set(existing.filter((c) => c.heldAt).map((c) => c.studentId));
-        await this.notifyGuardians(
+        flush = await this.notifyGuardians(
           tx,
           results.students.map((s) => s.student.id).filter((id) => !held.has(id)),
           term,
+          false,
+          arm.label,
         );
         await this.audit.record(
           {
@@ -245,6 +251,8 @@ export class PublishingService {
       },
       { timeout: 30_000 },
     );
+    // Email and SMS to guardians go out once the publication is saved.
+    await flush();
     const { allPublished: _a, approved: _b, ...after } = await this.checkFor(term, arm);
     return after;
   }
@@ -263,44 +271,92 @@ export class PublishingService {
       }
   }
 
-  /** In-app Parent Portal notifications to the guardians of these students. */
+  /**
+   * Tells the guardians of these students their report card is ready, through the school's
+   * Communication settings (the "Result published" event: switch, channels, wording). A
+   * correction is an in-app notice only. Returns what sends email and SMS after the commit.
+   */
   private async notifyGuardians(
     tx: TenantTx,
     studentIds: string[],
     term: TermInfo,
     corrected = false,
-  ) {
-    if (!studentIds.length) return;
+    armLabel = '',
+  ): Promise<() => Promise<void>> {
+    const none = () => Promise.resolve();
+    if (!studentIds.length) return none;
     const links = await tx.studentGuardian.findMany({
       where: { studentId: { in: studentIds } },
       include: {
         student: { select: { id: true, firstName: true, surname: true } },
-        guardian: { select: { membership: { select: { userId: true, status: true } } } },
+        guardian: {
+          select: {
+            id: true,
+            title: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            membership: { select: { userId: true, status: true } },
+          },
+        },
       },
     });
     const schoolId = ResultsCoreService.schoolId();
-    for (const l of links) {
-      const userId =
-        l.guardian.membership?.status === 'ACTIVE' ? l.guardian.membership.userId : null;
-      if (!userId) continue;
-      await tx.notification.create({
-        data: {
-          userId,
-          schoolId,
-          category: 'results',
-          title: corrected
-            ? `${l.student.firstName}’s ${term.name} report card was updated`
-            : `${l.student.firstName}’s ${term.name} report card is ready`,
-          body: corrected
-            ? `A corrected score was applied to ${l.student.firstName} ${l.student.surname}’s ${term.name} results. The report card shows the new version.`
-            : `${term.session.name} ${term.name} results for ${l.student.firstName} ${l.student.surname} are published. Open Results to see the report card.`,
-          link: '/results',
-          entityType: 'Student',
-          entityId: l.student.id,
-          createdAt: this.core.now(),
-        },
-      });
+    const userOf = (l: (typeof links)[number]) =>
+      l.guardian.membership?.status === 'ACTIVE' ? l.guardian.membership.userId : null;
+    if (corrected) {
+      for (const l of links) {
+        const userId = userOf(l);
+        if (!userId) continue;
+        await tx.notification.create({
+          data: {
+            userId,
+            schoolId,
+            category: 'results',
+            title: `${l.student.firstName}’s ${term.name} report card was updated`,
+            body: `A corrected score was applied to ${l.student.firstName} ${l.student.surname}’s ${term.name} results. The report card shows the new version.`,
+            link: '/results',
+            entityType: 'Student',
+            entityId: l.student.id,
+            createdAt: this.core.now(),
+          },
+        });
+      }
+      return none;
     }
+    const guardian = (g: { title: string | null; fullName: string }) =>
+      [g.title, g.fullName].filter(Boolean).join(' ');
+    const sent = await this.comms.dispatch(asTx(tx), schoolId, {
+      event: 'result.published',
+      title: `${term.name} report cards · ${armLabel || 'results'}`,
+      audienceLabel:
+        links.length === 1
+          ? guardian(links[0]!.guardian)
+          : `${links.length} guardians${armLabel ? ` · ${armLabel}` : ''}`,
+      recipients: links.map((l) => ({
+        key: `${l.guardianId}#${l.studentId}`,
+        role: 'PARENT' as const,
+        name: guardian(l.guardian),
+        userId: userOf(l),
+        guardianId: l.guardianId,
+        studentId: l.studentId,
+        email: l.guardian.email,
+        phone: l.guardian.phone,
+        vars: {
+          parent_name: guardian(l.guardian),
+          student_name: `${l.student.firstName} ${l.student.surname}`,
+          first_name: l.student.firstName,
+          term: term.name,
+          session: term.session.name,
+          class: armLabel,
+        },
+        entity: { type: 'Student', id: l.student.id },
+      })),
+      createdById: RequestContext.get()?.userId ?? null,
+      source: { type: 'ResultPublication', id: studentIds[0]! },
+      inApp: { category: 'results', link: '/results' },
+    });
+    return sent.flush;
   }
 
   /**
@@ -431,13 +487,15 @@ export class PublishingService {
     const existing = await this.db.reportCard.findFirst({ where: { termId: term.id, studentId } });
     if (!existing?.heldAt) throw conflict('This report card isn’t on hold.', 'NOT_HELD');
     const name = `${student.firstName} ${student.surname}`;
+    let flush: () => Promise<void> = () => Promise.resolve();
     await this.db.$transaction(async (tx) => {
       await tx.reportCard.update({
         where: { id: existing.id },
         data: { heldAt: null, heldReason: null, heldById: null },
       });
       // Released after publishing: the guardians hear about it now.
-      if (existing.publishedAt) await this.notifyGuardians(tx, [studentId], term);
+      if (existing.publishedAt)
+        flush = await this.notifyGuardians(tx, [studentId], term, false, arm.label);
       await this.audit.record(
         {
           action: 'results.release',
@@ -449,6 +507,7 @@ export class PublishingService {
         asTx(tx),
       );
     });
+    await flush();
     return this.reportCard(studentId, term.id);
   }
 }

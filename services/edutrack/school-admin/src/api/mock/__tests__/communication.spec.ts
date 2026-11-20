@@ -91,7 +91,7 @@ describe('communication', () => {
     expect(pv.recipients).toBeGreaterThan(500);
     expect(pv.reach.SMS).toBeLessThanOrEqual(pv.recipients);
     expect(pv.smsUnits).toBe(pv.reach.SMS);
-    expect(pv.smsCost).toBe(pv.smsUnits * 4);
+    expect(pv.smsSendable).toBe(pv.reach.SMS);
     const everyone = (
       await gf.post<AudiencePreview>('/v1/comms/announcements/preview', {
         audience: { kind: 'everyone', classes: [], branchId: null },
@@ -157,24 +157,28 @@ describe('communication', () => {
     ).toMatch(/expiry/);
   });
 
-  it('blocks SMS the credit can’t cover', async () => {
+  it('warns when units run short, then sends what they cover', async () => {
     const c = commsFor('greenfield');
     const saved = c.credit;
     c.credit = 10;
     try {
-      const res = await failure(
-        gf.post('/v1/comms/announcements', {
-          title: 'Fees',
-          body: 'Reminder',
-          smsText: 'Reminder',
-          audience: parents,
-          channels: ['SMS'],
-          scheduledFor: null,
-          expiresOn: null,
-          action: 'send',
-        }),
-      );
-      expect(res.message).toMatch(/SMS units/);
+      const body = {
+        title: 'Fees',
+        body: 'Reminder',
+        smsText: 'Reminder',
+        audience: parents,
+        channels: ['SMS'],
+        scheduledFor: null,
+        expiresOn: null,
+      };
+      const pv = (await gf.post<AudiencePreview>('/v1/comms/announcements/preview', body)).data;
+      expect(pv).toMatchObject({ enough: false, credit: 10, smsSendable: 10 });
+      const res = await gf.post<AnnouncementDetail>('/v1/comms/announcements', {
+        ...body,
+        action: 'send',
+      });
+      expect(res.data.status).toBe('Sent');
+      expect(c.credit).toBe(0);
     } finally {
       c.credit = saved;
     }

@@ -54,6 +54,10 @@ export const schoolRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/schools/detail/(tabs)/SchoolUsageTab.vue'),
       },
       {
+        ...schools.sms,
+        component: () => import('@/views/schools/detail/(tabs)/SchoolSmsTab.vue'),
+      },
+      {
         ...schools.billing,
         meta: { permission: ['Schools.View', 'Subscriptions.View'] },
         component: () => import('@/views/schools/detail/(tabs)/SchoolBillingTab.vue'),

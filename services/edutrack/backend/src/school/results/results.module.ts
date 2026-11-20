@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CommsCoreModule } from '../communication/comms-core.module.js';
 import { AcademicsModule } from '../academics/academics.module.js';
 import { CurriculumModule } from '../curriculum/curriculum.module.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
@@ -24,7 +25,7 @@ import { TeacherResultsService } from './teacher-results.service.js';
  * academic office's sidebar count.
  */
 @Module({
-  imports: [AcademicsModule, CurriculumModule],
+  imports: [AcademicsModule, CurriculumModule, CommsCoreModule],
   controllers: [ResultsTeacherController, ResultsAdminController],
   providers: [
     ResultsCoreService,

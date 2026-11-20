@@ -237,8 +237,9 @@ const SENDER_HINT: Record<string, string> = {
         </dl>
         <p class="text-xs text-muted-foreground">{{ SENDER_HINT[data.usage.senderIdStatus] }}</p>
         <p class="text-xs text-muted-foreground">
-          In-app and email messages are included in your plan. SMS uses credit: one unit per 160
-          characters, per recipient.
+          In-app and email messages are included in your plan. SMS uses prepaid units (your plan’s
+          units each term, plus top-ups): one unit per 160 characters (70 with emoji), per
+          recipient.
         </p>
         <div>
           <Button variant="outline" size="sm" as-child>
