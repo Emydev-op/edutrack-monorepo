@@ -39,6 +39,6 @@ import { TeacherResultsService } from './teacher-results.service.js';
     SectionAccessService,
     SchoolAuditService,
   ],
-  exports: [ResultsFrameService, OfficeResultsService, ReportCardsService],
+  exports: [ResultsFrameService, OfficeResultsService, ReportCardsService, ResultsCoreService],
 })
 export class ResultsModule {}

@@ -55,7 +55,23 @@ const { data, isPending, isError, refetch } = useReportCatalogQuery();
           :key="rep.id"
           class="border-t border-divider first:border-t-0"
         >
+          <!-- Reports whose module isn't built yet are listed, but can't be opened. -->
+          <div
+            v-if="rep.available === false"
+            class="flex items-center gap-3 px-4 py-3"
+            :aria-label="`${rep.title}: available with ${rep.availableWith}`"
+          >
+            <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span class="text-sm font-medium text-muted-foreground">{{ rep.title }}</span>
+              <span class="text-xs text-faint">{{ rep.description }}</span>
+            </span>
+            <span
+              class="shrink-0 rounded-[3px] bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground"
+              >Available with {{ rep.availableWith }}</span
+            >
+          </div>
           <RouterLink
+            v-else
             :to="{ name: routesPath.reportDetail.name, params: { id: rep.id } }"
             class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
           >

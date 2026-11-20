@@ -29,6 +29,10 @@ export interface ReportCatalogItem {
   description: string;
   /** Filters this report understands, besides the working branch. */
   filters: ReportFilterKey[];
+  /** False while the module it reads isn't built yet; it's listed but can't be opened. */
+  available?: boolean;
+  /** The module it waits for ("Finance", "Communication"). */
+  availableWith?: string | null;
 }
 
 export interface ReportCatalog {

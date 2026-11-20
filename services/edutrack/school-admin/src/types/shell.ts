@@ -38,12 +38,14 @@ export interface SearchResult {
     | 'Student'
     | 'Parent'
     | 'Teacher'
+    | 'Staff'
     | 'Class'
     | 'Subject'
     | 'Invoice'
     | 'Payment'
     | 'Vendor'
-    | 'Inventory';
+    | 'Inventory'
+    | 'Ticket';
   meta: string;
   to: RouteLocationRaw;
 }
