@@ -21,6 +21,7 @@ export function createAssessmentDraft(view: Ref<AssessmentView | undefined>) {
     schemes: clone(v.schemes),
     rounding: v.rounding,
     passMark: v.passMark,
+    promotion: clone(v.promotion ?? {}),
   });
   const dirty = computed(() => !!draft.value && JSON.stringify(draft.value) !== original.value);
 
@@ -61,14 +62,46 @@ export function createAssessmentDraft(view: Ref<AssessmentView | undefined>) {
   }
 
   const keys = computed(() => (draft.value?.same ? ['*'] : sections.value.map((s) => s.name)));
+  /** A minimum average must be 0–100 (blank: none). */
+  const promotionErrors = computed(() =>
+    Object.entries(draft.value?.promotion ?? {}).flatMap(([section, r]) =>
+      r.minAverage !== null && !(r.minAverage >= 0 && r.minAverage <= 100)
+        ? [`${section}: the minimum average for promotion is between 0 and 100.`]
+        : [],
+    ),
+  );
   const errors = computed(() =>
     !draft.value
       ? []
-      : keys.value.flatMap((k) => {
-          const s = draft.value!.schemes[k];
-          return s ? schemeErrors(label(k), s) : [];
-        }),
+      : [
+          ...keys.value.flatMap((k) => {
+            const s = draft.value!.schemes[k];
+            return s ? schemeErrors(label(k), s) : [];
+          }),
+          ...promotionErrors.value,
+        ],
   );
+  /** The scheme a section uses: its own, or the shared one. */
+  const schemeOf = (section: string) =>
+    (draft.value?.same ? draft.value.schemes['*'] : draft.value?.schemes[section]) ?? null;
+  /** What to save: sections without a score-based scheme have no rule to keep. */
+  function payload(): AssessmentConfig {
+    const d = draft.value!;
+    return {
+      ...d,
+      promotion: Object.fromEntries(
+        Object.entries(d.promotion).map(([section, r]) => [
+          section,
+          schemeOf(section)?.mode === 'scores' ? r : { minAverage: null, mustPass: [] },
+        ]),
+      ),
+    };
+  }
+  /** The section's promotion rule, created empty when it has none yet. */
+  function ruleOf(section: string) {
+    const d = draft.value!;
+    return (d.promotion[section] ??= { minAverage: null, mustPass: [] });
+  }
   const missing = computed(() => keys.value.filter((k) => !draft.value?.schemes[k]).map(label));
   const errorsFor = (k: string) => {
     const s = draft.value?.schemes[k];
@@ -90,6 +123,9 @@ export function createAssessmentDraft(view: Ref<AssessmentView | undefined>) {
     keys,
     errors,
     errorsFor,
+    schemeOf,
+    ruleOf,
+    payload,
     missing,
   };
   provide(KEY, api);

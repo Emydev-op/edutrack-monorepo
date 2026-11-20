@@ -54,30 +54,41 @@ useUnsavedChanges(() => dirty.value);
 const applied = computed(() => !!view.value?.applied);
 const current = computed(() => view.value?.classes.find((c) => c.id === view.value?.classId));
 const nextLevel = computed(() => view.value?.nextLevel ?? null);
-const arm = computed(() => view.value?.arm ?? '');
-/** "JSS 1B" with arm "B" → level "JSS 1". */
-const level = computed(() =>
-  (view.value?.className ?? '').slice(0, -arm.value.length || undefined).trim(),
+const level = computed(() => view.value?.level ?? '');
+/** Only the final class graduates; it can't promote. */
+const choices = computed(() =>
+  DECISIONS.filter((d) => (nextLevel.value ? d !== 'Graduate' : d !== 'Promote')),
 );
+const mustPass = computed(() => view.value?.mustPass ?? []);
+const columns = computed(
+  () =>
+    `minmax(160px,1.3fr) 80px ${mustPass.value.map(() => '80px').join(' ')} 120px minmax(180px,1.6fr) 150px minmax(150px,1.2fr)`,
+);
+const failing = (score: number | null) =>
+  score !== null && view.value?.passMark !== null && score < (view.value?.passMark ?? 0);
 const fromSessionId = computed(
   () => sessions.value?.sessions.find((s) => s.name === view.value?.from)?.id ?? null,
 );
 
 const decisionOf = (s: PromotionStudent) =>
   applied.value ? (s.decision ?? s.suggestion) : (edits.value[s.id]?.decision ?? null);
+/** Against the rule: needs a reason. Unknown eligibility (no results) is never an exception. */
 const isException = (s: PromotionStudent) => {
   const d = decisionOf(s);
-  if (!view.value?.suggestions) return false;
-  return !!d && ((s.eligible && d === 'Repeat') || (!s.eligible && d === 'Promote'));
+  if (!view.value?.suggestions || s.eligible === null || !d) return false;
+  return s.eligible ? d === 'Repeat' : d === 'Promote' || d === 'Graduate';
 };
+const place = (lvl: string, arm: string | null) =>
+  arm ? `${lvl} · arm ${arm}` : `${lvl} · awaiting an arm`;
 const nextFor = (s: PromotionStudent) => {
   const d = decisionOf(s);
-  if (applied.value) return s.next;
+  // The server's placement is exact for saved decisions; local edits are a preview.
+  if (applied.value || d === s.decision) return s.next;
   switch (d) {
     case 'Promote':
-      return nextLevel.value ? `${nextLevel.value} · arm ${arm.value}` : 'Graduates';
+      return nextLevel.value ? place(nextLevel.value, s.arm) : 'Graduates';
     case 'Repeat':
-      return `${level.value} · arm ${arm.value} (repeat)`;
+      return `${place(level.value, s.arm)} (repeat)`;
     case 'Graduate':
       return 'Graduates';
     case 'Transfer':
@@ -120,7 +131,8 @@ function setReason(id: string, reason: string) {
   dirty.value = true;
 }
 function applySuggestions() {
-  for (const s of students.value) if (!edits.value[s.id]?.decision) setDecision(s.id, s.suggestion);
+  for (const s of students.value)
+    if (!edits.value[s.id]?.decision && s.suggestion) setDecision(s.id, s.suggestion);
 }
 
 async function saveDecisions(quiet = false) {
@@ -149,7 +161,7 @@ async function confirmApply() {
         'Promote',
         `${count('Promote')} · new ${v.to} enrollment in ${nextLevel.value ?? 'the next class'}`,
       ],
-      ['Repeat', `${count('Repeat')} · new ${v.to} enrollment in ${v.className}`],
+      ['Repeat', `${count('Repeat')} · new ${v.to} enrollment in ${level.value}`],
       ...(count('Graduate')
         ? ([['Graduate', `${count('Graduate')} · leave as alumni`]] as [string, string][])
         : []),
@@ -198,7 +210,7 @@ async function confirmApply() {
     <PageHeader
       title="Promotion"
       :status="applied ? 'Complete' : 'In progress'"
-      :description="`${view.from} → ${view.to} · ${view.className} · Main Campus. ${view.suggestions ? 'The system suggests; authorised staff decide.' : 'Authorised staff decide for each student.'}`"
+      :description="`${view.from} → ${view.to || 'the next session'} · ${view.level} · ${view.branch}. ${view.suggestions ? 'The system suggests; authorised staff decide.' : 'Authorised staff decide for each student.'}`"
     >
       <template #actions>
         <Button v-if="applied && fromSessionId" as-child
@@ -243,6 +255,12 @@ async function confirmApply() {
     </nav>
 
     <InlineNotice
+      v-if="!applied && !view.to"
+      tone="warning"
+      :title="`Create the session after ${view.from} first`"
+      description="You can decide now; applying enrolls promoted and repeating students into the next session, so it has to exist. Create it in Sessions & Terms."
+    />
+    <InlineNotice
       v-if="applied"
       tone="success"
       :title="`${view.className} decisions applied`"
@@ -272,12 +290,14 @@ async function confirmApply() {
     >
       <div class="min-w-[1080px]">
         <div
-          class="grid grid-cols-[minmax(160px,1.3fr)_80px_70px_70px_110px_minmax(180px,1.6fr)_150px_minmax(150px,1.2fr)] gap-3 border-b border-divider px-4 py-2.5 text-xs font-medium text-faint"
+          class="grid gap-3 border-b border-divider px-4 py-2.5 text-xs font-medium text-faint"
+          :style="{ gridTemplateColumns: columns }"
         >
           <span>Student</span>
           <span class="text-right">Average</span>
-          <span class="text-right">Maths</span>
-          <span class="text-right">English</span>
+          <span v-for="name in mustPass" :key="name" class="truncate text-right" :title="name">{{
+            name
+          }}</span>
           <span>Eligibility</span>
           <span>Note</span>
           <span>Decision</span>
@@ -290,7 +310,8 @@ async function confirmApply() {
         <div
           v-for="s in students"
           :key="s.id"
-          class="grid grid-cols-[minmax(160px,1.3fr)_80px_70px_70px_110px_minmax(180px,1.6fr)_150px_minmax(150px,1.2fr)] items-start gap-3 border-b border-divider px-4 py-3 text-[13px] last:border-b-0"
+          class="grid items-start gap-3 border-b border-divider px-4 py-3 text-[13px] last:border-b-0"
+          :style="{ gridTemplateColumns: columns }"
         >
           <span class="flex flex-col">
             <span class="font-medium">{{ s.name }}</span>
@@ -298,26 +319,27 @@ async function confirmApply() {
               >{{ formatNaira(s.balance) }} outstanding</span
             >
           </span>
-          <span class="text-right tabular-nums">{{ s.average.toFixed(1) }}%</span>
+          <span class="text-right tabular-nums">{{
+            s.average === null ? '—' : `${s.average.toFixed(1)}%`
+          }}</span>
           <span
-            :class="cn('text-right tabular-nums', s.maths < 40 && 'font-medium text-error-strong')"
-            >{{ s.maths }}</span
-          >
-          <span
+            v-for="(score, i) in s.mustPass"
+            :key="i"
             :class="
-              cn('text-right tabular-nums', s.english < 40 && 'font-medium text-error-strong')
+              cn('text-right tabular-nums', failing(score) && 'font-medium text-error-strong')
             "
-            >{{ s.english }}</span
+            >{{ score ?? '—' }}</span
           >
           <StatusBadge
-            v-if="view.suggestions"
+            v-if="view.suggestions && s.eligible !== null"
             :label="s.eligible ? 'Eligible' : 'Not eligible'"
             :tone="s.eligible ? 'success' : 'error'"
           />
+          <StatusBadge v-else-if="view.suggestions" label="Not worked out" tone="neutral" />
           <span v-else class="text-faint">—</span>
           <span class="flex flex-col gap-0.5">
             <span class="text-body">{{ s.note || '—' }}</span>
-            <span v-if="view.suggestions" class="text-xs text-faint"
+            <span v-if="view.suggestions && s.suggestion" class="text-xs text-faint"
               >Suggested: {{ s.suggestion }}</span
             >
           </span>
@@ -331,7 +353,7 @@ async function confirmApply() {
               @change="setDecision(s.id, ($event.target as HTMLSelectElement).value)"
             >
               <option value="">Choose…</option>
-              <option v-for="d in DECISIONS" :key="d" :value="d">
+              <option v-for="d in choices" :key="d" :value="d">
                 {{ d }}{{ view.suggestions && d === s.suggestion ? ' (suggested)' : '' }}
               </option>
             </select>

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SessionService } from '../../auth/session.service.js';
 import { Clock } from '../../common/clock/clock.js';
+import { addMonths } from '../../platform/shared/format.js';
 import type { TenantTx } from '../shared/tenant-tx.js';
 import { OPEN_ACCESS } from './student-view.js';
 
@@ -81,4 +82,30 @@ export class StudentAccessService {
   async forget(closed: ClosedStudentAccess | null | undefined): Promise<void> {
     for (const id of closed?.sessionIds ?? []) await this.sessions.revoke(id, 'access_lost');
   }
+}
+
+/** Leavers' documents and photo are kept two years after they leave, then purged. */
+export const LEAVER_RETENTION_MONTHS = 24;
+
+/**
+ * Leavers rule, the files half: sets the purge date (two years after `leftOn`) on the student's
+ * documents, photo and exit letter, inside the caller's transaction.
+ */
+export async function retainLeaverFiles(tx: TenantTx, studentId: string, leftOn: Date) {
+  const s = await tx.student.findUniqueOrThrow({
+    where: { id: studentId },
+    select: {
+      photoFileId: true,
+      exitDocumentFileId: true,
+      documents: { select: { fileId: true } },
+    },
+  });
+  const ids = [s.photoFileId, s.exitDocumentFileId, ...s.documents.map((d) => d.fileId)].filter(
+    (x): x is string => Boolean(x),
+  );
+  if (ids.length)
+    await tx.storedFile.updateMany({
+      where: { id: { in: ids } },
+      data: { retainUntil: addMonths(leftOn, LEAVER_RETENTION_MONTHS) },
+    });
 }

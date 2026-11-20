@@ -342,7 +342,8 @@ model PromotionDecision {
   id           String            @id @default(uuid(7)) @db.Uuid
   schoolId     String            @map("school_id") @db.Uuid
   enrollmentId String            @map("enrollment_id") @db.Uuid
-  toSessionId  String            @map("to_session_id") @db.Uuid
+  /// Set when the decisions are applied (drafts are saved before the next session exists).
+  toSessionId  String?           @map("to_session_id") @db.Uuid
   /// Computed suggestion from the promotion rule (when suggestions are on).
   suggestion   PromotionOutcome?
   /// Session average the suggestion used.
@@ -359,11 +360,11 @@ model PromotionDecision {
   createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  school     School          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
-  enrollment Enrollment      @relation(fields: [schoolId, enrollmentId], references: [schoolId, id], onDelete: Restrict)
-  toSession  AcademicSession @relation("PromotionTarget", fields: [schoolId, toSessionId], references: [schoolId, id], onDelete: Restrict)
-  nextLevel  ClassLevel?     @relation("PromotionNextLevel", fields: [schoolId, nextLevelId], references: [schoolId, id], onDelete: Restrict)
-  nextArm    ClassArm?       @relation("PromotionNextArm", fields: [schoolId, nextArmId], references: [schoolId, id], onDelete: Restrict)
+  school     School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  enrollment Enrollment       @relation(fields: [schoolId, enrollmentId], references: [schoolId, id], onDelete: Restrict)
+  toSession  AcademicSession? @relation("PromotionTarget", fields: [schoolId, toSessionId], references: [schoolId, id], onDelete: Restrict)
+  nextLevel  ClassLevel?      @relation("PromotionNextLevel", fields: [schoolId, nextLevelId], references: [schoolId, id], onDelete: Restrict)
+  nextArm    ClassArm?        @relation("PromotionNextArm", fields: [schoolId, nextArmId], references: [schoolId, id], onDelete: Restrict)
 
   @@unique([enrollmentId])
   @@index([schoolId, toSessionId])

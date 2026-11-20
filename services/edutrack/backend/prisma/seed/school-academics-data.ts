@@ -297,6 +297,12 @@ export async function seedSchoolAcademics(
     await prisma.resultSheetEvent.deleteMany({ where: { schoolId } });
     await prisma.resultSheet.deleteMany({ where: { schoolId } });
     await prisma.classTeacherAssignment.deleteMany({ where: { schoolId } });
+    // Promotion decisions are made by tests and by hand (the students seed restores outcomes);
+    // enrollments in sessions that aren't seeded (e.g. a promotion into a new session) go too.
+    await prisma.promotionDecision.deleteMany({ where: { schoolId } });
+    await prisma.enrollment.deleteMany({
+      where: { schoolId, sessionId: { notIn: sessions.map((s) => s.id) } },
+    });
     await prisma.classArm.deleteMany({ where: { schoolId, id: { notIn: ids(arms) } } });
     await prisma.branchLevel.deleteMany({
       where: {

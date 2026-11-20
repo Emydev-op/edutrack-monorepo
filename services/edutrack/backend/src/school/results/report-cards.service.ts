@@ -19,7 +19,15 @@ import {
   type StudentRef,
   type TermInfo,
 } from './results-core.service.js';
-import { gradeOf, mean, ordinal, rankPositions, type Scheme, type ScoreValue } from './scoring.js';
+import {
+  cumulativeAverage,
+  gradeOf,
+  mean,
+  ordinal,
+  rankPositions,
+  type Scheme,
+  type ScoreValue,
+} from './scoring.js';
 
 export const CONDUCT_TRAITS = [
   'Punctuality',
@@ -300,14 +308,12 @@ export class ReportCardsService {
           const e = entries.find((x) => x.sheet.termId === t.id && x.sheet.subject.id === id);
           return e?.total === null || e?.total === undefined ? null : Number(e.total);
         });
-        const avg = mean(totals.filter((x): x is number => x !== null));
-        return { name, totals, average: avg === null ? null : Math.round(avg * 10) / 10 };
+        return { name, totals, average: cumulativeAverage(totals) };
       });
-    const overall = mean(subjects.map((s) => s.average).filter((x): x is number => x !== null));
     return {
       terms: terms.map((t) => t.name),
       subjects,
-      average: overall === null ? null : Math.round(overall * 10) / 10,
+      average: cumulativeAverage(subjects.map((s) => s.average)),
     };
   }
 

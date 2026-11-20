@@ -65,7 +65,7 @@ async function submit() {
   serverError.value = '';
   if (d.errors.value.length) return;
   try {
-    await save.mutateAsync(d.draft.value!);
+    await save.mutateAsync(d.payload());
     d.reset();
     showErrors.value = false;
     toast.success(

@@ -521,12 +521,22 @@ export interface AssessmentScheme {
   showPosition: boolean;
 }
 
+/** A section's promotion rule: a minimum annual average and subjects to pass. */
+export interface PromotionRule {
+  /** Null: no minimum. */
+  minAverage: number | null;
+  /** Subject ids; passing is a cumulative average at or above the pass mark. */
+  mustPass: string[];
+}
+
 export interface AssessmentConfig {
   /** One scheme for every section, under the key "*". */
   same: boolean;
   schemes: Record<string, AssessmentScheme | null>;
   rounding: 'Whole number' | '1 decimal place';
   passMark: number;
+  /** Section name → promotion rule (always per section). */
+  promotion: Record<string, PromotionRule>;
 }
 
 export interface AssessmentView extends AssessmentConfig {
@@ -535,6 +545,8 @@ export interface AssessmentView extends AssessmentConfig {
   /** Sections that still need a scheme. */
   missing: string[];
   hasPublished: boolean;
+  /** Section name → the subjects its levels offer (the must-pass choices). */
+  promotionSubjects: Record<string, { id: string; name: string }[]>;
 }
 
 /* ---------------- Results ---------------- */
@@ -804,12 +816,17 @@ export type PromotionDecision = 'Promote' | 'Repeat' | 'Graduate' | 'Transfer' |
 export interface PromotionStudent {
   id: string;
   name: string;
-  average: number;
-  maths: number;
-  english: number;
-  eligible: boolean;
+  /** Their arm letter this session ("B"); null while awaiting an arm. */
+  arm: string | null;
+  /** Annual average: the mean of the subjects' cumulative averages; null without published results. */
+  average: number | null;
+  /** Cumulative average in each of the view's must-pass subjects (null: no published result). */
+  mustPass: (number | null)[];
+  /** Null: not worked out (suggestions off, no rule, or no published results): staff decide. */
+  eligible: boolean | null;
   note: string;
-  suggestion: PromotionDecision;
+  /** Null when there is nothing to suggest from. */
+  suggestion: PromotionDecision | null;
   decision: PromotionDecision | null;
   reason: string;
   balance: number;
@@ -819,8 +836,13 @@ export interface PromotionStudent {
 
 export interface PromotionView {
   from: string;
+  /** The session students move into; empty until it's created. */
   to: string;
   rule: string;
+  /** The section's must-pass subjects (names), the columns of `PromotionStudent.mustPass`. */
+  mustPass: string[];
+  /** The section's pass mark (null without a rule). */
+  passMark: number | null;
   classes: {
     id: string;
     name: string;
@@ -828,11 +850,13 @@ export interface PromotionView {
     total: number;
     status: 'Pending' | 'Complete' | 'Graduated';
   }[];
+  /** A class level at a branch. */
   classId: string;
   className: string;
+  level: string;
+  branch: string;
   /** Where promoted students go; null for a final class (they graduate). */
   nextLevel: string | null;
-  arm: string;
   students: PromotionStudent[];
   applied: boolean;
   /** No session to promote from (a new school). */

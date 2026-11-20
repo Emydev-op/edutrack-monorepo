@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
+import { Checkbox } from '@edutrack/ui/components/checkbox';
 import { Input } from '@edutrack/ui/components/input';
 import { Switch } from '@edutrack/ui/components/switch';
 import { Trash2Icon } from '@lucide/vue';
@@ -43,6 +44,19 @@ function usePreset(key: string) {
 }
 function addBand() {
   d.ensureScheme().scale.push({ grade: '', min: 0, max: 0, remark: '', points: 0, pass: true });
+}
+
+/* Promotion rules: always per section (subjects belong to sections). */
+const EMPTY_RULE = { minAverage: null, mustPass: [] as string[] };
+const rule = (section: string) => cfg.value.promotion[section] ?? EMPTY_RULE;
+const subjects = (section: string) => d.view.value?.promotionSubjects?.[section] ?? [];
+function setMin(section: string, value: string | number) {
+  const n = value === '' || value === null ? null : Number(value);
+  d.ruleOf(section).minAverage = n === null || Number.isNaN(n) ? null : n;
+}
+function toggleSubject(section: string, id: string, on: boolean | 'indeterminate') {
+  const r = d.ruleOf(section);
+  r.mustPass = on === true ? [...new Set([...r.mustPass, id])] : r.mustPass.filter((x) => x !== id);
 }
 
 const summaries = computed(() =>
@@ -173,6 +187,67 @@ const summaries = computed(() =>
           @click="usePreset(k)"
           >Use preset: {{ k }}</Button
         >
+      </div>
+    </div>
+  </SectionCard>
+
+  <SectionCard
+    title="Promotion rules"
+    description="Each section's rule at the end of a session: a minimum annual average (the mean of the subjects' averages across the session's terms) and subjects to pass at or above the pass mark. With suggestions on in Settings › Academic, Promotion suggests promote or repeat from it."
+  >
+    <div class="flex flex-col divide-y divide-divider">
+      <div
+        v-for="s in d.sections.value"
+        :key="s.name"
+        class="flex flex-col gap-3 py-3 first:pt-0 last:pb-0"
+      >
+        <span class="text-[13px] font-semibold">{{ s.name }}</span>
+        <p v-if="!d.schemeOf(s.name)" class="text-xs text-muted-foreground">
+          Set up its assessment scheme first.
+        </p>
+        <p
+          v-else-if="d.schemeOf(s.name)?.mode === 'descriptive'"
+          class="text-xs text-muted-foreground"
+        >
+          Uses descriptive ratings, so there is no average: staff decide each student’s promotion.
+        </p>
+        <template v-else>
+          <div class="flex flex-wrap items-center gap-2 text-[13px]">
+            <span>Minimum annual average</span>
+            <Input
+              type="number"
+              min="0"
+              max="100"
+              class="h-8 w-24"
+              :model-value="rule(s.name).minAverage ?? ''"
+              :aria-label="`${s.name} minimum annual average`"
+              @update:model-value="setMin(s.name, $event)"
+            />
+            <span>%</span>
+            <span class="text-xs text-muted-foreground">Leave blank for no minimum.</span>
+          </div>
+          <fieldset class="flex flex-col gap-1.5">
+            <legend class="mb-1.5 text-xs text-muted-foreground">
+              Must pass (at or above {{ cfg.passMark }}%)
+            </legend>
+            <div class="flex flex-wrap gap-x-4 gap-y-2">
+              <label
+                v-for="sub in subjects(s.name)"
+                :key="sub.id"
+                class="flex items-center gap-2 text-[13px]"
+              >
+                <Checkbox
+                  :model-value="rule(s.name).mustPass.includes(sub.id)"
+                  @update:model-value="toggleSubject(s.name, sub.id, $event)"
+                />
+                {{ sub.name }}
+              </label>
+            </div>
+            <p v-if="!subjects(s.name).length" class="text-xs text-muted-foreground">
+              No subjects in {{ s.name }}’s curriculum yet.
+            </p>
+          </fieldset>
+        </template>
       </div>
     </div>
   </SectionCard>

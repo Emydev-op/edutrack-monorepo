@@ -179,3 +179,13 @@ export function ordinal(n: number) {
 /** The mean of the values given, or null for none. */
 export const mean = (values: number[]) =>
   values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+
+/**
+ * A cumulative (annual) average, as report cards print it: the mean of the values available, to
+ * one decimal place, or null for none. A subject's cumulative is the mean of its published term
+ * totals; the annual average is the mean of the subjects' cumulatives (promotion uses the same).
+ */
+export function cumulativeAverage(values: (number | null | undefined)[]): number | null {
+  const m = mean(values.filter((x): x is number => x !== null && x !== undefined));
+  return m === null ? null : round1(m);
+}
