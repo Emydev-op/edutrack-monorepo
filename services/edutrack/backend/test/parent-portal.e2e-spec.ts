@@ -719,8 +719,14 @@ describe('Parent Portal (e2e)', () => {
       );
       const inv = await data(t.http().get(`/api/v1/auth/invitations/${token}`));
       expect(inv.kind).toBe('guardian');
+      // Other test files move Chiamaka between JSS 2 arms, so only the level is fixed here.
       expect(inv.children).toEqual([
-        { name: 'Chiamaka Eze', firstName: 'Chiamaka', className: 'JSS 2B', branch: 'Main Campus' },
+        {
+          name: 'Chiamaka Eze',
+          firstName: 'Chiamaka',
+          className: expect.stringMatching(/^JSS 2[A-Z]$/),
+          branch: 'Main Campus',
+        },
       ]);
     });
   });
