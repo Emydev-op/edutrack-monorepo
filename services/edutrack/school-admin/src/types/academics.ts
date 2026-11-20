@@ -643,7 +643,13 @@ export const CONDUCT_SCALE: Record<number, string> = {
 };
 
 export interface ReportCard {
-  school: { name: string; motto: string; address: string; logoUrl: string | null };
+  school: {
+    name: string;
+    motto: string;
+    address: string;
+    logoUrl: string | null;
+    brandColor?: string | null;
+  };
   title: string;
   student: { id: string; name: string; admissionNo: string; gender: string; className: string };
   classTeacher: string | null;
@@ -653,6 +659,8 @@ export interface ReportCard {
     total: string;
     grade: string;
     remark: string;
+    /** Position in the class for the subject ("2nd of 32"), when the section shows positions. */
+    position?: string | null;
   }[];
   components: string[];
   average: string;
@@ -674,6 +682,17 @@ export interface ReportCard {
     excused: number;
     /** School days so far this term (all of them once the term ends). */
     schoolDays: number;
+  } | null;
+  /** Withheld by the school: guardians and the student don't see it until it's released. */
+  held: { reason: string; at: string; by: string } | null;
+  /**
+   * The last term of a session: each subject's total for every term and the annual average
+   * (mean of the available term totals); null on earlier terms.
+   */
+  cumulative: {
+    terms: string[];
+    subjects: { name: string; totals: (number | null)[]; average: number | null }[];
+    average: number | null;
   } | null;
 }
 

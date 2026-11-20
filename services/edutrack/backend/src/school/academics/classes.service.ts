@@ -220,7 +220,7 @@ export class ClassesService {
 
   /**
    * One arm with its students, the subjects it takes this session (and who teaches them this
-   * term) and its timetable. Results come with Phase 3b.
+   * term), its timetable, and each subject's result sheet this term (status and class average).
    */
   async detail(id: string): Promise<ClassDetailView> {
     const { arm, level, branch } = await this.findArm(id);
@@ -241,6 +241,7 @@ export class ClassesService {
           },
         })
       : [];
+    const planned = await this.subjectsAndTimetable(arm.id, level.id, facts.session?.id);
     return {
       arm: this.armView(arm, level, branch.name, facts),
       students: enrollments
@@ -256,9 +257,47 @@ export class ClassesService {
           };
         })
         .sort((a, b) => a.name.localeCompare(b.name)),
-      ...(await this.subjectsAndTimetable(arm.id, level.id, facts.session?.id)),
-      results: [],
+      ...planned,
+      results: await this.results(arm.id, planned.subjects),
     };
+  }
+
+  /** Each subject's sheet this term: its status and the class average of complete totals. */
+  private async results(
+    armId: string,
+    subjects: { code: string; name: string; teacher: string | null }[],
+  ) {
+    const term = await this.structure.currentTerm();
+    if (!term || !subjects.length) return [];
+    const sheets = await this.db.resultSheet.findMany({
+      where: { termId: term.id, armId },
+      include: {
+        subject: { select: { code: true } },
+        entries: { where: { total: { not: null } }, select: { total: true } },
+      },
+    });
+    const LABEL: Record<string, string> = {
+      NOT_STARTED: 'Not started',
+      DRAFT: 'Draft',
+      SUBMITTED: 'Submitted',
+      UNDER_REVIEW: 'Under review',
+      RETURNED: 'Returned',
+      APPROVED: 'Approved',
+      PUBLISHED: 'Published',
+    };
+    return subjects.map((s) => {
+      const sheet = sheets.find((x) => x.subject.code === s.code);
+      const totals = (sheet?.entries ?? []).map((e) => Number(e.total));
+      return {
+        code: s.code,
+        subject: s.name,
+        teacher: s.teacher,
+        average: totals.length
+          ? Math.round((totals.reduce((a, b) => a + b, 0) / totals.length) * 10) / 10
+          : null,
+        status: LABEL[sheet?.status ?? 'NOT_STARTED'],
+      };
+    });
   }
 
   private async subjectsAndTimetable(armId: string, levelId: string, sessionId?: string) {

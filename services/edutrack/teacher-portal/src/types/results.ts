@@ -17,7 +17,8 @@ export type SheetStatus =
 export type ScoreValue = number | 'ABS' | 'EXM' | null;
 
 export interface SheetComponent {
-  key: 'CA1' | 'CA2' | 'EXAM';
+  /** The scheme component's stable key: CA1, CA2, EXAM in the demo; EXAMINATION, PROJECT… on the API. */
+  key: string;
   name: string;
   max: number;
   /** Percent of the total. */
@@ -132,6 +133,14 @@ export interface ResultSheet extends ResultSheetSummary {
   canRequestCorrection: boolean;
   corrections: Correction[];
   history: TimelineEntry[];
+  /** The signed-in teacher is the lead teacher: only they submit or recall. Co-teachers save. */
+  isLead: boolean;
+  /** The lead teacher's name ("Mr. Samuel Ade"), or null when the subject has none. */
+  lead: string | null;
+  /** The lead can take the submitted sheet back to Draft (before the HOD or office acts). */
+  canRecall: boolean;
+  /** Bumps on every save (optimistic concurrency when sent back with a save). */
+  revision?: number;
 }
 
 export interface SaveScoresPayload {
@@ -176,8 +185,8 @@ export interface CorrectionPayload {
   componentKey: SheetComponent['key'];
   proposed: number;
   reason: string;
-  /** The evidence file's details (uploads are simulated in the mock). */
-  evidence?: { name: string; size: number; type: string } | null;
+  /** The evidence file: its details and its content as a data URL (PDF, PNG or JPG, ≤ 10 MB). */
+  evidence?: { name: string; size: number; type: string; dataUrl?: string } | null;
 }
 
 /** `GET /v1/results?term=` */

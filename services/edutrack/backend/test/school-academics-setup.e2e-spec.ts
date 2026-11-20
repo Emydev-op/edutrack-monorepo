@@ -261,7 +261,10 @@ describe('School academics and setup (e2e)', () => {
         // The seed's JSS 2B roster (14 students, Emmanuel Adeyemi among them).
         arm: { name: 'JSS 2B', room: 'Room J2B · Block C', branch: 'Main Campus', students: 14 },
         timetable: expect.objectContaining({ arm: 'JSS 2B', status: 'Published' }),
-        results: [],
+        // Each subject's result sheet this term (none started yet).
+        results: expect.arrayContaining([
+          expect.objectContaining({ code: 'MTH', status: 'Not started', average: null }),
+        ]),
       });
       expect(res.body.data.students).toHaveLength(14);
       expect(res.body.data.students).toContainEqual(

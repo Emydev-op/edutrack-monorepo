@@ -366,6 +366,24 @@ export const useReportCardQuery = (studentId: MaybeRefOrGetter<string>) =>
     queryFn: () => getRequest<ReportCard>(`${A}/results/report-card/${toValue(studentId)}`),
   });
 
+/** Withholds a report card with a reason, or releases it (`action: 'release'`). */
+export const useReportCardHoldMutation = () =>
+  useAcademicsMutation(
+    ({
+      studentId,
+      action,
+      reason,
+    }: {
+      studentId: string;
+      action: 'hold' | 'release';
+      reason?: string;
+    }) =>
+      postRequest<unknown>(
+        `${A}/results/report-card/${studentId}/${action}`,
+        reason ? { reason } : {},
+      ),
+  );
+
 export const useCorrectionsQuery = () =>
   useQuery({
     queryKey: k.corrections,

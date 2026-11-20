@@ -15,6 +15,8 @@ export type TermRow = {
   endsOn: Date;
   resultEntryClosesAt: Date | null;
   session: { name: string };
+  /** The term's results-publication day, from its calendar (only set by `terms()`). */
+  events?: { startsOn: Date }[];
 };
 
 /** "Main" for "Main Campus": the short campus name the Teacher Workspace prints on cards. */
@@ -69,7 +71,10 @@ export class TeacherScopeService {
   /** Every term of the school, newest first. */
   terms(): Promise<TermRow[]> {
     return this.db.term.findMany({
-      include: { session: { select: { name: true } } },
+      include: {
+        session: { select: { name: true } },
+        events: { where: { type: 'RESULTS' }, select: { startsOn: true }, take: 1 },
+      },
       orderBy: { startsOn: 'desc' },
     });
   }

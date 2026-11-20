@@ -74,6 +74,9 @@ const EXTRA_TEACHERS = [
 ];
 const HIRED_FROM = 301;
 
+const SCIENCES = ['MTH', 'BSC', 'BIO', 'CHE', 'PHY', 'FMT'];
+const LANGUAGES = ['ENG', 'FRE', 'YOR', 'LIE'];
+
 /** The design's class: Mrs. Okafor teaches English and is its class teacher, Mr. Ade Mathematics. */
 const SHOWCASE = { level: 'JSS 2', arm: 'B', branchCode: 'GFA-MC' };
 
@@ -97,6 +100,15 @@ export async function seedSchoolPlanning(
     where: { schoolId, branchLevels: { some: {} } },
   });
   const subjectId = new Map<string, string>();
+  // The science subjects go to Sciences (its HOD reviews their result sheets) and the languages
+  // to Languages (no HOD: straight to the academic office). The rest have no department.
+  const departments = await prisma.department.findMany({ where: { schoolId } });
+  const deptOf = (code: string) =>
+    departments.find(
+      (d) =>
+        d.name ===
+        (SCIENCES.includes(code) ? 'Sciences' : LANGUAGES.includes(code) ? 'Languages' : null),
+    )?.id ?? null;
   // Lessons per week per arm go back to the defaults.
   await prisma.curriculumArm.deleteMany({ where: { schoolId } });
   for (const [name, code, category, periods, by] of SUGGESTED_SUBJECTS) {
@@ -106,8 +118,23 @@ export async function seedSchoolPlanning(
     const sectionId = offeredBy.length === 1 ? offeredBy[0]!.id : null;
     const row = await prisma.subject.upsert({
       where: { schoolId_code: { schoolId, code } },
-      create: { schoolId, code, name, category, periodsPerWeek: periods, sectionId },
-      update: { name, category, periodsPerWeek: periods, status: 'ACTIVE', sectionId },
+      create: {
+        schoolId,
+        code,
+        name,
+        category,
+        periodsPerWeek: periods,
+        sectionId,
+        departmentId: deptOf(code),
+      },
+      update: {
+        name,
+        category,
+        periodsPerWeek: periods,
+        status: 'ACTIVE',
+        sectionId,
+        departmentId: deptOf(code),
+      },
     });
     subjectId.set(code, row.id);
     for (const s of sections.filter((x) => by[x.code]))

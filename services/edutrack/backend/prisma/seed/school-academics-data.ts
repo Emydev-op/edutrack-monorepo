@@ -73,6 +73,8 @@ interface TermSeed {
   start: string;
   end: string;
   status: TermStatus;
+  /** When result entry closes (a Lagos-time instant), if the school has set it. */
+  resultEntryCloses?: string;
   events: EventSeed[];
 }
 interface SessionSeed {
@@ -106,6 +108,8 @@ const GF_SESSIONS: SessionSeed[] = [
         start: '2026-09-14',
         end: '2026-12-18',
         status: 'ACTIVE',
+        // Fri 11 Dec, 23:59 in Lagos.
+        resultEntryCloses: '2026-12-11T22:59:00.000Z',
         events: [
           ['RESUMPTION', 'Resumption', '2026-09-14', '2026-09-14'],
           ['PTA', 'PTA meeting', '2026-09-26', '2026-09-26'],
@@ -283,6 +287,15 @@ export async function seedSchoolAcademics(
     /* ---------- Remove everything else ---------- */
 
     const ids = <T extends { id: string }>(rows: T[]) => rows.map((r) => r.id);
+    // Results hang off terms, arms and teacher assignments: tests make their own, so they go
+    // first (the planning seed rebuilds the assignments).
+    await prisma.reportCard.deleteMany({ where: { schoolId } });
+    await prisma.resultPublication.deleteMany({ where: { schoolId } });
+    await prisma.scoreCorrection.deleteMany({ where: { schoolId } });
+    await prisma.resultSheetReminder.deleteMany({ where: { schoolId } });
+    await prisma.resultEntry.deleteMany({ where: { schoolId } });
+    await prisma.resultSheetEvent.deleteMany({ where: { schoolId } });
+    await prisma.resultSheet.deleteMany({ where: { schoolId } });
     await prisma.classTeacherAssignment.deleteMany({ where: { schoolId } });
     await prisma.classArm.deleteMany({ where: { schoolId, id: { notIn: ids(arms) } } });
     await prisma.branchLevel.deleteMany({
@@ -394,6 +407,7 @@ export async function seedSchoolAcademics(
         endsOn: day(t.end),
         status: t.status,
         closedAt: t.status === 'CLOSED' ? day(t.end) : null,
+        resultEntryClosesAt: t.resultEntryCloses ? new Date(t.resultEntryCloses) : null,
       };
       await prisma.term.upsert({
         where: { id: t.id },

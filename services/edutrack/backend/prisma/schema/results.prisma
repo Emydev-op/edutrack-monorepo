@@ -32,6 +32,8 @@ enum SheetAction {
   PUBLISHED
   REOPENED
   CORRECTION_APPLIED
+  /// The teacher took a submitted sheet back to Draft before anyone acted on it.
+  RECALLED
 
   @@map("sheet_action")
 }
@@ -276,6 +278,11 @@ model ReportCard {
   publishedAt         DateTime? @map("published_at") @db.Timestamptz(3)
   /// The rendered report card at publish (school header, subjects, attendance, remarks).
   snapshot            Json?
+  /// The school withheld this card (e.g. a disciplinary or fees matter): guardians and the
+  /// student don't see it, and aren't notified, until it's released.
+  heldAt              DateTime? @map("held_at") @db.Timestamptz(3)
+  heldReason          String?   @map("held_reason")
+  heldById            String?   @map("held_by_id") @db.Uuid
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 

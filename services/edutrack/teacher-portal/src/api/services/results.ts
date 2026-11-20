@@ -73,6 +73,16 @@ export function useSubmitSheetMutation(id: MaybeRefOrGetter<string>) {
   });
 }
 
+/** Lead teacher: takes a submitted sheet back to Draft before the HOD or the office acts on it. */
+export function useRecallSheetMutation(id: MaybeRefOrGetter<string>) {
+  const refresh = useRefreshAfterChange();
+  return useMutation({
+    mutationFn: () =>
+      postRequest<ResultSheet>(`/v1/results/${encodeURIComponent(toValue(id))}/recall`),
+    onSuccess: refresh,
+  });
+}
+
 export function useRequestCorrectionMutation() {
   const qc = useQueryClient();
   return useMutation({

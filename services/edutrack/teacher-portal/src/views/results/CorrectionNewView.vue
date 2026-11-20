@@ -40,7 +40,17 @@ watch(sheet, (s) => layout.setRecordLabel(s ? `${s.arm} · ${s.subjectName}` : n
 });
 
 const MAX_FILE = 10 * 1024 * 1024;
-const FILE_TYPES = /^(application\/pdf|image\/(png|jpe?g|webp|heic))$/;
+const FILE_TYPES = /^(application\/pdf|image\/(png|jpe?g))$/;
+
+/** The file's content as a data URL, for the API to store. */
+const readAsDataUrl = (f: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () =>
+      reject(new Error('The evidence file couldn’t be read. Attach it again.'));
+    reader.readAsDataURL(f);
+  });
 
 const current = (studentId?: string, key?: string): ScoreValue | undefined => {
   const s = sheet.value;
@@ -141,8 +151,7 @@ function onFile(e: Event) {
   fileError.value = '';
   if (!f) return;
   if (f.size > MAX_FILE) fileError.value = 'The evidence file must be 10 MB or smaller.';
-  else if (!FILE_TYPES.test(f.type))
-    fileError.value = 'Attach a PDF or a photo (JPG, PNG, WebP or HEIC).';
+  else if (!FILE_TYPES.test(f.type)) fileError.value = 'Attach a PDF or a photo (JPG or PNG).';
   else file.value = f;
 }
 const size = (n: number) =>
@@ -174,7 +183,12 @@ const onSubmit = handleSubmit((v) => {
           proposed: proposedValue.value!,
           reason: v.reason,
           evidence: file.value
-            ? { name: file.value.name, size: file.value.size, type: file.value.type }
+            ? {
+                name: file.value.name,
+                size: file.value.size,
+                type: file.value.type,
+                dataUrl: await readAsDataUrl(file.value),
+              }
             : null,
         });
       } catch (e) {
@@ -315,7 +329,7 @@ const onSubmit = handleSubmit((v) => {
               <input
                 type="file"
                 class="sr-only"
-                accept="application/pdf,image/png,image/jpeg,image/webp,image/heic"
+                accept="application/pdf,image/png,image/jpeg"
                 @change="onFile"
               />
             </label>

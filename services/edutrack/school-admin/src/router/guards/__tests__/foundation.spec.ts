@@ -82,8 +82,14 @@ describe('real routes for Phase 1 academics and setup', () => {
     expect(isRealRoute('get', '/v1/academics/curriculum')).toBe(true);
     expect(isRealRoute('post', '/v1/academics/timetable/suggest')).toBe(true);
     expect(isRealRoute('get', '/v1/academics/attendance/abc')).toBe(true);
-    // Results and promotion come in 3b.
-    expect(isRealRoute('get', '/v1/academics/results')).toBe(false);
+    // Phase 3b: results (matrix, sheets, publishing, report cards, corrections) are real;
+    // promotion is still the mock's.
+    expect(isRealRoute('get', '/v1/academics/results')).toBe(true);
+    expect(isRealRoute('post', '/v1/academics/results/sheets/abc/MTH/approve')).toBe(true);
+    expect(isRealRoute('post', '/v1/academics/results/publish/abc')).toBe(true);
+    expect(isRealRoute('post', '/v1/academics/results/report-card/abc/hold')).toBe(true);
+    expect(isRealRoute('post', '/v1/academics/results/corrections/abc/reject')).toBe(true);
+    expect(isRealRoute('get', '/v1/academics/promotion')).toBe(false);
     // Support, the bell, the inbox and the sidebar counts are on the API.
     expect(isRealRoute('get', '/v1/nav-counts')).toBe(true);
     expect(isRealRoute('post', '/v1/support/tickets/SUP-1042/replies')).toBe(true);

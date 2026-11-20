@@ -3,6 +3,7 @@ import { AcademicsModule } from '../academics/academics.module.js';
 import { AcademicSetupSteps } from '../academics/academic-steps.js';
 import { CurriculumModule } from '../curriculum/curriculum.module.js';
 import { PlanningSetupSteps } from '../curriculum/planning-steps.js';
+import { ResultsModule } from '../results/results.module.js';
 import { StudentsModule } from '../students/students.module.js';
 import { StudentSetupSteps } from '../students/student-steps.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
@@ -19,7 +20,7 @@ import { SetupService } from './setup.service.js';
  * School-section ones are read straight from their tables here until those modules provide theirs.
  */
 @Module({
-  imports: [AcademicsModule, CurriculumModule, StudentsModule],
+  imports: [AcademicsModule, CurriculumModule, StudentsModule, ResultsModule],
   // The inbox lives here because its sidebar counts read the Setup Center's progress.
   controllers: [SetupController, SchoolInboxController],
   providers: [
