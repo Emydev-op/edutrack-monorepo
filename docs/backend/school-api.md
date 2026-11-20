@@ -90,3 +90,32 @@ Rules worth knowing:
   results (`lockedAt`).
 - **Attendance** counts weekdays in the term, minus public holidays, mid-term breaks and calendar
   closures. Class teachers take the register in the Teacher Workspace.
+
+## Parent Portal
+
+`src/school/parent/` (`ParentModule`) serves `/v1/parent/*` for `@Portals('PARENT')` sessions on
+the school's address: the frame (`overview`, `children`), a child's page, Home, fees with transfer
+claims, results, timetable, attendance, announcements, the parent's profile and notification
+channels. Homework and materials stay in `HomeworkModule` (`/v1/parent/children/:id/homework|
+materials|assignments/:id/submission`); notifications use the school inbox (`/v1/notifications`).
+
+Rules worth knowing:
+
+- **Every child route goes through `ParentScopeService.child()`.** A child the parent may not see
+  (another family, another school, a leaver past the two-year window) answers 404. Leavers are
+  `read-only`: writes are refused (`READ_ONLY`) except reporting a payment for an old balance.
+- **Paying is bank transfer plus proof.** `POST …/fees/claims` records a `PARENT_CLAIM` payment,
+  `PENDING_VERIFICATION`, with the proof from `POST /v1/uploads`; the amount comes from the chosen
+  option (`all`, `overdue`, `current`, `previous`), never from the client. It shows in Finance ›
+  Payments for the bursar to verify. Guardians with `paysFees = false` see fees read-only
+  (`NOT_FEE_PAYER`).
+- **Report cards come from the published snapshot**, without classmates or hold details. A card
+  held for unpaid fees just says to contact the school; another hold shows the school's reason.
+- **Notification channels** are stored per category (`results`, `finance`, `assignments`,
+  `register`, `announcements`) in `NotificationPreference`; `CommsDispatchService` skips a
+  parent's switched-off channels.
+- **Profile edits** change the guardian's phone (and the account's) and address only, with an
+  audit event the school sees; the sign-in email is changed by the school.
+
+Demo parent (password `Edutrack2026!`): `funke.adeyemi@gmail.com` at
+`greenfield.localhost:5174/parent` (Emmanuel, JSS 2B; Michael, Primary 5B).

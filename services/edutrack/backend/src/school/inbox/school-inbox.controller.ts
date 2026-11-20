@@ -17,6 +17,7 @@ import { Portals, OpenWhenLapsed } from '../../auth/decorators/auth.decorators.j
 import { CurrentUser } from '../../common/decorators/request.decorators.js';
 import { ResponseMessage } from '../../common/http/api-response.js';
 import { PaginationQueryDto } from '../../common/pagination/pagination.js';
+import { ParentAccountService } from '../parent/parent-account.service.js';
 import { TeacherFrameService } from '../teacher/teacher-frame.service.js';
 import { SchoolInboxService } from './school-inbox.service.js';
 
@@ -35,11 +36,12 @@ class TermQuery {
 }
 
 /**
- * The header bell, notifications and sidebar counts of School Admin and the Teacher Workspace.
- * Both portals call the same paths; each gets the shape its screens use.
+ * The header bell, notifications and sidebar counts of School Admin and the Teacher Workspace,
+ * and the Parent Portal's notifications. The portals call the same paths; each gets the shape
+ * its screens use.
  */
 @ApiTags('school inbox')
-@Portals('SCHOOL_ADMIN', 'TEACHER')
+@Portals('SCHOOL_ADMIN', 'TEACHER', 'PARENT')
 @OpenWhenLapsed()
 @Controller()
 export class SchoolInboxController {
@@ -53,13 +55,20 @@ export class SchoolInboxController {
     return this.modules.get(TeacherFrameService, { strict: false });
   }
 
+  /** The Parent Portal's side (resolved lazily like the teacher's). */
+  private parent() {
+    return this.modules.get(ParentAccountService, { strict: false });
+  }
+
   @Get('notifications')
   @ResponseMessage('Notifications loaded.')
   @ApiOperation({
     summary:
-      'School Admin: the latest 20 notifications. Teacher Workspace: notifications, paged, with counts',
+      'School Admin: the latest 20 notifications. Teacher Workspace and Parent Portal: ' +
+      'notifications, paged, with counts',
   })
   latest(@CurrentUser() auth: AuthUserContext, @Query() q: InboxQuery) {
+    if (auth.portal === 'PARENT') return this.parent().notifications(auth, q);
     return auth.portal === 'TEACHER'
       ? this.teacher().notifications(auth, q)
       : this.inbox.latest(auth);
@@ -98,6 +107,7 @@ export class SchoolInboxController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Mark every notification read' })
   readAll(@CurrentUser() auth: AuthUserContext) {
+    if (auth.portal === 'PARENT') return this.parent().readAll(auth);
     return auth.portal === 'TEACHER' ? this.teacher().readAll(auth) : this.inbox.readAll(auth);
   }
 
@@ -106,10 +116,12 @@ export class SchoolInboxController {
   @HttpCode(200)
   @ApiOperation({ summary: 'Mark one notification read' })
   read(@CurrentUser() auth: AuthUserContext, @Param('id', ParseUUIDPipe) id: string) {
+    if (auth.portal === 'PARENT') return this.parent().read(auth, id);
     return auth.portal === 'TEACHER' ? this.teacher().read(auth, id) : this.inbox.read(auth, id);
   }
 
   @Get('nav-counts')
+  @Portals('SCHOOL_ADMIN', 'TEACHER')
   @ResponseMessage('Counts loaded.')
   @ApiOperation({
     summary: 'Counts beside sidebar items (setup steps left, tickets waiting on the school)',

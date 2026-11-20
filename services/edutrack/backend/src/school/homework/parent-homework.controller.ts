@@ -39,6 +39,19 @@ export class ParentHomeworkController {
     return this.family.forGuardian(auth, id, term);
   }
 
+  @ResponseMessage('Materials loaded.')
+  @Get('materials')
+  @ApiQuery({ name: 'term', required: false })
+  @ApiOperation({ summary: 'Materials the child’s teachers shared with the class this term' })
+  async materials(
+    @CurrentUser() auth: AuthUserContext,
+    @Param('studentId', studentId) id: string,
+    @Query('term') term?: string,
+  ) {
+    const hw = await this.family.forGuardian(auth, id, term);
+    return { termId: hw.termId, student: hw.student ?? null, materials: hw.materials };
+  }
+
   @ResponseMessage((a: { late: boolean }) =>
     a.late
       ? 'Work handed in late. The teacher can see it now.'
