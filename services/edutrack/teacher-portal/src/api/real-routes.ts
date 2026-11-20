@@ -23,6 +23,14 @@ export const REAL_ROUTES: readonly string[] = [
   'GET /v1/class-teacher/register',
   'GET /v1/class-teacher/register/history',
   'PUT /v1/class-teacher/register/:date',
+  // Dashboard, sidebar counts, notifications and email preferences, my profile.
+  'GET /v1/dashboard',
+  'GET /v1/nav-counts',
+  'GET /v1/notifications',
+  'POST /v1/notifications/read-all',
+  'POST /v1/notifications/:id/read',
+  '* /v1/notifications/preferences',
+  '* /v1/profile',
 ];
 
 /** Whether the real backend serves this request (path without the `/api` base or query). */

@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Put, Query } from '@nestjs/common';
 import {
+  ApiBody,
   ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
@@ -13,6 +14,7 @@ import { CurrentUser } from '../../common/decorators/request.decorators.js';
 import { ResponseMessage } from '../../common/http/api-response.js';
 import { SaveRegisterDto } from './dto/register.dto.js';
 import { RegisterService } from './register.service.js';
+import { TeacherFrameService } from './teacher-frame.service.js';
 import { TeachingService } from './teaching.service.js';
 
 const termQuery = ApiQuery({
@@ -34,9 +36,64 @@ export class TeacherController {
   constructor(
     private readonly teaching: TeachingService,
     private readonly register: RegisterService,
+    private readonly frame: TeacherFrameService,
   ) {}
 
   /* ---------------- Frame ---------------- */
+
+  @ResponseMessage('Dashboard loaded.')
+  @Get('dashboard')
+  @termQuery
+  @ApiOperation({
+    summary: 'Today at a glance: lessons, the next class, today’s register and the to-do list',
+    description: 'Each block (metrics, lessons, to-do) is { ok, data } or { ok: false, error }.',
+  })
+  dashboard(@CurrentUser() auth: AuthUserContext, @Query('term') term?: string) {
+    return this.frame.dashboard(auth, term);
+  }
+
+  @ResponseMessage('Profile loaded.')
+  @Get('profile')
+  @ApiOperation({ summary: 'The teacher’s own staff record, classes and roles' })
+  profile(@CurrentUser() auth: AuthUserContext) {
+    return this.frame.profile(auth);
+  }
+
+  @ResponseMessage('Profile saved.')
+  @Put('profile')
+  @ApiOperation({
+    summary: 'Change my phone, address and emergency contact',
+    description: 'Name, email, staff number and roles are kept by the school office.',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        phone: { type: 'string', example: '0803 412 7781' },
+        address: { type: 'string' },
+        emergencyContact: {
+          type: 'object',
+          nullable: true,
+          properties: {
+            name: { type: 'string' },
+            phone: { type: 'string' },
+            relationship: { type: 'string' },
+          },
+        },
+      },
+    },
+  })
+  saveProfile(
+    @CurrentUser() auth: AuthUserContext,
+    @Body()
+    body: {
+      phone?: string;
+      address?: string;
+      emergencyContact?: { name?: string; phone?: string; relationship?: string } | null;
+    },
+  ) {
+    return this.frame.saveProfile(auth, body);
+  }
 
   @ResponseMessage('Profile loaded.')
   @Get('me')
