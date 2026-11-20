@@ -5,7 +5,8 @@ import { AppException } from '../../common/errors/app.exception.js';
 import { formatAgo } from '../../platform/shared/format.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { normalizePhone } from '../../auth/identifiers.js';
-import { isoDate } from '../academics/academic-format.js';
+import { isoDate, plural } from '../academics/academic-format.js';
+import { AssignmentsHomeworkService } from '../homework/assignments-homework.service.js';
 import { ResultsFrameService } from '../results/results-frame.service.js';
 import { RegisterService } from './register.service.js';
 import { TeacherScopeService } from './teacher-scope.service.js';
@@ -63,6 +64,9 @@ export const TEACHER_EMAIL_EVENTS = [
   },
 ] as const;
 
+/** Grading to-dos shown one per assignment before they fold into one line. */
+const GRADE_ITEMS = 3;
+
 const CATEGORIES = new Set([
   'results',
   'reviews',
@@ -107,6 +111,7 @@ export class TeacherFrameService {
     private readonly teaching: TeachingService,
     private readonly register: RegisterService,
     private readonly results: ResultsFrameService,
+    private readonly homework: AssignmentsHomeworkService,
     private readonly clock: Clock,
   ) {}
 
@@ -257,15 +262,25 @@ export class TeacherFrameService {
     return this.results.frame(s, term);
   }
 
+  /** Submissions waiting to be graded, per assignment (sorted most waiting first). */
+  private async toGrade(auth: AuthUserContext, termId?: string) {
+    const s = await this.scope.staff(auth);
+    const term = await this.scope.term(termId);
+    return this.homework.waiting(s.id, term);
+  }
+
   async navCounts(auth: AuthUserContext, termId?: string) {
-    // Lesson notes and assignments add their counts with their phases.
-    const [reg, results] = await Promise.all([
+    // Lesson notes add their count with their phase.
+    const [reg, results, grading] = await Promise.all([
       this.registerToday(auth, termId).catch(() => null),
       this.resultsFrame(auth, termId).catch(() => null),
+      this.toGrade(auth, termId).catch(() => []),
     ]);
     const counts: Record<string, number> = {};
     if (reg && !reg.taken && !reg.closedReason) counts.register = 1;
     for (const [key, n] of Object.entries(results?.counts ?? {})) if (n) counts[key] = n;
+    const waiting = grading.reduce((n, x) => n + x.waiting, 0);
+    if (waiting) counts.assignments = waiting;
     return counts;
   }
 
@@ -297,6 +312,7 @@ export class TeacherFrameService {
     });
     const register = await this.registerToday(auth, term.id).catch(() => null);
     const results = await this.resultsFrame(auth, term.id).catch(() => null);
+    const grading = await this.toGrade(auth, term.id).catch(() => []);
     const metrics = await block(async () => {
       const tt = await timetable();
       const time = now.slice(11);
@@ -315,8 +331,8 @@ export class TeacherFrameService {
           : null,
         noLessonsReason:
           tt.todayNote ?? (tt.lessons.length ? null : 'No lessons on your timetable yet.'),
-        toGrade: 0,
-        toGradeAssignments: 0,
+        toGrade: grading.reduce((n, x) => n + x.waiting, 0),
+        toGradeAssignments: grading.length,
         sheets: results?.sheets ?? {
           submitted: 0,
           total: 0,
@@ -346,6 +362,38 @@ export class TeacherFrameService {
           action: 'Take register',
           to: { name: 'register' },
         });
+      // Submissions to grade: the assignments with the most waiting, then one line for the rest.
+      if (term.status === 'ACTIVE') {
+        const shown = grading.length > GRADE_ITEMS ? grading.slice(0, GRADE_ITEMS - 1) : grading;
+        for (const { a, arm, waiting } of shown)
+          items.push({
+            id: `grade:${a.id}`,
+            kind: 'grade' as const,
+            badge: { label: 'To grade', tone: 'info' as const },
+            title: `${a.title}: ${plural(waiting, 'submission')} to grade`,
+            detail: `${arm.label} · ${a.subject.name}`,
+            action: 'Grade',
+            to: { name: 'submissions', params: { assignmentId: a.id } },
+          });
+        const rest = grading.slice(shown.length);
+        if (rest.length)
+          items.push({
+            id: 'grade:more',
+            kind: 'grade' as const,
+            badge: { label: 'To grade', tone: 'info' as const },
+            title: `${plural(
+              rest.reduce((n, x) => n + x.waiting, 0),
+              'more submission',
+            )} to grade across ${plural(rest.length, 'assignment')}`,
+            detail:
+              rest
+                .slice(0, 3)
+                .map((x) => `${x.a.title} (${x.arm.label} · ${x.a.subject.name})`)
+                .join(' · ') + (rest.length > 3 ? ' · …' : ''),
+            action: 'See all',
+            to: { name: 'assignments', query: { status: 'To grade' } },
+          });
+      }
       items.push(...sheetItems.filter((x) => !x.kind.startsWith('sheet-')));
       return items;
     });

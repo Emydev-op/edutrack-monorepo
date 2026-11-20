@@ -70,6 +70,8 @@ const { value: allowLate } = useField<string>('allowLate');
 const attachments = ref<FileRef[]>([]);
 const savedAttachments = ref('[]');
 const attachmentError = ref('');
+/** Files still uploading: saving waits for them. */
+const uploading = ref(false);
 const serverError = ref('');
 const done = ref(false);
 
@@ -113,6 +115,7 @@ watch(
       },
     });
     attachments.value = a.attachments.map((f) => ({
+      ...(f.id ? { id: f.id } : {}),
       name: f.name,
       type: f.type,
       bytes: f.bytes,
@@ -361,6 +364,7 @@ const cancelTo = computed(() =>
         >
           <AttachmentPicker
             v-model="attachments"
+            v-model:busy="uploading"
             :materials="classMaterials"
             :disabled="Boolean(lockReason)"
             :error="attachmentError"
@@ -376,7 +380,7 @@ const cancelTo = computed(() =>
       />
 
       <div class="flex flex-wrap gap-2">
-        <Button type="submit" :disabled="Boolean(lockReason) || save.isPending.value">
+        <Button type="submit" :disabled="Boolean(lockReason) || save.isPending.value || uploading">
           <Spinner v-if="save.isPending.value && values.publish" />
           {{ isPublished ? 'Save changes' : 'Publish' }}
         </Button>
@@ -384,7 +388,7 @@ const cancelTo = computed(() =>
           v-if="!isPublished"
           type="button"
           variant="outline"
-          :disabled="Boolean(lockReason) || save.isPending.value"
+          :disabled="Boolean(lockReason) || save.isPending.value || uploading"
           @click="run(false)"
         >
           <Spinner v-if="save.isPending.value && !values.publish" />

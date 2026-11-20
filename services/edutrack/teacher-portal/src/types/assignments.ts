@@ -20,6 +20,12 @@ export const SUBMISSION_STATUSES: readonly SubmissionStatus[] = [
   'Excused',
 ];
 
+/** `POST /v1/uploads`: one file as a data URL, answered with its `FileRef` (with `id`). */
+export interface UploadPayload {
+  name: string;
+  dataUrl: string;
+}
+
 /** Limits for assignment attachments (and material files). */
 export const ATTACHMENT_LIMITS = {
   count: 5,
@@ -31,11 +37,18 @@ export const ATTACHMENT_LIMITS = {
 
 export const ASSIGNMENT_LIMITS = { title: 120, instructions: 4000, maxScore: 100 } as const;
 
-/** A file attached to an assignment or a submission (the mock keeps name, type and size only). */
+/**
+ * A file attached to an assignment, a material or a submission. New files are uploaded first
+ * (`POST /v1/uploads`) and referred to by `id`; reads add a short-lived download `url`.
+ */
 export interface FileRef {
+  /** The uploaded file's id (absent on linked materials without a file). */
+  id?: string;
   name: string;
   type: string;
   bytes: number;
+  /** Read-only, from the API: a signed download link (about an hour), or the video link. */
+  url?: string | null;
   /** Set when the attachment is one of the teacher's materials. */
   materialId?: string;
   /** Read-only, from the API: the linked material was archived, so students can't open it. */
@@ -141,6 +154,8 @@ export interface SubmissionRow {
   files: number;
   gradedAt: string | null;
   returnedAt: string | null;
+  /** A parent or guardian handed it in for the child (primary pupils), else null. */
+  submittedByGuardian: string | null;
 }
 
 export interface SubmissionList {

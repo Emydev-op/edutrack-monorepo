@@ -8,10 +8,12 @@ import type {
   AssignmentListQuery,
   AssignmentPayload,
   BulkReturnResult,
+  FileRef,
   GradePayload,
   StudentAssignmentRow,
   SubmissionDetail,
   SubmissionList,
+  UploadPayload,
 } from '@/types';
 
 import {
@@ -26,6 +28,24 @@ import { queryKeys } from '../query-keys';
 
 const A = queryKeys.assignments;
 const enc = encodeURIComponent;
+
+/** Reads a picked file as a `data:` URL. */
+const readAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error('The file couldn’t be read.'));
+    reader.readAsDataURL(file);
+  });
+
+/**
+ * Uploads one file for an assignment, a material or handed-in work (`POST /v1/uploads`). The
+ * answer's `id` is what the form then sends.
+ */
+export async function uploadFile(file: File): Promise<FileRef> {
+  const dataUrl = await readAsDataUrl(file);
+  return postRequest<FileRef, UploadPayload>('/v1/uploads', { name: file.name, dataUrl });
+}
 
 /** My assignments for the selected term (filters: class, subject, status, search, page). */
 export function useAssignmentsQuery(params: MaybeRefOrGetter<AssignmentListQuery>) {

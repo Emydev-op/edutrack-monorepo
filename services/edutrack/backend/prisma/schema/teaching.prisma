@@ -112,25 +112,29 @@ model AssignmentAttachment {
 /// A student's work on an assignment. A row exists for every student in the class once the
 /// assignment is published (NOT_SUBMITTED until they hand in).
 model Submission {
-  id           String           @id @default(uuid(7)) @db.Uuid
-  schoolId     String           @map("school_id") @db.Uuid
-  assignmentId String           @map("assignment_id") @db.Uuid
-  studentId    String           @map("student_id") @db.Uuid
-  status       SubmissionStatus @default(NOT_SUBMITTED)
-  submittedAt  DateTime?        @map("submitted_at") @db.Timestamptz(3)
+  id                    String           @id @default(uuid(7)) @db.Uuid
+  schoolId              String           @map("school_id") @db.Uuid
+  assignmentId          String           @map("assignment_id") @db.Uuid
+  studentId             String           @map("student_id") @db.Uuid
+  status                SubmissionStatus @default(NOT_SUBMITTED)
+  submittedAt           DateTime?        @map("submitted_at") @db.Timestamptz(3)
   /// Handed in after the due date.
-  isLate       Boolean          @default(false) @map("is_late")
+  isLate                Boolean          @default(false) @map("is_late")
   /// The student's note with the work.
-  note         String?
-  score        Decimal?         @db.Decimal(5, 2)
+  note                  String?
+  /// Set when a parent or guardian handed the work in for the child (primary pupils, whose
+  /// section has no Student Portal logins). A plain guardian id without a foreign key, like the
+  /// *ById columns: the submission keeps who handed it in even if the guardian record goes.
+  submittedByGuardianId String?          @map("submitted_by_guardian_id") @db.Uuid
+  score                 Decimal?         @db.Decimal(5, 2)
   /// Visible to the student and guardian once Returned.
-  feedback     String           @default("")
-  gradedAt     DateTime?        @map("graded_at") @db.Timestamptz(3)
-  gradedById   String?          @map("graded_by_id") @db.Uuid
-  returnedAt   DateTime?        @map("returned_at") @db.Timestamptz(3)
-  excuseReason String?          @map("excuse_reason")
-  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  feedback              String           @default("")
+  gradedAt              DateTime?        @map("graded_at") @db.Timestamptz(3)
+  gradedById            String?          @map("graded_by_id") @db.Uuid
+  returnedAt            DateTime?        @map("returned_at") @db.Timestamptz(3)
+  excuseReason          String?          @map("excuse_reason")
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   school     School           @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   assignment Assignment       @relation(fields: [schoolId, assignmentId], references: [schoolId, id], onDelete: Cascade)

@@ -3,8 +3,8 @@ import { createRouteMatcher } from '@edutrack/web-core/http';
 /**
  * The routes the real backend serves. The Teacher Workspace moves to the real API one section at
  * a time: with `VITE_USE_MOCKS=false`, requests matching a rule here go to the backend and the
- * rest are still answered by the in-browser mock until their phase is built (lesson notes,
- * assignments, materials and assessments are still mock).
+ * rest are still answered by the in-browser mock until their phase is built (lesson notes and
+ * assessments are still mock).
  *
  * A rule is `'METHOD /path'` (`*` for any method); `:name` matches one path segment and a trailing
  * `/**` matches anything below.
@@ -42,6 +42,27 @@ export const REAL_ROUTES: readonly string[] = [
   'GET /v1/class-teacher/report-cards',
   'GET /v1/class-teacher/report-cards/:studentId',
   'PUT /v1/class-teacher/report-cards/:studentId',
+  // Homework: assignments, submissions and grading, materials, and file uploads.
+  'POST /v1/uploads',
+  'GET /v1/assignments',
+  'POST /v1/assignments',
+  'GET /v1/assignments/student/:studentId',
+  'GET /v1/assignments/:assignmentId',
+  'PATCH /v1/assignments/:assignmentId',
+  'DELETE /v1/assignments/:assignmentId',
+  'POST /v1/assignments/:assignmentId/close',
+  'POST /v1/assignments/:assignmentId/reopen',
+  'GET /v1/assignments/:assignmentId/submissions',
+  'POST /v1/assignments/:assignmentId/submissions/return',
+  'GET /v1/assignments/:assignmentId/submissions/:submissionId',
+  'PUT /v1/assignments/:assignmentId/submissions/:submissionId/grade',
+  'POST /v1/assignments/:assignmentId/submissions/:submissionId/return',
+  '* /v1/assignments/:assignmentId/submissions/:submissionId/excuse',
+  'GET /v1/materials',
+  'POST /v1/materials',
+  'GET /v1/materials/:materialId',
+  'POST /v1/materials/:materialId/archive',
+  'POST /v1/materials/:materialId/restore',
   // Dashboard, sidebar counts, notifications and email preferences, my profile.
   'GET /v1/dashboard',
   'GET /v1/nav-counts',

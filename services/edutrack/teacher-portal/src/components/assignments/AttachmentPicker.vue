@@ -1,19 +1,23 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { NativeSelect, NativeSelectOption } from '@edutrack/ui/components/native-select';
+import { Spinner } from '@edutrack/ui/components/spinner';
 import { FileTextIcon, ImageIcon, LibraryIcon, PaperclipIcon, XIcon } from '@lucide/vue';
 import { computed, ref, useId } from 'vue';
 
+import { uploadFile } from '@/api/services/assignments';
+import { getApiErrorMessage } from '@/lib/api-errors';
 import { ATTACHMENT_LIMITS, type FileRef, type MaterialRow } from '@/types';
 
 import { fileSize } from './assignment-format';
 
 /**
  * Up to five files for an assignment (PDF, Word, PowerPoint, images; 25 MB each), checked as
- * they are picked. The mock keeps only each file's name, type and size. Materials already shared
- * with the class can be attached too.
+ * they are picked and uploaded straight away (the form then sends each file's id). Materials
+ * already shared with the class can be attached too. `busy` is true while files upload.
  */
 const model = defineModel<FileRef[]>({ required: true });
+const busy = defineModel<boolean>('busy', { default: false });
 const props = defineProps<{
   disabled?: boolean;
   /** The class's published materials, offered as "Add from my materials". */
@@ -28,15 +32,17 @@ const problem = ref('');
 const EXT = ATTACHMENT_LIMITS.extensions as readonly string[];
 const full = computed(() => model.value.length >= ATTACHMENT_LIMITS.count);
 
-function pick(event: Event) {
+const uploading = ref<string[]>([]);
+async function pick(event: Event) {
   const el = event.target as HTMLInputElement;
   const files = Array.from(el.files ?? []);
   el.value = '';
   problem.value = '';
   const problems: string[] = [];
   const next = [...model.value];
+  const chosen: File[] = [];
   for (const file of files) {
-    if (next.length >= ATTACHMENT_LIMITS.count) {
+    if (next.length + chosen.length >= ATTACHMENT_LIMITS.count) {
       problems.push(`You can attach up to ${ATTACHMENT_LIMITS.count} files.`);
       break;
     }
@@ -54,10 +60,27 @@ function pick(event: Event) {
       continue;
     }
     if (next.some((a) => a.name === file.name && a.bytes === file.size)) continue;
-    next.push({ name: file.name, type: file.type, bytes: file.size });
+    chosen.push(file);
   }
-  model.value = next;
   problem.value = problems.join(' ');
+  if (!chosen.length) return;
+  busy.value = true;
+  uploading.value = chosen.map((f) => f.name);
+  try {
+    for (const file of chosen) {
+      try {
+        const ref = await uploadFile(file);
+        model.value = [...model.value, { ...ref, type: ref.type || file.type }];
+      } catch (e) {
+        problems.push(getApiErrorMessage(e, `“${file.name}” didn’t upload. Attach it again.`));
+      }
+      uploading.value = uploading.value.filter((n) => n !== file.name);
+    }
+  } finally {
+    busy.value = false;
+    uploading.value = [];
+    problem.value = problems.join(' ');
+  }
 }
 
 const available = computed(() =>
@@ -107,7 +130,7 @@ const remove = (i: number) => (model.value = model.value.filter((_, j) => j !== 
           type="button"
           class="shrink-0 text-muted-foreground hover:text-foreground disabled:opacity-50"
           :aria-label="`Remove ${file.name}`"
-          :disabled="disabled"
+          :disabled="disabled || busy"
           @click="remove(i)"
         >
           <XIcon class="size-4" />
@@ -119,11 +142,12 @@ const remove = (i: number) => (model.value = model.value.filter((_, j) => j !== 
         type="button"
         variant="outline"
         size="sm"
-        :disabled="disabled || full"
+        :disabled="disabled || full || busy"
         @click="input?.click()"
       >
-        <PaperclipIcon class="size-3.5" />
-        Attach files
+        <Spinner v-if="busy" />
+        <PaperclipIcon v-else class="size-3.5" />
+        {{ busy ? `Uploading ${uploading[0] ?? ''}…` : 'Attach files' }}
       </Button>
       <NativeSelect
         v-if="available.length"
