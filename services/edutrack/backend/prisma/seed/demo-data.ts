@@ -34,6 +34,7 @@ import { seedSchoolAdmissions } from './school-admissions-data.js';
 import { seedSchoolAccounts } from './school-accounts-data.js';
 import { seedSupportDesk } from './support-data.js';
 import { clearSchoolComms, seedSchoolComms } from './school-comms-data.js';
+import { clearSchoolFinance, seedSchoolFinance } from './school-finance-data.js';
 
 export const DEMO_PASSWORD = 'Edutrack2026!';
 const DAY = 86_400_000;
@@ -479,6 +480,8 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
 
   // Messages point at students, guardians and staff the school seeds may remove.
   await clearSchoolComms(prisma);
+  // Finance rows point at students, terms and levels the school seeds may remove.
+  await clearSchoolFinance(prisma);
 
   /* ---------- Plans and schools ---------- */
 
@@ -528,7 +531,12 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
       create: { schoolId: school.id, ...settings },
       update: settings,
     });
-    const finance = { allowPartial: true, autoSibling: true, verifyTransfers: true };
+    const finance = {
+      allowPartial: true,
+      autoSibling: true,
+      verifyTransfers: true,
+      holdReportCards: false,
+    };
     await prisma.financeSettings.upsert({
       where: { schoolId: school.id },
       create: { schoolId: school.id, ...finance },
@@ -760,6 +768,7 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
   await seedSchoolAdmissions(prisma, schoolIds);
   await seedSchoolAccounts(prisma, schoolIds);
   await seedSchoolComms(prisma, schoolIds, now);
+  await seedSchoolFinance(prisma, schoolIds);
 
   return { schools: schoolIds, users: userIds.size };
 }

@@ -2,11 +2,13 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import { isNigerianState } from '@edutrack/shared';
 import { normalizePhone } from '../../auth/identifiers.js';
 import { Clock } from '../../common/clock/clock.js';
+import { RequestContext } from '../../common/context/request-context.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { displayPhone, lagosToday } from '../../platform/shared/format.js';
 import { isUuid } from '../../platform/shared/params.js';
 import { TenantPrismaService } from '../../tenancy/tenant-prisma.service.js';
+import { branchFinance, financeView } from '../finance/finance-summaries.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import type { BranchDto } from './dto/branches.dto.js';
 import type {
@@ -254,7 +256,10 @@ export class BranchesService {
           account: s.membership ? ACCOUNT_LABEL[s.membership.status] : 'No account',
         }))
         .sort((a, b) => a.name.localeCompare(b.name)),
-      finance: null,
+      finance: branchFinance(
+        await financeView(this.db, RequestContext.schoolId()!, this.clock.now()),
+        id,
+      ),
       history: timeline(history),
     };
   }

@@ -197,6 +197,7 @@ describe('School settings (e2e)', () => {
         allowPartial: true,
         autoSibling: true,
         verifyTransfers: true,
+        holdReportCards: false,
       });
       const res = await admin.put(api('/finance')).send({ allowPartial: false });
       expect(res.status).toBe(200);
@@ -204,6 +205,7 @@ describe('School settings (e2e)', () => {
         allowPartial: false,
         autoSibling: true,
         verifyTransfers: true,
+        holdReportCards: false,
       });
       const row = await t.prisma.financeSettings.findUniqueOrThrow({ where: { schoolId } });
       expect(row.allowPartial).toBe(false);

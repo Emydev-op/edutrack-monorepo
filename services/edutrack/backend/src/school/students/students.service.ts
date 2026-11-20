@@ -8,6 +8,7 @@ import { isUuid } from '../../platform/shared/params.js';
 import { TenantPrismaService } from '../../tenancy/tenant-prisma.service.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import type { EnrollmentOptionsQueryDto, StudentQueryDto } from './dto/students.dto.js';
+import { financeView, studentFinance } from '../finance/finance-summaries.js';
 import { MemberPermissions } from './member-permissions.js';
 import {
   ADMISSION_TYPE_LABEL,
@@ -285,10 +286,8 @@ export class StudentsService {
       ),
       results: [] as { session: string; terms: [string, string][] }[],
       subjects: [] as { name: string; type: string; teacher: string; since: string }[],
-      invoices: [] as unknown[],
-      payments: [] as unknown[],
-      financeKey: s.id,
-      credit: 0,
+      // Finance tab: invoices, payment history and credit, from Finance's ledger.
+      ...studentFinance(await financeView(this.db, this.schoolId(), this.clock.now()), s.id),
       guardians: extra.guardians.map((link) => {
         const g = link.guardian;
         const status = g.membership?.status;

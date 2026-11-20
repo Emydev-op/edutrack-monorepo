@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { AcademicsModule } from '../academics/academics.module.js';
 import { AcademicSetupSteps } from '../academics/academic-steps.js';
 import { CurriculumModule } from '../curriculum/curriculum.module.js';
+import { FinanceModule } from '../finance/finance.module.js';
+import { FinanceSetupSteps } from '../finance/finance-steps.js';
 import { PlanningSetupSteps } from '../curriculum/planning-steps.js';
 import { ResultsModule } from '../results/results.module.js';
 import { StudentsModule } from '../students/students.module.js';
@@ -20,7 +22,7 @@ import { SetupService } from './setup.service.js';
  * School-section ones are read straight from their tables here until those modules provide theirs.
  */
 @Module({
-  imports: [AcademicsModule, CurriculumModule, StudentsModule, ResultsModule],
+  imports: [AcademicsModule, CurriculumModule, FinanceModule, StudentsModule, ResultsModule],
   // The inbox lives here because its sidebar counts read the Setup Center's progress.
   controllers: [SetupController, SchoolInboxController],
   providers: [
@@ -31,7 +33,13 @@ import { SetupService } from './setup.service.js';
     SetupStateService,
     {
       provide: SETUP_STEP_SOURCES,
-      inject: [SchoolSetupSteps, AcademicSetupSteps, PlanningSetupSteps, StudentSetupSteps],
+      inject: [
+        SchoolSetupSteps,
+        AcademicSetupSteps,
+        PlanningSetupSteps,
+        StudentSetupSteps,
+        FinanceSetupSteps,
+      ],
       useFactory: (...groups: { all: SetupStepSource[] }[]): SetupStepSource[] =>
         groups.flatMap((g) => g.all),
     },

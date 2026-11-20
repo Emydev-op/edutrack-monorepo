@@ -59,7 +59,8 @@ export class AdmissionsController {
     description:
       'The active session and term, branches, arms with places used this session (per branch in ' +
       '`armsByBranch`; `arms` is the first branch’s), subjects from the curriculum, states and the ' +
-      'required documents. Fee lines stay empty until Finance moves to the real API.',
+      'required documents, and this term’s fees per "branch|level" from Finance’s published fee ' +
+      'structures (`feeLines`; a class without one has no entry).',
   })
   @ApiOkResponse({ type: AdmissionOptionsDto })
   options() {

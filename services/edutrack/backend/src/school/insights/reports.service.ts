@@ -5,6 +5,7 @@ import type { ArmInfo } from '../academics/academic-catalog.service.js';
 import { fail, fmtDate, isIso, isoDate, plural, staffName } from '../academics/academic-format.js';
 import { STAGE_LABEL, ADMISSION_TYPE_LABEL } from '../admissions/admissions-view.js';
 import { AttendanceService } from '../attendance/attendance.service.js';
+import { FinanceOverviewService } from '../finance/overview.service.js';
 import { stamp } from '../results/results-core.service.js';
 import { mean, round1 } from '../results/scoring.js';
 import { EMPLOYMENT_LABEL, HOLDS_ACCESS } from '../staff/staff-view.js';
@@ -92,6 +93,12 @@ const NEEDS_TERM = new Set<SchoolReportId>([
   'grade-distribution',
   'attendance',
 ]);
+const NO_SESSION_BLOCK = {
+  title: 'No academic session yet',
+  message:
+    'This report needs a session with its terms. Create one in Sessions & Terms, then come back.',
+  action: { label: 'Open Sessions & Terms', to: { name: ROUTE.sessions } },
+};
 const NEEDS_SESSION = new Set<SchoolReportId>(['enrollment']);
 
 const STAGES: ApplicationStage[] = [
@@ -111,8 +118,8 @@ const LOADS = ['Over maximum', 'Near maximum', 'Within load', 'No assignments'] 
 /**
  * School Admin › Reports, from live records: results (completion, subject performance, grade
  * distribution), students (enrolment, attendance, admissions, leavers) and staff (departments,
- * teaching load), each for the header's working branch. Financial and Communication reports are
- * listed but can't be opened until those modules are built. Shapes follow the School Admin mock
+ * teaching load) and Finance (from its ledger), each for the header's working branch.
+ * Communication reports are listed but can't be opened until that module is built. Shapes follow the School Admin mock
  * (`handlers/reports.ts`).
  */
 @Injectable()
@@ -121,6 +128,7 @@ export class ReportsService {
     private readonly scope: InsightsScopeService,
     private readonly results: InsightsResultsService,
     private readonly attendance: AttendanceService,
+    private readonly finances: FinanceOverviewService,
   ) {}
 
   private get db() {
@@ -167,18 +175,15 @@ export class ReportsService {
           action: { label: 'Back to reports', to: { name: ROUTE.reports } },
         },
       };
+    if (meta.group === 'Financial') {
+      if (!(await this.finances.hasTerms()))
+        return { ...head, ...empty, blocked: NO_SESSION_BLOCK };
+      const built = await this.finances.schoolReport(meta.id, q, branch.id);
+      return { ...head, ...built, blocked: null };
+    }
     const found = await this.scope.term(q.term);
     if ((NEEDS_TERM.has(meta.id) && !found?.term) || (NEEDS_SESSION.has(meta.id) && !found))
-      return {
-        ...head,
-        ...empty,
-        blocked: {
-          title: 'No academic session yet',
-          message:
-            'This report needs a session with its terms. Create one in Sessions & Terms, then come back.',
-          action: { label: 'Open Sessions & Terms', to: { name: ROUTE.sessions } },
-        },
-      };
+      return { ...head, ...empty, blocked: NO_SESSION_BLOCK };
     const termed = found as WithTerm;
     const built: Built = await (() => {
       switch (meta.id) {

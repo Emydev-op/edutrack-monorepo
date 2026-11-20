@@ -5,6 +5,7 @@ import { AdmissionsModule } from './admissions/admissions.module.js';
 import { CommunicationModule } from './communication/communication.module.js';
 import { ContextModule } from './context/context.module.js';
 import { CurriculumModule } from './curriculum/curriculum.module.js';
+import { FinanceModule } from './finance/finance.module.js';
 import { PublicSchoolController } from './public/public-school.controller.js';
 import { SchoolProfileModule } from './profile/profile.module.js';
 import { SchoolAuditService } from './shared/school-audit.service.js';
@@ -56,6 +57,8 @@ import { StudentsModule } from './students/students.module.js';
     // School Admin › Communication: /v1/comms/* (announcements, delivery logs, templates,
     // notification settings). The inbox (/v1/comms/inbox) is SetupModule's.
     CommunicationModule,
+    // School Admin › Finance: /v1/finance/* (fees, invoices, payments, accounts, expenses).
+    FinanceModule,
     // School Admin's dashboard, search and Reports; /v1/dashboard and /v1/search also answer the
     // Teacher Workspace.
     InsightsModule,

@@ -27,7 +27,7 @@ const NOW = Date.parse('2026-11-20T09:00:00.000Z');
 
 /**
  * School Admin's dashboard, command-menu search and Reports on Greenfield's seeded records, the
- * Finance and Communication placeholders, and the Teacher Workspace still getting its own
+ * Finance figures, the Communication placeholders, and the Teacher Workspace still getting its own
  * dashboard and search on the same paths.
  */
 describe('School dashboard, search and reports (e2e)', () => {
@@ -99,14 +99,17 @@ describe('School dashboard, search and reports (e2e)', () => {
       const [students, , classes] = d.metrics as Metric[];
       expect(students!.value).toBe(onRoll.toLocaleString('en-NG'));
       expect(classes!.value).toBe(String(arms));
-      // Finance isn't built: no figures, just where they come from.
-      for (const m of d.metrics.slice(3) as Metric[])
-        expect(m).toEqual({
-          label: m.label,
-          value: '—',
-          hint: 'Available with Finance',
-          hintTone: 'neutral',
-        });
+      // Fee figures come from Finance's ledger (the seeded First Term invoices).
+      const [fees, owed] = d.metrics.slice(3) as Metric[];
+      expect(fees).toMatchObject({
+        value: expect.stringMatching(/^₦/),
+        hint: expect.stringMatching(/% of ₦/),
+      });
+      expect(owed).toMatchObject({
+        value: expect.stringMatching(/^₦/),
+        hint: expect.stringMatching(/ students · ₦.* overdue$/),
+        hintTone: 'error',
+      });
 
       // All branches counts everyone.
       const all = (await dashboard('All branches')).metrics[0] as Metric;
@@ -133,8 +136,12 @@ describe('School dashboard, search and reports (e2e)', () => {
         where: { schoolId, status: { in: ['WAITING_FOR_SCHOOL', 'RESOLVED'] } },
       });
       expect(ids.includes('support')).toBe(waiting > 0);
-      // Nothing from Finance or Communication.
-      expect(ids).not.toContain('overdue-invoices');
+      // Finance: the seeded overdue invoices and parent transfers waiting for verification.
+      expect(ids).toContain('overdue-invoices');
+      expect(d.attention.find((a: { id: string }) => a.id === 'verify-transfers')).toMatchObject({
+        text: '2 bank transfers awaiting verification',
+        to: { name: 'payments', query: { tab: 'pending' } },
+      });
       expect(ids).not.toContain('sender-id');
 
       expect(d.upcoming.length).toBeLessThanOrEqual(6);
@@ -163,15 +170,14 @@ describe('School dashboard, search and reports (e2e)', () => {
       expect(Array.isArray(d.activity)).toBe(true);
     });
 
-    it('answers the fee card with Finance not available yet', async () => {
+    it('answers the fee card from Finance', async () => {
       const res = await admin.get(`/api/v1/dashboard/finance?${query({ branch: MAIN })}`);
       expect(res.status).toBe(200);
-      expect(res.body.data).toEqual({
-        available: false,
-        note: 'Fees and payments arrive with Finance.',
-        weekly: [],
-        sections: [],
-      });
+      const card = res.body.data;
+      expect(card).toMatchObject({ available: true });
+      expect(card.weekly).toHaveLength(8);
+      expect(card.sections.map((x: { label: string }) => x.label)).toContain('Junior Secondary');
+      for (const x of card.sections) expect(x.percent).toBeGreaterThanOrEqual(0);
     });
 
     it('still gives the Teacher Workspace its own dashboard on the same path', async () => {
@@ -298,7 +304,7 @@ describe('School dashboard, search and reports (e2e)', () => {
   });
 
   describe('reports', () => {
-    it('lists every report, with Finance and Communication ones not openable yet', async () => {
+    it('lists every report, with Communication ones not openable yet', async () => {
       const res = await admin.get('/api/v1/reports');
       expect(res.status).toBe(200);
       const groups = res.body.data.groups as {
@@ -313,9 +319,7 @@ describe('School dashboard, search and reports (e2e)', () => {
         'Communication',
       ]);
       const by = (name: string) => groups.find((g) => g.name === name)!.reports;
-      expect(by('Financial').every((r) => !r.available && r.availableWith === 'Finance')).toBe(
-        true,
-      );
+      expect(by('Financial').every((r) => r.available && r.availableWith === null)).toBe(true);
       expect(by('Communication')).toEqual([
         expect.objectContaining({
           id: 'message-delivery',
@@ -328,14 +332,18 @@ describe('School dashboard, search and reports (e2e)', () => {
       );
     });
 
-    it('explains a Finance report instead of showing made-up figures', async () => {
+    it('works out the Financial reports from Finance', async () => {
       const r = await report('collection');
-      expect(r.rows).toEqual([]);
-      expect(r.blocked).toEqual({
-        title: 'Available with Finance',
-        message: expect.stringContaining('Finance is set up'),
-        action: { label: 'Back to reports', to: { name: 'reports' } },
-      });
+      expect(r.blocked).toBeNull();
+      expect(r.rows.length).toBeGreaterThan(0);
+      expect(r.metrics.map((m: { label: string }) => m.label)).toEqual([
+        'Billed',
+        'Collected',
+        'Outstanding',
+        'Overdue',
+      ]);
+      const owing = await report('outstanding');
+      expect(owing.rows[0].to).toMatchObject({ name: 'student-account' });
       expect((await report('message-delivery')).blocked.title).toBe('Available with Communication');
     });
 

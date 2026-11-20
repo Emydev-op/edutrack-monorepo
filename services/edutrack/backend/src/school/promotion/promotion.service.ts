@@ -7,6 +7,7 @@ import type { PromotionOutcome } from '../../generated/prisma/enums.js';
 import { isUuid } from '../../platform/shared/params.js';
 import { TenantPrismaService } from '../../tenancy/tenant-prisma.service.js';
 import { fail, plural } from '../academics/academic-format.js';
+import { outstandingBalances } from '../finance/finance-balances.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { SectionAccessService } from '../shared/section-access.service.js';
 import { asTx } from '../shared/tenant-tx.js';
@@ -77,7 +78,7 @@ interface StudentLine {
   decision: PromotionOutcome | null;
   reason: string;
   applied: boolean;
-  /** Fees owed (always 0 until Finance is built). */
+  /** Naira owed on issued invoices (every term, so earlier balances count). */
   balance: number;
 }
 
@@ -251,12 +252,12 @@ export class PromotionService {
         };
   }
 
-  /** Fees owed by each student. */
-  private feeBalances(studentIds: string[]): Map<string, number> {
-    // Finance isn't built yet, so nobody owes anything: every balance is 0 and the school's
-    // "block promotion when fees are outstanding" setting never stops a promotion. Replace this
-    // with the students' outstanding invoice balances once Finance lands.
-    return new Map(studentIds.map((id) => [id, 0]));
+  /**
+   * Fees owed by each student, from Finance's issued invoices (what the school's "block promotion
+   * when fees are outstanding" setting checks).
+   */
+  private feeBalances(studentIds: string[]): Promise<Map<string, number>> {
+    return outstandingBalances(this.db, studentIds);
   }
 
   /** Parses a class id (`<levelId>~<branchId>`) and finds it in the session. */
@@ -309,7 +310,7 @@ export class PromotionService {
     ]);
     const suggestions = settings?.promotionSuggestions ?? true;
     const feesBlock = settings?.blockPromotionOnFees ?? false;
-    const balances = this.feeBalances(studentIds);
+    const balances = await this.feeBalances(studentIds);
     const lines = cls.enrollments.map((e): StudentLine => {
       const annual = annualOf(
         entries

@@ -108,21 +108,37 @@ describe('School academics and setup (e2e)', () => {
         auto: true,
         description: 'Weights and grade scales set for every section',
       });
-      // Stored state for steps whose modules come later (seeded with the back office's demo).
+      // Finance's step: done once this term's fee structure is published.
       expect(step(s, 'fees')).toMatchObject({
-        done: false,
-        auto: false,
-        description: 'Fee items by class and term',
-        to: { name: 'fees' },
+        done: true,
+        auto: true,
+        description: expect.stringMatching(/^10 fee items · First Term published · /),
+        to: { name: 'fees', query: { from: 'setup' } },
       });
+      // Stored state for steps whose modules come later (seeded with the back office's demo).
       expect(step(s, 'notifications')).toMatchObject({ done: false, auto: false });
     });
 
     it('refuses to finish with required steps left', async () => {
-      const res = await gf.post('/api/v1/setup/finish');
-      expect(res.status).toBe(409);
-      expect(res.body.error.code).toBe('SETUP_STEPS_LEFT');
-      expect(res.body.message).toBe('Finish the required steps first: Fees.');
+      // Without a published fee structure for the term, the Fees step isn't done.
+      const published = { schoolId: gfSchool, status: 'PUBLISHED' as const };
+      const ids = (await t.prisma.feeStructure.findMany({ where: published })).map((x) => x.id);
+      await t.prisma.feeStructure.updateMany({
+        where: { id: { in: ids } },
+        data: { status: 'DRAFT' },
+      });
+      try {
+        expect(step(await setup(gf), 'fees')).toMatchObject({ done: false, auto: true });
+        const res = await gf.post('/api/v1/setup/finish');
+        expect(res.status).toBe(409);
+        expect(res.body.error.code).toBe('SETUP_STEPS_LEFT');
+        expect(res.body.message).toBe('Finish the required steps first: Fees.');
+      } finally {
+        await t.prisma.feeStructure.updateMany({
+          where: { id: { in: ids } },
+          data: { status: 'PUBLISHED' },
+        });
+      }
     });
 
     it('marks a not-yet-built step done by hand, and knows unknown steps', async () => {

@@ -5,6 +5,7 @@ import { PLATFORM_AREA } from '../../platform/shared/platform-audit.service.js';
 import { CalendarService } from '../academics/calendar.service.js';
 import { days as daysBetween, fmtDate, isoDate, plural } from '../academics/academic-format.js';
 import { AssignmentsService } from '../assignments/assignments.service.js';
+import { FinanceOverviewService } from '../finance/overview.service.js';
 import { deadlineText } from '../results/results-core.service.js';
 import { mean, round1 } from '../results/scoring.js';
 import { ON_ROLL } from '../students/student-view.js';
@@ -72,11 +73,6 @@ const metric = (label: string, value: string, hint: string, hintTone: Tone): Das
   hintTone,
 });
 const count = (n: number) => n.toLocaleString('en-NG');
-/** Finance isn't built yet: its figures say so instead of showing zeros. */
-const FINANCE_METRICS = [
-  metric('Fees collected', '—', 'Available with Finance', 'neutral'),
-  metric('Outstanding', '—', 'Available with Finance', 'neutral'),
-];
 /** "Wed 9 Dec". */
 const dayLabel = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', {
@@ -92,7 +88,8 @@ const shortSession = (name: string) => name.replace(/^(\d{4})\/\d{2}(\d{2})$/, '
  * School Admin's dashboard, from live records: the roll, staff and classes at the working branch,
  * what needs the school's attention (results, admissions, promotion, profiles, the subscription,
  * support), the calendar, enrolment by session, the term's results by subject and recent activity.
- * Fee figures come with Finance (`GET /v1/dashboard/finance` says it isn't available yet).
+ * Fee figures, the fee card (`GET /v1/dashboard/finance`) and the finance attention items come
+ * from Finance's ledger.
  */
 @Injectable()
 export class DashboardService {
@@ -101,6 +98,7 @@ export class DashboardService {
     private readonly results: InsightsResultsService,
     private readonly assignments: AssignmentsService,
     private readonly calendar: CalendarService,
+    private readonly finances: FinanceOverviewService,
   ) {}
 
   private get db() {
@@ -119,7 +117,10 @@ export class DashboardService {
     const hasData = students + armsAll + teachersAll > 0;
     const [metrics, attention, upcoming, enrollment, performance, activity] = await Promise.all([
       hasData ? this.metrics(branch, found) : this.emptyMetrics(),
-      this.attention(branch, found, atBranch),
+      this.attention(branch, found, atBranch).then(async (items) => [
+        ...(await this.finances.dashboardAttention(branch.id)),
+        ...items,
+      ]),
       this.upcoming(found),
       this.enrollment(),
       found?.term ? this.performance(branch, found.term) : [],
@@ -128,24 +129,20 @@ export class DashboardService {
     return { hasData, metrics, attention, upcoming, enrollment, performance, activity };
   }
 
-  /** Separate from the summary in the contract; Finance isn't built yet, so nothing to show. */
-  finance() {
-    return {
-      available: false,
-      note: 'Fees and payments arrive with Finance.',
-      weekly: [] as { label: string; value: number }[],
-      sections: [] as { label: string; percent: number }[],
-    };
+  /** The fee card: confirmed collections per week and the term's collection rate per section. */
+  async finance(q: { branch?: string }) {
+    const branch = await this.scope.branch(q.branch);
+    return this.finances.dashboardFinance(branch.id);
   }
 
   /* ---------------- Metrics ---------------- */
 
-  private emptyMetrics() {
+  private async emptyMetrics() {
     return [
       metric('Students', '0', 'None yet', 'neutral'),
       metric('Teachers', '0', 'None yet', 'neutral'),
       metric('Classes', '0', 'None yet', 'neutral'),
-      ...FINANCE_METRICS,
+      ...(await this.finances.dashboardMetrics(null)),
     ];
   }
 
@@ -216,7 +213,7 @@ export class DashboardService {
                 : 'Every class has a class teacher',
         !arms.length || !plan ? 'neutral' : noCt.length ? 'warning' : 'success',
       ),
-      ...FINANCE_METRICS,
+      ...(await this.finances.dashboardMetrics(branch.id)),
     ];
   }
 

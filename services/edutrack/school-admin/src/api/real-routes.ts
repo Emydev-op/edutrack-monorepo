@@ -130,8 +130,11 @@ export const REAL_ROUTES: readonly string[] = [
   '* /v1/comms/settings/**',
   // Settings: school, academic, finance, subscription, modules, security and change history.
   '* /v1/settings/**',
-  // Dashboard (the fee card answers "not available" until Finance is built), the header's
-  // search, and Reports (Financial and Communication reports wait for those modules).
+  // Finance: fees, invoices and student accounts, payments and refunds, bank and cash accounts,
+  // statements, expenses and vendors, the overview, reports and options.
+  '* /v1/finance/**',
+  // Dashboard (fee figures and the fee card from Finance), the header's search, and Reports
+  // (Communication's report waits for that module).
   'GET /v1/dashboard',
   'GET /v1/dashboard/finance',
   'GET /v1/search',

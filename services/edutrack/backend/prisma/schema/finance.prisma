@@ -249,6 +249,9 @@ model FinanceSettings {
   expenseLimitKobo  BigInt            @default(0) @map("expense_limit_kobo")
   /// Refunds above this need the Proprietor instead of the Principal.
   refundLimitKobo   BigInt            @default(0) @map("refund_limit_kobo")
+  /// Publishing results puts the report cards of students who owe fees on hold (Settings ›
+  /// Finance). Off by default; admins release held cards one by one.
+  holdReportCards   Boolean           @default(false) @map("hold_report_cards")
   createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -575,6 +578,8 @@ model Payment {
   rejectReason        String?       @map("reject_reason")
   note                String        @default("")
   proofFileId         String?       @map("proof_file_id") @db.Uuid
+  /// What the payer attached as proof ("transfer-receipt.jpg"), as the screens show it.
+  proofName           String?       @map("proof_name")
   createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -808,6 +813,9 @@ model Expense {
   notes             String        @default("")
   /// The vendor's invoice/receipt (required above the expense limit).
   attachmentFileId  String?       @map("attachment_file_id") @db.Uuid
+  /// The attachment as the screens show it: file name and size ("invoice.pdf", "240 KB").
+  attachmentName    String?       @map("attachment_name")
+  attachmentSize    String?       @map("attachment_size")
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 

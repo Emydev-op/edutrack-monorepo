@@ -6,6 +6,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import type { ArmInfo } from '../academics/academic-catalog.service.js';
 import { plural } from '../academics/academic-format.js';
 import { CommsDispatchService } from '../communication/comms-dispatch.service.js';
+import { outstandingBalances } from '../finance/finance-balances.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { SectionAccessService } from '../shared/section-access.service.js';
 import { asTx, type TenantTx } from '../shared/tenant-tx.js';
@@ -160,6 +161,18 @@ export class PublishingService {
     let flush: () => Promise<void> = () => Promise.resolve();
     await this.db.$transaction(
       async (tx) => {
+        // Settings › Finance "Hold report cards with unpaid fees": students who owe anything are
+        // held now (not already held ones), and their guardians aren't told until released.
+        const holdOn = await tx.financeSettings.findFirst({ select: { holdReportCards: true } });
+        const owed = holdOn?.holdReportCards
+          ? await outstandingBalances(
+              tx,
+              results.students
+                .map((s) => s.student.id)
+                .filter((id) => !existing.find((c) => c.studentId === id)?.heldAt),
+            )
+          : new Map<string, number>();
+        const feeHolds = new Map([...owed].filter(([, n]) => n > 0));
         for (const ctx of results.sheets) {
           if (ctx.sheet.status !== 'APPROVED') continue;
           await tx.resultSheet.update({
@@ -190,7 +203,13 @@ export class PublishingService {
           const snapshot = (card
             ? { ...card, published: true, version }
             : null) as unknown as Prisma.InputJsonValue;
+          const owes = feeHolds.get(r.student.id);
           const data = {
+            ...(owes !== undefined && {
+              heldAt: now,
+              heldReason: `Unpaid fees: ₦${Math.round(owes).toLocaleString('en-NG')} outstanding`,
+              heldById: auth.userId,
+            }),
             armId: arm.id,
             classTeacherStaffId: prev?.classTeacherStaffId ?? classTeacher?.id ?? null,
             average: r.average,
@@ -229,7 +248,10 @@ export class PublishingService {
           body: `${term.name} report cards for your class are out. Remarks and ratings are now read-only.`,
           link: '/my-class/report-cards',
         });
-        const held = new Set(existing.filter((c) => c.heldAt).map((c) => c.studentId));
+        const held = new Set([
+          ...existing.filter((c) => c.heldAt).map((c) => c.studentId),
+          ...feeHolds.keys(),
+        ]);
         flush = await this.notifyGuardians(
           tx,
           results.students.map((s) => s.student.id).filter((id) => !held.has(id)),
@@ -244,7 +266,7 @@ export class PublishingService {
             entity: 'ResultPublication',
             entityId: arm.id,
             summary: `Published ${arm.label} results`,
-            detail: `${term.name} · ${plural(check.students, 'student')}${held.size ? ` · ${plural(held.size, 'report card')} on hold` : ''}`,
+            detail: `${term.name} · ${plural(check.students, 'student')}${held.size ? ` · ${plural(held.size, 'report card')} on hold` : ''}${feeHolds.size ? ` (${plural(feeHolds.size, 'for unpaid fees', 'for unpaid fees')})` : ''}`,
           },
           asTx(tx),
         );

@@ -77,11 +77,6 @@ const weekly = computed(() => {
     color: i === weeks.length - 1 ? 'var(--highlight)' : undefined,
   }));
 });
-/** Finance isn't set up yet: the fee cards say where the figures will come from. */
-const financeOff = computed(() => finance.data.value?.available === false);
-const financeNote = computed(
-  () => finance.data.value?.note || 'Fees and payments arrive with Finance.',
-);
 const enrollment = computed(() =>
   (summary.value?.enrollment ?? []).map((e) => ({ ...e, display: formatCount(e.value) })),
 );
@@ -185,7 +180,6 @@ const enrollment = computed(() =>
         description="Is collection picking up before term ends?"
       >
         <Skeleton v-if="finance.isPending.value" class="h-36" />
-        <EmptyBlock v-else-if="financeOff" :text="financeNote" />
         <template v-else-if="weekly.length">
           <ColumnChart :bars="weekly" :height="110" label="Fee receipts per week" />
           <p class="mt-2 text-xs text-faint">Amber = current week, partial</p>
@@ -199,7 +193,6 @@ const enrollment = computed(() =>
         description="Where is First Term collection behind 70%?"
       >
         <Skeleton v-if="finance.isPending.value" class="h-36" />
-        <EmptyBlock v-else-if="financeOff" :text="financeNote" />
         <div v-else-if="finance.data.value?.sections.length" class="flex flex-col gap-2.5">
           <MeterRow
             v-for="s in finance.data.value.sections"
@@ -212,7 +205,7 @@ const enrollment = computed(() =>
             value-width="104px"
           />
         </div>
-        <EmptyBlock v-else-if="!finance.isError.value" text="No sections configured yet." />
+        <EmptyBlock v-else-if="!finance.isError.value" text="Nothing invoiced this term yet." />
         <p v-else class="text-[13px] text-muted-foreground">Not available right now.</p>
       </SectionCard>
 
