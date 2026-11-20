@@ -42,6 +42,7 @@ import {
   type SettingsArea,
   timezoneLabel,
 } from './settings-view.js';
+import { ruleText } from '../promotion/promotion-rules.js';
 
 const KINDS: readonly NumberingKind[] = ['admission', 'staff'];
 const DEFAULT_PATTERN: Record<NumberingKind, string> = {
@@ -288,7 +289,26 @@ export class SchoolSettingsService {
       session: session?.name ?? null,
       passMark: assessment.passMark,
       schemes,
-      promotionRule: row.promotionRule ?? null,
+      // Each section's rule from Assessment & Grading, e.g. "Primary: Annual average of 40% or
+      // more and a pass (40%) in English Language and Mathematics".
+      promotionRule:
+        Object.entries(assessment.promotion)
+          .map(([section, r]) => {
+            const names = new Map(
+              assessment.promotionSubjects[section]?.map((x) => [x.id, x.name]),
+            );
+            const text = ruleText({
+              minAverage: r.minAverage,
+              passMark: assessment.passMark,
+              mustPass: r.mustPass.map((id) => ({
+                id,
+                name: names.get(id) ?? 'a removed subject',
+              })),
+            });
+            return text && `${section}: ${text}`;
+          })
+          .filter(Boolean)
+          .join(' · ') || null,
     };
   }
 

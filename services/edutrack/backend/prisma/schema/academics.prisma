@@ -693,22 +693,27 @@ model TimetableSlot {
 /// The assessment scheme for a section in a session: components, grade scale, ratings. Per
 /// session so past results keep the scheme they were scored on; copied into each new session.
 model AssessmentScheme {
-  id           String         @id @default(uuid(7)) @db.Uuid
-  schoolId     String         @map("school_id") @db.Uuid
-  sessionId    String         @map("session_id") @db.Uuid
-  sectionId    String         @map("section_id") @db.Uuid
-  mode         AssessmentMode @default(SCORES)
+  id                  String         @id @default(uuid(7)) @db.Uuid
+  schoolId            String         @map("school_id") @db.Uuid
+  sessionId           String         @map("session_id") @db.Uuid
+  sectionId           String         @map("section_id") @db.Uuid
+  mode                AssessmentMode @default(SCORES)
   /// e.g. "WAEC 9-point".
-  scaleName    String         @default("") @map("scale_name")
-  passMark     Decimal        @default(40) @map("pass_mark") @db.Decimal(5, 2)
-  rounding     ScoreRounding  @default(WHOLE_NUMBER)
+  scaleName           String         @default("") @map("scale_name")
+  passMark            Decimal        @default(40) @map("pass_mark") @db.Decimal(5, 2)
+  rounding            ScoreRounding  @default(WHOLE_NUMBER)
   /// Report cards in this section show class and subject position. Nursery and Primary often
   /// leave it off.
-  showPosition Boolean        @default(false) @map("show_position")
+  showPosition        Boolean        @default(false) @map("show_position")
+  /// Promotion rule: the minimum annual average (mean of the subjects' cumulative averages) to be
+  /// promoted. Null: no minimum.
+  promotionMinAverage Decimal?       @map("promotion_min_average") @db.Decimal(5, 2)
+  /// Promotion rule: subjects a student must pass (cumulative average at or above the pass mark).
+  promotionSubjectIds String[]       @default([]) @map("promotion_subject_ids") @db.Uuid
   /// Set once any sheet on it is published; components and weights are then frozen.
-  lockedAt     DateTime?      @map("locked_at") @db.Timestamptz(3)
-  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lockedAt            DateTime?      @map("locked_at") @db.Timestamptz(3)
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   school       School                @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   session      AcademicSession       @relation(fields: [schoolId, sessionId], references: [schoolId, id], onDelete: Restrict)

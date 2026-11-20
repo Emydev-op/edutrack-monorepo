@@ -2,7 +2,6 @@ import { createHash, randomUUID } from 'node:crypto';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { RequestContext } from '../../common/context/request-context.js';
 import { AppException } from '../../common/errors/app.exception.js';
-import { addMonths } from '../../platform/shared/format.js';
 import { isUuid } from '../../platform/shared/params.js';
 import { StorageService } from '../../storage/storage.service.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
@@ -11,7 +10,7 @@ import { plural, withNotice } from '../staff/staff-audit.js';
 import { parseUpload } from '../staff/staff-view.js';
 import type { AssignArmDto, EnrollDto, TransferStudentDto } from './dto/students.dto.js';
 import { MemberPermissions } from './member-permissions.js';
-import { StudentAccessService } from './student-access.js';
+import { retainLeaverFiles, StudentAccessService } from './student-access.js';
 import {
   armLabel,
   classOf,
@@ -24,9 +23,6 @@ import {
   type StudentWithLinks,
 } from './student-view.js';
 import { STUDENT_NOT_FOUND, StudentsService } from './students.service.js';
-
-/** Leavers' documents and photo are kept two years after they leave, then purged. */
-const RETENTION_MONTHS = 24;
 
 const unprocessable = (message: string, code = 'VALIDATION', field?: string) =>
   new AppException(
@@ -159,7 +155,7 @@ export class StudentMovesService {
         data: { status: 'LEFT', leftOn: on, outcome: isTransfer ? 'TRANSFER' : 'WITHDRAW' },
       });
       if (isTransfer) await this.recordLetter(tx, s.id, file?.id ?? null);
-      await this.retain(tx, s.id, addMonths(on, RETENTION_MONTHS));
+      await retainLeaverFiles(tx, s.id, on);
       const closed = await this.access.close(
         s.id,
         tx,
@@ -208,23 +204,6 @@ export class StudentMovesService {
           ...fields,
         },
       });
-  }
-
-  /** Sets the purge date on the student's documents, photo and exit letter. */
-  private async retain(tx: TenantTx, studentId: string, until: Date) {
-    const s = await tx.student.findUniqueOrThrow({
-      where: { id: studentId },
-      select: {
-        photoFileId: true,
-        exitDocumentFileId: true,
-        documents: { select: { fileId: true } },
-      },
-    });
-    const ids = [s.photoFileId, s.exitDocumentFileId, ...s.documents.map((d) => d.fileId)].filter(
-      (x): x is string => Boolean(x),
-    );
-    if (ids.length)
-      await tx.storedFile.updateMany({ where: { id: { in: ids } }, data: { retainUntil: until } });
   }
 
   /** Moves a student to another branch: same class level, the arm given there (or none yet). */

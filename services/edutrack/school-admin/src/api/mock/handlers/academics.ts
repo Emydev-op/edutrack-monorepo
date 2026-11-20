@@ -1797,10 +1797,26 @@ function assessmentView(acad: AcademicsData) {
     : acad.sections.filter((s) => !acad.assessment.schemes[s.name]).map((s) => s.name);
   return {
     ...structuredClone(acad.assessment),
+    promotion: Object.fromEntries(
+      acad.sections.map((s) => [
+        s.name,
+        acad.assessment.promotion[s.name] ?? { minAverage: null, mustPass: [] },
+      ]),
+    ),
     sections: acad.sections.map((s) => ({ name: s.name, code: s.code })),
     confirmed: acad.confirmed.assessment,
     missing,
     hasPublished: acad.published.length > 0,
+    // The mock's subject ids are their codes.
+    promotionSubjects: Object.fromEntries(
+      acad.sections.map((s) => [
+        s.name,
+        acad.subjects
+          .filter((x) => x.status === 'Active' && (!x.section || x.section === s.name))
+          .map((x) => ({ id: x.code, name: x.name }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      ]),
+    ),
   };
 }
 
@@ -1871,6 +1887,7 @@ mock.put('/v1/academics/assessment', (req) => {
     schemes: Object.fromEntries(keys.map((k) => [k, p.schemes[k] ?? null])),
     rounding: p.rounding,
     passMark: p.passMark,
+    promotion: { ...acad.assessment.promotion, ...p.promotion },
   };
   log(
     'Academics',

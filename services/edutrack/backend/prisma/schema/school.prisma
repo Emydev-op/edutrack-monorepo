@@ -245,7 +245,7 @@ model SchoolSettings {
   blockPromotionOnFees     Boolean  @default(false) @map("block_promotion_on_fees")
   /// One assessment scheme for every section (the UI's "same" switch).
   sameSchemeForAllSections Boolean  @default(false) @map("same_scheme_for_all_sections")
-  /// Free-text promotion rule shown on the promotion screen.
+  /// Legacy free-text promotion rule. Unused: each section's rule is on its AssessmentScheme.
   promotionRule            String?  @map("promotion_rule")
   /// Sign-in rules.
   idleTimeoutMinutes       Int      @default(30) @map("idle_timeout_minutes")

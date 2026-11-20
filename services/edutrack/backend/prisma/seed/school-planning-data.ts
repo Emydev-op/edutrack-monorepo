@@ -74,6 +74,9 @@ const EXTRA_TEACHERS = [
 ];
 const HIRED_FROM = 301;
 
+/** Minimum annual average for promotion, by section code. */
+const PROMOTION_MIN: Record<string, number> = { PRI: 40, JSS: 45, SSS: 45 };
+
 const SCIENCES = ['MTH', 'BSC', 'BIO', 'CHE', 'PHY', 'FMT'];
 const LANGUAGES = ['ENG', 'FRE', 'YOR', 'LIE'];
 
@@ -192,6 +195,16 @@ export async function seedSchoolPlanning(
   });
   for (const s of sections) {
     const d = defaultScheme(s.code);
+    // Promotion: Primary 40%, Junior and Senior Secondary 45%, with a pass in English and
+    // Mathematics; Nursery (descriptive ratings) is decided by staff.
+    const minAverage = PROMOTION_MIN[s.code] ?? null;
+    const rule = {
+      promotionMinAverage: minAverage,
+      promotionSubjectIds:
+        minAverage === null
+          ? []
+          : ['ENG', 'MTH'].flatMap((c) => (subjectId.has(c) ? [subjectId.get(c)!] : [])),
+    };
     const scheme = await prisma.assessmentScheme.upsert({
       where: { sessionId_sectionId: { sessionId: session.id, sectionId: s.id } },
       create: {
@@ -200,8 +213,10 @@ export async function seedSchoolPlanning(
         sectionId: s.id,
         mode: d.mode === 'descriptive' ? 'DESCRIPTIVE' : 'SCORES',
         showPosition: d.showPosition,
+        ...rule,
       },
       update: {
+        ...rule,
         mode: d.mode === 'descriptive' ? 'DESCRIPTIVE' : 'SCORES',
         showPosition: d.showPosition,
         rounding: 'WHOLE_NUMBER',

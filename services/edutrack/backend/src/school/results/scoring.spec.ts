@@ -1,4 +1,11 @@
-import { isValidScore, ordinal, rankPositions, totalOf, type Scheme } from './scoring.js';
+import {
+  cumulativeAverage,
+  isValidScore,
+  ordinal,
+  rankPositions,
+  totalOf,
+  type Scheme,
+} from './scoring.js';
 
 const scheme = (over: Partial<Scheme> = {}): Scheme => ({
   id: 's',
@@ -70,5 +77,11 @@ describe('result scoring', () => {
       '22nd',
       '103rd',
     ]);
+  });
+
+  it('averages the available values to one decimal place', () => {
+    expect(cumulativeAverage([95, 70, null])).toBe(82.5);
+    expect(cumulativeAverage([60, 61, 61])).toBe(60.7);
+    expect(cumulativeAverage([null, undefined])).toBeNull();
   });
 });

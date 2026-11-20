@@ -6,6 +6,7 @@ import type { SessionStatus } from '../../generated/prisma/enums.js';
 import { TenantPrismaService } from '../../tenancy/tenant-prisma.service.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { asTx } from '../shared/tenant-tx.js';
+import { promotionProgress } from '../promotion/promotion-progress.js';
 import { SetupStateService } from '../shared/setup-state.service.js';
 import {
   addDays,
@@ -648,7 +649,7 @@ export class SessionsService {
     });
     if (!session) throw AppException.notFound(SESSION_NOT_FOUND, 'SESSION_NOT_FOUND');
     const termIds = session.terms.map((t) => t.id);
-    const [open, sheets, published, left, notPlaced] = await Promise.all([
+    const [open, sheets, published, left, notPlaced, promotion] = await Promise.all([
       Promise.resolve(session.terms.filter((t) => t.status !== 'CLOSED')),
       this.db.resultSheet.findMany({
         where: { termId: { in: termIds } },
@@ -663,6 +664,7 @@ export class SessionsService {
         select: { student: { select: { status: true } } },
       }),
       this.db.enrollment.count({ where: { sessionId: id, status: 'ACTIVE', armId: null } }),
+      promotionProgress(this.db, id),
     ]);
     const unapproved = sheets.filter((x) => x.status !== 'APPROVED').length;
     const published_ = new Set(published.map((p) => `${p.termId}:${p.armId}`));
@@ -715,9 +717,14 @@ export class SessionsService {
         to: null,
       },
       {
+        // A reminder, not a blocker: schools settle promotion appeals into the new session.
         label: 'Promotion',
-        detail: 'Promote or repeat each class before the new session’s classes start.',
-        status: 'Review needed',
+        detail: !promotion.classes
+          ? 'No classes to promote'
+          : promotion.applied === promotion.classes
+            ? `All ${plural(promotion.classes, 'class', 'classes')} promoted`
+            : `${promotion.applied} of ${plural(promotion.classes, 'class', 'classes')} promoted`,
+        status: promotion.applied === promotion.classes ? 'Complete' : 'Review needed',
         to: { name: 'promotion' },
       },
       {

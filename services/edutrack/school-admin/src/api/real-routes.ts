@@ -70,7 +70,8 @@ export const REAL_ROUTES: readonly string[] = [
   'GET /v1/academics/attendance',
   'GET /v1/academics/attendance/:armId',
   // Academics, Phase 3b: results (the matrix, sheets with approve / return / reopen entry,
-  // publishing per arm, report cards with hold / release, corrections). Promotion stays mock.
+  // publishing per arm, report cards with hold / release, corrections) and end-of-session
+  // promotion.
   'GET /v1/academics/results',
   'GET /v1/academics/results/sheets/:armId/:subject',
   'POST /v1/academics/results/sheets/:armId/:subject/:action',
@@ -80,6 +81,9 @@ export const REAL_ROUTES: readonly string[] = [
   'POST /v1/academics/results/report-card/:studentId/:action',
   'GET /v1/academics/results/corrections',
   'POST /v1/academics/results/corrections/:id/:action',
+  'GET /v1/academics/promotion',
+  'PUT /v1/academics/promotion/:classId',
+  'POST /v1/academics/promotion/:classId/apply',
   // Students, Phase 2: records, transfers and withdrawals, arms and enrollment.
   'GET /v1/students',
   'POST /v1/students/assign-arm',

@@ -121,7 +121,10 @@ async function toggle(key: string, enabled: boolean) {
         ...(data.schemes.length
           ? data.schemes.map((s) => ({ label: s.section, value: s.summary }))
           : [{ label: 'Assessment schemes', value: 'Not set up yet' }]),
-        { label: 'Promotion rule', value: data.promotionRule ?? 'Set when a session is closed' },
+        {
+          label: 'Promotion rule',
+          value: data.promotionRule ?? 'Not set · Academics › Assessments & Grading',
+        },
       ]"
     >
       <template #action>

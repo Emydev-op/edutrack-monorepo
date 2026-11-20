@@ -1110,6 +1110,13 @@ function greenfield(): AcademicsData {
       },
       rounding: '1 decimal place',
       passMark: 40,
+      // Subject ids are codes in the mock.
+      promotion: {
+        Nursery: { minAverage: null, mustPass: [] },
+        Primary: { minAverage: 40, mustPass: ['ENG', 'MTH'] },
+        'Junior Secondary': { minAverage: 45, mustPass: ['ENG', 'MTH'] },
+        'Senior Secondary': { minAverage: 45, mustPass: ['ENG', 'MTH'] },
+      },
     },
     sheets: [],
     published: [],
@@ -1337,6 +1344,7 @@ function crestview(): AcademicsData {
       schemes: {},
       rounding: '1 decimal place',
       passMark: 40,
+      promotion: {},
     },
     sheets: [],
     published: [],

@@ -30,12 +30,21 @@ export interface SchemeInput {
   /** Report cards in this section show class and subject position. */
   showPosition?: boolean;
 }
+/** A section's promotion rule (always per section, even with one scheme for every section). */
+export interface PromotionRuleInput {
+  /** Minimum annual average, 0–100; null for none. */
+  minAverage: number | null;
+  /** Subject ids the student must pass (cumulative at or above the pass mark). */
+  mustPass: string[];
+}
 export interface AssessmentInput {
   /** One scheme for every section, under the key "*". */
   same: boolean;
   schemes: Record<string, SchemeInput | null>;
   rounding: 'Whole number' | '1 decimal place';
   passMark: number;
+  /** Section name → promotion rule. Sections left out keep their rule. */
+  promotion?: Record<string, PromotionRuleInput | null>;
 }
 
 const num = (d: unknown) => Number(d);
@@ -145,6 +154,48 @@ export class AssessmentService {
     };
   }
 
+  /**
+   * Subjects each section's levels offer in the session (by name), the choices for its
+   * must-pass subjects. Subjects already chosen stay listed.
+   */
+  private async promotionSubjects(
+    sessionId: string | null,
+    sections: { id: string; name: string }[],
+    rows: { sectionId: string; promotionSubjectIds: string[] }[],
+  ) {
+    const entries = sessionId
+      ? await this.db.curriculumEntry.findMany({
+          where: { sessionId },
+          select: {
+            level: { select: { sectionId: true } },
+            subject: { select: { id: true, name: true } },
+          },
+        })
+      : [];
+    const chosen = rows.flatMap((r) => r.promotionSubjectIds);
+    const extra = chosen.length
+      ? await this.db.subject.findMany({
+          where: { id: { in: chosen } },
+          select: { id: true, name: true },
+        })
+      : [];
+    return Object.fromEntries(
+      sections.map((sec) => {
+        const list = new Map<string, string>();
+        for (const e of entries)
+          if (e.level.sectionId === sec.id) list.set(e.subject.id, e.subject.name);
+        const ids = rows.find((r) => r.sectionId === sec.id)?.promotionSubjectIds ?? [];
+        for (const x of extra) if (ids.includes(x.id)) list.set(x.id, x.name);
+        return [
+          sec.name,
+          [...list]
+            .map(([id, name]) => ({ id, name }))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+        ];
+      }),
+    ) as Record<string, { id: string; name: string }[]>;
+  }
+
   async view() {
     const [session, sections, settings, confirmed] = await Promise.all([
       this.catalog.currentSession(),
@@ -175,6 +226,23 @@ export class AssessmentService {
           : ['All sections']
         : sections.filter((s) => !bySection.has(s.id)).map((s) => s.name),
       hasPublished: rows.some((r) => r.lockedAt),
+      /** Section name → promotion rule (minimum annual average and must-pass subject ids). */
+      promotion: Object.fromEntries(
+        sections.map((s) => {
+          const r = rows.find((x) => x.sectionId === s.id);
+          return [
+            s.name,
+            {
+              minAverage:
+                r?.promotionMinAverage === null || r?.promotionMinAverage === undefined
+                  ? null
+                  : num(r.promotionMinAverage),
+              mustPass: r?.promotionSubjectIds ?? [],
+            },
+          ];
+        }),
+      ) as Record<string, PromotionRuleInput>,
+      promotionSubjects: await this.promotionSubjects(session?.id ?? null, sections, rows),
     };
   }
 
@@ -195,6 +263,7 @@ export class AssessmentService {
       throw fail('The pass mark is between 0 and 100.', 'VALIDATION');
     const rounding = p.rounding === '1 decimal place' ? 'ONE_DECIMAL' : 'WHOLE_NUMBER';
     const existing = await this.schemesFor(session.id);
+    const rules = await this.checkRules(p, session.id, sections, existing);
     let saved = 0;
     await this.db.$transaction(async (tx) => {
       for (const section of sections) {
@@ -205,6 +274,16 @@ export class AssessmentService {
         await this.writeScheme(tx, schoolId, session.id, section, current, input, {
           rounding,
           passMark: p.passMark,
+        });
+      }
+      for (const r of rules) {
+        const scheme = await tx.assessmentScheme.findFirst({
+          where: { sessionId: session.id, sectionId: r.sectionId },
+        });
+        if (!scheme) continue;
+        await tx.assessmentScheme.update({
+          where: { id: scheme.id },
+          data: { promotionMinAverage: r.minAverage, promotionSubjectIds: r.mustPass },
         });
       }
       await tx.schoolSettings.upsert({
@@ -224,6 +303,55 @@ export class AssessmentService {
       );
     });
     return this.view();
+  }
+
+  /**
+   * The promotion rules to write: a minimum average of 0–100 (or none) and must-pass subjects
+   * the section offers. A rule needs a score-based scheme (descriptive sections decide by hand).
+   */
+  private async checkRules(
+    p: AssessmentInput,
+    sessionId: string,
+    sections: { id: string; name: string }[],
+    existing: Awaited<ReturnType<AssessmentService['schemesFor']>>,
+  ) {
+    if (p.promotion === undefined || p.promotion === null) return [];
+    if (typeof p.promotion !== 'object' || Array.isArray(p.promotion))
+      throw fail('Send the promotion rules by section name.', 'VALIDATION');
+    const options = await this.promotionSubjects(sessionId, sections, existing);
+    const out: { sectionId: string; minAverage: number | null; mustPass: string[] }[] = [];
+    for (const [name, rule] of Object.entries(p.promotion)) {
+      const section = sections.find((s) => s.name === name);
+      if (!section) throw fail(`There is no section called ${name}.`, 'VALIDATION');
+      const minAverage = rule?.minAverage ?? null;
+      const mustPass = [...new Set(rule?.mustPass ?? [])];
+      if (
+        minAverage !== null &&
+        (typeof minAverage !== 'number' || !(minAverage >= 0 && minAverage <= 100))
+      )
+        throw fail(`${name}: the minimum average is between 0 and 100.`, 'PROMOTION_RULE_INVALID');
+      if (
+        !Array.isArray(rule?.mustPass ?? []) ||
+        mustPass.some((id) => typeof id !== 'string' || !options[name]!.some((o) => o.id === id))
+      )
+        throw fail(
+          `${name}: choose must-pass subjects from the subjects ${name} offers.`,
+          'PROMOTION_RULE_INVALID',
+        );
+      const input = p.same ? p.schemes?.['*'] : p.schemes?.[name];
+      const mode =
+        input?.mode ?? existing.find((e) => e.sectionId === section.id)?.mode.toLowerCase();
+      const empty = minAverage === null && !mustPass.length;
+      if (!empty && mode === 'descriptive')
+        throw fail(
+          `${name} uses descriptive ratings, so there is no average to promote on. Staff decide for each student.`,
+          'PROMOTION_RULE_INVALID',
+        );
+      if (!empty && !mode)
+        throw fail(`Set up ${name}’s assessment scheme before its promotion rule.`, 'VALIDATION');
+      out.push({ sectionId: section.id, minAverage, mustPass });
+    }
+    return out;
   }
 
   private async writeScheme(

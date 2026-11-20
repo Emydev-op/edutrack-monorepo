@@ -219,4 +219,15 @@ export class SaveAssessmentDto {
   @ApiProperty({ example: 40 })
   @IsNumber()
   passMark!: number;
+
+  @ApiPropertyOptional({
+    type: Object,
+    example: { 'Junior Secondary': { minAverage: 45, mustPass: ['<subject id>'] } },
+    description:
+      'Section name → promotion rule: { minAverage: 0–100 or null, mustPass: subject ids the ' +
+      'student must pass (cumulative at or above the pass mark) }. Sections left out keep theirs.',
+  })
+  @IsOptional()
+  @IsObject()
+  promotion?: Record<string, unknown>;
 }
