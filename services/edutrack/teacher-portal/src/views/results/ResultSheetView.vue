@@ -16,6 +16,7 @@ import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 import { useRouteQuery } from '@edutrack/app-kit/composables/useRouteQuery';
 
 import {
+  useRecallSheetMutation,
   useResultSheetQuery,
   useSaveScoresMutation,
   useSubmitSheetMutation,
@@ -43,6 +44,7 @@ const sheetId = computed(() => String(route.params.sheetId));
 const { data: sheet, isPending, error, refetch } = useResultSheetQuery(sheetId);
 const saveMut = useSaveScoresMutation(sheetId);
 const submitMut = useSubmitSheetMutation(sheetId);
+const recallMut = useRecallSheetMutation(sheetId);
 const isPhone = useMediaQuery('(max-width: 639px)');
 
 const tab = useRouteQuery<'scores' | 'review'>('tab', 'scores');
@@ -78,7 +80,17 @@ const termLabel = computed(
 const left = computed(() => countdown(sheet.value?.deadline ?? null, ctx.now.value));
 const blockers = computed(() => entry.blockers.value);
 const canSubmit = computed(
-  () => entry.editable.value && blockers.value.length === 0 && entry.parsed.value.length > 0,
+  () =>
+    entry.editable.value &&
+    !!sheet.value?.isLead &&
+    blockers.value.length === 0 &&
+    entry.parsed.value.length > 0,
+);
+/** Co-teachers enter and save scores; the lead teacher submits. */
+const leadNote = computed(() =>
+  sheet.value && !sheet.value.isLead
+    ? `${sheet.value.lead ?? 'The lead teacher'} submits this sheet. You can enter and save scores.`
+    : '',
 );
 const lockTone = computed(() => {
   const s = sheet.value;
@@ -115,6 +127,19 @@ async function saveNow() {
       toast.warning('Saved, except the cells that aren’t scores. Fix them to save those too.');
     else toast.success('Draft saved.');
   }
+}
+
+function recall() {
+  const s = sheet.value!;
+  void confirm({
+    title: `Recall ${s.arm} · ${s.subjectName}?`,
+    description: 'It comes back to you as a draft. Submit it again when it’s ready.',
+    confirmLabel: 'Recall sheet',
+    action: async () => {
+      await recallMut.mutateAsync();
+      toast.success('Sheet recalled. It’s back in draft.');
+    },
+  });
 }
 
 function submit() {
@@ -215,10 +240,21 @@ function submit() {
           @click="saveNow"
           >Save</Button
         >
-        <Button :disabled="!canSubmit || submitMut.isPending.value" @click="submit">
+        <Button
+          v-if="sheet.isLead"
+          :disabled="!canSubmit || submitMut.isPending.value"
+          @click="submit"
+        >
           {{ sheet.status === 'Returned' ? 'Resubmit' : 'Submit for review' }}
         </Button>
       </div>
+      <Button
+        v-else-if="sheet.canRecall"
+        variant="outline"
+        :disabled="recallMut.isPending.value"
+        @click="recall"
+        >Recall sheet</Button
+      >
       <Button v-else-if="sheet.canRequestCorrection" as-child variant="outline"
         ><RouterLink
           :to="{ name: routesPath.results.correctionNew.name, params: { sheetId: sheet.id } }"
@@ -245,6 +281,7 @@ function submit() {
       </div>
     </div>
 
+    <InlineNotice v-if="leadNote && entry.editable.value" tone="neutral" :title="leadNote" />
     <InlineNotice
       v-if="sheet.lock"
       :tone="lockTone"
@@ -302,12 +339,17 @@ function submit() {
       >
         <span class="mr-auto text-[13px] text-muted-foreground">
           {{
-            canSubmit
+            leadNote ||
+            (canSubmit
               ? `Ready. It goes to ${sheet.submitTo}. Locked after submitting unless returned.`
-              : 'Fix every blocker above to submit.'
+              : 'Fix every blocker above to submit.')
           }}
         </span>
-        <Button :disabled="!canSubmit || submitMut.isPending.value" @click="submit">
+        <Button
+          v-if="sheet.isLead"
+          :disabled="!canSubmit || submitMut.isPending.value"
+          @click="submit"
+        >
           {{ sheet.status === 'Returned' ? 'Resubmit' : 'Submit for review' }}
         </Button>
       </div>

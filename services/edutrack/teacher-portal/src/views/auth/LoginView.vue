@@ -49,7 +49,15 @@ type Notice = {
   text: string;
 };
 const OFFICE = 'Contact the school office if you think this is a mistake.';
-const NOTICES: Record<AccountBlock | 'expired' | 'signedout' | 'reset' | 'lapsed', Notice> = {
+const NOTICES: Record<
+  AccountBlock | 'expired' | 'signedout' | 'reset' | 'lapsed' | 'idle',
+  Notice
+> = {
+  idle: {
+    tone: 'info',
+    title: 'You were signed out after a period of inactivity.',
+    text: 'Your school signs staff out when the workspace isn’t used for a while. Sign in again to continue.',
+  },
   expired: {
     tone: 'info',
     title: 'Your session has ended. Please sign in again.',
@@ -116,7 +124,11 @@ const notice = computed<Notice | null>(() => {
       ? { ...base, text: `${blockMessage.value} ${base.text}` }
       : base;
   }
-  return reason === 'expired' || reason === 'signedout' || reason === 'reset' || reason === 'lapsed'
+  return reason === 'expired' ||
+    reason === 'signedout' ||
+    reason === 'reset' ||
+    reason === 'lapsed' ||
+    reason === 'idle'
     ? NOTICES[reason]
     : null;
 });

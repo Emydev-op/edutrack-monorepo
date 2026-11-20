@@ -13,7 +13,11 @@ import KeyValueCard from '@edutrack/app-kit/components/common/KeyValueCard.vue';
 import PageHeader from '@edutrack/app-kit/components/common/PageHeader.vue';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 
-import { useResultSheetQuery, useSheetActionMutation } from '@/api/services/academics';
+import {
+  useReopenEntryMutation,
+  useResultSheetQuery,
+  useSheetActionMutation,
+} from '@/api/services/academics';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import { useLayoutStore } from '@/stores/layout';
@@ -29,6 +33,7 @@ const armId = computed(() => String(route.params.armId));
 const subject = computed(() => String(route.params.subject));
 const { data: sheet, isPending, error } = useResultSheetQuery(armId, subject);
 const act = useSheetActionMutation();
+const reopen = useReopenEntryMutation();
 
 watch(sheet, (s) => layout.setRecordLabel(s ? `${s.arm} · ${s.subjectName}` : null), {
   immediate: true,
@@ -66,6 +71,29 @@ const scoreClass = (v: ScoreValue) =>
       : v === null
         ? 'text-error-strong'
         : '';
+
+/** After the result deadline, give the teacher a few more days on this sheet. */
+function reopenEntry() {
+  const s = sheet.value;
+  if (!s) return;
+  void confirm({
+    title: `Reopen entry on ${s.arm} ${s.subjectName}?`,
+    description: `${teacher.value} can enter and submit scores on this sheet again, even though the term’s result deadline has passed. Other sheets stay locked.`,
+    input: { label: 'Days to keep it open (1–30)', placeholder: '3', required: true },
+    confirmLabel: 'Reopen entry',
+    action: async ({ text }) => {
+      const days = Number(text);
+      if (!Number.isInteger(days) || days < 1 || days > 30)
+        throw new Error('Enter a whole number of days from 1 to 30.');
+      try {
+        await reopen.mutateAsync({ armId: armId.value, subject: subject.value, days });
+      } catch (e) {
+        throw new Error(getApiErrorMessage(e, 'That didn’t reopen. Try again.'));
+      }
+      toast.success(`Entry reopened for ${days} day${days === 1 ? '' : 's'}.`);
+    },
+  });
+}
 
 function approve() {
   const s = sheet.value!;
@@ -164,7 +192,17 @@ function returnSheet() {
           : 'Not submitted yet'
       "
       :description="`${sheet.status === 'Returned' && sheet.returnNote ? `${sheet.returnedBy === 'the academic office' ? 'Your comment' : 'Comment'}: “${sheet.returnNote}”. ` : ''}You can view the draft, but it can only be approved after ${teacher} ${sheet.status === 'Returned' ? 'resubmits' : 'submits'} it in the Teacher Workspace${sheet.hod && sheet.returnedBy !== 'the academic office' ? ` and ${sheet.hod} forwards it` : ''}.`"
-    />
+    >
+      <template #action>
+        <Button
+          variant="outline"
+          size="sm"
+          title="Use when the term’s result deadline has passed and the teacher needs more time"
+          @click="reopenEntry"
+          >Reopen entry</Button
+        >
+      </template>
+    </InlineNotice>
     <InlineNotice
       v-if="sheet.status === 'Published'"
       tone="brand"

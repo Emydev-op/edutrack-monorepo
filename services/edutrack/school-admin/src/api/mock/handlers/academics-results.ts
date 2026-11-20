@@ -642,7 +642,31 @@ mock.get('/v1/academics/results/report-card/:studentId', (req): ReportCard => {
           schoolDays: days.length,
         }
       : null,
+    held: HELD.get(`${term.id}|${student.id}`) ?? null,
+    cumulative: null,
   };
+});
+
+/* ---------------- Holding a report card ---------------- */
+
+/** "termId|studentId" → why and when the card is withheld. */
+const HELD = new Map<string, { reason: string; at: string; by: string }>();
+
+mock.post('/v1/academics/results/report-card/:studentId/:action', (req) => {
+  const { acad, actor } = acadFor(req);
+  const term = termFrom(acad, (req.body as { term?: string })?.term) ?? fail('No term', 409);
+  const key = `${term.id}|${req.params.studentId}`;
+  if (req.params.action === 'hold') {
+    const reason = requireText(
+      (req.body as { reason?: string }).reason,
+      'Give a reason for holding this report card.',
+    );
+    if (HELD.has(key)) fail('This report card is already on hold.', 409);
+    HELD.set(key, { reason, at: nowLabel(), by: actor });
+  } else if (req.params.action === 'release') {
+    if (!HELD.delete(key)) fail('This report card isn’t on hold.', 409);
+  } else fail('Unknown action', 404);
+  return { ok: true };
 });
 
 /* ---------------- Corrections ---------------- */

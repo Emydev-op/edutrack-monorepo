@@ -49,7 +49,8 @@ describe('Teacher Workspace frame (e2e)', () => {
     // Today's register (when it can be taken and isn't yet) is on the to-do list and the sidebar.
     const counts = (await okafor.get('/api/v1/nav-counts')).body.data;
     const open = !d.metrics.data.register.taken && !d.metrics.data.register.closedReason;
-    expect(counts).toEqual(open ? { register: 1 } : {});
+    // Results counts join these (school-results.e2e-spec.ts checks them on a fixed clock).
+    expect(counts.register ?? 0).toBe(open ? 1 : 0);
     expect(d.todo.data.some((x: { kind: string }) => x.kind === 'register')).toBe(open);
   });
 

@@ -13,6 +13,8 @@ export interface AuthUser {
 
 /** The school (tenant) the signed-in user works in. */
 export interface SchoolSummary {
+  /** Staff are signed out after this many minutes without using the page (unless remembered). */
+  idleTimeoutMinutes?: number;
   id: string;
   /** `greenfield`, as in greenfield.edutrack.ng. */
   slug?: string;

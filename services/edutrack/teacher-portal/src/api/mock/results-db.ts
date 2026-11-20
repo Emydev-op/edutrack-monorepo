@@ -305,7 +305,35 @@ export function sheetView(sheet: SheetRecord): ResultSheet {
     canRequestCorrection: sheet.status === 'Published',
     corrections: CORRECTIONS.filter((c) => c.sheetId === sheet.id).map(correctionView),
     history: timelineOf(historyKey(sheet.id)),
+    // The mock's sheets have one teacher each, who is the lead.
+    isLead: true,
+    lead: teacher.name,
+    canRecall: canRecall(sheet),
   };
+}
+
+/** Submitted and not yet acted on: with the HOD, or with the office straight from the teacher. */
+const canRecall = (sheet: SheetRecord) =>
+  termLockReason(sheet.termId) === null &&
+  (isWithHod(sheet) || (sheet.status === 'Under review' && !sheet.forwardedAt));
+
+/** The teacher takes a submitted sheet back to Draft before anyone acts on it. */
+export function recallSheet(sheet: SheetRecord) {
+  if (!canRecall(sheet))
+    throw new MockHttpError(
+      409,
+      'This sheet was already forwarded or decided, so there’s nothing to recall.',
+      'NOT_RECALLABLE',
+    );
+  sheet.status = 'Draft';
+  sheet.submittedAt = null;
+  logHistory(
+    historyKey(sheet.id),
+    `Recalled by ${staffById(sheet.teacherId).name}`,
+    'Back to draft',
+    'warning',
+  );
+  return sheet;
 }
 
 /* ---------- Changes ---------- */

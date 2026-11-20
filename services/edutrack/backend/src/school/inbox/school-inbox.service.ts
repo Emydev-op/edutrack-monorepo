@@ -6,6 +6,7 @@ import type { Prisma } from '../../generated/prisma/client.js';
 import { formatAgo } from '../../platform/shared/format.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { TenantPrismaService } from '../../tenancy/tenant-prisma.service.js';
+import { OfficeResultsService } from '../results/office-results.service.js';
 import { SetupService } from '../setup/setup.service.js';
 
 const LOCAL = new Intl.DateTimeFormat('en-CA', {
@@ -31,6 +32,7 @@ export class SchoolInboxService {
     private readonly prisma: PrismaService,
     private readonly tenant: TenantPrismaService,
     private readonly setup: SetupService,
+    private readonly results: OfficeResultsService,
     private readonly clock: Clock,
   ) {}
 
@@ -128,16 +130,19 @@ export class SchoolInboxService {
 
   /** Sidebar counts, keyed by School Admin's route names. Only sections on the real API count. */
   async navCounts() {
-    const [setup, support] = await Promise.all([
+    const [setup, support, results] = await Promise.all([
       this.setup.view(),
       this.tenant.db.supportTicket.count({
         where: { status: { in: ['WAITING_FOR_SCHOOL', 'RESOLVED'] } },
       }),
+      this.results.waitingOnOffice().catch(() => 0),
     ]);
     return {
       setup: setup.finished ? 0 : setup.steps.filter((s) => s.required && !s.done).length,
       // Tickets waiting on the school's reply or confirmation.
       support,
+      // Result sheets waiting on the academic office this term.
+      results,
     };
   }
 }

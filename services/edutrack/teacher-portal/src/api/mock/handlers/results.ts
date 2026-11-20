@@ -6,6 +6,7 @@
  * GET  /v1/results/:sheetId                one sheet (mine only)
  * PUT  /v1/results/:sheetId/scores         save a draft { rows: [{ studentId, scores, remark }] }
  * POST /v1/results/:sheetId/submit         submit for review (422 while scores are missing)
+ * POST /v1/results/:sheetId/recall         back to Draft before the HOD or office acts
  * GET  /v1/corrections?term=               my correction requests
  * GET  /v1/corrections/:id                 one of them
  * POST /v1/corrections                     request a correction on a published sheet
@@ -21,6 +22,7 @@ import {
   correctionView,
   entryClosed,
   lockOf,
+  recallSheet,
   requestCorrection,
   requireOwnSheet,
   saveScores,
@@ -75,6 +77,11 @@ mock.put('/v1/results/:sheetId/scores', (req) => {
 mock.post('/v1/results/:sheetId/submit', (req) => {
   const sheet = requireOwnSheet(currentTeacher(req).id, req.params.sheetId!);
   return sheetView(submitSheet(sheet));
+});
+
+mock.post('/v1/results/:sheetId/recall', (req) => {
+  const sheet = requireOwnSheet(currentTeacher(req).id, req.params.sheetId!);
+  return sheetView(recallSheet(sheet));
 });
 
 mock.get('/v1/corrections', (req) => {

@@ -122,7 +122,8 @@ export class TeachingService {
       resultEntryCloses: t.resultEntryClosesAt
         ? TeacherScopeService.local(t.resultEntryClosesAt)
         : null,
-      resultsPublication: null as string | null,
+      // The day results are published, from the term calendar's Results publication event.
+      resultsPublication: t.events?.[0] ? isoDate(t.events[0].startsOn) : null,
       lockReason: TeacherScopeService.lockReason(t),
     };
   }

@@ -140,17 +140,20 @@ export const componentName = (a: Pick<AssessmentRecord, 'armId' | 'componentKey'
 /* ---------- Seed ---------- */
 
 /** Usual dates per component in First Term: CA 1 in October, CA 2 in November, exams in the exam window. */
-const FIRST_TERM_DATES: Record<SheetComponent['key'], string> = {
+/** The demo schemes' component keys. */
+type DemoKey = 'CA1' | 'CA2' | 'EXAM';
+
+const FIRST_TERM_DATES: Record<DemoKey, string> = {
   CA1: '2026-10-13',
   CA2: '2026-11-17',
   EXAM: '2026-11-25',
 };
-const THIRD_TERM_DATES: Record<SheetComponent['key'], string> = {
+const THIRD_TERM_DATES: Record<DemoKey, string> = {
   CA1: '2026-05-19',
   CA2: '2026-06-16',
   EXAM: '2026-07-07',
 };
-const TOPICS: Record<SheetComponent['key'], string> = {
+const TOPICS: Record<DemoKey, string> = {
   CA1: 'First half of the term’s scheme of work',
   CA2: 'Second half of the term’s scheme of work',
   EXAM: 'Everything covered this term',
@@ -175,7 +178,8 @@ const nextSchoolDay = (date: string, offset: number) => {
     const dates = term.status === 'Closed' ? THIRD_TERM_DATES : FIRST_TERM_DATES;
     for (const c of schemeOf(ta).components) {
       if (UNSCHEDULED.has(`${ta.termId}|${ta.armId}|${ta.subject}|${c.key}`)) continue;
-      const date = nextSchoolDay(dates[c.key], i % 4);
+      const key = c.key as DemoKey;
+      const date = nextSchoolDay(dates[key], i % 4);
       createAssessment(
         {
           termId: ta.termId,
@@ -185,7 +189,7 @@ const nextSchoolDay = (date: string, offset: number) => {
           teacherId: ta.teacherId,
           componentKey: c.key,
           date,
-          topics: TOPICS[c.key],
+          topics: TOPICS[key],
           instructions: c.key === 'EXAM' ? 'Bring a pencil, ruler and calculator.' : '',
         },
         'the teacher',

@@ -16,6 +16,7 @@ import { SetupModule } from './setup/setup.module.js';
 import { SchoolSettingsModule } from './settings/settings.module.js';
 import { SchoolSupportModule } from './support/school-support.module.js';
 import { TeacherModule } from './teacher/teacher.module.js';
+import { ResultsModule } from './results/results.module.js';
 import { StudentsModule } from './students/students.module.js';
 
 /**
@@ -40,6 +41,9 @@ import { StudentsModule } from './students/students.module.js';
     AdmissionsModule,
     // Teacher Workspace: /v1/me, /v1/teaching/..., /v1/class-teacher/register...
     TeacherModule,
+    // Results (Phase 3b): /v1/results, /v1/reviews/sheets, /v1/corrections, /v1/class-teacher/
+    // progress|report-cards and School Admin's /v1/academics/results/...
+    ResultsModule,
     // School Admin › Support: /v1/support/tickets (the school’s side of the EduTrack desk).
     SchoolSupportModule,
     // School Admin › Settings: /v1/settings/*.

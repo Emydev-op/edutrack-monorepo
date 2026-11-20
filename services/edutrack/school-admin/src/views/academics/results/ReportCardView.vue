@@ -10,10 +10,11 @@ import { toast } from 'vue-sonner';
 import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 import PageHeader from '@edutrack/app-kit/components/common/PageHeader.vue';
 import SegmentedControl from '@edutrack/app-kit/components/common/SegmentedControl.vue';
+import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 import { useRouteQuery } from '@edutrack/app-kit/composables/useRouteQuery';
 import { initials } from '@edutrack/app-kit/lib/format';
 
-import { useReportCardQuery } from '@/api/services/academics';
+import { useReportCardHoldMutation, useReportCardQuery } from '@/api/services/academics';
 import { routesPath } from '@/router/routes-path';
 import { useLayoutStore } from '@/stores/layout';
 import { CONDUCT_SCALE } from '@/types';
@@ -23,6 +24,40 @@ const router = useRouter();
 const layout = useLayoutStore();
 const studentId = computed(() => String(route.params.studentId));
 const { data: card, isPending, error } = useReportCardQuery(studentId);
+const confirm = useConfirm();
+const holdMut = useReportCardHoldMutation();
+const showPositions = computed(() => card.value?.subjects.some((s) => s.position) ?? false);
+
+function hold() {
+  const c = card.value!;
+  void confirm({
+    title: `Hold ${c.student.name}’s report card?`,
+    description:
+      'Guardians and the student won’t see it, and won’t be notified, until you release it.',
+    input: { label: 'Reason', placeholder: 'e.g. Fees outstanding', required: true },
+    confirmLabel: 'Hold report card',
+    tone: 'destructive',
+    action: async ({ text }) => {
+      await holdMut.mutateAsync({ studentId: c.student.id, action: 'hold', reason: text });
+      toast.success('Report card put on hold.');
+    },
+  });
+}
+
+function release() {
+  const c = card.value!;
+  void confirm({
+    title: `Release ${c.student.name}’s report card?`,
+    description: c.published
+      ? 'Guardians and the student can see it again, and guardians are notified.'
+      : 'It’s released with the class when results are published.',
+    confirmLabel: 'Release',
+    action: async () => {
+      await holdMut.mutateAsync({ studentId: c.student.id, action: 'release' });
+      toast.success('Report card released.');
+    },
+  });
+}
 const template = useRouteQuery<'classic' | 'compact'>('template', 'classic');
 
 watch(card, (c) => layout.setRecordLabel(c ? `Report card · ${c.student.name}` : null), {
@@ -63,6 +98,8 @@ const pickStudent = (id: string) =>
         :description="`${card.student.name} · ${card.student.className} · ${card.title}`"
       >
         <template #actions>
+          <Button v-if="card.held" variant="outline" @click="release">Release</Button>
+          <Button v-else variant="outline" @click="hold">Hold report card</Button>
           <Button
             variant="outline"
             @click="toast.info(`Generating report-card-${card.student.id}.pdf`)"
@@ -91,6 +128,12 @@ const pickStudent = (id: string) =>
           </select>
         </label>
       </div>
+      <InlineNotice
+        v-if="card.held"
+        tone="error"
+        title="On hold"
+        :description="`${card.held.reason} · held by ${card.held.by}, ${card.held.at}. Guardians and the student can’t see this report card until it’s released.`"
+      />
       <InlineNotice
         v-if="!card.published"
         tone="warning"
@@ -206,6 +249,7 @@ const pickStudent = (id: string) =>
               </th>
               <th class="px-2 py-2 text-right font-medium">Total</th>
               <th class="px-2 py-2 text-left font-medium">Grade</th>
+              <th v-if="showPositions" class="px-2 py-2 text-left font-medium">Position</th>
               <th v-if="classic" class="px-2 py-2 text-left font-medium">Remark</th>
             </tr>
           </thead>
@@ -227,11 +271,62 @@ const pickStudent = (id: string) =>
               </td>
               <td class="px-2 py-1.5 text-right font-medium tabular-nums">{{ s.total }}</td>
               <td class="px-2 py-1.5 font-semibold">{{ s.grade }}</td>
+              <td v-if="showPositions" class="px-2 py-1.5 whitespace-nowrap">
+                {{ s.position ?? '—' }}
+              </td>
               <td v-if="classic" class="px-2 py-1.5 text-muted-foreground">{{ s.remark }}</td>
             </tr>
           </tbody>
         </table>
       </div>
+
+      <section
+        v-if="card.cumulative"
+        aria-labelledby="rc-cumulative"
+        class="mt-4 flex flex-col gap-1.5 text-[13px]"
+      >
+        <h3 id="rc-cumulative" class="text-xs font-semibold tracking-[0.04em] uppercase">
+          Session summary
+        </h3>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr :class="classic ? 'bg-muted' : 'border-b'">
+                <th class="px-2 py-2 text-left font-medium">Subject</th>
+                <th
+                  v-for="term in card.cumulative.terms"
+                  :key="term"
+                  class="px-2 py-2 text-right font-medium whitespace-nowrap"
+                >
+                  {{ term }}
+                </th>
+                <th class="px-2 py-2 text-right font-medium">Average</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="s in card.cumulative.subjects"
+                :key="s.name"
+                class="border-b border-divider"
+              >
+                <td class="px-2 py-1.5">{{ s.name }}</td>
+                <td v-for="(v, i) in s.totals" :key="i" class="px-2 py-1.5 text-right tabular-nums">
+                  {{ v ?? '—' }}
+                </td>
+                <td class="px-2 py-1.5 text-right font-medium tabular-nums">
+                  {{ s.average ?? '—' }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-muted-foreground">
+          Annual average:
+          <span class="font-semibold text-foreground">{{
+            card.cumulative.average === null ? '—' : `${card.cumulative.average}%`
+          }}</span>
+        </p>
+      </section>
 
       <div
         :class="

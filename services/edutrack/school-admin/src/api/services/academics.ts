@@ -352,6 +352,13 @@ export const useSheetActionMutation = () =>
     }) => postRequest<ResultSheet>(`${A}/results/sheets/${armId}/${subject}/${action}`, { note }),
   );
 
+/** Reopens score entry on one sheet for some days after the term's result deadline. */
+export const useReopenEntryMutation = () =>
+  useAcademicsMutation(
+    ({ armId, subject, days }: { armId: string; subject: string; days: number }) =>
+      postRequest<ResultSheet>(`${A}/results/sheets/${armId}/${subject}/reopen`, { days }),
+  );
+
 export const getPublishCheck = (armId: string) =>
   getRequest<PublishCheck>(`${A}/results/publish/${armId}`);
 
@@ -365,6 +372,24 @@ export const useReportCardQuery = (studentId: MaybeRefOrGetter<string>) =>
     queryKey: computed(() => k.reportCard(toValue(studentId))),
     queryFn: () => getRequest<ReportCard>(`${A}/results/report-card/${toValue(studentId)}`),
   });
+
+/** Withholds a report card with a reason, or releases it (`action: 'release'`). */
+export const useReportCardHoldMutation = () =>
+  useAcademicsMutation(
+    ({
+      studentId,
+      action,
+      reason,
+    }: {
+      studentId: string;
+      action: 'hold' | 'release';
+      reason?: string;
+    }) =>
+      postRequest<unknown>(
+        `${A}/results/report-card/${studentId}/${action}`,
+        reason ? { reason } : {},
+      ),
+  );
 
 export const useCorrectionsQuery = () =>
   useQuery({

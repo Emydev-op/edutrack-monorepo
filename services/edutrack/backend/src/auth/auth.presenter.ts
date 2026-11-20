@@ -29,6 +29,8 @@ export function schoolSummary(m: MembershipWithSchool) {
     initials: initialsOf(school.name),
     plan: sub ? `${sub.plan.name} · ${PERIOD[sub.billingPeriod] ?? sub.billingPeriod}` : '',
     brandColor: school.brandColor ?? DEFAULT_BRAND_COLOR,
+    /** Staff are signed out after this many minutes without activity (unless remembered). */
+    idleTimeoutMinutes: school.settings?.idleTimeoutMinutes ?? 30,
     // A stable address that redirects to a fresh signed link (signed links expire in an hour,
     // and this one is kept in the portal's session). `v` changes when the logo does.
     logoUrl: schoolLogoAddress(school),

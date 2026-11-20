@@ -6,6 +6,7 @@ import { formatAgo } from '../../platform/shared/format.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { normalizePhone } from '../../auth/identifiers.js';
 import { isoDate } from '../academics/academic-format.js';
+import { ResultsFrameService } from '../results/results-frame.service.js';
 import { RegisterService } from './register.service.js';
 import { TeacherScopeService } from './teacher-scope.service.js';
 import { TeachingService } from './teaching.service.js';
@@ -95,9 +96,8 @@ const invalid = (message: string, field = 'phone') =>
 
 /**
  * The Teacher Workspace's frame on the API: the dashboard, sidebar counts, notifications and
- * email preferences, and the teacher's own profile. Results, lesson notes, assignments and
- * reviews arrive with Phase 3b; until then their counts are zero and they add nothing to the
- * to-do list.
+ * email preferences, and the teacher's own profile. Results (sheets, HOD reviews and report-card
+ * remarks) come from the results module; lesson notes and assignments arrive with their phases.
  */
 @Injectable()
 export class TeacherFrameService {
@@ -106,6 +106,7 @@ export class TeacherFrameService {
     private readonly scope: TeacherScopeService,
     private readonly teaching: TeachingService,
     private readonly register: RegisterService,
+    private readonly results: ResultsFrameService,
     private readonly clock: Clock,
   ) {}
 
@@ -249,10 +250,23 @@ export class TeacherFrameService {
 
   /* ---------------- Sidebar counts ---------------- */
 
+  /** The results parts of the frame (counts, metrics, to-dos), or null when they can't load. */
+  private async resultsFrame(auth: AuthUserContext, termId?: string) {
+    const s = await this.scope.staff(auth);
+    const term = await this.scope.term(termId);
+    return this.results.frame(s, term);
+  }
+
   async navCounts(auth: AuthUserContext, termId?: string) {
-    // Results, lesson notes, assignments and reviews add their counts with Phase 3b.
-    const reg = await this.registerToday(auth, termId).catch(() => null);
-    return reg && !reg.taken && !reg.closedReason ? { register: 1 } : {};
+    // Lesson notes and assignments add their counts with their phases.
+    const [reg, results] = await Promise.all([
+      this.registerToday(auth, termId).catch(() => null),
+      this.resultsFrame(auth, termId).catch(() => null),
+    ]);
+    const counts: Record<string, number> = {};
+    if (reg && !reg.taken && !reg.closedReason) counts.register = 1;
+    for (const [key, n] of Object.entries(results?.counts ?? {})) if (n) counts[key] = n;
+    return counts;
   }
 
   /* ---------------- Dashboard ---------------- */
@@ -282,6 +296,7 @@ export class TeacherFrameService {
       };
     });
     const register = await this.registerToday(auth, term.id).catch(() => null);
+    const results = await this.resultsFrame(auth, term.id).catch(() => null);
     const metrics = await block(async () => {
       const tt = await timetable();
       const time = now.slice(11);
@@ -302,26 +317,38 @@ export class TeacherFrameService {
           tt.todayNote ?? (tt.lessons.length ? null : 'No lessons on your timetable yet.'),
         toGrade: 0,
         toGradeAssignments: 0,
-        sheets: { submitted: 0, total: 0, deadline: null, entryOpen: term.status === 'ACTIVE' },
+        sheets: results?.sheets ?? {
+          submitted: 0,
+          total: 0,
+          deadline: null,
+          entryOpen: term.status === 'ACTIVE',
+        },
         register,
-        reviews: null,
+        // Lesson-note reviews come with their phase.
+        reviews:
+          results && results.reviewSheets !== null
+            ? { sheets: results.reviewSheets, notes: null }
+            : null,
       };
     });
-    const todo = await block(async () =>
-      register && !register.taken && !register.closedReason && term.status === 'ACTIVE'
-        ? [
-            {
-              id: `register:${now.slice(0, 10)}`,
-              kind: 'register' as const,
-              badge: { label: 'Today', tone: 'warning' as const },
-              title: `Take today’s register for ${register.armName}`,
-              detail: 'Mark every student present, late, absent or excused.',
-              action: 'Take register',
-              to: { name: 'register' },
-            },
-          ]
-        : [],
-    );
+    const todo = await block(async () => {
+      const items: unknown[] = [];
+      // Returned sheets first, then sheets still open for entry, as the mock orders them.
+      const sheetItems = (results?.todo ?? []) as { kind: string }[];
+      items.push(...sheetItems.filter((x) => x.kind.startsWith('sheet-')));
+      if (register && !register.taken && !register.closedReason && term.status === 'ACTIVE')
+        items.push({
+          id: `register:${now.slice(0, 10)}`,
+          kind: 'register' as const,
+          badge: { label: 'Today', tone: 'warning' as const },
+          title: `Take today’s register for ${register.armName}`,
+          detail: 'Mark every student present, late, absent or excused.',
+          action: 'Take register',
+          to: { name: 'register' },
+        });
+      items.push(...sheetItems.filter((x) => !x.kind.startsWith('sheet-')));
+      return items;
+    });
     const active = ctx.terms.find((x: { id: string }) => x.id === term.id) as
       { label?: string; name?: string; status?: string } | undefined;
     return {

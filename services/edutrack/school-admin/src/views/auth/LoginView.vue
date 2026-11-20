@@ -47,7 +47,12 @@ type Notice = {
   text: string;
 };
 const CONTACT = 'Contact platform support at support@edutrack.ng or +234 1 700 2200.';
-const NOTICES: Record<AccountBlock | 'expired' | 'signedout' | 'reset', Notice> = {
+const NOTICES: Record<AccountBlock | 'expired' | 'signedout' | 'reset' | 'idle', Notice> = {
+  idle: {
+    tone: 'info',
+    title: 'You were signed out after a period of inactivity.',
+    text: 'Your school signs staff out when School Admin isn’t used for a while. Sign in again to continue.',
+  },
   expired: {
     tone: 'info',
     title: 'Your session has expired. Please sign in again.',
@@ -93,7 +98,7 @@ const reason = route.query.reason as string | undefined;
 const notice = computed(() =>
   block.value
     ? NOTICES[block.value]
-    : reason === 'expired' || reason === 'signedout' || reason === 'reset'
+    : reason === 'expired' || reason === 'signedout' || reason === 'reset' || reason === 'idle'
       ? NOTICES[reason]
       : null,
 );

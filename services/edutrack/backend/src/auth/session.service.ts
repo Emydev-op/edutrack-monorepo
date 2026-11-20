@@ -18,6 +18,7 @@ export type RevokeReason =
   | 'reuse_detected'
   | 'access_lost'
   | 'school_suspended'
+  | 'idle'
   | 'admin';
 
 /** The session facts the auth guard needs on every request (cached briefly in Redis). */
@@ -110,6 +111,14 @@ export class SessionService {
     // A school-subdomain session only refreshes on its own school's subdomain.
     if (expect.schoolId !== undefined && session.schoolId !== expect.schoolId) throw ended();
     if (session.revokedAt || session.expiresAt <= now) throw ended();
+    // Staff sessions on a shared computer end after the school's idle time (not remembered ones).
+    if (await this.idleTooLong(session, now)) {
+      await this.revoke(session.id, 'idle');
+      throw AppException.unauthorized(
+        'You were signed out after a period of inactivity. Sign in again.',
+        'SESSION_IDLE',
+      );
+    }
 
     const next = randomToken();
     // Compare-and-swap on the current hash: of two parallel refreshes, exactly one wins.
@@ -225,6 +234,18 @@ export class SessionService {
       .set(cacheKey(sessionId), JSON.stringify(snapshot), 'EX', CACHE_SECONDS)
       .catch(() => undefined);
     return snapshot;
+  }
+
+  /** A School Admin or Teacher Workspace session, not remembered, unused for the school's idle time. */
+  private async idleTooLong(session: AuthSession, now: Date) {
+    if (session.rememberMe || !session.schoolId) return false;
+    if (session.portal !== 'SCHOOL_ADMIN' && session.portal !== 'TEACHER') return false;
+    const settings = await this.prisma.schoolSettings.findFirst({
+      where: { schoolId: session.schoolId },
+      select: { idleTimeoutMinutes: true },
+    });
+    const minutes = settings?.idleTimeoutMinutes ?? 30;
+    return now.getTime() - session.lastSeenAt.getTime() > minutes * 60_000;
   }
 
   /** Records activity for the devices list, at most once a minute per session. */

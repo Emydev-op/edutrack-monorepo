@@ -34,6 +34,8 @@ export const useAuthStore = defineStore('auth', () => {
   const school = ref<SchoolSummary | null>(initial?.school ?? null);
 
   const isAuthenticated = computed(() => token.value !== null);
+  /** "Remember this device": the session is kept in localStorage and isn't signed out when idle. */
+  const remembered = () => !!localStorage.getItem(STORAGE_KEY);
   const fullName = computed(() =>
     user.value ? `${user.value.firstName} ${user.value.lastName}` : '',
   );
@@ -85,6 +87,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     school,
     isAuthenticated,
+    remembered,
     fullName,
     initials,
     setSession,
