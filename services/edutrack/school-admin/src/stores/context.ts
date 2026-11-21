@@ -2,6 +2,7 @@ import { useStorage } from '@vueuse/core';
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 
+import { queryClient } from '@/lib/query-client';
 import type { ContextOptions, WorkingContext } from '@/types';
 
 import { useAuthStore } from './auth';
@@ -49,7 +50,16 @@ export const useContextStore = defineStore('context', () => {
   function set(patch: Partial<WorkingContext>) {
     const id = auth.school?.id;
     if (!id) return;
-    saved.value = { ...saved.value, [id]: { ...current.value, ...patch } };
+    const before = current.value;
+    saved.value = { ...saved.value, [id]: { ...before, ...patch } };
+    // Everything on screen belonged to the old context: drop it and fetch again for the new one.
+    const after = current.value;
+    if (
+      before.session !== after.session ||
+      before.term !== after.term ||
+      before.branch !== after.branch
+    )
+      void queryClient.resetQueries();
     changed.value = true;
     clearTimeout(flashTimer);
     flashTimer = setTimeout(() => (changed.value = false), 3500);

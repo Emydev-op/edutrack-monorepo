@@ -274,7 +274,7 @@ export class SchoolSettingsService {
   async academic() {
     const [row, session, assessment] = await Promise.all([
       this.settingsRow(),
-      this.catalog.currentSession(),
+      this.catalog.activeSession(),
       this.assessment.view(),
     ]);
     const schemes = Object.entries(assessment.schemes)

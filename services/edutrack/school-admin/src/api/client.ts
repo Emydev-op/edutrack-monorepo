@@ -11,6 +11,7 @@ import { env } from '@/config/env';
 import router from '@/router';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
+import { useContextStore } from '@/stores/context';
 import type { LoginResponse } from '@/types';
 
 import { isRealRoute } from './real-routes';
@@ -46,6 +47,18 @@ apiClient.defaults.withCredentials = true;
 apiClient.defaults.headers.common['X-EduTrack-Portal'] = 'school_admin';
 // Every answer is `{ success, message, data }`; screens get `data`, toasts read `messageOf()`.
 unwrapEnvelope(apiClient);
+
+// Reads carry the header's working session, term and branch, so every screen shows the session
+// it's switched to (a past session's records). Writes always act on the active session.
+apiClient.interceptors.request.use((config) => {
+  if ((config.method ?? 'get').toLowerCase() !== 'get' || !useAuthStore().isAuthenticated)
+    return config;
+  const { session, term, branch } = useContextStore().current;
+  if (session) config.headers.set('X-EduTrack-Session', encodeURIComponent(session));
+  if (term) config.headers.set('X-EduTrack-Term', encodeURIComponent(term));
+  if (branch) config.headers.set('X-EduTrack-Branch', encodeURIComponent(branch));
+  return config;
+});
 
 // The mock is loaded on demand, so it and its seed data never ship when nothing uses it.
 const loadMock = () => import('./mock');

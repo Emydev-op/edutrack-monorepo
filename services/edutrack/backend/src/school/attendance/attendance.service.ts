@@ -1,4 +1,5 @@
 import { armRollSpans, covers } from '../shared/arm-roll.js';
+import { ENROLLED } from '../shared/enrolled.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { Clock } from '../../common/clock/clock.js';
 import type { AttendanceMark } from '../../generated/prisma/enums.js';
@@ -101,7 +102,7 @@ export class AttendanceService {
   /** Students on an arm's roll this session (placed and still enrolled). */
   roll(sessionId: string, armIds: string[]) {
     return this.db.enrollment.findMany({
-      where: { sessionId, armId: { in: armIds }, status: 'ACTIVE' },
+      where: { sessionId, armId: { in: armIds }, status: ENROLLED },
       include: {
         student: { select: { id: true, firstName: true, surname: true, admissionNo: true } },
       },

@@ -28,6 +28,17 @@ export interface RequestContextState {
   membershipId?: string;
   /** Read-only platform support access to a school (audited). */
   supportSessionId?: string;
+  /**
+   * School Admin's header context (session, term and branch names) on reads: what the screen is
+   * looking at. Writes always act on the active session, so it's only set for GET requests.
+   */
+  working?: WorkingContext;
+}
+
+export interface WorkingContext {
+  session?: string;
+  term?: string;
+  branch?: string;
 }
 
 const storage = new AsyncLocalStorage<RequestContextState>();
@@ -68,6 +79,12 @@ export const RequestContext = {
     const state = storage.getStore();
     if (!state) throw new Error('RequestContext.patch() called outside a request context');
     Object.assign(state, values);
+  },
+
+  /** School Admin's working session/term/branch on a read (see `working`), else empty. */
+  working(): WorkingContext {
+    const state = storage.getStore();
+    return state?.portal === 'SCHOOL_ADMIN' ? (state.working ?? {}) : {};
   },
 
   /** The tenant of the current context, if any. */

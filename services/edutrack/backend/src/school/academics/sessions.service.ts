@@ -174,7 +174,7 @@ export class SessionsService {
     const [rows, counts, current, confirmed] = await Promise.all([
       this.db.academicSession.findMany({ orderBy: { startsOn: 'desc' }, include: termInclude }),
       this.studentCounts(),
-      this.structure.currentSession(),
+      this.structure.activeSession(),
       this.structure.confirmedKeys(),
     ]);
     return {

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ENROLLED } from '../shared/enrolled.js';
 import { Clock } from '../../common/clock/clock.js';
 import { RequestContext } from '../../common/context/request-context.js';
 import { AppException } from '../../common/errors/app.exception.js';
@@ -88,9 +89,17 @@ export class StudentsService {
     return lagosToday(this.clock.now());
   }
 
-  /** The session students are enrolled for: the Active one, else the next Upcoming one. */
+  /**
+   * The session students are enrolled for: School Admin's working session on a read (a past
+   * session's roll), else the Active one, else the next Upcoming one.
+   */
   async currentSession() {
     const include = { terms: { orderBy: { sequence: 'asc' as const } } };
+    const viewed = RequestContext.working().session;
+    if (viewed) {
+      const found = await this.db.academicSession.findFirst({ where: { name: viewed }, include });
+      if (found) return found;
+    }
     return (
       (await this.db.academicSession.findFirst({ where: { status: 'ACTIVE' }, include })) ??
       (await this.db.academicSession.findFirst({
@@ -362,7 +371,7 @@ export class StudentsService {
       by: ['armId'],
       where: {
         sessionId,
-        status: 'ACTIVE',
+        status: ENROLLED,
         armId: armIds ? { in: armIds } : { not: null },
         student: { status: { in: ON_ROLL }, deletedAt: null },
       },
@@ -404,7 +413,7 @@ export class StudentsService {
         where: {
           sessionId: session.id,
           branchId: branch.id,
-          status: 'ACTIVE',
+          status: ENROLLED,
           armId: null,
           student: { status: 'ACTIVE', deletedAt: null },
         },
@@ -460,7 +469,7 @@ export class StudentsService {
         ? this.db.enrollment.count({
             where: {
               sessionId: session.id,
-              status: 'ACTIVE',
+              status: ENROLLED,
               armId: { not: null },
               student: { status: { in: ON_ROLL }, deletedAt: null },
             },
