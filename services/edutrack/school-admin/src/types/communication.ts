@@ -24,6 +24,7 @@ export type CommsEvent =
   | 'payment.rejected'
   | 'refund.paid'
   | 'assignment.published'
+  | 'assignment.returned'
   | 'result.published'
   | 'student.exit'
   | 'graduation'

@@ -22,6 +22,7 @@ export type CommsEventKey =
   | 'payment.rejected'
   | 'refund.paid'
   | 'assignment.published'
+  | 'assignment.returned'
   | 'result.published'
   | 'student.exit'
   | 'graduation'
@@ -425,6 +426,33 @@ export const EVENTS: EventDef[] = [
       Email: {
         subject: 'New [subject] assignment for [student_name]',
         body: '[title] has been set for [student_name], due [due_date].',
+      },
+    },
+  },
+  {
+    key: 'assignment.returned',
+    label: 'Assignment returned',
+    description: 'Tells families a teacher has graded and returned homework, with feedback.',
+    who: 'Students · guardians',
+    available: ['In-app', 'Email'],
+    defaults: ['In-app'],
+    locked: '',
+    trigger: 'Teacher Workspace',
+    quiet: true,
+    variables: [
+      STUDENT,
+      v('subject', 'Subject', 'Mathematics'),
+      v('title', 'Assignment', 'Algebra revision'),
+      v('score', 'Score', '16 / 20'),
+    ],
+    templates: {
+      'In-app': {
+        subject: '[subject] homework graded',
+        body: '[title] was returned with [score]. Open it to read the feedback.',
+      },
+      Email: {
+        subject: '[student_name]’s [subject] homework was graded',
+        body: '[title] was returned to [student_name] with [score]. Sign in to read the teacher’s feedback.',
       },
     },
   },

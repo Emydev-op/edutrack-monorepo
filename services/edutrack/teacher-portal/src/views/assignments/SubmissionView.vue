@@ -253,6 +253,9 @@ const listTo = computed(() => ({
           <template v-if="handedIn">
             <p class="mb-3 text-[13px] text-muted-foreground">
               Handed in {{ when(s.submittedAt) }}
+              <span v-if="s.submittedByGuardian">
+                by {{ s.submittedByGuardian }} (parent/guardian)</span
+              >
               <span v-if="s.late && a.dueAt" class="font-medium text-warning-strong">
                 · {{ durationText(a.dueAt, s.submittedAt!) }} after the due time ({{
                   formatDeadline(a.dueAt)
@@ -262,7 +265,7 @@ const listTo = computed(() => ({
             <FileList :files="s.fileList" empty-text="No files, only a note." />
             <div v-if="s.note" class="mt-3 rounded-md bg-muted px-3 py-2.5 text-[13px]">
               <span class="block text-xs font-medium text-muted-foreground"
-                >Note from the student</span
+                >Note from the {{ s.submittedByGuardian ? 'parent' : 'student' }}</span
               >
               {{ s.note }}
             </div>

@@ -155,6 +155,7 @@ function submissionRowOf(s: SubmissionRecord): SubmissionRow {
     files: s.files.length,
     gradedAt: s.gradedAt,
     returnedAt: s.returnedAt,
+    submittedByGuardian: null,
   };
 }
 
@@ -550,6 +551,21 @@ mock.get('/v1/assignments/student/:studentId', (req): StudentAssignmentRow[] => 
       score: s.score,
     }),
   );
+});
+
+/* ---------- Uploads ---------- */
+
+let uploadSeq = 0;
+/** The mock keeps no bytes: it answers the file's name, type and size with an id. */
+mock.post('/v1/uploads', (req): FileRef => {
+  const body = (req.body ?? {}) as { name?: unknown; dataUrl?: unknown };
+  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const url = typeof body.dataUrl === 'string' ? body.dataUrl : '';
+  const match = /^data:([^;,]*);base64,(.*)$/.exec(url);
+  if (!name || !match) fieldError('file', 'The file didn’t upload. Attach it again.');
+  const base64 = match![2]!;
+  const bytes = Math.floor((base64.length * 3) / 4) - (base64.match(/=+$/)?.[0].length ?? 0);
+  return { id: `up-${++uploadSeq}`, name, type: match![1] ?? '', bytes };
 });
 
 /* ---------- Sidebar ---------- */

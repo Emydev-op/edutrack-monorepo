@@ -27,6 +27,9 @@ export function configureApp(app: INestApplication) {
   express.use('/api/v1/staff/:id/documents', json({ limit: '7mb' }));
   // Correction requests carry their evidence (a PDF or photo up to 10 MB) as a data URL.
   express.use('/api/v1/corrections', json({ limit: '14mb' }));
+  // Homework uploads (attachments, materials, handed-in work) carry one file of up to 25 MB as a
+  // data URL (about 33.4 MB of base64).
+  express.use('/api/v1/uploads', json({ limit: '35mb' }));
   // Student imports carry the CSV text (up to 4 MB, more once JSON-escaped).
   express.use('/api/v1/imports', json({ limit: '6mb' }));
   // Profile photos arrive as data URLs (up to 2 MB, about 2.8 MB of base64).

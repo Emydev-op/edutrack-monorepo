@@ -108,7 +108,12 @@ export function validateMaterialFile(type: MaterialType, value: unknown): FileRe
       `“${f.name}” is ${fileSizeLabel(f.bytes)}. Files can be up to 25 MB. Compress it or share it as a link.`,
     );
   if (f.bytes <= 0) fieldError('file', `“${f.name}” is empty.`);
-  return { name: f.name.trim(), type: typeof f.type === 'string' ? f.type : '', bytes: f.bytes };
+  return {
+    ...(typeof f.id === 'string' ? { id: f.id } : {}),
+    name: f.name.trim(),
+    type: typeof f.type === 'string' ? f.type : '',
+    bytes: f.bytes,
+  };
 }
 
 export function validateMaterialBody(body: Record<string, unknown>) {

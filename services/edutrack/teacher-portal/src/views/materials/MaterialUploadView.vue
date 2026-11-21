@@ -19,6 +19,7 @@ import FormInput from '@edutrack/app-kit/components/form/FormInput.vue';
 import FormSelect from '@edutrack/app-kit/components/form/FormSelect.vue';
 import FormTextarea from '@edutrack/app-kit/components/form/FormTextarea.vue';
 
+import { uploadFile } from '@/api/services/assignments';
 import { useUploadMaterialMutation } from '@/api/services/materials';
 import { useMyScopeQuery } from '@/api/services/shell';
 import { fileSize } from '@/components/assignments/assignment-format';
@@ -122,6 +123,8 @@ const TYPE_CHOICES = MATERIAL_TYPES.map((t) => ({
 /* ---------- File ---------- */
 
 const file = ref<FileRef | null>(null);
+/** The picked file itself, uploaded when the teacher publishes. */
+const rawFile = ref<File | null>(null);
 const fileError = ref('');
 const input = ref<HTMLInputElement | null>(null);
 const extensions = computed(() =>
@@ -147,10 +150,14 @@ function pick(event: Event) {
   const f = { name: picked.name, type: picked.type, bytes: picked.size };
   fileError.value = checkFile(f);
   file.value = fileError.value ? null : f;
+  rawFile.value = fileError.value ? null : picked;
 }
 watch(type, () => {
   if (file.value) fileError.value = checkFile(file.value);
-  if (fileError.value) file.value = null;
+  if (fileError.value) {
+    file.value = null;
+    rawFile.value = null;
+  }
 });
 
 const fileIcon = computed(() => MATERIAL_ICON[type.value]);
@@ -163,7 +170,8 @@ const phase = ref<Phase>('form');
 const progress = ref(0);
 const serverError = ref('');
 let timer: ReturnType<typeof setInterval> | undefined;
-let failedOnce = false;
+/** Why the last upload failed, when the server said. */
+const uploadError = ref('');
 onBeforeUnmount(() => clearInterval(timer));
 
 const busy = computed(() => ['uploading', 'processing', 'published'].includes(phase.value));
@@ -172,22 +180,24 @@ useUnsavedWork(
   'Material upload',
 );
 
-/** Simulates the file transfer; "fail" in the title drops the connection at 60% (once). */
-function transfer(simulateFailure: boolean) {
-  return new Promise<void>((resolve, reject) => {
-    progress.value = 0;
+/**
+ * Uploads the picked file (`POST /v1/uploads`), with a progress bar that climbs while it goes.
+ * The answer's id is what the material is published with.
+ */
+async function transfer(): Promise<FileRef> {
+  progress.value = 0;
+  clearInterval(timer);
+  timer = setInterval(() => (progress.value = Math.min(90, progress.value + 10)), 180);
+  try {
+    const uploaded = await uploadFile(rawFile.value!);
+    progress.value = 100;
+    return uploaded;
+  } catch (e) {
+    uploadError.value = getApiErrorMessage(e, '');
+    throw e;
+  } finally {
     clearInterval(timer);
-    timer = setInterval(() => {
-      progress.value = Math.min(100, progress.value + 10);
-      if (simulateFailure && progress.value >= 60) {
-        clearInterval(timer);
-        reject(new Error('network'));
-      } else if (progress.value >= 100) {
-        clearInterval(timer);
-        resolve();
-      }
-    }, 180);
-  });
+  }
 }
 
 const start = handleSubmit(async (v) => {
@@ -199,13 +209,13 @@ const start = handleSubmit(async (v) => {
   }
   const [armId = '', subject = ''] = v.classKey.split('|');
   try {
+    let uploaded: FileRef | null = null;
     if (!isLink) {
       phase.value = 'uploading';
-      const fail = !failedOnce && /fail/i.test(v.title);
+      uploadError.value = '';
       try {
-        await transfer(fail);
+        uploaded = await transfer();
       } catch {
-        failedOnce = true;
         phase.value = 'failed';
         return;
       }
@@ -217,7 +227,7 @@ const start = handleSubmit(async (v) => {
       type: v.type as MaterialType,
       title: v.title,
       description: v.description ?? '',
-      file: isLink ? null : file.value,
+      file: isLink ? null : uploaded,
       link: isLink ? (v.link ?? '') : null,
     });
     phase.value = 'published';
@@ -319,7 +329,7 @@ const start = handleSubmit(async (v) => {
                 type="button"
                 class="text-muted-foreground hover:text-foreground"
                 :aria-label="`Remove ${file.name}`"
-                @click="file = null"
+                @click="((file = null), (rawFile = null))"
               >
                 <XIcon class="size-4" />
               </button>
@@ -362,8 +372,8 @@ const start = handleSubmit(async (v) => {
         <template v-else-if="phase === 'failed'">
           <Progress :model-value="progress" class="[&>*]:bg-destructive" />
           <p class="text-[13px] text-error-strong">
-            The connection dropped at {{ progress }}%. Nothing was published and your details are
-            kept.
+            {{ uploadError || `The connection dropped at ${progress}%.` }} Nothing was published and
+            your details are kept.
           </p>
           <div class="flex gap-2">
             <Button type="button" size="sm" @click="start">Retry upload</Button>

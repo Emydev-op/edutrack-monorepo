@@ -26,8 +26,8 @@ const termQuery = ApiQuery({
 /**
  * Teacher Workspace (`<slug>.edutrack.ng/teacher`): the frame, Teaching (my classes, subjects,
  * students, timetable, lessons) and My class › Register. Every answer is scoped to the signed-in
- * teacher: their assignments, and their class when they're a class teacher. Results, lesson notes,
- * assignments and materials come with Phase 3b. `GET /v1/dashboard` and `GET /v1/search` are served
+ * teacher: their assignments, and their class when they're a class teacher. Results, homework
+ * (assignments and materials) and lesson notes have their own modules. `GET /v1/dashboard` and `GET /v1/search` are served
  * with School Admin's by `SchoolFrameController` (insights), on the same paths.
  */
 @ApiTags('teacher workspace')

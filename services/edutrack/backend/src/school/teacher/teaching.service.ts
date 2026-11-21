@@ -1,5 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { AuthUserContext } from '../../auth/auth-context.js';
+import { AssignmentsHomeworkService } from '../homework/assignments-homework.service.js';
+import { MaterialsHomeworkService } from '../homework/materials-homework.service.js';
 import { Clock } from '../../common/clock/clock.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import type { Weekday } from '../../generated/prisma/enums.js';
@@ -39,7 +41,7 @@ const role = (type: string) =>
  * Teacher Workspace (`<slug>.edutrack.ng/teacher`): the frame (who I am, terms and the clock, my
  * scope, search) and Teaching (my classes, subjects, students, timetable, lessons). Shapes follow
  * the Teacher Workspace mock (`teacher-portal/src/api/mock/handlers/shell.ts` and `teaching.ts`).
- * Results, assignments and materials arrive with their phases, so those parts are empty for now.
+ * The lesson page shows the class's open assignment and newest material (homework module).
  */
 @Injectable()
 export class TeachingService {
@@ -47,6 +49,8 @@ export class TeachingService {
     private readonly scope: TeacherScopeService,
     private readonly attendance: AttendanceService,
     private readonly clock: Clock,
+    private readonly homework: AssignmentsHomeworkService,
+    private readonly materials: MaterialsHomeworkService,
   ) {}
 
   private get db() {
@@ -800,9 +804,12 @@ export class TeachingService {
       classTeacher: ct,
       multiCampus: new Set(lessons.map((l) => l.lesson.branchId)).size > 1,
       next,
-      // Assignments and materials arrive with their phase.
-      openAssignment: null,
-      latestMaterial: null,
+      openAssignment: arm ? await this.homework.openFor(term, arm, found.slot.subjectId) : null,
+      latestMaterial: await this.materials.latestFor(
+        term.id,
+        found.lesson.armId,
+        found.slot.subjectId,
+      ),
     };
   }
 }

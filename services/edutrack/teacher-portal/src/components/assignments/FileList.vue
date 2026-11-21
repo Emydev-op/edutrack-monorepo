@@ -5,7 +5,10 @@ import type { FileRef } from '@/types';
 
 import { fileSize } from './assignment-format';
 
-/** Read-only list of attached files (name, size; linked materials that were archived say so). */
+/**
+ * Read-only list of attached files (name, size; linked materials that were archived say so). A
+ * file with a download link from the API opens in a new tab.
+ */
 withDefaults(defineProps<{ files: FileRef[]; emptyText?: string }>(), {
   emptyText: 'No files attached.',
 });
@@ -30,7 +33,15 @@ const iconOf = (f: FileRef) => {
       :class="f.unavailable && 'opacity-70'"
     >
       <component :is="iconOf(f)" class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <span class="min-w-0 flex-1 truncate" :class="f.unavailable && 'line-through'">{{
+      <a
+        v-if="f.url && !f.unavailable"
+        :href="f.url"
+        target="_blank"
+        rel="noopener"
+        class="min-w-0 flex-1 truncate text-primary underline-offset-2 hover:underline"
+        >{{ f.name }}</a
+      >
+      <span v-else class="min-w-0 flex-1 truncate" :class="f.unavailable && 'line-through'">{{
         f.name
       }}</span>
       <span v-if="f.unavailable" class="shrink-0 text-xs font-medium text-warning-strong"

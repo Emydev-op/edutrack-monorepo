@@ -255,6 +255,7 @@ export function validateAttachments(value: unknown): FileRef[] {
       );
     if (f.bytes <= 0) fieldError('attachments', `“${f.name}” is empty.`);
     return {
+      ...(typeof f.id === 'string' ? { id: f.id } : {}),
       name: f.name.trim(),
       type: typeof f.type === 'string' ? f.type : '',
       bytes: f.bytes,

@@ -116,6 +116,9 @@ async function restore() {
   <template v-else>
     <PageHeader :title="m.title" :status="m.status" :description="m.classLabel">
       <template #actions>
+        <Button v-if="m.file?.url" as-child variant="outline">
+          <a :href="m.file.url" target="_blank" rel="noopener">Download</a>
+        </Button>
         <Button v-if="m.link" as-child variant="outline">
           <a :href="m.link" target="_blank" rel="noopener noreferrer"
             ><ExternalLinkIcon class="size-4" /> Open link</a
