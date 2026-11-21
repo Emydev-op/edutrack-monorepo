@@ -3,7 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { cn } from '@edutrack/ui/lib/utils';
 import { getApiErrorMessage } from '@edutrack/web-core/http';
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
@@ -14,6 +14,7 @@ import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 import { useRouteQuery } from '@edutrack/app-kit/composables/useRouteQuery';
 import { initials } from '@edutrack/app-kit/lib/format';
 
+import { downloadFile } from '@/api/helpers';
 import { useReportCardHoldMutation, useReportCardQuery } from '@/api/services/academics';
 import { routesPath } from '@/router/routes-path';
 import { useLayoutStore } from '@/stores/layout';
@@ -66,6 +67,21 @@ watch(card, (c) => layout.setRecordLabel(c ? `Report card · ${c.student.name}` 
 
 const printCard = () => window.print();
 
+const downloading = ref(false);
+async function downloadPdf(c: { student: { id: string; name: string } }) {
+  downloading.value = true;
+  try {
+    await downloadFile(
+      `/v1/academics/results/report-card/${c.student.id}/pdf`,
+      `${c.student.name} report card.pdf`,
+    );
+  } catch (e) {
+    toast.error(getApiErrorMessage(e, 'We couldn’t make the PDF. Try again.'));
+  } finally {
+    downloading.value = false;
+  }
+}
+
 const classic = computed(() => template.value === 'classic');
 const pickStudent = (id: string) =>
   router.push({
@@ -100,11 +116,9 @@ const pickStudent = (id: string) =>
         <template #actions>
           <Button v-if="card.held" variant="outline" @click="release">Release</Button>
           <Button v-else variant="outline" @click="hold">Hold report card</Button>
-          <Button
-            variant="outline"
-            @click="toast.info(`Generating report-card-${card.student.id}.pdf`)"
-            >Download PDF</Button
-          >
+          <Button variant="outline" :disabled="downloading" @click="downloadPdf(card)">{{
+            downloading ? 'Preparing PDF…' : 'Download PDF'
+          }}</Button>
           <Button @click="printCard">Print</Button>
         </template>
       </PageHeader>

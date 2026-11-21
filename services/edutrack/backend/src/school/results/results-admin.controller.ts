@@ -10,7 +10,8 @@ import {
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { Portals, RequirePermission } from '../../auth/decorators/auth.decorators.js';
 import { CurrentUser } from '../../common/decorators/request.decorators.js';
-import { ResponseMessage } from '../../common/http/api-response.js';
+import { RawResponse, ResponseMessage } from '../../common/http/api-response.js';
+import { pdfFile } from '../../common/pdf/school-documents.js';
 import { RecordIdPipe } from '../../platform/shared/params.js';
 import { CorrectionsService } from './corrections.service.js';
 import {
@@ -161,6 +162,17 @@ export class ResultsAdminController {
   @ApiOperation({ summary: 'A student’s report card (a preview until the class is published)' })
   reportCard(@Param('studentId', studentId) id: string, @Query('term') term?: string) {
     return this.publishing.reportCard(id, term);
+  }
+
+  @RawResponse()
+  @Get('report-card/:studentId/pdf')
+  @RequirePermission('results.view')
+  @termQuery
+  @ApiOperation({
+    summary: 'A student’s report card as a PDF (marked as a preview until the class is published)',
+  })
+  async reportCardPdf(@Param('studentId', studentId) id: string, @Query('term') term?: string) {
+    return pdfFile(await this.publishing.reportCardPdf(id, term));
   }
 
   @ResponseMessage('Report card put on hold.')

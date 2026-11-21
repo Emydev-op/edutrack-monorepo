@@ -6,6 +6,7 @@ import type { InvoiceRec } from '../finance/finance-data.js';
 import { dateOnly, kobo, money, shortDate, sum } from '../finance/finance-format.js';
 import { financeView } from '../finance/finance-summaries.js';
 import type { FinView } from '../finance/finance-view.js';
+import { documentSchool, paymentReceipt } from '../finance/receipts.js';
 import type { TenantTx } from '../shared/tenant-tx.js';
 import type { FeeClaimDto } from './dto/parent.dto.js';
 import { guardianDisplay, ParentScopeService, type ChildScope } from './parent-scope.service.js';
@@ -207,6 +208,15 @@ export class ParentFeesService {
   async summaries(auth: AuthUserContext, studentIds: string[]) {
     const v = await this.load(auth);
     return new Map(studentIds.map((id) => [id, ParentFeesService.summary(v, id)]));
+  }
+
+  /** `GET /v1/parent/children/:id/payments/:paymentId/receipt`: a confirmed payment's PDF. */
+  async receipt(auth: AuthUserContext, scope: ChildScope, paymentId: string) {
+    const v = await this.load(auth);
+    const p = v.fin.payments.find((x) => x.id === paymentId && x.studentKey === scope.student.id);
+    if (!p) throw AppException.notFound('Payment not found', 'PAYMENT_NOT_FOUND');
+    const school = await documentSchool(this.scope.db as unknown as TenantTx, auth.schoolId!);
+    return paymentReceipt(v, p, school, this.scope.now());
   }
 
   /** `GET /v1/parent/children/:id/fees`. */

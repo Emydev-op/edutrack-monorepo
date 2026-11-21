@@ -26,6 +26,7 @@ import {
   useRequestRefundMutation,
   useVerifyPaymentMutation,
 } from '@/api/services/finance';
+import { downloadFile } from '@/api/helpers';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
 
@@ -144,6 +145,18 @@ async function submitRefund() {
 
 const printReceipt = () => window.print();
 
+const downloading = ref(false);
+async function downloadReceipt(x: { id: string; no: string }) {
+  downloading.value = true;
+  try {
+    await downloadFile(`/v1/finance/payments/${x.id}/receipt`, `Receipt-${x.no}.pdf`);
+  } catch (e) {
+    toast.error(getApiErrorMessage(e, 'We couldn’t make the receipt. Try again.'));
+  } finally {
+    downloading.value = false;
+  }
+}
+
 const detailRows = computed(() => {
   const x = p.value;
   if (!x) return [];
@@ -195,6 +208,13 @@ const detailRows = computed(() => {
         :description="`${formatNaira(p.amount)} · ${p.student} · ${p.className}`"
       >
         <template #actions>
+          <Button
+            v-if="p.status === 'Confirmed'"
+            variant="outline"
+            :disabled="downloading"
+            @click="downloadReceipt(p)"
+            >{{ downloading ? 'Preparing PDF…' : 'Download receipt' }}</Button
+          >
           <Button variant="outline" @click="printReceipt">Print receipt</Button>
           <template v-if="pending">
             <Button variant="outline" :disabled="reject.isPending.value" @click="askReject"
