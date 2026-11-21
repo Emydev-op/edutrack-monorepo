@@ -53,6 +53,12 @@ export class StorageService implements OnModuleInit {
   }
 
   /** Short-lived download URL so private files never need to be public. */
+  /** The object's bytes (e.g. a photo to print on a PDF). */
+  async download(key: string): Promise<Buffer> {
+    const res = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }));
+    return Buffer.from(await res.Body!.transformToByteArray());
+  }
+
   getDownloadUrl(key: string, expiresInSeconds = 300) {
     return getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
       expiresIn: expiresInSeconds,

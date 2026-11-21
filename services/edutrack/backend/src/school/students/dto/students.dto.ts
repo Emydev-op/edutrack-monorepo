@@ -165,3 +165,17 @@ export class EnrollDto {
   @IsArray({ message: 'Choose at least one student.' })
   studentIds!: string[];
 }
+
+/** `PUT /v1/students/:id/photo`. */
+export class StudentPhotoDto {
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: 'Photo as a data URL (JPG or PNG, 2 MB); null removes it.',
+  })
+  @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
+  @MaxLength(3_000_000, { message: 'The photo is larger than 2 MB.' })
+  @IsString()
+  photo?: string | null;
+}

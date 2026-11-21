@@ -24,7 +24,7 @@ import type {
   TransferPayload,
 } from '@/types';
 
-import { cleanParams, getRequest, postRequest } from '../helpers';
+import { cleanParams, getRequest, postRequest, putRequest } from '../helpers';
 import { queryKeys } from '../query-keys';
 
 /** Anything that changes students can change guardians, capacity, applications and the dashboard. */
@@ -62,6 +62,12 @@ export const useStudentQuery = (id: MaybeRefOrGetter<string>) =>
     queryKey: computed(() => queryKeys.students.detail(toValue(id))),
     queryFn: () => getRequest<StudentDetail>(`/v1/students/${toValue(id)}`),
   });
+
+/** Sets (a JPG or PNG data URL) or removes (null) a student's photo. */
+export const useStudentPhotoMutation = () =>
+  useStudentsMutation((p: { id: string; photo: string | null }) =>
+    putRequest<{ photoUrl: string | null }>(`/v1/students/${p.id}/photo`, { photo: p.photo }),
+  );
 
 export const useTransferMutation = (id: MaybeRefOrGetter<string>) =>
   useStudentsMutation((p: TransferPayload) =>

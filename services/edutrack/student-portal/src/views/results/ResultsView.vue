@@ -57,7 +57,13 @@ const STARS = ['', 'Needs improvement', 'Fair', 'Good', 'Very good', 'Excellent'
 
     <div v-else-if="card" class="overflow-hidden rounded-lg border bg-card">
       <div class="flex items-center justify-between gap-3 bg-brand-subtle px-3.5 py-3">
-        <span class="flex flex-col">
+        <img
+          v-if="card.student?.photoUrl"
+          :src="card.student.photoUrl"
+          :alt="`Photo of ${card.student.name}`"
+          class="h-14 w-12 shrink-0 rounded-md border bg-card object-cover"
+        />
+        <span class="flex min-w-0 flex-1 flex-col">
           <span class="font-semibold text-brand-strong">{{ card.title ?? r.term }}</span>
           <span class="text-xs text-brand-strong"
             >Published {{ r.publishedOn

@@ -1,3 +1,4 @@
+import { StudentPhotoService } from '../students/student-photo.service.js';
 import { Module } from '@nestjs/common';
 import { CommsCoreModule } from '../communication/comms-core.module.js';
 import { AcademicsModule } from '../academics/academics.module.js';
@@ -39,6 +40,7 @@ import { TeacherResultsService } from './teacher-results.service.js';
     ResultsFrameService,
     SectionAccessService,
     SchoolAuditService,
+    StudentPhotoService,
   ],
   exports: [ResultsFrameService, OfficeResultsService, ReportCardsService, ResultsCoreService],
 })

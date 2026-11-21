@@ -1,3 +1,4 @@
+import { StudentPhotoService } from './student-photo.service.js';
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../../auth/auth.module.js';
 import { StudentLoginsController } from '../student-logins/student-logins.controller.js';
@@ -29,6 +30,7 @@ import { StudentsService } from './students.service.js';
     StudentAccessService,
     StudentsService,
     StudentMovesService,
+    StudentPhotoService,
     StudentSetupSteps,
   ],
   exports: [StudentsService, StudentAccessService, StudentSetupSteps],

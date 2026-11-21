@@ -9,6 +9,8 @@ defineProps<{
   status?: string;
   /** Shows an initials avatar beside the title, for people and records. */
   initials?: string;
+  /** A photo for the avatar (falls back to the initials). */
+  avatarSrc?: string | null;
   meta?: { label: string; value: string }[];
 }>();
 </script>
@@ -16,7 +18,7 @@ defineProps<{
 <template>
   <div class="flex flex-wrap items-end justify-between gap-4">
     <div class="flex min-w-0 flex-[1_1_360px] items-center gap-3.5">
-      <InitialsAvatar v-if="initials" :initials="initials" size="lg" />
+      <InitialsAvatar v-if="initials" :initials="initials" :src="avatarSrc" size="lg" />
       <div class="flex min-w-0 flex-col gap-1">
         <div class="flex flex-wrap items-center gap-2.5">
           <h1 class="text-2xl leading-tight font-semibold">{{ title }}</h1>

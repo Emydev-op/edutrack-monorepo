@@ -53,6 +53,8 @@ export interface StudentInvoice {
 }
 
 export interface StudentDetail extends StudentRow {
+  /** A signed link to the student's photo (an hour), or null. */
+  photoUrl?: string | null;
   firstName: string;
   surname: string;
   otherNames: string;

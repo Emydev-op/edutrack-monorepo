@@ -1,3 +1,4 @@
+import { StudentPhotoService } from '../students/student-photo.service.js';
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../../auth/auth.module.js';
 import { FinanceModule } from '../finance/finance.module.js';
@@ -26,6 +27,7 @@ import { ParentScopeService } from './parent-scope.service.js';
     ParentResultsService,
     ParentAccountService,
     SchoolAuditService,
+    StudentPhotoService,
   ],
   // The Student Portal reuses the read models.
   exports: [ParentAccountService, ParentScopeService, ParentSchoolService, ParentResultsService],

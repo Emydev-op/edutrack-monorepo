@@ -82,6 +82,11 @@ export class FakeStorage {
     return Promise.resolve();
   }
 
+  download(key: string) {
+    const o = this.objects.get(key);
+    return o ? Promise.resolve(o.body) : Promise.reject(new Error(`No object at ${key}`));
+  }
+
   getDownloadUrl(key: string) {
     return Promise.resolve(`https://storage.test/${key}`);
   }
