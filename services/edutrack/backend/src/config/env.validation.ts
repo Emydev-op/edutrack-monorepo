@@ -209,7 +209,7 @@ export class Env {
 
   /** Student Portal base URL (also printed on login slips); `{slug}` is the school's slug. */
   @Matches(/^https?:\/\/[^/]*\{slug\}[^/]*\/student\/?$/, {
-    message: `STUDENT_PORTAL_URL_TEMPLATE must put {slug} in the host and end with /student, e.g. http://{slug}.localhost:5173/student (or https://{slug}.edutrack.ng/student when deployed)`,
+    message: `STUDENT_PORTAL_URL_TEMPLATE must put {slug} in the host and end with /student, e.g. http://{slug}.localhost:5176/student (or https://{slug}.edutrack.ng/student when deployed)`,
   })
   STUDENT_PORTAL_URL_TEMPLATE = 'http://{slug}.localhost/student';
 

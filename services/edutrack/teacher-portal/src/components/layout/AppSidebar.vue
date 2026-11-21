@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLogoFallback } from '@edutrack/app-kit/composables/useLogoFallback';
 import {
   Collapsible,
   CollapsibleContent,
@@ -18,7 +19,7 @@ import {
 } from '@edutrack/ui/components/sidebar';
 import { ChevronDownIcon } from '@lucide/vue';
 import { useStorage } from '@vueuse/core';
-import { computed, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 
 import { useMeQuery, useNavCountsQuery } from '@/api/services/shell';
@@ -46,8 +47,7 @@ const toggleGroup = (label: string) =>
 // The school's logo: from the session, else the school at this address.
 const brand = useSchoolBrand();
 const logo = computed(() => auth.school?.logoUrl ?? brand.logoUrl);
-const logoFailed = ref(false);
-watch(logo, () => (logoFailed.value = false));
+const { failed: logoFailed, onError: onLogoError } = useLogoFallback(() => logo.value);
 
 const sidebar = useSidebar();
 watch(
@@ -64,7 +64,7 @@ watch(
         :src="logo"
         alt=""
         class="size-8 shrink-0 rounded-lg object-contain"
-        @error="logoFailed = true"
+        @error="onLogoError"
       />
       <span
         v-else

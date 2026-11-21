@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLogoFallback } from '@edutrack/app-kit/composables/useLogoFallback';
 import {
   Collapsible,
   CollapsibleContent,
@@ -17,7 +18,7 @@ import {
 } from '@edutrack/ui/components/sidebar';
 import { ChevronDownIcon } from '@lucide/vue';
 import { useStorage } from '@vueuse/core';
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 
 import { useSetupQuery } from '@/api/services/setup';
@@ -49,11 +50,7 @@ const toggleGroup = (label: string) =>
   (collapsed.value = { ...collapsed.value, [label]: !collapsed.value[label] });
 
 // Initials stand in if the logo can't load; a new logo gets another try.
-const logoFailed = ref(false);
-watch(
-  () => auth.school?.logoUrl,
-  () => (logoFailed.value = false),
-);
+const { failed: logoFailed, onError: onLogoError } = useLogoFallback(() => auth.school?.logoUrl);
 </script>
 
 <template>
@@ -64,7 +61,7 @@ watch(
         :src="auth.school.logoUrl"
         alt=""
         class="size-8 shrink-0 rounded-lg object-contain"
-        @error="logoFailed = true"
+        @error="onLogoError"
       />
       <span
         v-else

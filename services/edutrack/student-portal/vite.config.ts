@@ -20,7 +20,7 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     server: {
-      port: 5173,
+      port: 5176,
       strictPort: true,
       // Same-site API calls, so the refresh cookie (Path=/api/v1/auth) stays first-party. The
       // portal's Host is kept (changeOrigin: false) so the API sees which address was used.
@@ -28,6 +28,6 @@ export default defineConfig(({ command, mode }) => {
         '/api': { target: env.API_PROXY_TARGET ?? 'http://localhost:8000', changeOrigin: false },
       },
     },
-    preview: { port: 5173, strictPort: true },
+    preview: { port: 5176, strictPort: true },
   };
 });

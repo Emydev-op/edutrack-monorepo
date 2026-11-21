@@ -35,7 +35,7 @@ const onSubmit = handleSubmit(async ({ email }) => {
         label="Email address"
         type="email"
         autocomplete="email"
-        placeholder="name@greenfield.edu.ng"
+        placeholder="name@yourschool.edu.ng"
       />
       <Button type="submit" size="lg" :disabled="forgot.isPending.value">
         <Spinner v-if="forgot.isPending.value" />

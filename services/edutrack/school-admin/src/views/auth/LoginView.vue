@@ -153,7 +153,7 @@ const onSubmit = handleSubmit(async (values) => {
         label="Work email"
         type="email"
         autocomplete="username"
-        placeholder="name@greenfield.edu.ng"
+        placeholder="name@yourschool.edu.ng"
       />
       <FormInput
         name="password"
