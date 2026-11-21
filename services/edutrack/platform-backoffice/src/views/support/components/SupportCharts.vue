@@ -28,8 +28,7 @@ defineProps<{ summary: SupportSummary }>();
     <section class="flex flex-col gap-2 rounded-lg border bg-card px-4 py-3.5">
       <h2 class="text-sm font-semibold">Most issues · 30 days</h2>
       <div v-for="s in summary.topSchools" :key="s.label" class="flex justify-between text-[13px]">
-        <span>{{ s.label }}</span
-        ><span class="font-semibold">{{ s.value }}</span>
+        <span>{{ s.label }}</span><span class="font-semibold">{{ s.value }}</span>
       </div>
     </section>
   </div>

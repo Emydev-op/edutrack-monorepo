@@ -35,8 +35,7 @@ const context = useContextStore();
   >
     <span class="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
     <span
-      >Now showing <b class="font-semibold">{{ term.label }}</b
-      >.</span
+      >Now showing <b class="font-semibold">{{ term.label }}</b>.</span
     >
   </div>
 </template>

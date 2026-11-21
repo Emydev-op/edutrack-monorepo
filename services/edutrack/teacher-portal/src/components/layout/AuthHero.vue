@@ -72,8 +72,9 @@ const TICKER = [
       <div class="flex flex-col gap-2.75">
         <div v-for="(b, i) in BARS" :key="b.label" class="flex flex-col gap-1.5">
           <div class="flex justify-between text-xs">
-            <span class="font-medium">{{ b.label }}</span
-            ><span class="text-muted-foreground">{{ b.value }}</span>
+            <span class="font-medium">{{ b.label }}</span><span class="text-muted-foreground">{{
+              b.value
+            }}</span>
           </div>
           <div class="h-1.75 overflow-hidden rounded-full bg-divider">
             <div

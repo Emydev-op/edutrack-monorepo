@@ -375,8 +375,7 @@ const print = () => window.print();
       </p>
       <p v-if="acc.payTo" class="mt-3">
         Pay by transfer to {{ acc.payTo.bank }} · {{ acc.payTo.accountNumber }} ·
-        {{ acc.payTo.accountName }}, narration <strong>{{ acc.payTo.reference }}</strong
-        >.
+        {{ acc.payTo.accountName }}, narration <strong>{{ acc.payTo.reference }}</strong>.
       </p>
     </article>
 

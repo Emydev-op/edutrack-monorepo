@@ -514,9 +514,9 @@ const busyNow = computed(
             <span class="font-medium">{{ conflict.fix }}</span>
           </div>
           <p v-else-if="picked" class="text-[13px] text-body" aria-live="polite">
-            Placing <strong>{{ picked.name }}</strong
-            >{{ picked.teacher ? ` · ${picked.teacher}` : '' }}. Click a highlighted period, or
-            click the subject again to stop.
+            Placing <strong>{{ picked.name }}</strong>{{
+              picked.teacher ? ` · ${picked.teacher}` : ''
+            }}. Click a highlighted period, or click the subject again to stop.
           </p>
           <p v-else class="text-[13px] text-muted-foreground">
             {{

@@ -202,8 +202,7 @@ async function submit() {
             >
               <span aria-hidden="true" class="text-[10px] font-bold">{{
                 HIGH_RISK_PERMISSIONS.includes(p) ? '!' : '✓'
-              }}</span
-              >{{ p }}
+              }}</span>{{ p }}
             </span>
             <span v-if="!r.granted.length" class="text-xs text-faint">Can’t see this area</span>
           </span>

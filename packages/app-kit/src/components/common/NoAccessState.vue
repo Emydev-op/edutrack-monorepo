@@ -41,8 +41,8 @@ withDefaults(
       <h1 class="text-xl font-semibold">You don't have access to {{ area }}</h1>
       <p class="max-w-md text-sm text-muted-foreground">
         <template v-if="roleName"
-          >Your role, <span class="font-medium text-foreground">{{ roleName }}</span
-          >, doesn't include this page.</template
+          >Your role, <span class="font-medium text-foreground">{{ roleName }}</span>, doesn't
+          include this page.</template
         >
         <template v-else>Your role doesn't include this page.</template>
         Ask {{ contact }} if you need it for your work.
