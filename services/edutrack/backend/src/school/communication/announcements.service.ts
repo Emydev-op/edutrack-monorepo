@@ -494,6 +494,8 @@ export class AnnouncementsService {
       await tx.announcement.update({
         where: { id: a.id },
         data: {
+          // Times follow the app clock (the database would stamp real time).
+          updatedAt: this.clock.now(),
           title: v.title,
           body: v.body,
           smsText: v.smsText,
@@ -534,6 +536,8 @@ export class AnnouncementsService {
     const v = await this.validate(dto);
     const a = await this.db.announcement.create({
       data: {
+        // Times follow the app clock (the database would stamp real time).
+        updatedAt: this.clock.now(),
         schoolId: this.schoolId(),
         title: v.title,
         body: v.body,
@@ -616,6 +620,8 @@ export class AnnouncementsService {
         await tx.announcement.update({
           where: { id: a.id },
           data: {
+            // Times follow the app clock (the database would stamp real time).
+            updatedAt: this.clock.now(),
             status: 'SENT',
             sentAt: now,
             scheduledFor: scheduled ? a.scheduledFor : null,
@@ -653,7 +659,7 @@ export class AnnouncementsService {
     await this.requireManage(a);
     await this.db.announcement.update({
       where: { id },
-      data: { status: 'DRAFT', scheduledFor: null },
+      data: { status: 'DRAFT', scheduledFor: null, updatedAt: this.clock.now() },
     });
     await this.history(id, 'Schedule cancelled · back to draft', null, 'warning');
     return this.get(id);
@@ -677,7 +683,12 @@ export class AnnouncementsService {
     await this.db.$transaction(async (tx) => {
       await tx.announcement.update({
         where: { id },
-        data: { status: 'WITHDRAWN', withdrawnAt: this.clock.now(), withdrawReason: reason },
+        data: {
+          status: 'WITHDRAWN',
+          withdrawnAt: this.clock.now(),
+          withdrawReason: reason,
+          updatedAt: this.clock.now(),
+        },
       });
       // Out of every portal: the in-app notifications it created go.
       if (a.message) {
@@ -700,6 +711,8 @@ export class AnnouncementsService {
     const copy = await this.db.$transaction(async (tx) => {
       const a = await tx.announcement.create({
         data: {
+          // Times follow the app clock (the database would stamp real time).
+          updatedAt: this.clock.now(),
           schoolId: this.schoolId(),
           title: src.title.slice(0, 120),
           body: src.body,
