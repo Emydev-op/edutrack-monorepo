@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ENROLLED } from '../shared/enrolled.js';
 import { schoolLogoAddress } from '../../auth/auth.presenter.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { ConductTrait } from '../../generated/prisma/enums.js';
@@ -135,7 +136,7 @@ export class ReportCardsService {
         include: SHEET_INCLUDE,
       }),
       this.db.enrollment.findMany({
-        where: { sessionId: term.sessionId, armId: arm.id, status: 'ACTIVE' },
+        where: { sessionId: term.sessionId, armId: arm.id, status: ENROLLED },
         include: { student: true },
         orderBy: [{ student: { surname: 'asc' } }, { student: { firstName: 'asc' } }],
       }),

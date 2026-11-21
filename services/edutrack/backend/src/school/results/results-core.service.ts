@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
+import { ENROLLED } from '../shared/enrolled.js';
 import { Clock } from '../../common/clock/clock.js';
 import { RequestContext } from '../../common/context/request-context.js';
 import { AppException } from '../../common/errors/app.exception.js';
@@ -319,7 +320,7 @@ export class ResultsCoreService {
       this.schemes(t.sessionId),
       this.sectionCodes(),
       this.db.enrollment.findMany({
-        where: { sessionId: t.sessionId, armId: { in: armIds }, status: 'ACTIVE' },
+        where: { sessionId: t.sessionId, armId: { in: armIds }, status: ENROLLED },
         include: { student: true },
         orderBy: [{ student: { surname: 'asc' } }, { student: { firstName: 'asc' } }],
       }),

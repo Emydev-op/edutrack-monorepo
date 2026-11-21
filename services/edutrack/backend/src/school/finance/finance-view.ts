@@ -1,3 +1,4 @@
+import { RequestContext } from '../../common/context/request-context.js';
 import type {
   ExpenseRec,
   FinanceData,
@@ -182,8 +183,20 @@ export class FinView {
     return this.fin.branches.find((b) => b.id === value || b.name === value)?.id ?? null;
   }
 
+  /**
+   * The term screens work in: School Admin's working session and term on a read (a past session's
+   * figures), else the active term. Writes always get the active term.
+   */
   currentTerm(): TermRef | null {
-    return this.terms.find((t) => t.id === this.fin.currentTermId) ?? null;
+    const live = this.terms.find((t) => t.id === this.fin.currentTermId) ?? null;
+    const w = RequestContext.working();
+    if (!w.session && !w.term) return live;
+    const session = w.session ?? live?.session;
+    return (
+      this.terms.find((t) => t.session === session && t.name === (w.term ?? live?.name)) ??
+      this.terms.find((t) => t.session === session) ??
+      live
+    );
   }
 
   /** The term a request names (id, or name within `session`), else the current term. */

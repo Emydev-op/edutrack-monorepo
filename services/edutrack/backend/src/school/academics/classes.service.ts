@@ -1,4 +1,5 @@
 import { effectivePeriods } from '../assignments/assignments.service.js';
+import { ENROLLED } from '../shared/enrolled.js';
 import { SectionAccessService } from '../shared/section-access.service.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
@@ -125,7 +126,7 @@ export class ClassesService {
       ? await Promise.all([
           this.db.enrollment.groupBy({
             by: ['armId'],
-            where: { sessionId: session.id, status: 'ACTIVE', ...where },
+            where: { sessionId: session.id, status: ENROLLED, ...where },
             _count: { _all: true },
           }),
           this.db.classTeacherAssignment.findMany({
@@ -227,7 +228,7 @@ export class ClassesService {
     const facts = await this.armFacts([arm.id]);
     const enrollments = facts.session
       ? await this.db.enrollment.findMany({
-          where: { sessionId: facts.session.id, armId: arm.id, status: 'ACTIVE' },
+          where: { sessionId: facts.session.id, armId: arm.id, status: ENROLLED },
           include: {
             student: {
               include: {

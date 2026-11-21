@@ -46,7 +46,7 @@ export class AcademicSetupSteps {
       id: ACADEMIC_STEP.session,
       state: async () => {
         const [session, confirmed] = await Promise.all([
-          this.structure.currentSession(),
+          this.structure.activeSession(),
           this.structure.confirmedKeys(),
         ]);
         return {
@@ -63,7 +63,7 @@ export class AcademicSetupSteps {
       id: ACADEMIC_STEP.terms,
       state: async () => {
         const [session, confirmed] = await Promise.all([
-          this.structure.currentSession(),
+          this.structure.activeSession(),
           this.structure.confirmedKeys(),
         ]);
         return {

@@ -1,3 +1,4 @@
+import { RequestContext } from '../../common/context/request-context.js';
 import { Injectable } from '@nestjs/common';
 import { TenantPrismaService } from '../../tenancy/tenant-prisma.service.js';
 import { SetupStateService } from '../shared/setup-state.service.js';
@@ -86,16 +87,18 @@ export class AcademicStructureService {
     }));
   }
 
-  /** The Active session, else the earliest Upcoming one (a new school), with terms and events. */
-  async currentSession() {
-    const include = {
-      terms: {
-        orderBy: { sequence: 'asc' as const },
-        include: {
-          events: { orderBy: [{ startsOn: 'asc' as const }, { createdAt: 'asc' as const }] },
-        },
+  private static readonly SESSION_INCLUDE = {
+    terms: {
+      orderBy: { sequence: 'asc' as const },
+      include: {
+        events: { orderBy: [{ startsOn: 'asc' as const }, { createdAt: 'asc' as const }] },
       },
-    };
+    },
+  };
+
+  /** The Active session, else the earliest Upcoming one (a new school), with terms and events. */
+  async activeSession() {
+    const include = AcademicStructureService.SESSION_INCLUDE;
     return (
       (await this.db.academicSession.findFirst({ where: { status: 'ACTIVE' }, include })) ??
       (await this.db.academicSession.findFirst({
@@ -106,10 +109,37 @@ export class AcademicStructureService {
     );
   }
 
-  /** The current term: the Active one, else the current session's first. */
+  /**
+   * The session a School Admin screen is looking at: the header's working session on a read
+   * (a past or upcoming session), else the active one. Writes always get the active session.
+   */
+  async currentSession() {
+    const name = RequestContext.working().session;
+    if (name) {
+      const viewed = await this.db.academicSession.findFirst({
+        where: { name },
+        include: AcademicStructureService.SESSION_INCLUDE,
+      });
+      if (viewed) return viewed;
+    }
+    return this.activeSession();
+  }
+
+  /** The current term: the header's working term, else the Active one, else the session's first. */
   async currentTerm() {
     const session = await this.currentSession();
-    return session?.terms.find((t) => t.status === 'ACTIVE') ?? session?.terms[0] ?? null;
+    return session ? AcademicStructureService.termOf(session.terms) : null;
+  }
+
+  /** In a session's terms: the working term (by name), else the Active one, else the first. */
+  static termOf<T extends { name: string; status: string }>(terms: T[]): T | null {
+    const name = RequestContext.working().term;
+    return (
+      (name ? terms.find((t) => t.name === name) : undefined) ??
+      terms.find((t) => t.status === 'ACTIVE') ??
+      terms[0] ??
+      null
+    );
   }
 
   confirmedKeys() {

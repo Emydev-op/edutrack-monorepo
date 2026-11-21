@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ENROLLED } from '../shared/enrolled.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import type { ApplicationStage, StudentStatus } from '../../generated/prisma/enums.js';
 import type { ArmInfo } from '../academics/academic-catalog.service.js';
@@ -541,7 +542,7 @@ export class ReportsService {
     const enrolled = await this.db.enrollment.findMany({
       where: {
         sessionId: found.session.id,
-        status: 'ACTIVE',
+        status: ENROLLED,
         student: { status: { in: ON_ROLL }, deletedAt: null },
         ...(branch.id && { branchId: branch.id }),
       },

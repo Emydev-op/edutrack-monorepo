@@ -57,8 +57,14 @@ export class AcademicCatalogService {
     return this.tenant.db;
   }
 
+  /** The session a screen is looking at (School Admin's working session on reads), else active. */
   currentSession() {
     return this.structure.currentSession();
+  }
+
+  /** The Active (else first Upcoming) session, whatever the screen is looking at. */
+  activeSession() {
+    return this.structure.activeSession();
   }
 
   currentTerm() {
@@ -72,11 +78,11 @@ export class AcademicCatalogService {
   async termFrom(termId?: string | null) {
     const session = await this.currentSession();
     if (!session) return null;
-    const term = termId ? session.terms.find((t) => t.id === termId) : undefined;
-    return {
-      session,
-      term: term ?? session.terms.find((t) => t.status === 'ACTIVE') ?? session.terms[0] ?? null,
-    };
+    // A term id, or a name (School Admin's header sends names), else the working/active term.
+    const term = termId
+      ? session.terms.find((t) => t.id === termId || t.name === termId)
+      : undefined;
+    return { session, term: term ?? AcademicStructureService.termOf(session.terms) };
   }
 
   /** The term before this one: the previous term of its session, else the last of the last session. */
