@@ -106,7 +106,7 @@ const scoredText = (r: AssessmentSummary) =>
       <div v-else class="grid gap-3 sm:grid-cols-2">
         <div v-for="s in data.schemes" :key="s.section" class="rounded-md border px-3.5 py-3">
           <p class="text-[13px] font-semibold">
-            {{ s.section === 'JSS' ? 'Junior secondary' : 'Senior secondary' }}
+            {{ s.sectionName }}
             <span class="font-normal text-faint">· grades {{ s.scaleName }}</span>
           </p>
           <ul class="mt-1.5 flex flex-col gap-1 text-[13px]">

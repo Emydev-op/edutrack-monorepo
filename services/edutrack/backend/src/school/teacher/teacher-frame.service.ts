@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { normalizePhone } from '../../auth/identifiers.js';
 import { isoDate, plural } from '../academics/academic-format.js';
 import { AssignmentsHomeworkService } from '../homework/assignments-homework.service.js';
+import { LessonNotesService } from '../lesson-notes/lesson-notes.service.js';
 import { ResultsFrameService } from '../results/results-frame.service.js';
 import { RegisterService } from './register.service.js';
 import { TeacherScopeService } from './teacher-scope.service.js';
@@ -101,7 +102,8 @@ const invalid = (message: string, field = 'phone') =>
 /**
  * The Teacher Workspace's frame on the API: the dashboard, sidebar counts, notifications and
  * email preferences, and the teacher's own profile. Results (sheets, HOD reviews and report-card
- * remarks) come from the results module; lesson notes and assignments arrive with their phases.
+ * remarks) come from the results module, grading from homework, and lesson notes (mine and those
+ * waiting on me as reviewer) from the lesson-notes module.
  */
 @Injectable()
 export class TeacherFrameService {
@@ -112,6 +114,7 @@ export class TeacherFrameService {
     private readonly register: RegisterService,
     private readonly results: ResultsFrameService,
     private readonly homework: AssignmentsHomeworkService,
+    private readonly lessonNotes: LessonNotesService,
     private readonly clock: Clock,
   ) {}
 
@@ -269,16 +272,24 @@ export class TeacherFrameService {
     return this.homework.waiting(s.id, term);
   }
 
+  /** My lesson notes and those waiting on me (counts, review metric, to-dos). */
+  private async notesFrame(auth: AuthUserContext, termId?: string) {
+    const s = await this.scope.staff(auth);
+    const term = await this.scope.term(termId);
+    return this.lessonNotes.frame(s, term);
+  }
+
   async navCounts(auth: AuthUserContext, termId?: string) {
-    // Lesson notes add their count with their phase.
-    const [reg, results, grading] = await Promise.all([
+    const [reg, results, grading, notes] = await Promise.all([
       this.registerToday(auth, termId).catch(() => null),
       this.resultsFrame(auth, termId).catch(() => null),
       this.toGrade(auth, termId).catch(() => []),
+      this.notesFrame(auth, termId).catch(() => null),
     ]);
     const counts: Record<string, number> = {};
     if (reg && !reg.taken && !reg.closedReason) counts.register = 1;
     for (const [key, n] of Object.entries(results?.counts ?? {})) if (n) counts[key] = n;
+    for (const [key, n] of Object.entries(notes?.counts ?? {})) if (n) counts[key] = n;
     const waiting = grading.reduce((n, x) => n + x.waiting, 0);
     if (waiting) counts.assignments = waiting;
     return counts;
@@ -313,6 +324,7 @@ export class TeacherFrameService {
     const register = await this.registerToday(auth, term.id).catch(() => null);
     const results = await this.resultsFrame(auth, term.id).catch(() => null);
     const grading = await this.toGrade(auth, term.id).catch(() => []);
+    const notes = await this.notesFrame(auth, term.id).catch(() => null);
     const metrics = await block(async () => {
       const tt = await timetable();
       const time = now.slice(11);
@@ -340,10 +352,9 @@ export class TeacherFrameService {
           entryOpen: term.status === 'ACTIVE',
         },
         register,
-        // Lesson-note reviews come with their phase.
         reviews:
-          results && results.reviewSheets !== null
-            ? { sheets: results.reviewSheets, notes: null }
+          (results?.reviewSheets ?? null) !== null || (notes?.reviewNotes ?? null) !== null
+            ? { sheets: results?.reviewSheets ?? null, notes: notes?.reviewNotes ?? null }
             : null,
       };
     });
@@ -394,7 +405,11 @@ export class TeacherFrameService {
             to: { name: 'assignments', query: { status: 'To grade' } },
           });
       }
+      // Lesson notes: returned, then overdue (oldest first), then due this week.
+      items.push(...(notes?.todo ?? []));
+      // Report-card remarks and result sheets to review, then lesson notes to review.
       items.push(...sheetItems.filter((x) => !x.kind.startsWith('sheet-')));
+      if (notes?.reviewTodo) items.push(notes.reviewTodo);
       return items;
     });
     const active = ctx.terms.find((x: { id: string }) => x.id === term.id) as

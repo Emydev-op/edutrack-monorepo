@@ -326,9 +326,10 @@ describe('Communication (e2e)', () => {
       const list = res.body.data;
       expect(list.rows.map((r: { title: string }) => r.title)).toEqual(['Half-term notice']);
       expect(list.rows[0].dateLabel).toMatch(/^Edited Today/);
-      expect(list.counts).toMatchObject({ All: 3, Draft: 1, Sent: 1, Withdrawn: 1 });
+      // The seed's staff announcement (lesson notes are due on Fridays) is sent too.
+      expect(list.counts).toMatchObject({ All: 4, Draft: 1, Sent: 2, Withdrawn: 1 });
       expect(list.smsCredit).toBe(await balance());
-      expect(list.sentThisTerm).toBe(2);
+      expect(list.sentThisTerm).toBe(3);
     });
   });
 

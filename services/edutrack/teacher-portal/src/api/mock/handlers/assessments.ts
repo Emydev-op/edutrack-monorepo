@@ -99,6 +99,7 @@ mock.get('/v1/assessments', (req): AssessmentsList => {
   const sections = [...new Set(mine.map((ta) => armById(ta.armId).section))].sort();
   const schemes: SchemeSummary[] = sections.map((section) => ({
     section,
+    sectionName: section === 'JSS' ? 'Junior Secondary' : 'Senior Secondary',
     scaleName: SCHEMES[section].scaleName,
     components: SCHEMES[section].components,
   }));
