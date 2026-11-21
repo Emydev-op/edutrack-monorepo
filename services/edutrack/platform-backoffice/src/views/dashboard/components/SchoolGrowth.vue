@@ -57,8 +57,7 @@ const bars = computed(() =>
         :key="m.month"
         class="grid grid-cols-[60px_repeat(4,1fr)] gap-2 border-t border-divider px-2.5 py-1.25 text-xs tabular-nums"
       >
-        <span>{{ m.month }}</span
-        ><span class="text-right">{{ m.onboarded }}</span
+        <span>{{ m.month }}</span><span class="text-right">{{ m.onboarded }}</span
         ><span class="text-right">{{ m.active }}</span
         ><span class="text-right">{{ m.suspended }}</span
         ><span class="text-right">{{ m.expired }}</span>

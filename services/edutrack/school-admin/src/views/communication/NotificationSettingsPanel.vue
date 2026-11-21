@@ -158,8 +158,7 @@ const timeClass = 'h-9 w-full rounded-md border bg-card px-2.5 text-sm';
                 · requested {{ fmtStamp(s.senderId.requestedAt) }}</template
               >.
             </template>
-            SMS currently goes out from <strong>{{ s.sender }}</strong
-            >.
+            SMS currently goes out from <strong>{{ s.sender }}</strong>.
           </p>
           <p v-if="s.senderId.note" class="text-xs text-muted-foreground">{{ s.senderId.note }}</p>
           <FieldShell
