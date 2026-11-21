@@ -224,30 +224,38 @@ const pickStudent = (id: string) =>
         >
       </header>
 
-      <dl
-        :class="
-          cn(
-            'my-4 grid gap-x-6 gap-y-1.5 text-[13px]',
-            classic ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-4',
-          )
-        "
-      >
-        <div
-          v-for="[k, v] in [
-            ['Name', card.student.name],
-            ['Admission no.', card.student.admissionNo],
-            ['Class', card.student.className],
-            ['Gender', card.student.gender],
-            ['Class teacher', card.classTeacher ?? 'Not assigned'],
-            ['Position', card.position ?? '—'],
-          ]"
-          :key="k"
-          class="flex flex-col"
+      <div class="flex items-start gap-4">
+        <dl
+          :class="
+            cn(
+              'my-4 grid flex-1 gap-x-6 gap-y-1.5 text-[13px]',
+              classic ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-4',
+            )
+          "
         >
-          <dt class="text-xs text-faint">{{ k }}</dt>
-          <dd class="font-medium">{{ v }}</dd>
-        </div>
-      </dl>
+          <div
+            v-for="[k, v] in [
+              ['Name', card.student.name],
+              ['Admission no.', card.student.admissionNo],
+              ['Class', card.student.className],
+              ['Gender', card.student.gender],
+              ['Class teacher', card.classTeacher ?? 'Not assigned'],
+              ['Position', card.position ?? '—'],
+            ]"
+            :key="k"
+            class="flex flex-col"
+          >
+            <dt class="text-xs text-faint">{{ k }}</dt>
+            <dd class="font-medium">{{ v }}</dd>
+          </div>
+        </dl>
+        <img
+          v-if="card.student.photoUrl"
+          :src="card.student.photoUrl"
+          :alt="`Photo of ${card.student.name}`"
+          class="my-4 h-24 w-20 shrink-0 rounded-md border object-cover"
+        />
+      </div>
 
       <div class="overflow-x-auto">
         <table class="w-full border-collapse text-[13px]">

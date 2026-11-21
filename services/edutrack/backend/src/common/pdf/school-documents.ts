@@ -141,8 +141,8 @@ function rule(doc: PDFKit.PDFDocument, gap = 0.5) {
 }
 
 /** Label/value pairs laid out in columns. */
-function facts(doc: PDFKit.PDFDocument, pairs: [string, string][], cols = 2) {
-  const colW = W / cols;
+function facts(doc: PDFKit.PDFDocument, pairs: [string, string][], cols = 2, width = W) {
+  const colW = width / cols;
   const top = doc.y;
   let rowY = top;
   pairs.forEach(([label, value], i) => {
@@ -243,7 +243,7 @@ function footer(doc: PDFKit.PDFDocument, text: string) {
 }
 
 /** A student's term report card, from the snapshot frozen at publishing. */
-export function reportCardPdf(input: ReportCardDoc): Promise<Buffer> {
+export function reportCardPdf(input: ReportCardDoc, photo?: Buffer | null): Promise<Buffer> {
   // Older snapshots may lack parts: print what's there.
   const card: ReportCardDoc = {
     ...input,
@@ -271,6 +271,23 @@ export function reportCardPdf(input: ReportCardDoc): Promise<Buffer> {
     doc.y += 10;
     doc.moveDown(0.6);
   }
+  // The student's photo, when the school has one, beside their details.
+  const PHOTO_W = 64;
+  const PHOTO_H = 80;
+  const top = doc.y;
+  let pictured = false;
+  if (photo)
+    try {
+      doc.image(photo, M + W - PHOTO_W, top, { fit: [PHOTO_W, PHOTO_H], align: 'center' });
+      doc
+        .rect(M + W - PHOTO_W, top, PHOTO_W, PHOTO_H)
+        .lineWidth(0.6)
+        .strokeColor(LINE)
+        .stroke();
+      pictured = true;
+    } catch {
+      // Not an image pdfkit can read: leave it out.
+    }
   facts(
     doc,
     [
@@ -282,7 +299,9 @@ export function reportCardPdf(input: ReportCardDoc): Promise<Buffer> {
       ['Position', card.position ?? 'Not shown'],
     ],
     3,
+    pictured ? W - PHOTO_W - 12 : W,
   );
+  if (pictured && doc.y < top + PHOTO_H + 8) doc.y = top + PHOTO_H + 8;
 
   section(doc, 'Subjects');
   const hasPos = card.subjects.some((s) => s.position);

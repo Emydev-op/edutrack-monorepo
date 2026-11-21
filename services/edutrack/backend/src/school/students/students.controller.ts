@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
   ApiConflictResponse,
   ApiExtraModels,
@@ -18,9 +18,11 @@ import {
   AssignArmDto,
   EnrollDto,
   EnrollmentOptionsQueryDto,
+  StudentPhotoDto,
   StudentQueryDto,
   TransferStudentDto,
 } from './dto/students.dto.js';
+import { StudentPhotoService } from './student-photo.service.js';
 import {
   EnrolledDto,
   EnrollmentOptionsDto,
@@ -46,6 +48,7 @@ export class StudentsController {
   constructor(
     private readonly students: StudentsService,
     private readonly moves: StudentMovesService,
+    private readonly photos: StudentPhotoService,
   ) {}
 
   @ResponseMessage('Students loaded.')
@@ -101,8 +104,24 @@ export class StudentsController {
   })
   @ApiOkResponse({ type: StudentDetailDto })
   @ApiNotFoundResponse({ description: NOT_FOUND })
-  get(@Param('id', studentId) id: string) {
-    return this.students.detail(id);
+  async get(@Param('id', studentId) id: string) {
+    const [detail, photoUrl] = await Promise.all([this.students.detail(id), this.photos.url(id)]);
+    return { ...detail, photoUrl };
+  }
+
+  @ResponseMessage((r: { name: string; removed: boolean }) =>
+    r.removed ? `Photo removed for ${r.name}.` : `Photo saved for ${r.name}.`,
+  )
+  @Put(':id/photo')
+  @RequirePermission('students.edit')
+  @ApiOperation({
+    summary: 'Set or remove a student’s photo (JPG or PNG, 2 MB; printed on report cards)',
+  })
+  @ApiNotFoundResponse({ description: NOT_FOUND })
+  @ApiConflictResponse({ description: 'STUDENT_LEFT' })
+  @ApiUnprocessableEntityResponse({ description: 'FILE_TYPE, FILE_TOO_LARGE' })
+  setPhoto(@Param('id', studentId) id: string, @Body() dto: StudentPhotoDto) {
+    return this.photos.set(id, dto.photo ?? null);
   }
 
   @ResponseMessage((r: unknown) => noticeOf(r, 'Transfer recorded.'))

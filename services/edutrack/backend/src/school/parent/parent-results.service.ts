@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AppException } from '../../common/errors/app.exception.js';
 import { pdfName, reportCardPdf, type ReportCardDoc } from '../../common/pdf/school-documents.js';
 import { fmtDate } from '../academics/academic-format.js';
+import { StudentPhotoService } from '../students/student-photo.service.js';
 import { ParentScopeService, type ParentTerm, type StudentRef } from './parent-scope.service.js';
 
 /** Report cards held automatically at publishing for unpaid fees carry this reason. */
@@ -65,7 +66,10 @@ export function parentCard(snapshot: Snapshot) {
  */
 @Injectable()
 export class ParentResultsService {
-  constructor(private readonly scope: ParentScopeService) {}
+  constructor(
+    private readonly scope: ParentScopeService,
+    private readonly photos: StudentPhotoService,
+  ) {}
 
   private async state(studentId: string, term: ParentTerm) {
     const card = await this.scope.db.reportCard.findFirst({
@@ -96,8 +100,14 @@ export class ParentResultsService {
       held: s.held,
       publishedOn:
         s.card?.publishedAt && s.status === 'published' ? fmtDate(s.card.publishedAt) : null,
-      card: snapshot ? parentCard(snapshot) : null,
+      card: snapshot ? await this.withPhoto(id, parentCard(snapshot)) : null,
     };
+  }
+
+  /** The student's current photo on the card (a signed link; the snapshot doesn't keep it). */
+  private async withPhoto(studentId: string, card: ReturnType<typeof parentCard>) {
+    const student = (card.student ?? {}) as Record<string, unknown>;
+    return { ...card, student: { ...student, photoUrl: await this.photos.url(studentId) } };
   }
 
   /** The published report card as a PDF (Parent and Student Portals' Download button). */
@@ -107,7 +117,11 @@ export class ParentResultsService {
     if (!r.card)
       throw AppException.conflict('This report card isn’t published yet.', 'RESULT_NOT_PUBLISHED');
     const card = r.card as unknown as ReportCardDoc;
-    return { file: await reportCardPdf(card), name: pdfName(`${card.student.name} ${r.term}`) };
+    const photo = await this.photos.bytes(scope.student.id);
+    return {
+      file: await reportCardPdf(card, photo),
+      name: pdfName(`${card.student.name} ${r.term}`),
+    };
   }
 
   /** The newest term with a published card (or the current term's state), for Home. */

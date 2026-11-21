@@ -25,6 +25,7 @@ import {
   useAdmissionMatchesQuery,
   useAdmissionOptionsQuery,
   useAdmitMutation,
+  useStudentPhotoMutation,
   useApplicationsQuery,
   useGuardiansQuery,
 } from '@/api/services/students';
@@ -83,6 +84,7 @@ const step = ref(0);
 const errors = ref<Record<string, string>>({});
 const serverError = ref('');
 const result = ref<AdmitResult | null>(null);
+const photoMut = useStudentPhotoMutation();
 
 /* An accepted offer fills in what the application already knows. */
 const applicationId = computed(() => (route.query.application as string | undefined) ?? null);
@@ -251,6 +253,16 @@ async function submit() {
       siblingDiscount: showSibling.value && d.siblingDiscount,
     });
     draft.value = null;
+    // A passport photo picked as an image becomes the student's photo (shown on report cards).
+    const photo = docs.photo?.dataUrl;
+    if (photo && /^data:image\/(jpeg|png);/.test(photo))
+      await photoMut
+        .mutateAsync({ id: result.value.studentId, photo })
+        .catch(() =>
+          toast.warning(
+            'The student was admitted, but the photo couldn’t be saved. Add it on their record.',
+          ),
+        );
   } catch (e) {
     serverError.value = getApiErrorMessage(
       e,

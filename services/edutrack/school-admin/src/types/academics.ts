@@ -663,7 +663,15 @@ export interface ReportCard {
     brandColor?: string | null;
   };
   title: string;
-  student: { id: string; name: string; admissionNo: string; gender: string; className: string };
+  student: {
+    id: string;
+    name: string;
+    admissionNo: string;
+    gender: string;
+    className: string;
+    /** A signed link to the student's photo, when the school has one. */
+    photoUrl?: string | null;
+  };
   classTeacher: string | null;
   subjects: {
     name: string;

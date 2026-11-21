@@ -51,7 +51,12 @@ export interface ReportCardSubject {
 export interface ReportCard {
   school: { name?: string; motto?: string | null; address?: string | null } | null;
   title: string | null;
-  student: { name?: string; admissionNo?: string; className?: string } | null;
+  student: {
+    name?: string;
+    admissionNo?: string;
+    className?: string;
+    photoUrl?: string | null;
+  } | null;
   classTeacher: string | null;
   components: string[] | null;
   subjects: ReportCardSubject[] | null;
@@ -137,7 +142,7 @@ export interface Material {
 
 export interface Homework {
   termId: string;
-  student?: { id: string; name: string; className: string };
+  student?: { id: string; name: string; className: string; photoUrl?: string | null };
   handsInThrough?: 'student' | 'guardian';
   assignments: Assignment[];
   materials: Material[];
