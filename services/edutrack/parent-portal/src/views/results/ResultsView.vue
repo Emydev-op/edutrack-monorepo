@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
+import { Button } from '@edutrack/ui/components/button';
 import { useResultsQuery } from '@/api/services/parent';
+import { useDownload } from '@/composables/useDownload';
 import AlertCard from '@/components/common/AlertCard.vue';
 import ChipPicker from '@/components/common/ChipPicker.vue';
 import ListRow from '@/components/common/ListRow.vue';
@@ -26,6 +28,7 @@ const selected = computed({
   set: (v) => (term.value = v),
 });
 const card = computed(() => r.value?.card ?? null);
+const { busy, download } = useDownload();
 
 const scoresLine = (s: ReportCardSubject) => {
   const parts = (card.value?.components ?? []).map((c, i) => {
@@ -94,8 +97,21 @@ const STARS = ['', 'Needs improvement', 'Fair', 'Good', 'Very good', 'Excellent'
           >
           {{ card.classTeacherRemark }}</span
         >
-        <span v-if="card.nextTerm" class="text-muted-foreground"
-          >Next term begins {{ card.nextTerm }}.</span
+        <span v-if="card.nextTerm" class="text-muted-foreground">{{ card.nextTerm }}.</span>
+      </div>
+      <div class="border-t px-3.5 py-3">
+        <Button
+          variant="outline"
+          size="sm"
+          class="w-full"
+          :disabled="!!busy"
+          @click="
+            download(
+              `/v1/parent/children/${id}/results/pdf?term=${r.termId}`,
+              `${card.title ?? r.term}.pdf`,
+            )
+          "
+          >{{ busy ? 'Preparing PDF…' : 'Download PDF' }}</Button
         >
       </div>
     </div>

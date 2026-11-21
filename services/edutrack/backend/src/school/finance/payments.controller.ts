@@ -7,7 +7,8 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { Portals, RequirePermission } from '../../auth/decorators/auth.decorators.js';
-import { ResponseMessage } from '../../common/http/api-response.js';
+import { RawResponse, ResponseMessage } from '../../common/http/api-response.js';
+import { pdfFile } from '../../common/pdf/school-documents.js';
 import { money, plural } from './finance-format.js';
 import { PaymentsService } from './payments.service.js';
 import {
@@ -84,6 +85,16 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Verifies several pending payments' })
   verifyBulk(@Body() dto: IdsDto) {
     return this.payments.verifyBulk(dto.ids);
+  }
+
+  @RawResponse()
+  @Get('payments/:id/receipt')
+  @RequirePermission('finance.view')
+  @ApiOperation({ summary: 'A confirmed payment’s receipt, as a PDF' })
+  @ApiNotFoundResponse({ description: 'PAYMENT_NOT_FOUND' })
+  @ApiConflictResponse({ description: 'RECEIPT_NOT_READY' })
+  async receipt(@Param('id') id: string) {
+    return pdfFile(await this.payments.receipt(id));
   }
 
   @ResponseMessage('Payment loaded.')

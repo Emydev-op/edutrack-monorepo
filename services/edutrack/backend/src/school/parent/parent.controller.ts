@@ -10,7 +10,8 @@ import {
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { Portals } from '../../auth/decorators/auth.decorators.js';
 import { CurrentUser } from '../../common/decorators/request.decorators.js';
-import { ResponseMessage } from '../../common/http/api-response.js';
+import { RawResponse, ResponseMessage } from '../../common/http/api-response.js';
+import { pdfFile } from '../../common/pdf/school-documents.js';
 import { RecordIdPipe } from '../../platform/shared/params.js';
 import { ParentChildDto } from '../guardians/dto/guardians.responses.js';
 import {
@@ -118,6 +119,19 @@ export class ParentController {
     return this.fees.claim(auth, await this.scope.child(auth, id), dto);
   }
 
+  @RawResponse()
+  @Get('children/:studentId/payments/:paymentId/receipt')
+  @ApiOperation({ summary: 'A confirmed payment’s receipt for a child, as a PDF' })
+  @ApiNotFoundResponse({ description: 'PAYMENT_NOT_FOUND' })
+  @ApiConflictResponse({ description: 'RECEIPT_NOT_READY' })
+  async receipt(
+    @CurrentUser() auth: AuthUserContext,
+    @Param('studentId', studentId) id: string,
+    @Param('paymentId', new RecordIdPipe('Payment not found')) paymentId: string,
+  ) {
+    return pdfFile(await this.fees.receipt(auth, await this.scope.child(auth, id), paymentId));
+  }
+
   @ResponseMessage('Results loaded.')
   @Get('children/:studentId/results')
   @ApiOperation({
@@ -129,6 +143,18 @@ export class ParentController {
     @Query() q: ParentTermQuery,
   ) {
     return this.results.results(await this.scope.child(auth, id), q.term);
+  }
+
+  @RawResponse()
+  @Get('children/:studentId/results/pdf')
+  @ApiOperation({ summary: 'A child’s published report card for a term, as a PDF' })
+  @ApiConflictResponse({ description: 'RESULT_NOT_PUBLISHED · RESULT_HELD' })
+  async childResultsPdf(
+    @CurrentUser() auth: AuthUserContext,
+    @Param('studentId', studentId) id: string,
+    @Query() q: ParentTermQuery,
+  ) {
+    return pdfFile(await this.results.pdf(await this.scope.child(auth, id), q.term));
   }
 
   @ResponseMessage('Timetable loaded.')

@@ -11,6 +11,7 @@ import PageTitle from '@/components/common/PageTitle.vue';
 import QueryState from '@/components/common/QueryState.vue';
 import StatGrid from '@/components/common/StatGrid.vue';
 import { useCurrentChild } from '@/composables/useCurrentChild';
+import { useDownload } from '@/composables/useDownload';
 import { formatDay } from '@/lib/dates';
 import { naira } from '@/lib/money';
 import { payLabel, payState } from '@/lib/pay';
@@ -24,6 +25,7 @@ import { routesPath } from '@/router/routes-path';
 const { child, id } = useCurrentChild();
 const q = useFeesQuery(id);
 const f = computed(() => q.data.value);
+const { busy, download } = useDownload();
 const pay = computed(() => (f.value ? payState(f.value) : null));
 const stats = computed(() => {
   const cur = f.value?.current;
@@ -135,7 +137,25 @@ const paymentTitle = (p: { amount: number; method: string; byParent: boolean }) 
             .join(' · ')
         "
         :badge="p.status === 'Pending verification' ? 'Pending' : p.status"
-      />
+      >
+        <template v-if="p.status === 'Confirmed'" #sub>
+          {{ [formatDay(p.date), p.number].join(' · ') }} ·
+          <button
+            type="button"
+            class="font-medium text-brand-strong underline underline-offset-2"
+            :disabled="!!busy"
+            @click.stop.prevent="
+              download(
+                `/v1/parent/children/${id}/payments/${p.id}/receipt`,
+                `Receipt-${p.number}.pdf`,
+                p.id,
+              )
+            "
+          >
+            {{ busy === p.id ? 'Preparing…' : 'Download receipt' }}
+          </button>
+        </template>
+      </ListRow>
     </ListSection>
   </template>
 </template>

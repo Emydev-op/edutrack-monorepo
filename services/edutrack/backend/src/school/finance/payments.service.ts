@@ -1,3 +1,4 @@
+import { documentSchool, paymentReceipt } from './receipts.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { isUuid } from '../../platform/shared/params.js';
 import type { TenantTx } from '../shared/tenant-tx.js';
@@ -153,6 +154,13 @@ export class PaymentsService {
       balanceNow: v.outstandingOf(p.studentKey),
       history: await this.core.history('Payment', p.id),
     };
+  }
+
+  /** A confirmed payment's receipt PDF. */
+  async receipt(id: string) {
+    const v = await this.core.load();
+    const school = await documentSchool(this.core.db, this.core.schoolId());
+    return paymentReceipt(v, this.findPayment(v, id), school, this.core.now());
   }
 
   async get(id: string) {

@@ -9,7 +9,8 @@ import {
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { Portals } from '../../auth/decorators/auth.decorators.js';
 import { CurrentUser } from '../../common/decorators/request.decorators.js';
-import { ResponseMessage } from '../../common/http/api-response.js';
+import { RawResponse, ResponseMessage } from '../../common/http/api-response.js';
+import { pdfFile } from '../../common/pdf/school-documents.js';
 import { RecordIdPipe } from '../../platform/shared/params.js';
 import { GuardianSubmissionDto } from '../homework/dto/homework.dto.js';
 import { FamilyHomeworkService } from '../homework/family-homework.service.js';
@@ -110,6 +111,14 @@ export class StudentController {
   @ApiOperation({ summary: 'My report card for a term, once published (held cards say so)' })
   async results(@CurrentUser() auth: AuthUserContext, @Query() q: StudentTermQuery) {
     return this.reportCards.results(await this.scope.me(auth), q.term);
+  }
+
+  @RawResponse()
+  @Get('results/pdf')
+  @ApiOperation({ summary: 'My published report card for a term, as a PDF' })
+  @ApiConflictResponse({ description: 'RESULT_NOT_PUBLISHED · RESULT_HELD' })
+  async resultsPdf(@CurrentUser() auth: AuthUserContext, @Query() q: StudentTermQuery) {
+    return pdfFile(await this.reportCards.pdf(await this.scope.me(auth), q.term));
   }
 
   @ResponseMessage('Attendance loaded.')

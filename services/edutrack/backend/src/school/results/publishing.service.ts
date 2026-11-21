@@ -1,3 +1,4 @@
+import { pdfName, reportCardPdf, type ReportCardDoc } from '../../common/pdf/school-documents.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { RequestContext } from '../../common/context/request-context.js';
@@ -460,6 +461,16 @@ export class PublishingService {
     if (!card)
       throw conflict('This student has no report card in the class yet.', 'NO_REPORT_CARD');
     return card;
+  }
+
+  /** The report card as a PDF; before publishing it prints as a preview. */
+  async reportCardPdf(studentId: string, termId?: string) {
+    const card = await this.reportCard(studentId, termId);
+    const file = await reportCardPdf({
+      ...(card as unknown as ReportCardDoc),
+      preview: !card.published,
+    });
+    return { file, name: pdfName(`${card.student.name} ${card.title}`) };
   }
 
   async hold(auth: AuthUserContext, studentId: string, body: { term?: string; reason?: string }) {

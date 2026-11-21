@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { AppException } from '../../common/errors/app.exception.js';
+import { pdfName, reportCardPdf, type ReportCardDoc } from '../../common/pdf/school-documents.js';
 import { fmtDate } from '../academics/academic-format.js';
 import { ParentScopeService, type ParentTerm, type StudentRef } from './parent-scope.service.js';
 
@@ -96,6 +98,16 @@ export class ParentResultsService {
         s.card?.publishedAt && s.status === 'published' ? fmtDate(s.card.publishedAt) : null,
       card: snapshot ? parentCard(snapshot) : null,
     };
+  }
+
+  /** The published report card as a PDF (Parent and Student Portals' Download button). */
+  async pdf(scope: StudentRef, termId?: string) {
+    const r = await this.results(scope, termId);
+    if (r.status === 'held') throw AppException.conflict(r.held!.message, 'RESULT_HELD');
+    if (!r.card)
+      throw AppException.conflict('This report card isn’t published yet.', 'RESULT_NOT_PUBLISHED');
+    const card = r.card as unknown as ReportCardDoc;
+    return { file: await reportCardPdf(card), name: pdfName(`${card.student.name} ${r.term}`) };
   }
 
   /** The newest term with a published card (or the current term's state), for Home. */

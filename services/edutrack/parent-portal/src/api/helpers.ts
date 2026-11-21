@@ -1,10 +1,36 @@
-import type { AxiosRequestConfig } from 'axios';
+import { isAxiosError, type AxiosRequestConfig } from 'axios';
 
 import { apiClient } from './client';
 
 export async function getRequest<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
   const { data } = await apiClient.get<T>(url, config);
   return data;
+}
+
+/**
+ * Saves a file from the API (a PDF, a template) to the browser's downloads, named as the server
+ * says (Content-Disposition) or `fallbackName`.
+ */
+export async function downloadFile(url: string, fallbackName: string) {
+  let res;
+  try {
+    res = await apiClient.get<Blob>(url, { responseType: 'blob' });
+  } catch (error) {
+    // Errors come back as a Blob too; parse it so getApiErrorMessage() can read the message.
+    if (isAxiosError(error) && error.response?.data instanceof Blob) {
+      try {
+        error.response.data = JSON.parse(await error.response.data.text());
+      } catch {
+        // Not JSON: keep the generic message.
+      }
+    }
+    throw error;
+  }
+  const disposition = String(res.headers['content-disposition'] ?? '');
+  const name = /filename="([^"]+)"/.exec(disposition)?.[1] ?? fallbackName;
+  const href = URL.createObjectURL(res.data);
+  Object.assign(document.createElement('a'), { href, download: name }).click();
+  setTimeout(() => URL.revokeObjectURL(href), 1000);
 }
 
 export async function postRequest<T, B = unknown>(

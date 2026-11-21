@@ -515,6 +515,21 @@ describe('Results (e2e)', () => {
       expect(locked.body.error.code).toBe('RESULTS_PUBLISHED');
     });
 
+    it('downloads the report card as a PDF', async () => {
+      const res = await admin
+        .get(`${R}/report-card/${students[0]!.studentId}/pdf`)
+        .buffer(true)
+        .parse((r, cb) => {
+          const chunks: Buffer[] = [];
+          r.on('data', (c: Buffer) => chunks.push(c));
+          r.on('end', () => cb(null, Buffer.concat(chunks)));
+        });
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toContain('application/pdf');
+      expect(res.headers['content-disposition']).toMatch(/attachment; filename=".+\.pdf"/);
+      expect((res.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-');
+    });
+
     it('shows the report card with attendance, remarks, positions and the next term', async () => {
       const card = (await admin.get(`${R}/report-card/${students[0]!.studentId}`)).body.data;
       expect(card).toMatchObject({
