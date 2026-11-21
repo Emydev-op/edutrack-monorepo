@@ -20,12 +20,12 @@
     "@edutrack/shared": "*",
     "@edutrack/ui": "*",
     "@edutrack/web-core": "*",
-    "@tanstack/vue-query": "^5.107.1",
+    "@tanstack/vue-query": "^5.108.0",
     "@vee-validate/yup": "^4.15.1",
     "pinia": "^4.1.0",
     "vee-validate": "^4.15.1",
     "vue": "^3.5.45",
-    "vue-router": "^5.5.0",
+    "vue-router": "^5.5.1",
     "yup": "^1.7.1"
   },
   "devDependencies": {
@@ -36,7 +36,7 @@
     "@vitejs/plugin-vue": "^6.0.10",
     "@vitest/eslint-plugin": "^1.6.27",
     "@vue/eslint-config-typescript": "^14.9.0",
-    "@vue/test-utils": "^2.5.1",
+    "@vue/test-utils": "^2.6.0",
     "@vue/tsconfig": "^0.9.1",
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
