@@ -20,6 +20,7 @@ import { SchoolSettingsModule } from './settings/settings.module.js';
 import { SchoolSupportModule } from './support/school-support.module.js';
 import { TeacherModule } from './teacher/teacher.module.js';
 import { HomeworkModule } from './homework/homework.module.js';
+import { LessonNotesModule } from './lesson-notes/lesson-notes.module.js';
 import { ParentModule } from './parent/parent.module.js';
 import { PromotionModule } from './promotion/promotion.module.js';
 import { ResultsModule } from './results/results.module.js';
@@ -53,6 +54,8 @@ import { StudentsModule } from './students/students.module.js';
     // Results (Phase 3b): /v1/results, /v1/reviews/sheets, /v1/corrections, /v1/class-teacher/
     // progress|report-cards and School Admin's /v1/academics/results/...
     ResultsModule,
+    // Teacher Workspace: /v1/lesson-notes, /v1/reviews/notes, /v1/assessments, /v1/announcements.
+    LessonNotesModule,
     // End-of-session promotion: /v1/academics/promotion.
     PromotionModule,
     // School Admin › Support: /v1/support/tickets (the school’s side of the EduTrack desk).

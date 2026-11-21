@@ -36,6 +36,7 @@ import { seedSupportDesk } from './support-data.js';
 import { clearSchoolComms, seedSchoolComms } from './school-comms-data.js';
 import { clearSchoolFinance, seedSchoolFinance } from './school-finance-data.js';
 import { clearSchoolHomework, seedSchoolHomework } from './school-homework-data.js';
+import { clearSchoolLessonNotes, seedSchoolLessonNotes } from './school-lesson-notes-data.js';
 
 export const DEMO_PASSWORD = 'Edutrack2026!';
 const DAY = 86_400_000;
@@ -483,6 +484,9 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
   await clearSchoolComms(prisma);
   // Finance rows point at students, terms and levels the school seeds may remove.
   await clearSchoolFinance(prisma);
+  // Lesson notes and assessment schedules point at staff, terms, levels and scheme components;
+  // a note's file is a homework upload, so they go before homework.
+  await clearSchoolLessonNotes(prisma);
   // Homework points at students, staff, arms and terms the school seeds may remove.
   await clearSchoolHomework(prisma);
 
@@ -773,6 +777,7 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
   await seedSchoolComms(prisma, schoolIds, now);
   await seedSchoolFinance(prisma, schoolIds);
   await seedSchoolHomework(prisma, schoolIds, now);
+  await seedSchoolLessonNotes(prisma, schoolIds, now);
 
   return { schools: schoolIds, users: userIds.size };
 }

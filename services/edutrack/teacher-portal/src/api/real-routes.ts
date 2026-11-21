@@ -1,10 +1,9 @@
 import { createRouteMatcher } from '@edutrack/web-core/http';
 
 /**
- * The routes the real backend serves. The Teacher Workspace moves to the real API one section at
- * a time: with `VITE_USE_MOCKS=false`, requests matching a rule here go to the backend and the
- * rest are still answered by the in-browser mock until their phase is built (lesson notes and
- * assessments are still mock).
+ * The routes the real backend serves. With `VITE_USE_MOCKS=false`, requests matching a rule here
+ * go to the backend; every Teacher Workspace screen is now on the API (the in-browser mock still
+ * answers everything when mocks are on).
  *
  * A rule is `'METHOD /path'` (`*` for any method); `:name` matches one path segment and a trailing
  * `/**` matches anything below.
@@ -24,7 +23,7 @@ export const REAL_ROUTES: readonly string[] = [
   'GET /v1/class-teacher/register/history',
   'PUT /v1/class-teacher/register/:date',
   // Results (Phase 3b): my sheets, corrections, HOD reviews of result sheets, and My class ›
-  // Progress and Report cards. Lesson-note reviews stay on the mock.
+  // Progress and Report cards.
   'GET /v1/results',
   'GET /v1/results/:sheetId',
   'PUT /v1/results/:sheetId/scores',
@@ -37,6 +36,21 @@ export const REAL_ROUTES: readonly string[] = [
   'GET /v1/reviews/sheets/:sheetId',
   'POST /v1/reviews/sheets/:sheetId/forward',
   'POST /v1/reviews/sheets/:sheetId/return',
+  // Lesson notes, and their reviews by HODs and the Academic Head.
+  'GET /v1/lesson-notes',
+  'POST /v1/lesson-notes',
+  'GET /v1/lesson-notes/:noteId',
+  'PUT /v1/lesson-notes/:noteId',
+  'GET /v1/reviews/notes',
+  'GET /v1/reviews/notes/:noteId',
+  'POST /v1/reviews/notes/:noteId/approve',
+  'POST /v1/reviews/notes/:noteId/return',
+  // Assessments: the scheme and when my classes take its components.
+  'GET /v1/assessments',
+  'GET /v1/assessments/options',
+  'POST /v1/assessments',
+  'GET /v1/assessments/:assessmentId',
+  'PATCH /v1/assessments/:assessmentId',
   'GET /v1/class-teacher/progress',
   'POST /v1/class-teacher/progress/:sheetId/remind',
   'GET /v1/class-teacher/report-cards',
@@ -63,6 +77,9 @@ export const REAL_ROUTES: readonly string[] = [
   'GET /v1/materials/:materialId',
   'POST /v1/materials/:materialId/archive',
   'POST /v1/materials/:materialId/restore',
+  // Announcements for staff.
+  'GET /v1/announcements',
+  'GET /v1/announcements/:id',
   // Dashboard, sidebar counts, notifications and email preferences, my profile.
   'GET /v1/dashboard',
   'GET /v1/nav-counts',

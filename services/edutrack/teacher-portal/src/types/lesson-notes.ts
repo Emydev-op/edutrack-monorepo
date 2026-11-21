@@ -45,10 +45,18 @@ export interface LessonNoteSlot {
   noReview: boolean;
 }
 
+/**
+ * The note's file. Picked files are uploaded first (`POST /v1/uploads`) and sent by `id`; reads
+ * add a short-lived download `url`.
+ */
 export interface NoteAttachment {
+  /** The uploaded file's id. */
+  id?: string;
   name: string;
   type: string;
   bytes: number;
+  /** Read-only, from the API: a signed download link (about an hour). */
+  url?: string | null;
 }
 
 export interface LessonNoteSummary {
