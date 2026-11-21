@@ -160,7 +160,10 @@ describe('communication', () => {
   it('warns when units run short, then sends what they cover', async () => {
     const c = commsFor('greenfield');
     const saved = c.credit;
+    const quiet = c.quietHours;
     c.credit = 10;
+    // At night the school's SMS quiet hours would hold the texts; this test is about units.
+    c.quietHours = { ...quiet, enabled: false };
     try {
       const body = {
         title: 'Fees',
@@ -181,6 +184,7 @@ describe('communication', () => {
       expect(c.credit).toBe(0);
     } finally {
       c.credit = saved;
+      c.quietHours = quiet;
     }
   });
 

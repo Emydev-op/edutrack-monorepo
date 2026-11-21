@@ -17,6 +17,7 @@ import {
 } from './password.js';
 import { opensPortal, membershipInclude } from './portal-access.service.js';
 import { PortalLinksService } from './portal-links.service.js';
+import { childAccess } from './school-portal-rules.js';
 import { randomToken, sha256 } from './tokens.js';
 
 const invitationInclude = {
@@ -116,7 +117,49 @@ export class InvitationService {
       expiresAt: inv.expiresAt.toISOString(),
       expiresOn: DATE.format(inv.expiresAt),
       expiresIn: daysLeft <= 0 ? 'Today' : daysLeft === 1 ? 'Tomorrow' : `In ${daysLeft} days`,
+      phone: inv.user.phone ?? inv.membership?.guardian?.phone ?? null,
+      /** Parent Portal: the children the school linked to this parent ("Linked by school"). */
+      children: inv.membership?.guardianId
+        ? await this.linkedChildren(inv.membership.guardianId)
+        : [],
     };
+  }
+
+  /** A guardian's children the parent will see, with their class: "Emmanuel Adeyemi · JSS 2B". */
+  private async linkedChildren(guardianId: string) {
+    const links = await this.prisma.studentGuardian.findMany({
+      where: { guardianId },
+      include: {
+        student: {
+          include: {
+            enrollments: {
+              where: { armId: { not: null } },
+              include: {
+                level: { select: { name: true } },
+                arm: { select: { name: true } },
+                branch: { select: { name: true } },
+              },
+              orderBy: { session: { startsOn: 'desc' } },
+              take: 1,
+            },
+          },
+        },
+      },
+      orderBy: [{ student: { firstName: 'asc' } }],
+    });
+    const now = this.clock.now();
+    return links
+      .filter((l) => childAccess(l.student, now) !== null)
+      .map((l) => {
+        const e = l.student.enrollments[0];
+        const level = e?.level.name ?? '';
+        return {
+          name: `${l.student.firstName} ${l.student.surname}`,
+          firstName: l.student.firstName,
+          className: e?.arm ? `${level}${/\d$/.test(level) ? '' : ' '}${e.arm.name}` : level,
+          branch: e?.branch.name ?? '',
+        };
+      });
   }
 
   private async inviterLabel(inv: InvitationRow): Promise<string> {

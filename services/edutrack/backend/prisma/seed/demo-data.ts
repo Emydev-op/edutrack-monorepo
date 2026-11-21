@@ -769,7 +769,7 @@ export async function seedDemoData(prisma: PrismaClient, now = new Date()): Prom
   await seedSchoolStudents(prisma, schoolIds);
   await seedSchoolPlanning(prisma, schoolIds, now);
   await seedSchoolAdmissions(prisma, schoolIds);
-  await seedSchoolAccounts(prisma, schoolIds);
+  await seedSchoolAccounts(prisma, schoolIds, { passwordHash, now });
   await seedSchoolComms(prisma, schoolIds, now);
   await seedSchoolFinance(prisma, schoolIds);
   await seedSchoolHomework(prisma, schoolIds, now);

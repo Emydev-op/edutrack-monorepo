@@ -175,6 +175,25 @@ export class CommsDispatchService {
     const channelsFor = (role: RecipientRole) =>
       role === 'STUDENT' ? channels.filter((c) => c === 'In-app') : channels;
     if (!input.recipients.some((r) => channelsFor(r.role).length)) return { ...NOTHING, reached };
+    // Parents choose channels per kind of notification in the Parent Portal (no row: all on).
+    const parentUsers = [
+      ...new Set(
+        input.recipients.filter((r) => r.role === 'PARENT' && r.userId).map((r) => r.userId!),
+      ),
+    ];
+    const prefs = parentUsers.length
+      ? await db.notificationPreference.findMany({
+          where: { schoolId, userId: { in: parentUsers }, event: input.inApp.category },
+        })
+      : [];
+    const wanted = (r: CommsRecipient) => {
+      const base = channelsFor(r.role);
+      const p = r.role === 'PARENT' && r.userId && prefs.find((x) => x.userId === r.userId);
+      if (!p) return base;
+      return base.filter((c) =>
+        c === 'In-app' ? p.inApp : c === 'Email' ? p.email : c === 'SMS' ? p.sms : true,
+      );
+    };
 
     await this.ledger.addTermAllowance(schoolId);
     const settings = await this.ledger.lock(db, schoolId);
@@ -219,7 +238,7 @@ export class CommsDispatchService {
     for (const r of input.recipients) {
       if (seen.has(r.key)) continue;
       seen.add(r.key);
-      const mine = channelsFor(r.role);
+      const mine = wanted(r);
       if (!mine.length) continue;
       const vars = { school_name: school.name, ...input.vars, ...r.vars };
       const recipientId = randomUUID();
