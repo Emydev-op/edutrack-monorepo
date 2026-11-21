@@ -21,7 +21,7 @@ import { HomeworkFilesService } from './homework-files.js';
 export const SUBMISSION_LIMITS = { files: 5, note: 1000 };
 
 /**
- * Homework from the family's side, for the Parent Portal (and the Student Portal later): a
+ * Homework from the family's side, for the Parent and Student Portals: a
  * student's assignments this term with their status (score and feedback once the teacher returns
  * the work), the class's materials for the subjects they take, and handing work in. Primary
  * pupils (sections without Student Portal logins) hand in through a parent or guardian.
@@ -234,6 +234,31 @@ export class FamilyHomeworkService {
         'This child has left the school, so their records are read-only.',
         'READ_ONLY',
       );
+    return this.handIn(auth, studentId, assignmentId, body, guardian);
+  }
+
+  /**
+   * A JSS or SSS student hands in their own work from the Student Portal (their section has
+   * Student Portal logins). Same rules as a guardian's hand-in; the caller has checked that the
+   * student is signed in and still on the roll.
+   */
+  submitAsStudent(
+    auth: AuthUserContext,
+    studentId: string,
+    assignmentId: string,
+    body: { note?: string; files?: { id?: string }[] },
+  ) {
+    return this.handIn(auth, studentId, assignmentId, body, null);
+  }
+
+  /** Hands work in for a student, by a guardian (primary) or by the student themselves. */
+  private async handIn(
+    auth: AuthUserContext,
+    studentId: string,
+    assignmentId: string,
+    body: { note?: string; files?: { id?: string }[] },
+    guardian: { id: string; title: string | null; fullName: string } | null,
+  ) {
     const a = await this.db.assignment.findFirst({
       where: { id: assignmentId },
       include: { subject: { select: { name: true } } },
@@ -248,13 +273,24 @@ export class FamilyHomeworkService {
         (e) => e.studentId === studentId,
       );
     if (!place || !onList || a.status === 'DRAFT')
-      throw AppException.notFound('That assignment isn’t set for this child.', 'NOT_FOUND');
+      throw AppException.notFound(
+        guardian
+          ? 'That assignment isn’t set for this child.'
+          : 'That assignment isn’t set for you.',
+        'NOT_FOUND',
+      );
     const name = fullName(place.student);
-    if (place.studentLogins)
+    if (guardian && place.studentLogins)
       throw new AppException(
         HttpStatus.FORBIDDEN,
         `${name} has a Student Portal login, so they hand in their own work.`,
         'STUDENT_SUBMITS',
+      );
+    if (!guardian && !place.studentLogins)
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        'Your class hands in work through a parent or guardian.',
+        'GUARDIAN_SUBMITS',
       );
     const lock = TeacherScopeService.lockReason(term);
     if (lock) throw new AppException(HttpStatus.CONFLICT, lock, 'TERM_LOCKED');
@@ -273,7 +309,7 @@ export class FamilyHomeworkService {
     if (existing && !['NOT_SUBMITTED', 'SUBMITTED', 'LATE'].includes(existing.status))
       throw unprocessable(
         existing.status === 'EXCUSED'
-          ? `${name} is excused from this assignment.`
+          ? `${guardian ? `${name} is` : 'You are'} excused from this assignment.`
           : 'The teacher has already graded this work, so it can’t be changed.',
         'ALREADY_GRADED',
       );
@@ -289,14 +325,14 @@ export class FamilyHomeworkService {
     await this.files.claim(auth, ids, 'files', keep);
     const schoolId = TeacherScopeService.schoolId();
     const now = this.core.now();
-    const by = guardianName(guardian);
+    const by = guardian ? `${guardianName(guardian)} (parent/guardian)` : `${name} (student)`;
     await this.db.$transaction(async (tx) => {
       const data = {
         status: pastDue ? ('LATE' as const) : ('SUBMITTED' as const),
         isLate: pastDue,
         submittedAt: now,
         note: note || null,
-        submittedByGuardianId: guardian.id,
+        submittedByGuardianId: guardian?.id ?? null,
       };
       const s = existing
         ? await tx.submission.update({ where: { id: existing.id }, data })
@@ -318,12 +354,12 @@ export class FamilyHomeworkService {
           entity: 'Submission',
           entityId: s.id,
           summary: `${existing && existing.status !== 'NOT_SUBMITTED' ? 'Handed in again' : 'Handed in'}${pastDue ? ' late' : ''}`,
-          detail: `By ${by} (parent/guardian) for ${name}`,
+          detail: guardian ? `By ${by} for ${name}` : `By ${by}`,
         },
         asTx(tx),
       );
     });
-    const view = await this.homework(studentId, term.id, { guardian: true, full: true });
+    const view = await this.homework(studentId, term.id, { guardian: !!guardian, full: true });
     return view.assignments.find((x) => x.id === assignmentId)!;
   }
 }

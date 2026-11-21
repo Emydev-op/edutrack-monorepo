@@ -27,6 +27,7 @@ import { ParentScopeService } from './parent-scope.service.js';
     ParentAccountService,
     SchoolAuditService,
   ],
-  exports: [ParentAccountService],
+  // The Student Portal reuses the read models.
+  exports: [ParentAccountService, ParentScopeService, ParentSchoolService, ParentResultsService],
 })
 export class ParentModule {}

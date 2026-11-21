@@ -5,10 +5,12 @@
  * Parent and student accounts are normally created by the school (invitations, login slips). One
  * parent login is seeded so the Parent Portal can be tried at once: Mrs. Funke Adeyemi
  * (funke.adeyemi@gmail.com, the demo password), mother of Emmanuel (JSS 2B) and Michael
- * (Primary 5B), signs in at greenfield.<host>/parent.
+ * (Primary 5B), signs in at greenfield.<host>/parent. One student login is seeded for the
+ * Student Portal: Emmanuel Adeyemi (JSS 2B) signs in at greenfield.<host>/student with his
+ * admission number STU-2025-0042 and the demo password (already changed: no first-sign-in step).
  *
- * Idempotent: puts the per-section default back on every run, and Funke's account and
- * membership back to active.
+ * Idempotent: puts the per-section default back on every run, and Funke's and Emmanuel's
+ * accounts and memberships back to active.
  */
 import type { PrismaClient } from '../../src/generated/prisma/client.js';
 import { STUDENT_LOGIN_SECTION_CODES } from '../../src/school/student-logins/student-login-rules.js';
@@ -22,6 +24,13 @@ export const DEMO_PARENT = {
   firstName: 'Funke',
   lastName: 'Adeyemi',
   phone: '+2348035550161',
+} as const;
+
+/** The seeded Student Portal login (signs in with the admission number). */
+export const DEMO_STUDENT = {
+  admissionNo: 'STU-2025-0042',
+  firstName: 'Emmanuel',
+  lastName: 'Adeyemi',
 } as const;
 
 export async function seedSchoolAccounts(
@@ -41,7 +50,56 @@ export async function seedSchoolAccounts(
       data: { studentLogins: false },
     });
   }
-  if (ctx && schoolIds.greenfield) await seedDemoParent(prisma, schoolIds.greenfield, ctx);
+  if (ctx && schoolIds.greenfield) {
+    await seedDemoParent(prisma, schoolIds.greenfield, ctx);
+    await seedDemoStudent(prisma, schoolIds.greenfield, ctx);
+  }
+}
+
+/** Emmanuel Adeyemi's Student Portal login at Greenfield Academy. */
+async function seedDemoStudent(
+  prisma: PrismaClient,
+  schoolId: string,
+  { passwordHash, now }: { passwordHash: string; now: Date },
+) {
+  const studentId = demoUuid(`greenfield:student:${DEMO_STUDENT.admissionNo}`);
+  const student = await prisma.student.findUnique({ where: { id: studentId } });
+  if (!student) return;
+  const userId = demoUuid(`greenfield:student-user:${DEMO_STUDENT.admissionNo}`);
+  // A login made for him while using the demo (School Admin › Students › Logins) is replaced.
+  const others = await prisma.schoolMembership.findMany({
+    where: { schoolId, studentId, userId: { not: userId } },
+    select: { id: true },
+  });
+  if (others.length) {
+    const ids = others.map((m) => m.id);
+    await prisma.invitation.deleteMany({ where: { membershipId: { in: ids } } });
+    await prisma.schoolMembership.deleteMany({ where: { id: { in: ids } } });
+  }
+  const data = {
+    firstName: DEMO_STUDENT.firstName,
+    lastName: DEMO_STUDENT.lastName,
+    status: 'ACTIVE' as const,
+    passwordHash,
+    passwordChangedAt: now,
+    mustChangePassword: false,
+    failedSignInCount: 0,
+    lockedUntil: null,
+    lastFailedSignInAt: null,
+    deletedAt: null,
+  };
+  await prisma.user.upsert({
+    where: { id: userId },
+    create: { id: userId, ...data },
+    update: data,
+  });
+  const membership = { status: 'ACTIVE' as const, studentId, activatedAt: now, statusReason: null };
+  await prisma.schoolMembership.upsert({
+    where: { schoolId_userId_kind: { schoolId, userId, kind: 'STUDENT' } },
+    create: { schoolId, userId, kind: 'STUDENT', ...membership },
+    update: membership,
+  });
+  await prisma.notificationPreference.deleteMany({ where: { userId, schoolId } });
 }
 
 /** Mrs. Funke Adeyemi's Parent Portal login at Greenfield Academy. */

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { fmtDate } from '../academics/academic-format.js';
-import { ParentScopeService, type ChildScope, type ParentTerm } from './parent-scope.service.js';
+import { ParentScopeService, type ParentTerm, type StudentRef } from './parent-scope.service.js';
 
 /** Report cards held automatically at publishing for unpaid fees carry this reason. */
 export const FEES_HOLD_PREFIX = 'Unpaid fees';
@@ -76,8 +76,8 @@ export class ParentResultsService {
     return { status: 'not-published' as const, held: null, card: null };
   }
 
-  /** `GET /v1/parent/children/:id/results?term=`. */
-  async results(scope: ChildScope, termId?: string) {
+  /** `GET /v1/parent/children/:id/results?term=` (and the Student Portal's results). */
+  async results(scope: StudentRef, termId?: string) {
     const id = scope.student.id;
     const { term, terms } = await this.scope.termFor(id, termId);
     const list = await this.scope.childTerms(id, terms);
@@ -99,7 +99,7 @@ export class ParentResultsService {
   }
 
   /** The newest term with a published card (or the current term's state), for Home. */
-  async latest(scope: ChildScope): Promise<ResultSummary> {
+  async latest(scope: StudentRef): Promise<ResultSummary> {
     const id = scope.student.id;
     const { term, terms } = await this.scope.termFor(id);
     const current = await this.state(id, term);
