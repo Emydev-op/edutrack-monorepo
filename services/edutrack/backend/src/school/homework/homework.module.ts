@@ -30,6 +30,11 @@ import { ParentHomeworkController } from './parent-homework.controller.js';
     FamilyHomeworkService,
     SchoolAuditService,
   ],
-  exports: [AssignmentsHomeworkService, MaterialsHomeworkService, FamilyHomeworkService],
+  exports: [
+    AssignmentsHomeworkService,
+    MaterialsHomeworkService,
+    FamilyHomeworkService,
+    HomeworkFilesService,
+  ],
 })
 export class HomeworkModule {}

@@ -34,7 +34,15 @@ defineProps<{ note: LessonNote }>();
           <h3 class="text-xs font-medium text-muted-foreground">Attachment</h3>
           <p v-if="note.attachment" class="flex min-w-0 items-center gap-1.5">
             <PaperclipIcon class="size-3.5 shrink-0 text-muted-foreground" />
-            <span class="truncate">{{ note.attachment.name }}</span>
+            <a
+              v-if="note.attachment.url"
+              :href="note.attachment.url"
+              target="_blank"
+              rel="noopener"
+              class="truncate text-primary underline-offset-2 hover:underline"
+              >{{ note.attachment.name }}</a
+            >
+            <span v-else class="truncate">{{ note.attachment.name }}</span>
             <span class="shrink-0 text-xs text-faint">{{ fileSize(note.attachment.bytes) }}</span>
           </p>
           <p v-else>—</p>

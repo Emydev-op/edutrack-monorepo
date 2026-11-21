@@ -63,7 +63,7 @@ const DATA_URL = /^data:([\w.+-]+\/[\w.+-]+)?;base64,([A-Za-z0-9+/=\s]+)$/;
 
 /**
  * Files for homework: assignment attachments, materials and the work students (or, for primary
- * pupils, their parents) hand in. The browser uploads each file once (`POST /v1/uploads`, a data
+ * pupils, their parents) hand in, and the file on a teacher's lesson note. The browser uploads each file once (`POST /v1/uploads`, a data
  * URL) and the forms then refer to it by id. Files are private; reads hand out signed links.
  */
 @Injectable()
@@ -136,7 +136,14 @@ export class HomeworkFilesService {
     const rows = await this.tenant.db.storedFile.findMany({
       where: { id: { in: ids }, deletedAt: null },
       include: {
-        _count: { select: { assignmentAttachments: true, submissionFiles: true, materials: true } },
+        _count: {
+          select: {
+            assignmentAttachments: true,
+            submissionFiles: true,
+            materials: true,
+            lessonNotes: true,
+          },
+        },
       },
     });
     const byId = new Map(rows.map((r) => [r.id, r]));
@@ -144,7 +151,11 @@ export class HomeworkFilesService {
       const r = byId.get(id);
       if (!r) throw fail('One of the files didn’t upload. Attach it again.');
       if (keep.includes(id)) continue;
-      const used = r._count.assignmentAttachments + r._count.submissionFiles + r._count.materials;
+      const used =
+        r._count.assignmentAttachments +
+        r._count.submissionFiles +
+        r._count.materials +
+        r._count.lessonNotes;
       if (r.uploadedById !== auth.userId || used)
         throw fail(`“${r.originalName}” can’t be attached here. Upload it again.`);
     }

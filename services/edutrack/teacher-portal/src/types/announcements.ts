@@ -3,7 +3,7 @@ export interface AnnouncementSummary {
   title: string;
   /** First lines of the body. */
   summary: string;
-  audience: 'Teachers' | 'Whole school';
+  audience: 'Teachers' | 'All staff' | 'Whole school';
   /** "All campuses" or a campus name. */
   campuses: string;
   author: string;

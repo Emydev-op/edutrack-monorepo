@@ -42,7 +42,10 @@ export interface AssessmentDetail extends AssessmentSummary {
 
 /** The school scheme for each section taught. */
 export interface SchemeSummary {
-  section: 'JSS' | 'SSS';
+  /** The section's short code: JSS, SSS, PRI… */
+  section: string;
+  /** "Junior Secondary". */
+  sectionName: string;
   scaleName: string;
   components: SheetComponent[];
 }
@@ -68,7 +71,8 @@ export interface ScheduleOptions {
     subject: string;
     subjectName: string;
     branchName: string;
-    section: 'JSS' | 'SSS';
+    /** The section's short code: JSS, SSS, PRI… */
+    section: string;
     /** Components not yet scheduled for this class this term. */
     available: SheetComponent[];
   }[];

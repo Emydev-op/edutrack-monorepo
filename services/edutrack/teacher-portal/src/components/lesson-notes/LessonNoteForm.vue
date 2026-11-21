@@ -14,6 +14,7 @@ import SectionCard from '@edutrack/app-kit/components/common/SectionCard.vue';
 import FieldShell from '@edutrack/app-kit/components/form/FieldShell.vue';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 
+import { uploadFile } from '@/api/services/assignments';
 import { useSaveLessonNoteMutation } from '@/api/services/lesson-notes';
 import { useUnsavedWork } from '@/composables/useUnsavedWork';
 import { fieldErrorsOf, getApiErrorMessage } from '@/lib/api-errors';
@@ -119,10 +120,11 @@ const dueLabel = computed(() =>
     : undefined,
 );
 
-/* ---------- Attachment (the mock keeps only name, type and size) ---------- */
+/* ---------- Attachment: uploaded when picked, then sent by id ---------- */
 
 const fileInput = ref<HTMLInputElement | null>(null);
-function pick(event: Event) {
+const uploading = ref(false);
+async function pick(event: Event) {
   const el = event.target as HTMLInputElement;
   const file = el.files?.[0];
   el.value = '';
@@ -137,7 +139,24 @@ function pick(event: Event) {
   errors.value = Object.fromEntries(
     Object.entries(errors.value).filter(([k]) => k !== 'attachment'),
   );
-  attachment.value = { name: file.name, type: file.type, bytes: file.size || 1 };
+  uploading.value = true;
+  try {
+    const up = await uploadFile(file);
+    attachment.value = {
+      id: up.id,
+      name: up.name,
+      type: up.type,
+      bytes: up.bytes || file.size || 1,
+    };
+  } catch (error) {
+    errors.value = {
+      ...errors.value,
+      attachment:
+        fieldErrorsOf(error).file ?? getApiErrorMessage(error, `“${file.name}” didn’t upload.`),
+    };
+  } finally {
+    uploading.value = false;
+  }
 }
 
 /* ---------- Saving ---------- */
@@ -184,7 +203,14 @@ async function run(submit: boolean) {
     topic: topic.value.trim(),
     objectives: objectiveLines.value,
     content: content.value.trim(),
-    attachment: attachment.value,
+    attachment: attachment.value
+      ? {
+          id: attachment.value.id,
+          name: attachment.value.name,
+          type: attachment.value.type,
+          bytes: attachment.value.bytes,
+        }
+      : null,
     schemeTopic: schemeTopic.value.trim(),
     submit,
   };
@@ -399,8 +425,14 @@ async function run(submit: boolean) {
               </button>
             </div>
             <div v-else class="flex flex-wrap items-center gap-2.5">
-              <Button type="button" variant="outline" size="sm" @click="fileInput?.click()"
-                ><PaperclipIcon class="size-4" /> Attach a file</Button
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                :disabled="uploading"
+                @click="fileInput?.click()"
+                ><Spinner v-if="uploading" class="size-4" /><PaperclipIcon v-else class="size-4" />
+                {{ uploading ? 'Uploading…' : 'Attach a file' }}</Button
               >
               <span class="text-xs text-faint">Optional · one file up to 10 MB</span>
             </div>
@@ -423,7 +455,7 @@ async function run(submit: boolean) {
     <InlineNotice v-if="serverError" tone="error" title="Not saved" :description="serverError" />
 
     <div class="flex flex-wrap gap-2">
-      <Button type="submit" :disabled="save.isPending.value || Boolean(existing)">
+      <Button type="submit" :disabled="save.isPending.value || uploading || Boolean(existing)">
         <Spinner v-if="save.isPending.value" />
         {{
           (slot?.noReview ?? note?.noReview)
@@ -436,7 +468,7 @@ async function run(submit: boolean) {
       <Button
         type="button"
         variant="outline"
-        :disabled="save.isPending.value || Boolean(existing)"
+        :disabled="save.isPending.value || uploading || Boolean(existing)"
         @click="run(false)"
         >Save draft</Button
       >
