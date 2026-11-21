@@ -505,8 +505,6 @@ export class AnnouncementsService {
           expiresOn: v.expiresOn ? new Date(`${v.expiresOn}T00:00:00.000Z`) : null,
           status: v.action === 'draft' ? 'DRAFT' : v.action === 'schedule' ? 'SCHEDULED' : a.status,
           scheduledFor: v.action === 'schedule' ? v.scheduledFor : null,
-          // "Edited …" labels read this against the app clock, so stamp it from the clock too.
-          updatedAt: this.clock.now(),
         },
       });
       await tx.announcementArm.deleteMany({ where: { announcementId: a.id } });
