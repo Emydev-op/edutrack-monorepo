@@ -300,6 +300,8 @@ export async function seedSchoolPlanning(
   /* ---------- This term's teacher assignments ---------- */
 
   // Generated parts are rebuilt each run.
+  // The school's own calendar events (tests add holidays): back to none, so reseeds repeat.
+  await prisma.calendarEvent.deleteMany({ where: { schoolId } });
   await prisma.attendanceRegister.deleteMany({ where: { schoolId, termId: term.id } });
   await prisma.timetable.deleteMany({ where: { schoolId } });
   await prisma.teachingAssignment.deleteMany({ where: { schoolId } });
