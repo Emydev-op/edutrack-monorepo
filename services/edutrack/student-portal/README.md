@@ -11,18 +11,24 @@ cp services/edutrack/student-portal/.env.example services/edutrack/student-porta
 npm run dev -w @edutrack/student-portal
 ```
 
-Runs on http://localhost:5173/student/ (built for the path `/student/`). Through the local router
-(`npm run infra:up`) it is http://greenfield.localhost/student, the same shape as the deployed
-address `<school>.edutrack.ng/student`; the school's entry page (`@edutrack/school-home`) links here.
+Runs on http://greenfield.localhost:5173/student/ (built for the path `/student/`; open it on the
+school's address so the API knows the school). Through the local router (`npm run infra:up`) it is
+http://greenfield.localhost/student, the same shape as the deployed address
+`<school>.edutrack.ng/student`; the school's entry page (`@edutrack/school-home`) links here.
+
+Sign in with an admission number and password. The seed gives Emmanuel Adeyemi (JSS 2B,
+Greenfield Academy) a login: admission number `STU-2025-0042`, the demo password. Other students
+get login slips from School Admin › Students › Logins (one-time password, changed at first sign-in).
 
 ## Layout
 
 ```
 src/
-├── assets/main.css        # Tailwind + @edutrack/ui theme
-├── composables/           # TanStack Query hooks, one per API resource
-├── lib/http.ts            # Axios instance (auth + tenant headers)
-├── router/                # Routes and auth guard
-├── stores/                # Pinia stores
-└── views/                 # Route components
+├── api/                   # Axios client, TanStack Query hooks per resource (/v1/student/*)
+├── components/            # Layout (frame, tabs, contact + sign-out sheets) and list pieces
+├── lib/                   # Dates, summaries, notifications, school branding
+├── router/                # Routes, tabs and the sign-in guard
+├── schema/                # Form validation (sign-in, passwords)
+├── stores/                # Signed-in session, sheets
+└── views/                 # Screens: Home, Timetable, Assignments, Results, More…
 ```

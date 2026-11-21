@@ -21,6 +21,7 @@ import { SchoolSupportModule } from './support/school-support.module.js';
 import { TeacherModule } from './teacher/teacher.module.js';
 import { HomeworkModule } from './homework/homework.module.js';
 import { ParentModule } from './parent/parent.module.js';
+import { StudentModule } from './student/student.module.js';
 import { PromotionModule } from './promotion/promotion.module.js';
 import { ResultsModule } from './results/results.module.js';
 import { StudentsModule } from './students/students.module.js';
@@ -50,6 +51,8 @@ import { StudentsModule } from './students/students.module.js';
     HomeworkModule,
     // Parent Portal: /v1/parent/* (homework under /v1/parent/children/:id/homework is HomeworkModule's).
     ParentModule,
+    // Student Portal: /v1/student/*.
+    StudentModule,
     // Results (Phase 3b): /v1/results, /v1/reviews/sheets, /v1/corrections, /v1/class-teacher/
     // progress|report-cards and School Admin's /v1/academics/results/...
     ResultsModule,

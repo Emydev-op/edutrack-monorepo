@@ -223,6 +223,11 @@ export class ParentAccountService {
     q: { filter?: string; page?: number; pageSize?: number },
   ) {
     await this.scope.guardian(auth);
+    return this.inboxList(auth, q);
+  }
+
+  /** The signed-in user's notifications at this school, paged (Parent and Student Portals). */
+  async inboxList(auth: AuthUserContext, q: { filter?: string; page?: number; pageSize?: number }) {
     const base = this.mine(auth);
     const where = { ...base, ...(q.filter === 'unread' && { readAt: null }) };
     const pageSize = Math.min(Math.max(Number(q.pageSize) || 20, 1), 100);

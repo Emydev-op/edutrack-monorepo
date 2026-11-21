@@ -52,6 +52,11 @@ export interface ChildScope {
   };
 }
 
+/** What the shared read models need of a scope: the student (a parent's child or the pupil). */
+export interface StudentRef {
+  student: { id: string };
+}
+
 export const guardianDisplay = (g: { title: string | null; fullName: string }) =>
   [g.title, g.fullName].filter(Boolean).join(' ');
 

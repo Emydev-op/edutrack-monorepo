@@ -18,6 +18,7 @@ import { CurrentUser } from '../../common/decorators/request.decorators.js';
 import { ResponseMessage } from '../../common/http/api-response.js';
 import { PaginationQueryDto } from '../../common/pagination/pagination.js';
 import { ParentAccountService } from '../parent/parent-account.service.js';
+import { StudentScopeService } from '../student/student-scope.service.js';
 import { TeacherFrameService } from '../teacher/teacher-frame.service.js';
 import { SchoolInboxService } from './school-inbox.service.js';
 
@@ -37,11 +38,11 @@ class TermQuery {
 
 /**
  * The header bell, notifications and sidebar counts of School Admin and the Teacher Workspace,
- * and the Parent Portal's notifications. The portals call the same paths; each gets the shape
+ * and the Parent and Student Portals' notifications. The portals call the same paths; each gets the shape
  * its screens use.
  */
 @ApiTags('school inbox')
-@Portals('SCHOOL_ADMIN', 'TEACHER', 'PARENT')
+@Portals('SCHOOL_ADMIN', 'TEACHER', 'PARENT', 'STUDENT')
 @OpenWhenLapsed()
 @Controller()
 export class SchoolInboxController {
@@ -60,14 +61,23 @@ export class SchoolInboxController {
     return this.modules.get(ParentAccountService, { strict: false });
   }
 
+  /** The Student Portal's check that the pupil may still use it (resolved lazily too). */
+  private student() {
+    return this.modules.get(StudentScopeService, { strict: false });
+  }
+
   @Get('notifications')
   @ResponseMessage('Notifications loaded.')
   @ApiOperation({
     summary:
-      'School Admin: the latest 20 notifications. Teacher Workspace and Parent Portal: ' +
-      'notifications, paged, with counts',
+      'School Admin: the latest 20 notifications. Teacher Workspace, Parent and Student ' +
+      'Portals: notifications, paged, with counts',
   })
-  latest(@CurrentUser() auth: AuthUserContext, @Query() q: InboxQuery) {
+  async latest(@CurrentUser() auth: AuthUserContext, @Query() q: InboxQuery) {
+    if (auth.portal === 'STUDENT') {
+      await this.student().me(auth);
+      return this.parent().inboxList(auth, q);
+    }
     if (auth.portal === 'PARENT') return this.parent().notifications(auth, q);
     return auth.portal === 'TEACHER'
       ? this.teacher().notifications(auth, q)
@@ -106,8 +116,9 @@ export class SchoolInboxController {
   @ResponseMessage('All notifications marked read.')
   @HttpCode(200)
   @ApiOperation({ summary: 'Mark every notification read' })
-  readAll(@CurrentUser() auth: AuthUserContext) {
-    if (auth.portal === 'PARENT') return this.parent().readAll(auth);
+  async readAll(@CurrentUser() auth: AuthUserContext) {
+    if (auth.portal === 'STUDENT') await this.student().me(auth);
+    if (auth.portal === 'PARENT' || auth.portal === 'STUDENT') return this.parent().readAll(auth);
     return auth.portal === 'TEACHER' ? this.teacher().readAll(auth) : this.inbox.readAll(auth);
   }
 
@@ -115,8 +126,9 @@ export class SchoolInboxController {
   @ResponseMessage('Notification marked read.')
   @HttpCode(200)
   @ApiOperation({ summary: 'Mark one notification read' })
-  read(@CurrentUser() auth: AuthUserContext, @Param('id', ParseUUIDPipe) id: string) {
-    if (auth.portal === 'PARENT') return this.parent().read(auth, id);
+  async read(@CurrentUser() auth: AuthUserContext, @Param('id', ParseUUIDPipe) id: string) {
+    if (auth.portal === 'STUDENT') await this.student().me(auth);
+    if (auth.portal === 'PARENT' || auth.portal === 'STUDENT') return this.parent().read(auth, id);
     return auth.portal === 'TEACHER' ? this.teacher().read(auth, id) : this.inbox.read(auth, id);
   }
 

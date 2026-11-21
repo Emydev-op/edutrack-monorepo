@@ -13,13 +13,16 @@ import {
   guardianDisplay,
   ParentScopeService,
   type ChildScope,
+  type ChildPlace,
   type ParentTerm,
+  type StudentRef,
 } from './parent-scope.service.js';
 
 const MARK = { PRESENT: 'Present', LATE: 'Late', ABSENT: 'Absent', EXCUSED: 'Excused' } as const;
 const AUDIENCE: Record<string, string> = {
   EVERYONE: 'Everyone',
   PARENTS: 'Parents',
+  STUDENTS: 'Students',
   CLASSES: 'Classes',
 };
 const WEEKDAY_OF: Record<number, Weekday | undefined> = {
@@ -331,7 +334,7 @@ export class ParentSchoolService {
   }
 
   /** `GET /v1/parent/children/:id/timetable`. */
-  async timetable(scope: ChildScope, termId?: string) {
+  async timetable(scope: StudentRef, termId?: string) {
     const id = scope.student.id;
     const { term } = await this.scope.termFor(id, termId);
     const place = await this.scope.place(id, term.sessionId);
@@ -347,7 +350,7 @@ export class ParentSchoolService {
     };
   }
 
-  private async todayLessons(studentId: string, term: ParentTerm) {
+  async todayLessons(studentId: string, term: ParentTerm) {
     const place = await this.scope.place(studentId, term.sessionId);
     const today = this.scope.today();
     const weekday = WEEKDAY_OF[new Date(`${today}T12:00:00Z`).getUTCDay()];
@@ -364,7 +367,7 @@ export class ParentSchoolService {
 
   /* ---------------- Attendance ---------------- */
 
-  private async attendanceSummary(studentId: string, termId: string) {
+  async attendanceSummary(studentId: string, termId: string) {
     const entries = await this.db.attendanceEntry.findMany({
       where: { studentId, termId },
       select: { mark: true },
@@ -385,7 +388,7 @@ export class ParentSchoolService {
   }
 
   /** `GET /v1/parent/children/:id/attendance?term=`: the term's summary and every marked day. */
-  async attendance(scope: ChildScope, termId?: string) {
+  async attendance(scope: StudentRef, termId?: string) {
     const id = scope.student.id;
     const { term, terms } = await this.scope.termFor(id, termId);
     const list = await this.scope.childTerms(id, terms);
@@ -421,9 +424,23 @@ export class ParentSchoolService {
   async announcements(auth: AuthUserContext, childId?: string, take = 50) {
     const { links } = await this.scope.children(auth);
     const ids = childId ? [childId] : links.map((l) => l.studentId);
+    return this.announcementsFor(auth.schoolId!, ids, ['EVERYONE', 'PARENTS'], take);
+  }
+
+  /**
+   * Announcements for these students' families or the students themselves: sent to one of
+   * `kinds` (in the branch of one of the students, or school-wide), or to one of the students'
+   * classes; not withdrawn or expired. Shared by the Parent and Student Portals.
+   */
+  async announcementsFor(
+    schoolId: string,
+    ids: string[],
+    kinds: ('EVERYONE' | 'PARENTS' | 'STUDENTS')[],
+    take = 50,
+  ) {
     const terms = await this.scope.terms();
     const current = ParentScopeService.current(terms, this.scope.today());
-    const places = current
+    const places: ChildPlace[] = current
       ? (await Promise.all(ids.map((id) => this.scope.place(id, current.sessionId)))).filter(
           (p) => p !== null,
         )
@@ -446,7 +463,7 @@ export class ParentSchoolService {
           {
             OR: [
               {
-                audienceKind: { in: ['EVERYONE', 'PARENTS'] },
+                audienceKind: { in: kinds },
                 OR: [{ audienceBranchId: null }, { audienceBranchId: { in: branchIds } }],
               },
               { audienceKind: 'CLASSES', audienceArms: { some: { armId: { in: armIds } } } },
@@ -463,7 +480,7 @@ export class ParentSchoolService {
       select: { id: true, title: true, firstName: true, lastName: true },
     });
     const school = await this.db.school.findUniqueOrThrow({
-      where: { id: auth.schoolId! },
+      where: { id: schoolId },
       select: { name: true },
     });
     const classOf = new Map(places.map((p) => [p.armId, p.className]));
