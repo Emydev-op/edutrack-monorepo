@@ -62,13 +62,13 @@
     "@types/nodemailer": "^8.0.2",
     "@types/supertest": "^7.2.1",
     "@vitest/coverage-v8": "^5.1.0",
-    "oxlint": "^1.93.0",
+    "oxlint": "^1.94.0",
     "oxlint-tsgolint": "^7.0.2006",
     "source-map-support": "^0.5.21",
     "supertest": "^7.3.2",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
-    "vite": "^8.3.7",
+    "vite": "^8.3.8",
     "vitest": "^5.1.0"
   }
 }
