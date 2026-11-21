@@ -12,5 +12,4 @@ export const env = {
    * The school this deployment serves, shown on the sign-in pages. Each school's portal runs at
    * its own address, so the school is known before anyone signs in.
    */
-  schoolName: import.meta.env.VITE_SCHOOL_NAME ?? 'Greenfield Academy',
 } as const;

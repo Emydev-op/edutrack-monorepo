@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useLogoFallback } from '@edutrack/app-kit/composables/useLogoFallback';
 import { useIdleSignOut } from '@edutrack/app-kit/composables/useIdleSignOut';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import {
@@ -44,7 +45,7 @@ const ICONS = {
   more: MenuIcon,
 };
 const activeTab = computed(() => route.meta.tab ?? 'home');
-const logoFailed = ref(false);
+const { failed: logoFailed, onError: onLogoError } = useLogoFallback(() => auth.school?.logoUrl);
 
 // Shared phones: sign out after the school's idle time, unless "Remember this device".
 const queries = useQueryClient();
@@ -88,7 +89,7 @@ watch(
                 :src="auth.school.logoUrl"
                 alt=""
                 class="size-full object-contain"
-                @error="logoFailed = true"
+                @error="onLogoError"
               />
             </span>
             <span

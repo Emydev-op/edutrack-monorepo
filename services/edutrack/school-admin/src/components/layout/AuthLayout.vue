@@ -3,16 +3,7 @@ import authPattern from '@edutrack/ui/assets/brand/auth-pattern.svg';
 import logoWhite from '@edutrack/ui/assets/brand/logo-mark-white.svg';
 import { BookCheckIcon, ListChecksIcon, ReceiptTextIcon } from '@lucide/vue';
 
-import { env } from '@/config/env';
-
 import AuthHero from './AuthHero.vue';
-
-const initials = env.schoolName
-  .split(/\s+/)
-  .map((w) => w[0])
-  .join('')
-  .slice(0, 2)
-  .toUpperCase();
 
 const HIGHLIGHTS = [
   { label: 'Setup Center', icon: ListChecksIcon },
@@ -48,8 +39,8 @@ const patternStyle = { backgroundImage: `url("${authPattern}")`, backgroundSize:
             Run your whole school from one place.
           </h2>
           <p class="text-[15px] leading-relaxed text-pretty text-brand-subtle">
-            Manage sessions, classes, students, staff, results, fees and communication for
-            {{ env.schoolName }}.
+            Manage sessions, classes, students, staff, results, fees and communication for your
+            school.
           </p>
         </div>
         <div class="max-w-[460px]"><AuthHero /></div>
@@ -73,13 +64,13 @@ const patternStyle = { backgroundImage: `url("${authPattern}")`, backgroundSize:
       <div
         class="m-auto flex w-full max-w-[400px] flex-col gap-4.5 px-5 pt-7 pb-8 max-lg:max-w-[420px]"
       >
+        <!-- School Admin is shared by every school: EduTrack's mark, not a school's. -->
         <div class="flex items-center gap-2.5 lg:hidden">
-          <span
-            class="flex size-9 items-center justify-center rounded-lg bg-primary font-semibold text-brand-subtle"
-            >{{ initials }}</span
-          >
+          <span class="flex size-9 items-center justify-center rounded-lg bg-primary p-1.5">
+            <img :src="logoWhite" alt="" class="size-full" />
+          </span>
           <span class="flex flex-col">
-            <span class="font-semibold">{{ env.schoolName }}</span>
+            <span class="font-semibold">Edutrack</span>
             <span class="text-xs text-faint">School Admin</span>
           </span>
         </div>

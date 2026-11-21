@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { useLogoFallback } from '@edutrack/app-kit/composables/useLogoFallback';
 import authPattern from '@edutrack/ui/assets/brand/auth-pattern.svg';
 import logoWhite from '@edutrack/ui/assets/brand/logo-mark-white.svg';
 import { BookOpenIcon, TrophyIcon, WalletIcon } from '@lucide/vue';
-import { ref, watch } from 'vue';
 
 import { useSchoolBrand } from '@/lib/school-brand';
 
@@ -10,11 +10,7 @@ import AuthHero from './AuthHero.vue';
 
 const school = useSchoolBrand();
 // Initials stand in if the logo can't load; a new logo gets another try.
-const logoFailed = ref(false);
-watch(
-  () => school.logoUrl,
-  () => (logoFailed.value = false),
-);
+const { failed: logoFailed, onError: onLogoError } = useLogoFallback(() => school.logoUrl);
 
 const HIGHLIGHTS = [
   { label: 'Fees & receipts', icon: WalletIcon },
@@ -46,7 +42,7 @@ const patternStyle = { backgroundImage: `url("${authPattern}")`, backgroundSize:
               :src="school.logoUrl"
               alt=""
               class="size-full object-contain"
-              @error="logoFailed = true"
+              @error="onLogoError"
             />
           </span>
           <span

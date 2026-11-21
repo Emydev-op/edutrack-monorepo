@@ -19,7 +19,7 @@ Multi-tenant school management platform. One repo holds the API, the five web po
     ├── platform-backoffice/    # @edutrack/platform-backoffice — EduTrack staff        :5170
     ├── school-admin/           # @edutrack/school-admin        — school administrators :5171
     ├── teacher-portal/         # @edutrack/teacher-portal      — teachers              :5172
-    ├── student-portal/         # @edutrack/student-portal      — students              :5173
+    ├── student-portal/         # @edutrack/student-portal      — students              :5176
     ├── parent-portal/          # @edutrack/parent-portal       — parents               :5174
     └── school-home/            # @edutrack/school-home         — school entry page     :5175
 ```
@@ -62,7 +62,7 @@ machine, so no DNS or hosts-file changes are needed:
 | `admin.edutrack.ng`             | http://admin.localhost              | School Admin      | :5171      |
 | `<school>.edutrack.ng`          | http://greenfield.localhost         | School entry page | :5175      |
 | `<school>.edutrack.ng/teacher/` | http://greenfield.localhost/teacher | Teacher Workspace | :5172      |
-| `<school>.edutrack.ng/student/` | http://greenfield.localhost/student | Student portal    | :5173      |
+| `<school>.edutrack.ng/student/` | http://greenfield.localhost/student | Student portal    | :5176      |
 | `<school>.edutrack.ng/parent/`  | http://greenfield.localhost/parent  | Parent portal     | :5174      |
 | `*/api`                         | any of the above + `/api`           | API               | :8000      |
 

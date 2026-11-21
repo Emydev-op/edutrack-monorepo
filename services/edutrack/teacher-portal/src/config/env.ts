@@ -13,5 +13,5 @@ export const env = {
    * this address (`<school>.edutrack.ng/teacher`) is read from `GET /v1/public/school`, and this is
    * only shown until it answers (see lib/school-brand.ts).
    */
-  schoolName: import.meta.env.VITE_SCHOOL_NAME ?? 'Greenfield Academy',
+  schoolName: import.meta.env.VITE_SCHOOL_NAME ?? 'Your school',
 } as const;
