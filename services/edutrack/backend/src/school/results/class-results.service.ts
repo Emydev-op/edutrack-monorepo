@@ -209,12 +209,20 @@ export class ClassResultsService {
     return null;
   }
 
+  /** Done: a remark and the five conduct ratings; Nursery (descriptive) needs the remark only. */
   private static done(
     card: { classTeacherRemark: string | null; conduct: { rating: number }[] } | null | undefined,
+    descriptive = false,
   ) {
+    if (descriptive) return !!card?.classTeacherRemark;
     return (
       !!card?.classTeacherRemark && (card?.conduct.filter((c) => c.rating >= 1).length ?? 0) >= 5
     );
+  }
+
+  /** Is the arm in a Nursery (descriptive-rating) section this session? */
+  private async descriptive(term: TermInfo, arm: { sectionId: string }) {
+    return (await this.core.schemes(term.sessionId)).get(arm.sectionId)?.mode === 'DESCRIPTIVE';
   }
 
   /** Remarks and ratings done for the arm, of the students on its roll. */
@@ -224,8 +232,11 @@ export class ClassResultsService {
       term.id,
       roll.map((e) => e.studentId),
     );
+    const arm = await this.core.catalog.arm(armId);
+    const descriptive = !!arm && (await this.descriptive(term, arm));
     return {
-      done: roll.filter((e) => ClassResultsService.done(cards.get(e.studentId))).length,
+      done: roll.filter((e) => ClassResultsService.done(cards.get(e.studentId), descriptive))
+        .length,
       total: roll.length,
     };
   }
@@ -255,13 +266,16 @@ export class ClassResultsService {
       term.id,
       roll.map((e) => e.studentId),
     );
+    const descriptive = await this.descriptive(term, arm);
     return {
       ...ref,
       term: `${term.session.name} · ${term.name}`,
+      mode: descriptive ? ('descriptive' as const) : ('scores' as const),
       editable: !lock,
       lockReason: lock?.reason ?? null,
       progress: {
-        done: roll.filter((e) => ClassResultsService.done(cards.get(e.studentId))).length,
+        done: roll.filter((e) => ClassResultsService.done(cards.get(e.studentId), descriptive))
+          .length,
         total: roll.length,
       },
       subjects: results.subjects
@@ -274,7 +288,7 @@ export class ClassResultsService {
           studentId: e.studentId,
           name: ref.name,
           admissionNo: ref.admissionNo,
-          done: ClassResultsService.done(card),
+          done: ClassResultsService.done(card, descriptive),
           remark: card?.classTeacherRemark ?? null,
           results: ClassResultsService.results(
             results.students.find((x) => x.student.id === e.studentId),
@@ -316,8 +330,13 @@ export class ClassResultsService {
     const by = card?.remarkById
       ? (await this.core.userNames([card.remarkById])).get(card.remarkById)
       : null;
+    const descriptive = await this.descriptive(term, arm);
     return {
       ...ref,
+      // Nursery: a comment, height and weight; no conduct ratings.
+      mode: descriptive ? ('descriptive' as const) : ('scores' as const),
+      height: card?.heightCm != null ? Number(card.heightCm) : null,
+      weight: card?.weightKg != null ? Number(card.weightKg) : null,
       student: {
         id: student.id,
         name: student.name,
@@ -332,7 +351,7 @@ export class ClassResultsService {
           card?.conduct.find((c) => c.trait === TRAIT[t])?.rating ?? null,
         ]),
       ) as Record<ConductLabel, number | null>,
-      done: ClassResultsService.done(card),
+      done: ClassResultsService.done(card, descriptive),
       updatedAt: card?.remarkUpdatedAt ? TeacherScopeService.local(card.remarkUpdatedAt) : null,
       updatedBy: by ?? null,
       results: ClassResultsService.results(
@@ -364,7 +383,12 @@ export class ClassResultsService {
   async saveReportCard(
     auth: AuthUserContext,
     studentId: string,
-    body: { remark?: unknown; ratings?: Record<string, unknown> },
+    body: {
+      remark?: unknown;
+      ratings?: Record<string, unknown>;
+      height?: unknown;
+      weight?: unknown;
+    },
     termId?: string,
   ) {
     const { s, term, arm, ref } = await this.myArm(auth, termId);
@@ -380,8 +404,21 @@ export class ClassResultsService {
       fields.remark = `Write at least ${REMARK.min} characters (${remark.length} so far).`;
     else if (remark.length > REMARK.max)
       fields.remark = `Keep the remark to ${REMARK.max} characters (${remark.length} now).`;
+    const descriptive = await this.descriptive(term, arm);
     const ratings: Partial<Record<ConductLabel, number>> = {};
-    for (const trait of CONDUCT_TRAITS) {
+    // Nursery: optional height (cm) and weight (kg), one decimal place.
+    const measure = (key: 'height' | 'weight', min: number, max: number, unit: string) => {
+      const v = body[key];
+      if (v === undefined || v === null || v === '') return null;
+      if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max) {
+        fields[key] = `Enter the ${key} in ${unit} (${min}–${max}).`;
+        return null;
+      }
+      return Math.round(v * 10) / 10;
+    };
+    const height = descriptive ? measure('height', 40, 160, 'cm') : null;
+    const weight = descriptive ? measure('weight', 5, 60, 'kg') : null;
+    for (const trait of descriptive ? [] : CONDUCT_TRAITS) {
       const v = body.ratings?.[trait];
       if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > 5)
         fields[`ratings.${trait}`] = `Rate ${trait.toLowerCase()} from 1 to 5.`;
@@ -390,7 +427,9 @@ export class ClassResultsService {
     if (Object.keys(fields).length)
       throw new AppException(
         HttpStatus.UNPROCESSABLE_ENTITY,
-        'Check the remark and give all five ratings before saving.',
+        descriptive
+          ? 'Check the comment, height and weight before saving.'
+          : 'Check the remark and give all five ratings before saving.',
         'VALIDATION',
         fields,
       );
@@ -404,21 +443,23 @@ export class ClassResultsService {
         classTeacherRemark: remark,
         remarkById: auth.userId,
         remarkUpdatedAt: now,
+        ...(descriptive && { heightCm: height, weightKg: weight }),
       };
       const card = existing
         ? await tx.reportCard.update({ where: { id: existing.id }, data })
         : await tx.reportCard.create({
             data: { schoolId, termId: term.id, studentId, armId: arm.id, ...data },
           });
-      await tx.conductRating.deleteMany({ where: { reportCardId: card.id } });
-      await tx.conductRating.createMany({
-        data: CONDUCT_TRAITS.map((t) => ({
-          schoolId,
-          reportCardId: card.id,
-          trait: TRAIT[t],
-          rating: ratings[t]!,
-        })),
-      });
+      if (!descriptive) await tx.conductRating.deleteMany({ where: { reportCardId: card.id } });
+      if (!descriptive)
+        await tx.conductRating.createMany({
+          data: CONDUCT_TRAITS.map((t) => ({
+            schoolId,
+            reportCardId: card.id,
+            trait: TRAIT[t],
+            rating: ratings[t]!,
+          })),
+        });
       await this.audit.record(
         {
           action: existing?.classTeacherRemark ? 'report_card.remark_update' : 'report_card.remark',

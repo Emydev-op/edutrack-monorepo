@@ -267,6 +267,11 @@ model ReportCard {
   classTeacherStaffId String?   @map("class_teacher_staff_id") @db.Uuid
   /// 20–400 characters.
   classTeacherRemark  String?   @map("class_teacher_remark")
+  /// Nursery cards: the head of section's comment (School Admin), up to 400 characters.
+  headTeacherRemark   String?   @map("head_teacher_remark")
+  /// Nursery cards: measured by the class teacher each term.
+  heightCm            Decimal?  @map("height_cm") @db.Decimal(5, 1)
+  weightKg            Decimal?  @map("weight_kg") @db.Decimal(5, 1)
   remarkById          String?   @map("remark_by_id") @db.Uuid
   remarkUpdatedAt     DateTime? @map("remark_updated_at") @db.Timestamptz(3)
   /// Overall average and position, computed at publish.

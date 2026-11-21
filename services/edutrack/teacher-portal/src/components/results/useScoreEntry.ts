@@ -51,6 +51,9 @@ export function useScoreEntry(
   const components = computed(() => sheet.value?.components ?? []);
   const scale = computed(() => sheet.value?.scale ?? []);
   const editable = computed(() => Boolean(sheet.value?.editable));
+  /** Nursery: one rating per child (1…n on `ratings`) instead of scores. */
+  const descriptive = computed(() => sheet.value?.mode === 'descriptive');
+  const ratings = computed(() => sheet.value?.ratings ?? []);
 
   function reset(s: ResultSheet) {
     rows.value = s.rows.map((r) => ({
@@ -77,6 +80,22 @@ export function useScoreEntry(
 
   const parsed = computed(() =>
     rows.value.map((r) => {
+      if (descriptive.value) {
+        const n = r.raw[0] ? Number(r.raw[0]) : null;
+        const rating = n ? ratings.value[n - 1] : undefined;
+        const value: ScoreValue = rating ? n : null;
+        return {
+          ...r,
+          cells: [{ value, error: null }] as ParsedScore[],
+          values: [value],
+          scores: [value],
+          invalid: false,
+          total: null,
+          grade: rating?.name ?? null,
+          bandRemark: rating?.description ?? '',
+          flag: rating ? '' : 'No rating yet',
+        };
+      }
       const cells: ParsedScore[] = r.raw.map((t, i) =>
         parseScore(t, components.value[i]?.max ?? 0),
       );
@@ -203,6 +222,8 @@ export function useScoreEntry(
     components,
     scale,
     editable,
+    descriptive,
+    ratings,
     dirty,
     state,
     savedAt,

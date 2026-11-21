@@ -134,11 +134,6 @@ export class OfficeResultsService {
     const scheme = schemes.get(arm.sectionId);
     if (!scheme)
       throw conflict(`Set up an assessment scheme for ${arm.section} first.`, 'NO_SCHEME');
-    if (scheme.mode !== 'SCORES')
-      throw conflict(
-        `${arm.section} uses descriptive ratings, so it has no score sheets.`,
-        'DESCRIPTIVE_SCHEME',
-      );
     const offered = await this.core.catalog.offeredByLevel(term.sessionId);
     if (!offeredInArm(offered.get(arm.levelId), arm.id).some((s) => s.subjectId === subject.id))
       throw AppException.notFound(`${arm.label} doesn’t offer ${subject.name}.`, 'NOT_OFFERED');

@@ -69,6 +69,8 @@ export interface SubjectResult {
   total: number | null;
   grade: string | null;
   remark: string;
+  /** The teacher's own comment on the row (Nursery cards print it beside the rating). */
+  comment: string;
   /** Position in the arm for the subject (ties share). */
   position: number | null;
   sheetId: string | null;
@@ -168,6 +170,7 @@ export class ReportCardsService {
           total: row?.total ?? null,
           grade: row?.grade ?? null,
           remark: row?.remark ?? '',
+          comment: row?.teacherRemark ?? '',
           position: ctx ? (subjectPositions.get(ctx.sheet.id)?.get(student.id) ?? null) : null,
           sheetId: ctx?.sheet.id ?? null,
         });
@@ -376,7 +379,10 @@ export class ReportCardsService {
     const { term, arm, scheme } = results;
     const fmt = (v: ScoreValue) => (v === null ? '—' : v);
     const published = p.published && !!remark?.publishedAt;
+    // Nursery (descriptive): a rating and comment per learning area; no scores or positions.
+    const descriptive = scheme?.mode === 'DESCRIPTIVE';
     return {
+      mode: descriptive ? ('descriptive' as const) : ('scores' as const),
       school: p.header,
       title: `${term.name} Report · ${term.session.name}`,
       student: {
@@ -387,13 +393,15 @@ export class ReportCardsService {
         className: arm.label,
       },
       classTeacher: p.classTeacher,
-      components: (scheme?.components ?? []).map((c) => `${c.name} /${c.max}`),
+      components: descriptive ? [] : (scheme?.components ?? []).map((c) => `${c.name} /${c.max}`),
       subjects: r.subjects.map((s) => ({
         name: s.name,
-        scores: s.scores.map(fmt),
-        total: s.total === null ? '—' : s.total.toFixed(1),
+        scores: descriptive ? [] : s.scores.map(fmt),
+        total: descriptive || s.total === null ? '—' : s.total.toFixed(1),
         grade: s.grade ?? '—',
-        remark: s.remark || (s.scores.includes('ABS') ? 'Absent' : 'Pending'),
+        remark: descriptive
+          ? s.comment || s.remark || 'Not rated yet'
+          : s.remark || (s.scores.includes('ABS') ? 'Absent' : 'Pending'),
         position:
           p.show && s.position !== null
             ? `${ordinal(s.position)} of ${results.students.filter((x) => x.subjects.some((y) => y.subjectId === s.subjectId)).length}`
@@ -408,19 +416,24 @@ export class ReportCardsService {
       nextTerm: p.nextTerm,
       classmates: p.classmates,
       classTeacherRemark: remark?.classTeacherRemark ?? null,
+      headTeacherRemark: remark?.headTeacherRemark ?? null,
+      height: remark?.heightCm != null ? Number(remark.heightCm) : null,
+      weight: remark?.weightKg != null ? Number(remark.weightKg) : null,
       conduct: CONDUCT_TRAITS.map((trait) => ({
         trait,
         rating: remark?.conduct.find((c) => c.trait === TRAIT[trait])?.rating ?? null,
       })),
-      attendance: p.att
-        ? {
-            present: p.att.present + p.att.late,
-            late: p.att.late,
-            absent: p.att.absent,
-            excused: p.att.excused,
-            schoolDays: p.att.schoolDays,
-          }
-        : null,
+      // Nursery cards leave attendance off (the school's choice); they show height and weight.
+      attendance:
+        p.att && !descriptive
+          ? {
+              present: p.att.present + p.att.late,
+              late: p.att.late,
+              absent: p.att.absent,
+              excused: p.att.excused,
+              schoolDays: p.att.schoolDays,
+            }
+          : null,
       held: remark?.heldAt
         ? {
             reason: remark.heldReason ?? '',
@@ -428,7 +441,7 @@ export class ReportCardsService {
             by: p.heldBy.get(remark.heldById ?? '') ?? 'the academic office',
           }
         : null,
-      cumulative: await this.cumulative(term, r),
+      cumulative: descriptive ? null : await this.cumulative(term, r),
       publishedAt: remark?.publishedAt ? TeacherScopeService.local(remark.publishedAt) : null,
     };
   }

@@ -102,10 +102,14 @@ const flagTone = (flag: string) =>
           role="columnheader"
           :class="cn(focusComponent === c.key && 'text-primary')"
           >{{ c.name }}
-          <span class="block font-normal text-faint">/ {{ c.max }} · {{ c.weight }}%</span></span
+          <span v-if="!entry.descriptive.value" class="block font-normal text-faint"
+            >/ {{ c.max }} · {{ c.weight }}%</span
+          ></span
         >
-        <span role="columnheader" class="text-right">Total</span>
-        <span role="columnheader">Grade</span>
+        <span role="columnheader" class="text-right">{{
+          entry.descriptive.value ? '' : 'Total'
+        }}</span>
+        <span role="columnheader">{{ entry.descriptive.value ? 'Rating' : 'Grade' }}</span>
         <span role="columnheader">Flag · remark</span>
       </div>
       <div
@@ -128,7 +132,28 @@ const flagTone = (flag: string) =>
           <span class="text-[11px] text-faint">{{ row.admissionNo }}</span>
         </span>
         <span v-for="(c, ci) in comps" :key="c.key" role="cell" class="flex flex-col gap-0.5">
-          <template v-if="editable">
+          <select
+            v-if="editable && entry.descriptive.value"
+            :data-cell="`${ri}:${ci}`"
+            :value="row.raw[ci]"
+            :aria-label="`${row.name} · rating`"
+            :class="
+              cn(
+                'h-[34px] w-full rounded-sm border bg-card px-2 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20',
+                row.values[ci] === null && 'border-[#E9D9B5] bg-warning-subtle/50',
+              )
+            "
+            @change="
+              entry.setCell(ri, ci, ($event.target as HTMLSelectElement).value);
+              entry.saveSoon();
+            "
+          >
+            <option value="">Choose…</option>
+            <option v-for="(r, i) in entry.ratings.value" :key="r.id" :value="String(i + 1)">
+              {{ r.name }}
+            </option>
+          </select>
+          <template v-else-if="editable">
             <input
               :data-cell="`${ri}:${ci}`"
               :value="row.raw[ci]"

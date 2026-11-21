@@ -3,6 +3,7 @@ import {
   isValidScore,
   ordinal,
   rankPositions,
+  scoreRow,
   totalOf,
   type Scheme,
 } from './scoring.js';
@@ -24,10 +25,30 @@ const scheme = (over: Partial<Scheme> = {}): Scheme => ({
   showPosition: true,
   lockedAt: null,
   reweightExempt: true,
+  ratings: [],
   ...over,
 });
 
 describe('result scoring', () => {
+  it('rates descriptive (Nursery) rows instead of totalling them', () => {
+    const nursery = scheme({
+      mode: 'DESCRIPTIVE',
+      components: [{ id: 'rating', key: 'rating', name: 'Rating', max: 3, weight: 0, when: '' }],
+      ratings: [
+        { id: 'r1', name: 'Exceeding', description: 'Beyond expectations' },
+        { id: 'r2', name: 'Meeting', description: 'At the expected level' },
+        { id: 'r3', name: 'Developing', description: 'Working towards it' },
+      ],
+    });
+    expect(scoreRow(nursery, [2])).toMatchObject({
+      total: null,
+      grade: 'Meeting',
+      remark: 'At the expected level',
+      flag: '',
+    });
+    expect(scoreRow(nursery, [null])).toMatchObject({ grade: null, flag: 'No rating yet' });
+  });
+
   it('accepts numbers within the max with one decimal, ABS, EXM and blanks', () => {
     expect(isValidScore(17.5, 20)).toBe(true);
     expect(isValidScore(null, 20)).toBe(true);

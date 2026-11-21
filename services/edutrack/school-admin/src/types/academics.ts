@@ -588,6 +588,9 @@ export interface SheetRow {
 }
 
 export interface ResultSheet {
+  /** Nursery sections are rated, not scored: rows carry a rating (`grade`) and no total. */
+  mode?: 'scores' | 'descriptive';
+  ratings?: { id: string; name: string; description: string }[];
   armId: string;
   arm: string;
   subject: string;
@@ -662,6 +665,11 @@ export interface ReportCard {
     logoUrl: string | null;
     brandColor?: string | null;
   };
+  /** Nursery cards: a rating and comment per learning area, height, weight, head's comment. */
+  mode?: 'scores' | 'descriptive';
+  headTeacherRemark?: string | null;
+  height?: number | null;
+  weight?: number | null;
   title: string;
   student: {
     id: string;

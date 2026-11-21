@@ -76,7 +76,7 @@ const STARS = ['', 'Needs improvement', 'Fair', 'Good', 'Very good', 'Excellent'
             }}{{ card.version && card.version > 1 ? ` · version ${card.version}` : '' }}</span
           >
         </span>
-        <span class="flex flex-col items-end">
+        <span v-if="card.mode !== 'descriptive'" class="flex flex-col items-end">
           <span class="text-lg font-semibold text-brand-strong">{{ card.average }}</span>
           <span v-if="card.position" class="text-xs text-brand-strong">{{ card.position }}</span>
           <span v-else-if="card.grade" class="text-xs text-brand-strong"
@@ -87,14 +87,26 @@ const STARS = ['', 'Needs improvement', 'Fair', 'Good', 'Very good', 'Excellent'
       <div
         v-for="s in card.subjects ?? []"
         :key="s.name"
-        class="grid grid-cols-[1fr_auto_28px] items-center gap-2.5 border-t border-divider px-3.5 py-2.5"
+        :class="[
+          'grid items-center gap-2.5 border-t border-divider px-3.5 py-2.5',
+          card.mode === 'descriptive' ? 'grid-cols-[1fr_auto_auto]' : 'grid-cols-[1fr_auto_28px]',
+        ]"
       >
-        <span class="flex flex-col">
-          <span class="text-[13px] font-medium">{{ s.name }}</span>
-          <span class="text-[11px] text-faint">{{ scoresLine(s) }}</span>
-        </span>
-        <span class="font-semibold tabular-nums">{{ s.total }}</span>
-        <span class="font-semibold text-brand-strong">{{ s.grade }}</span>
+        <template v-if="card.mode === 'descriptive'">
+          <span class="col-span-2 flex flex-col">
+            <span class="text-[13px] font-medium">{{ s.name }}</span>
+            <span class="text-[11px] text-faint">{{ s.remark }}</span>
+          </span>
+          <span class="text-right text-xs font-semibold text-brand-strong">{{ s.grade }}</span>
+        </template>
+        <template v-else>
+          <span class="flex flex-col">
+            <span class="text-[13px] font-medium">{{ s.name }}</span>
+            <span class="text-[11px] text-faint">{{ scoresLine(s) }}</span>
+          </span>
+          <span class="font-semibold tabular-nums">{{ s.total }}</span>
+          <span class="font-semibold text-brand-strong">{{ s.grade }}</span>
+        </template>
       </div>
       <div class="flex flex-col gap-1.5 border-t px-3.5 py-3 text-xs">
         <span v-if="card.classTeacherRemark"
@@ -102,6 +114,13 @@ const STARS = ['', 'Needs improvement', 'Fair', 'Good', 'Very good', 'Excellent'
             >Class teacher{{ card.classTeacher ? ` (${card.classTeacher})` : '' }}:</b
           >
           {{ card.classTeacherRemark }}</span
+        >
+        <span v-if="card.headTeacherRemark"
+          ><b class="font-semibold">Head teacher:</b> {{ card.headTeacherRemark }}</span
+        >
+        <span v-if="card.mode === 'descriptive' && (card.height != null || card.weight != null)"
+          >Height {{ card.height != null ? `${card.height} cm` : '—' }} · Weight
+          {{ card.weight != null ? `${card.weight} kg` : '—' }}</span
         >
         <span v-if="card.nextTerm" class="text-muted-foreground">{{ card.nextTerm }}.</span>
       </div>

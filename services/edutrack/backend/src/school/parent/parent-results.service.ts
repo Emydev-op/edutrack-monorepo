@@ -40,6 +40,10 @@ export function parentCard(snapshot: Snapshot) {
   const pick = <K extends string>(...keys: K[]) =>
     Object.fromEntries(keys.map((k) => [k, snapshot[k] ?? null])) as Record<K, unknown>;
   return pick(
+    'mode',
+    'headTeacherRemark',
+    'height',
+    'weight',
     'school',
     'title',
     'student',

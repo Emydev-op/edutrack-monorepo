@@ -196,6 +196,10 @@ export interface ReportCardEntry extends ClassArmRef {
   term: string;
   remark: string;
   ratings: Record<ConductTrait, number | null>;
+  /** Nursery classes: a comment, height and weight; no conduct ratings. */
+  mode?: 'scores' | 'descriptive';
+  height?: number | null;
+  weight?: number | null;
   done: boolean;
   updatedAt: string | null;
   updatedBy: string | null;
@@ -214,4 +218,7 @@ export interface ReportCardEntry extends ClassArmRef {
 export interface ReportCardPayload {
   remark: string;
   ratings: Partial<Record<ConductTrait, number | null>>;
+  /** Nursery cards: height (cm) and weight (kg), optional. */
+  height?: number | null;
+  weight?: number | null;
 }

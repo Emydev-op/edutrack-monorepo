@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
   ApiConflictResponse,
   ApiForbiddenResponse,
@@ -15,6 +15,7 @@ import { pdfFile } from '../../common/pdf/school-documents.js';
 import { RecordIdPipe } from '../../platform/shared/params.js';
 import { CorrectionsService } from './corrections.service.js';
 import {
+  HeadTeacherRemarkDto,
   CorrectionDecisionDto,
   HoldReportCardDto,
   PublishDto,
@@ -173,6 +174,22 @@ export class ResultsAdminController {
   })
   async reportCardPdf(@Param('studentId', studentId) id: string, @Query('term') term?: string) {
     return pdfFile(await this.publishing.reportCardPdf(id, term));
+  }
+
+  @ResponseMessage('Head teacher’s comment saved.')
+  @Put('report-card/:studentId/head-remark')
+  @RequirePermission('results.publish')
+  @termQuery
+  @ApiOperation({
+    summary: 'The head teacher’s comment on a Nursery report card (until published)',
+  })
+  headRemark(
+    @CurrentUser() auth: AuthUserContext,
+    @Param('studentId', studentId) id: string,
+    @Body() dto: HeadTeacherRemarkDto,
+    @Query('term') term?: string,
+  ) {
+    return this.publishing.headRemark(auth, id, { term, remark: dto.remark });
   }
 
   @ResponseMessage('Report card put on hold.')
