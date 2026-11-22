@@ -1,3 +1,4 @@
+import { SchoolWide } from '../../common/plan/branch-scope.js';
 import { Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -14,6 +15,7 @@ import { SetupService, type SetupStepView } from './setup.service.js';
 
 @ApiTags('school · setup')
 @Portals('SCHOOL_ADMIN')
+@SchoolWide()
 @Controller('setup')
 export class SetupController {
   constructor(private readonly setup: SetupService) {}

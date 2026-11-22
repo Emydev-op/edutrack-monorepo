@@ -1,3 +1,4 @@
+import { SchoolWide } from '../../common/plan/branch-scope.js';
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -18,6 +19,7 @@ import { OrganogramService } from './organogram.service.js';
 
 @ApiTags('school · organogram')
 @Portals('SCHOOL_ADMIN')
+@SchoolWide()
 @Controller('organogram')
 export class OrganogramController {
   constructor(private readonly organogram: OrganogramService) {}

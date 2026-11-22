@@ -1,3 +1,4 @@
+import { SchoolWide, ScopedBy } from '../../common/plan/branch-scope.js';
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -70,6 +71,7 @@ export class AcademicsController {
   }
 
   @ResponseMessage('Academic sections saved.')
+  @SchoolWide()
   @Put('sections')
   @RequirePermission('academics.configure')
   @ApiOperation({
@@ -101,6 +103,7 @@ export class AcademicsController {
   }
 
   @ResponseMessage((s: SessionView) => `${s.name} created. Next: set term dates and breaks.`)
+  @SchoolWide()
   @Post('sessions')
   @RequirePermission('academics.configure')
   @ApiOperation({
@@ -118,6 +121,7 @@ export class AcademicsController {
   }
 
   @ResponseMessage((s: SessionView) => `Terms and calendar saved for ${s.name}.`)
+  @SchoolWide()
   @Put('sessions/:id/terms')
   @RequirePermission('academics.configure')
   @ApiOperation({ summary: 'Save the session’s terms and their events' })
@@ -134,6 +138,7 @@ export class AcademicsController {
   }
 
   @ResponseMessage((s: SessionView) => `${s.name} is now active.`)
+  @SchoolWide()
   @Post('sessions/:id/start')
   @HttpCode(200)
   @RequirePermission('academics.configure')
@@ -151,6 +156,7 @@ export class AcademicsController {
   @ResponseMessage((r: { next: string | null }) =>
     r.next ? `Term closed. ${r.next} is now the active term.` : 'Term closed.',
   )
+  @SchoolWide()
   @Post('terms/:id/close')
   @HttpCode(200)
   @RequirePermission('academics.configure')
@@ -177,6 +183,7 @@ export class AcademicsController {
   @ResponseMessage(
     (r: { session: SessionView }) => `${r.session.name} closed. It is now read-only.`,
   )
+  @SchoolWide()
   @Post('sessions/:id/close')
   @HttpCode(200)
   @RequirePermission('academics.configure')
@@ -204,6 +211,7 @@ export class AcademicsController {
   }
 
   @ResponseMessage((e: { title: string }) => `${e.title} added to the calendar.`)
+  @SchoolWide()
   @Post('calendar/events')
   @RequirePermission('academics.configure')
   @ApiOperation({ summary: 'Add a school event (Holiday and Break days have no classes)' })
@@ -214,6 +222,7 @@ export class AcademicsController {
   }
 
   @ResponseMessage((e: { title: string }) => `${e.title} updated.`)
+  @SchoolWide()
   @Put('calendar/events/:id')
   @RequirePermission('academics.configure')
   @ApiOperation({ summary: 'Change a school event (term events are edited in Sessions & Terms)' })
@@ -223,6 +232,7 @@ export class AcademicsController {
   }
 
   @ResponseMessage((r: { title: string }) => `${r.title} removed from the calendar.`)
+  @SchoolWide()
   @Delete('calendar/events/:id')
   @RequirePermission('academics.configure')
   @ApiOperation({ summary: 'Remove a school event' })
@@ -246,6 +256,7 @@ export class AcademicsController {
     (v: ClassesView) =>
       `${plural(v.levels.length, 'class level')} added with one arm each. Rename, add or remove anything.`,
   )
+  @SchoolWide()
   @Post('classes/defaults')
   @HttpCode(200)
   @RequirePermission('academics.configure')
@@ -261,6 +272,7 @@ export class AcademicsController {
     const arms = req.body.arms.filter((a) => a.trim()).length;
     return `${req.body.name.trim()} added with ${arms} arm${arms === 1 ? '' : 's'}.`;
   })
+  @SchoolWide()
   @Post('classes/levels')
   @RequirePermission('academics.configure')
   @ApiOperation({ summary: 'Add a class level at a branch with its arms' })
@@ -276,6 +288,7 @@ export class AcademicsController {
     (_: ClassesView, req: MessageRequest<RenameLevelDto>) =>
       `Renamed to ${req.body.name.trim()}. Students and curriculum moved with it.`,
   )
+  @SchoolWide()
   @Put('classes/levels/:id')
   @RequirePermission('academics.configure')
   @ApiOperation({
@@ -290,6 +303,7 @@ export class AcademicsController {
   }
 
   @ResponseMessage('Class level moved.')
+  @SchoolWide()
   @Post('classes/levels/:id/move')
   @HttpCode(200)
   @RequirePermission('academics.configure')
@@ -302,6 +316,7 @@ export class AcademicsController {
   }
 
   @ResponseMessage((v: { removed: string }) => `${v.removed} removed.`)
+  @SchoolWide()
   @Delete('classes/levels/:id')
   @RequirePermission('academics.configure')
   @ApiOperation({ summary: 'Remove a class level from its branch, with its arms' })
@@ -321,6 +336,7 @@ export class AcademicsController {
   @ApiUnprocessableEntityResponse({
     description: 'ARM_NAME_TAKEN · TEACHER_NOT_FOUND · TEACHER_OTHER_BRANCH · VALIDATION',
   })
+  @ScopedBy('level')
   addArm(@CurrentTenant() schoolId: string, @Param('id') id: string, @Body() dto: ArmInputDto) {
     return this.classes.addArm(schoolId, id, dto);
   }
@@ -334,6 +350,7 @@ export class AcademicsController {
   @ApiUnprocessableEntityResponse({
     description: 'ARM_NAME_TAKEN · CAPACITY_BELOW_STUDENTS · TEACHER_NOT_FOUND · NO_SESSION',
   })
+  @ScopedBy('arm')
   updateArm(@CurrentTenant() schoolId: string, @Param('id') id: string, @Body() dto: UpdateArmDto) {
     return this.classes.updateArm(schoolId, id, dto);
   }
@@ -345,6 +362,7 @@ export class AcademicsController {
   @ApiOkResponse({ type: ClassesViewResponse })
   @ApiNotFoundResponse({ description: 'CLASS_NOT_FOUND' })
   @ApiConflictResponse({ description: 'ARM_HAS_STUDENTS · ONLY_ARM' })
+  @ScopedBy('arm')
   deleteArm(@Param('id') id: string) {
     return this.classes.deleteArm(id);
   }
@@ -358,6 +376,7 @@ export class AcademicsController {
   })
   @ApiOkResponse({ type: ClassDetailResponse })
   @ApiNotFoundResponse({ description: 'CLASS_NOT_FOUND' })
+  @ScopedBy('arm')
   classDetail(@Param('id') id: string) {
     return this.classes.detail(id);
   }

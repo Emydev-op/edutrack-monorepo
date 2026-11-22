@@ -1,3 +1,4 @@
+import { BranchAccessModule } from './shared/branch-access.service.js';
 import { Module } from '@nestjs/common';
 import { OrganogramModule } from './organogram/organogram.module.js';
 import { AcademicsModule } from './academics/academics.module.js';
@@ -35,6 +36,7 @@ import { StudentsModule } from './students/students.module.js';
 @Module({
   // StaffModule last: OrganogramModule's GET /v1/staff/options must register before GET /v1/staff/:id.
   imports: [
+    BranchAccessModule,
     SchoolProfileModule,
     OrganogramModule,
     SchoolUsersModule,

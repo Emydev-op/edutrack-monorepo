@@ -1,3 +1,4 @@
+import { SchoolWide } from '../../common/plan/branch-scope.js';
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -18,6 +19,7 @@ const READERS = ['settings.users', 'settings.roles'];
 
 @ApiTags('school · roles')
 @Portals('SCHOOL_ADMIN')
+@SchoolWide()
 @Controller('roles')
 export class SchoolRolesController {
   constructor(

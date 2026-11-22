@@ -1,3 +1,4 @@
+import { ScopedBy } from '../../common/plan/branch-scope.js';
 import { Body, Controller, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -151,6 +152,7 @@ export class StaffController {
   @ApiOperation({ summary: 'A staff profile: details, documents, account, teaching, history' })
   @ApiOkResponse({ type: StaffDetailDto })
   @ApiNotFoundResponse({ description: NOT_FOUND })
+  @ScopedBy('staff')
   get(@Param('id') id: string) {
     return this.staff.get(id);
   }
@@ -184,6 +186,7 @@ export class StaffController {
   @ApiNotFoundResponse({ description: NOT_FOUND })
   @ApiConflictResponse({ description: 'STAFF_DEACTIVATED: reactivate them first.' })
   @ApiUnprocessableEntityResponse({ description: VALIDATION })
+  @ScopedBy('staff')
   update(@Param('id') id: string, @Body() dto: StaffPayloadDto) {
     return this.staff.update(id, dto);
   }
@@ -205,6 +208,7 @@ export class StaffController {
     description: 'ALREADY_DEACTIVATED, CANNOT_DEACTIVATE_SELF, ONLY_HOLDER (top of the organogram)',
   })
   @ApiUnprocessableEntityResponse({ description: 'COVER_NOT_CONFIRMED' })
+  @ScopedBy('staff')
   deactivate(@Param('id') id: string, @Body() dto: DeactivateStaffDto) {
     return this.staff.deactivate(id, dto);
   }
@@ -220,6 +224,7 @@ export class StaffController {
   @ApiOkResponse({ type: StaffListRowDto })
   @ApiNotFoundResponse({ description: NOT_FOUND })
   @ApiConflictResponse({ description: 'STAFF_ACTIVE' })
+  @ScopedBy('staff')
   reactivate(@Param('id') id: string) {
     return this.staff.reactivate(id);
   }
@@ -237,6 +242,7 @@ export class StaffController {
   @ApiOkResponse({ type: [StaffDocumentRowDto] })
   @ApiNotFoundResponse({ description: NOT_FOUND })
   @ApiUnprocessableEntityResponse({ description: 'FILE_TYPE, FILE_TOO_LARGE, VALIDATION' })
+  @ScopedBy('staff')
   upload(@Param('id') id: string, @Body() dto: UploadStaffDocumentDto) {
     return this.documents.upload(id, dto);
   }
@@ -249,6 +255,7 @@ export class StaffController {
   @ApiOkResponse({ type: [StaffDocumentRowDto] })
   @ApiNotFoundResponse({ description: `${NOT_FOUND} DOCUMENT_NOT_FOUND.` })
   @ApiConflictResponse({ description: 'DOCUMENT_NOT_PENDING' })
+  @ScopedBy('staff')
   verify(@Param('id') id: string, @Param('docId') docId: string) {
     return this.documents.verify(id, docId);
   }

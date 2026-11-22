@@ -1,3 +1,4 @@
+import { BranchScopeGuard } from './guards/branch-scope.guard.js';
 import { PlanModuleGuard } from './guards/plan-module.guard.js';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -45,6 +46,7 @@ import { SessionService } from './session.service.js';
     { provide: APP_GUARD, useClass: PermissionGuard },
     { provide: APP_GUARD, useClass: SubscriptionGuard },
     { provide: APP_GUARD, useClass: PlanModuleGuard },
+    { provide: APP_GUARD, useClass: BranchScopeGuard },
   ],
   exports: [
     AccessTokenService,

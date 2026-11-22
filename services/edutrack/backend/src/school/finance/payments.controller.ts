@@ -1,3 +1,4 @@
+import { ScopedBy } from '../../common/plan/branch-scope.js';
 import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import {
@@ -95,6 +96,7 @@ export class PaymentsController {
   @ApiOperation({ summary: 'A confirmed payment’s receipt, as a PDF' })
   @ApiNotFoundResponse({ description: 'PAYMENT_NOT_FOUND' })
   @ApiConflictResponse({ description: 'RECEIPT_NOT_READY' })
+  @ScopedBy('payment')
   async receipt(@Param('id') id: string) {
     return pdfFile(await this.payments.receipt(id));
   }
@@ -104,6 +106,7 @@ export class PaymentsController {
   @RequirePermission('finance.view')
   @ApiOperation({ summary: 'A payment (by id or receipt number) with allocations and history' })
   @ApiNotFoundResponse({ description: 'PAYMENT_NOT_FOUND' })
+  @ScopedBy('payment')
   get(@Param('id') id: string) {
     return this.payments.get(id);
   }
@@ -114,6 +117,7 @@ export class PaymentsController {
   @RequirePermission('finance.payment')
   @ApiOperation({ summary: 'Confirms a pending payment after checking the bank statement' })
   @ApiConflictResponse({ description: 'PAYMENT_NOT_PENDING' })
+  @ScopedBy('payment')
   verify(@Param('id') id: string) {
     return this.payments.verify(id);
   }
@@ -124,6 +128,7 @@ export class PaymentsController {
   @RequirePermission('finance.payment')
   @ApiOperation({ summary: 'Rejects a pending payment, with the reason sent to the payer' })
   @ApiConflictResponse({ description: 'PAYMENT_NOT_PENDING' })
+  @ScopedBy('payment')
   reject(@Param('id') id: string, @Body() dto: ReasonDto) {
     return this.payments.reject(id, dto.reason);
   }
