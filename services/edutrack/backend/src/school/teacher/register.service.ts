@@ -158,7 +158,11 @@ export class RegisterService {
     term: TermRow,
     date: string,
   ) {
-    const { closed } = await this.attendance.schoolDays(term);
+    const { closed } = await this.attendance.schoolDays(
+      term,
+      undefined,
+      await this.attendance.branchOfArm(ref.armId),
+    );
     const editable = await this.editableDays(term, closed);
     const lock = await this.lock(term, date, closed, editable);
     const register = await this.db.attendanceRegister.findFirst({
@@ -236,7 +240,11 @@ export class RegisterService {
         `You’re no longer the class teacher of ${arm.label}, so its register is read-only for you.`,
         'FORBIDDEN',
       );
-    const { closed } = await this.attendance.schoolDays(term);
+    const { closed } = await this.attendance.schoolDays(
+      term,
+      undefined,
+      await this.attendance.branchOfArm(arm.id),
+    );
     const editable = await this.editableDays(term, closed);
     const lock = await this.lock(term, date, closed, editable);
     if (lock)
@@ -436,7 +444,11 @@ export class RegisterService {
   async history(auth: AuthUserContext, termId?: string) {
     const { term, arm, ref } = await this.myArm(auth, termId);
     const today = this.attendance.today();
-    const { days } = await this.attendance.schoolDays(term);
+    const { days } = await this.attendance.schoolDays(
+      term,
+      undefined,
+      await this.attendance.branchOfArm(arm.id),
+    );
     const [registers, roll] = await Promise.all([
       this.db.attendanceRegister.findMany({
         where: { termId: term.id, armId: arm.id },

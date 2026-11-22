@@ -16,7 +16,7 @@ import { RecordIdPipe } from '../../platform/shared/params.js';
 import { plural } from './academic-format.js';
 import { CalendarService } from './calendar.service.js';
 import { ClassesService, type ClassesView } from './classes.service.js';
-import { CalendarEventDto } from './dto/calendar.dto.js';
+import { BranchTermDatesDto, CalendarEventDto } from './dto/calendar.dto.js';
 import {
   ArmInputDto,
   LevelInputDto,
@@ -211,7 +211,6 @@ export class AcademicsController {
   }
 
   @ResponseMessage((e: { title: string }) => `${e.title} added to the calendar.`)
-  @SchoolWide()
   @Post('calendar/events')
   @RequirePermission('academics.configure')
   @ApiOperation({ summary: 'Add a school event (Holiday and Break days have no classes)' })
@@ -222,7 +221,6 @@ export class AcademicsController {
   }
 
   @ResponseMessage((e: { title: string }) => `${e.title} updated.`)
-  @SchoolWide()
   @Put('calendar/events/:id')
   @RequirePermission('academics.configure')
   @ApiOperation({ summary: 'Change a school event (term events are edited in Sessions & Terms)' })
@@ -232,13 +230,26 @@ export class AcademicsController {
   }
 
   @ResponseMessage((r: { title: string }) => `${r.title} removed from the calendar.`)
-  @SchoolWide()
   @Delete('calendar/events/:id')
   @RequirePermission('academics.configure')
   @ApiOperation({ summary: 'Remove a school event' })
   @ApiNotFoundResponse({ description: 'EVENT_NOT_FOUND' })
   removeEvent(@Param('id', eventId) id: string) {
     return this.calendarService.remove(id);
+  }
+
+  @ResponseMessage(
+    (r: { saved: { branch: string; term: string } }) =>
+      `${r.saved.branch} · ${r.saved.term} dates saved.`,
+  )
+  @Put('calendar/branch-terms')
+  @RequirePermission('academics.configure')
+  @ApiOperation({
+    summary: 'A campus’s own start and end for a term (both null: back to the term’s dates)',
+  })
+  @ApiUnprocessableEntityResponse({ description: 'VALIDATION' })
+  setBranchTermDates(@Body() dto: BranchTermDatesDto) {
+    return this.calendarService.setBranchTermDates(dto);
   }
 
   /* ---------------- Classes & arms ---------------- */

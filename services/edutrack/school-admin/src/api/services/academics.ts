@@ -133,6 +133,13 @@ export const useSaveEventMutation = () =>
       : postRequest<CalendarEvent>(`${A}/calendar/events`, p),
   );
 
+/** A campus's own start and end for a term (both null: back to the term's dates). */
+export const useBranchTermDatesMutation = () =>
+  useAcademicsMutation(
+    (p: { branch: string; termId: string; start: string | null; end: string | null }) =>
+      putRequest<CalendarView>(`${A}/calendar/branch-terms`, p),
+  );
+
 export const useDeleteEventMutation = () =>
   useAcademicsMutation((id: string) => deleteRequest(`${A}/calendar/events/${id}`));
 
