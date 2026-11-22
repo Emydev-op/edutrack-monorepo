@@ -234,6 +234,7 @@ model Term {
   materials             Material[]
   assessmentSchedules   AssessmentSchedule[]
   lessonNotes           LessonNote[]
+  branchDates           BranchTermDates[]
 
   @@unique([schoolId, id])
   // Target for foreign keys that also pin the session (sheets, teaching assignments).
@@ -280,14 +281,18 @@ model CalendarEvent {
   audience     String            @default("Everyone")
   notes        String            @default("")
   /// No classes (school holiday, staff development day).
+  /// One campus's event (its own holiday, mid-term break or event); null: the whole school.
+  branchId     String?           @map("branch_id") @db.Uuid
   closesSchool Boolean           @default(false) @map("closes_school")
   createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   school  School          @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   session AcademicSession @relation(fields: [schoolId, sessionId], references: [schoolId, id], onDelete: Cascade)
+  branch  Branch?         @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Cascade)
 
   @@index([schoolId, sessionId, startsOn])
+  @@index([schoolId, branchId])
   @@map("calendar_events")
 }
 
@@ -796,4 +801,24 @@ model DescriptiveRating {
   @@unique([schoolId, id])
   @@unique([schemeId, name])
   @@map("descriptive_ratings")
+}
+
+/// A campus's own dates for a term (it resumes or closes on different days). Sessions and terms
+/// stay the school's; without a row the branch follows the term's dates.
+model BranchTermDates {
+  schoolId  String   @map("school_id") @db.Uuid
+  termId    String   @map("term_id") @db.Uuid
+  branchId  String   @map("branch_id") @db.Uuid
+  startsOn  DateTime @map("starts_on") @db.Date
+  endsOn    DateTime @map("ends_on") @db.Date
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  term   Term   @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Cascade)
+  branch Branch @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Cascade)
+
+  @@id([termId, branchId])
+  @@index([schoolId, branchId])
+  @@map("branch_term_dates")
 }

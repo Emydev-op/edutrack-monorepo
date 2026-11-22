@@ -57,13 +57,35 @@ export class AttendanceService {
     return isoDate(lagosToday(this.clock.now()));
   }
 
-  /** Weekdays in the term with no classes, and why. */
-  async closures(term: TermLike) {
-    const start = isoDate(term.startsOn);
-    const end = isoDate(term.endsOn);
+  /** An arm's campus. */
+  async branchOfArm(armId: string) {
+    return (
+      (await this.db.classArm.findFirst({ where: { id: armId }, select: { branchId: true } }))
+        ?.branchId ?? null
+    );
+  }
+
+  /** The term's dates at a campus: its own when it shifted them, else the term's. */
+  async termDatesFor(term: TermLike, branchId?: string | null) {
+    if (!branchId) return { startsOn: term.startsOn, endsOn: term.endsOn };
+    const own = await this.db.branchTermDates.findFirst({
+      where: { termId: term.id, branchId },
+      select: { startsOn: true, endsOn: true },
+    });
+    return own ?? { startsOn: term.startsOn, endsOn: term.endsOn };
+  }
+
+  /**
+   * Weekdays in the term with no classes, and why. With a branch: that campus's term dates and
+   * its own holidays and breaks as well as the school's.
+   */
+  async closures(term: TermLike, branchId?: string | null) {
+    const dates = await this.termDatesFor(term, branchId);
+    const start = isoDate(dates.startsOn);
+    const end = isoDate(dates.endsOn);
     const [holidays, events, calendar] = await Promise.all([
       this.db.publicHoliday.findMany({
-        where: { country: 'NG', date: { gte: term.startsOn, lte: term.endsOn } },
+        where: { country: 'NG', date: { gte: dates.startsOn, lte: dates.endsOn } },
       }),
       this.db.termEvent.findMany({
         where: { termId: term.id, OR: [{ closesSchool: true }, { type: 'MIDTERM' }] },
@@ -71,9 +93,12 @@ export class AttendanceService {
       this.db.calendarEvent.findMany({
         where: {
           sessionId: term.sessionId,
-          startsOn: { lte: term.endsOn },
-          endsOn: { gte: term.startsOn },
-          OR: [{ closesSchool: true }, { type: { in: ['HOLIDAY', 'BREAK'] } }],
+          startsOn: { lte: dates.endsOn },
+          endsOn: { gte: dates.startsOn },
+          AND: [
+            { OR: [{ closesSchool: true }, { type: { in: ['HOLIDAY', 'BREAK'] } }] },
+            { OR: [{ branchId: null }, ...(branchId ? [{ branchId }] : [])] },
+          ],
         },
       }),
     ]);
@@ -88,13 +113,16 @@ export class AttendanceService {
     return out;
   }
 
-  /** School days in the term up to a date (inclusive). */
-  async schoolDays(term: TermLike, upTo = this.today()) {
-    const closed = await this.closures(term);
-    const end = isoDate(term.endsOn);
+  /** School days in the term up to a date (inclusive); at a campus, by its calendar. */
+  async schoolDays(term: TermLike, upTo = this.today(), branchId?: string | null) {
+    const [closed, dates] = await Promise.all([
+      this.closures(term, branchId),
+      this.termDatesFor(term, branchId),
+    ]);
+    const end = isoDate(dates.endsOn);
     const last = upTo < end ? upTo : end;
     const out: string[] = [];
-    for (let d = isoDate(term.startsOn); d <= last; d = addDays(d, 1))
+    for (let d = isoDate(dates.startsOn); d <= last; d = addDays(d, 1))
       if (!isWeekend(d) && !closed.has(d)) out.push(d);
     return { days: out, closed };
   }
@@ -187,8 +215,9 @@ export class AttendanceService {
         empty: 'no-session' as const,
       };
     const { session, term } = found;
-    const { days, closed } = await this.schoolDays(term);
     const branchId = await this.catalog.branchIdByName(branch);
+    // One campus: its own calendar; all branches: the school's.
+    const { days, closed } = await this.schoolDays(term, undefined, branchId);
     const [allArms, arms] = await Promise.all([this.catalog.arms(), this.catalog.arms(branchId)]);
     const [roll, regs, teachers] = await Promise.all([
       this.roll(
@@ -251,7 +280,7 @@ export class AttendanceService {
       throw fail('Create a session and its terms first.', 'NO_TERM', HttpStatus.CONFLICT);
     const { session, term } = found;
     const today = this.today();
-    const { days, closed } = await this.schoolDays(term);
+    const { days, closed } = await this.schoolDays(term, undefined, arm?.branchId);
     const allWeekdays: string[] = [];
     for (let d = isoDate(term.startsOn); d <= isoDate(term.endsOn); d = addDays(d, 1))
       if (!isWeekend(d)) allWeekdays.push(d);

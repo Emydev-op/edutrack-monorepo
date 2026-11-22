@@ -1,5 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { Clock } from '../../common/clock/clock.js';
+import { RequestContext } from '../../common/context/request-context.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import type { CalendarEventType, TermEventType } from '../../generated/prisma/enums.js';
 import { TenantPrismaService } from '../../tenancy/tenant-prisma.service.js';
@@ -41,6 +42,8 @@ export interface CalendarEventInput {
   end: string;
   audience?: string;
   notes?: string;
+  /** One campus's event (by name); empty: the whole school. */
+  branch?: string | null;
 }
 
 /**
@@ -61,20 +64,55 @@ export class CalendarService {
     return this.tenant.db;
   }
 
+  /** The working branch (the header's), or null for all branches. */
+  private async workingBranch() {
+    const name = RequestContext.working().branch;
+    if (!name || name === 'All branches') return null;
+    return this.db.branch.findFirst({ where: { name }, select: { id: true, name: true } });
+  }
+
   async view() {
     const session = await this.structure.currentSession();
     const today = isoDate(this.clock.now());
-    if (!session) return { session: '', events: [], holidays: [], start: today, end: today };
-    const [own, holidays] = await Promise.all([
+    if (!session)
+      return {
+        session: '',
+        branch: null,
+        events: [],
+        holidays: [],
+        branchTerms: [],
+        start: today,
+        end: today,
+      };
+    // One campus: the school's events and its own; all branches: everything, labelled.
+    const branch = await this.workingBranch();
+    const [own, holidays, branchDates, branches] = await Promise.all([
       this.db.calendarEvent.findMany({
-        where: { sessionId: session.id },
+        where: {
+          sessionId: session.id,
+          ...(branch && { OR: [{ branchId: null }, { branchId: branch.id }] }),
+        },
         orderBy: [{ startsOn: 'asc' }, { createdAt: 'asc' }],
       }),
       this.db.publicHoliday.findMany({
         where: { country: 'NG', date: { gte: session.startsOn, lte: session.endsOn } },
         orderBy: { date: 'asc' },
       }),
+      this.db.branchTermDates.findMany({
+        where: {
+          termId: { in: session.terms.map((t) => t.id) },
+          ...(branch && { branchId: branch.id }),
+        },
+        include: { branch: { select: { name: true } } },
+      }),
+      this.db.branch.findMany({ select: { id: true, name: true } }),
     ]);
+    const branchName = new Map(branches.map((b) => [b.id, b.name]));
+    // At one campus, its own term dates replace the term's.
+    const datesOf = (t: { id: string; startsOn: Date; endsOn: Date }) => {
+      const own = branch ? branchDates.find((d) => d.termId === t.id) : undefined;
+      return own ?? t;
+    };
     const events = [
       ...session.terms.flatMap((t) => [
         ...t.events.map((e) => ({
@@ -91,8 +129,8 @@ export class CalendarService {
           id: `${t.id}-end`,
           title: `${t.name} ends`,
           type: 'Term' as const,
-          start: isoDate(t.endsOn),
-          end: isoDate(t.endsOn),
+          start: isoDate(datesOf(t).endsOn),
+          end: isoDate(datesOf(t).endsOn),
           audience: 'Everyone',
           source: 'term' as const,
           notes: t.name,
@@ -108,11 +146,31 @@ export class CalendarService {
         source: 'holiday' as const,
         notes: 'Public holiday',
       })),
-      ...own.map((e) => this.toView(e)),
+      ...own.map((e) => ({
+        ...this.toView(e),
+        branch: e.branchId ? (branchName.get(e.branchId) ?? null) : null,
+      })),
     ].sort((a, b) => a.start.localeCompare(b.start));
     return {
       session: session.name,
+      branch: branch?.name ?? null,
       events,
+      /** The session's terms with their dates at the working campus (its own, when shifted). */
+      terms: session.terms.map((t) => ({
+        id: t.id,
+        name: t.name,
+        start: isoDate(datesOf(t).startsOn),
+        end: isoDate(datesOf(t).endsOn),
+        own: !!branch && branchDates.some((d) => d.termId === t.id),
+      })),
+      /** Campuses' own term dates (the working one only, when one is chosen). */
+      branchTerms: branchDates.map((d) => ({
+        termId: d.termId,
+        term: session.terms.find((t) => t.id === d.termId)?.name ?? '',
+        branch: d.branch.name,
+        start: isoDate(d.startsOn),
+        end: isoDate(d.endsOn),
+      })),
       holidays: holidays.map((h) => ({ date: isoDate(h.date), name: h.name })),
       start: isoDate(session.startsOn),
       end: isoDate(session.endsOn),
@@ -121,6 +179,7 @@ export class CalendarService {
 
   private toView(e: {
     id: string;
+    branchId?: string | null;
     title: string;
     type: CalendarEventType;
     startsOn: Date;
@@ -158,9 +217,11 @@ export class CalendarService {
         'VALIDATION',
       );
     const notes = (input.notes ?? '').trim();
+    const branchId = await this.branchIdOf(input.branch);
     return {
       session,
       data: {
+        branchId,
         title,
         type,
         startsOn: new Date(`${input.start}T00:00:00Z`),
@@ -171,6 +232,85 @@ export class CalendarService {
         closesSchool: type === 'HOLIDAY' || type === 'BREAK' || /no classes/i.test(notes),
       },
     };
+  }
+
+  /**
+   * An event's campus by name (null: the whole school). Branch-scoped admins only add events for
+   * their own branches.
+   */
+  private async branchIdOf(name: string | null | undefined) {
+    const scope = RequestContext.get()?.branchScope;
+    const wanted = (name ?? '').trim();
+    if (!wanted || wanted === 'All branches') {
+      if (scope) throw fail(`Choose your branch: ${scope.names.join(' or ')}.`, 'VALIDATION');
+      return null;
+    }
+    const b = await this.db.branch.findFirst({ where: { name: wanted, status: 'ACTIVE' } });
+    if (!b) throw fail('Choose one of the school’s active branches.', 'VALIDATION');
+    if (scope && !scope.ids.includes(b.id))
+      throw fail(
+        `You manage ${scope.names.join(' and ')} only.`,
+        'BRANCH_SCOPE',
+        HttpStatus.FORBIDDEN,
+      );
+    return b.id;
+  }
+
+  /** A branch-scoped admin can only change their own branches' events. */
+  private requireOwn(e: { branchId: string | null }) {
+    const scope = RequestContext.get()?.branchScope;
+    if (scope && (!e.branchId || !scope.ids.includes(e.branchId)))
+      throw fail(
+        `Only whole-school admins can change ${e.branchId ? 'another branch’s' : 'whole-school'} events.`,
+        'BRANCH_SCOPE',
+        HttpStatus.FORBIDDEN,
+      );
+  }
+
+  /**
+   * `PUT /v1/academics/calendar/branch-terms`: a campus's own start and end for a term, or (both
+   * null) back to the term's dates.
+   */
+  async setBranchTermDates(input: {
+    branch: string;
+    termId: string;
+    start?: string | null;
+    end?: string | null;
+  }) {
+    const session = await this.structure.currentSession();
+    const term = session?.terms.find((t) => t.id === input.termId);
+    if (!session || !term) throw fail('Choose a term of the current session.', 'VALIDATION');
+    const branchId = await this.branchIdOf(input.branch);
+    if (!branchId) throw fail('Choose the branch.', 'VALIDATION');
+    if (!input.start && !input.end) {
+      await this.db.branchTermDates.deleteMany({ where: { termId: term.id, branchId } });
+    } else {
+      const start = input.start ?? isoDate(term.startsOn);
+      const end = input.end ?? isoDate(term.endsOn);
+      if (!isIso(start) || !isIso(end)) throw fail('Choose the dates.', 'VALIDATION');
+      if (end <= start) throw fail('The term ends before it starts.', 'VALIDATION');
+      const sStart = isoDate(session.startsOn);
+      const sEnd = isoDate(session.endsOn);
+      if (start < sStart || end > sEnd)
+        throw fail(`Term dates must fall within ${session.name}.`, 'VALIDATION');
+      const data = {
+        startsOn: new Date(`${start}T00:00:00Z`),
+        endsOn: new Date(`${end}T00:00:00Z`),
+      };
+      await this.db.branchTermDates.upsert({
+        where: { termId_branchId: { termId: term.id, branchId } },
+        create: { schoolId: RequestContext.schoolId()!, termId: term.id, branchId, ...data },
+        update: data,
+      });
+    }
+    await this.audit.record({
+      action: 'calendar.branch_term',
+      area: 'Academic',
+      entity: 'Term',
+      entityId: term.id,
+      summary: `${input.branch} · ${term.name} dates ${input.start || input.end ? 'set' : 'reset to the term’s'}`,
+    });
+    return { ...(await this.view()), saved: { branch: input.branch, term: term.name } };
   }
 
   async create(schoolId: string, input: CalendarEventInput) {
@@ -206,7 +346,7 @@ export class CalendarService {
   }
 
   async update(id: string, input: CalendarEventInput) {
-    await this.find(id);
+    this.requireOwn(await this.find(id));
     const { data } = await this.valid(input);
     const row = await this.db.calendarEvent.update({ where: { id }, data });
     await this.audit.record({
@@ -221,6 +361,7 @@ export class CalendarService {
 
   async remove(id: string) {
     const e = await this.find(id);
+    this.requireOwn(e);
     await this.db.calendarEvent.delete({ where: { id } });
     await this.audit.record({
       action: 'calendar.remove',

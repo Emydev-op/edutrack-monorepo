@@ -20,6 +20,7 @@ import SideDrawer from '@edutrack/app-kit/components/overlays/SideDrawer.vue';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 
 import {
+  useBranchTermDatesMutation,
   useCalendarQuery,
   useDeleteEventMutation,
   useSaveEventMutation,
@@ -127,7 +128,44 @@ const form = reactive({
   end: '',
   audience: 'Everyone',
   notes: '',
+  branch: '',
 });
+/** Campuses an event can belong to; empty: the whole school. */
+const branchChoices = computed(
+  () => context.options?.branches.filter((b) => b.name !== 'All branches').map((b) => b.name) ?? [],
+);
+/** A new event starts at the working campus when one is chosen. */
+const defaultBranch = () =>
+  context.current.branch && context.current.branch !== 'All branches' && !context.singleBranch
+    ? context.current.branch
+    : '';
+
+/* A campus's own term dates (it resumes or closes on different days). */
+const termDates = useBranchTermDatesMutation();
+const termEdits = reactive<Record<string, { start: string; end: string }>>({});
+watch(
+  () => data.value?.terms,
+  (terms) => {
+    for (const t of terms ?? []) termEdits[t.id] = { start: t.start, end: t.end };
+  },
+  { immediate: true },
+);
+async function saveTermDates(termId: string, reset = false) {
+  const b = data.value?.branch;
+  if (!b) return;
+  const e = termEdits[termId]!;
+  try {
+    await termDates.mutateAsync({
+      branch: b,
+      termId,
+      start: reset ? null : e.start,
+      end: reset ? null : e.end,
+    });
+    toast.success(reset ? `${b} follows the term’s dates again.` : `${b} term dates saved.`);
+  } catch (err) {
+    toast.error(getApiErrorMessage(err));
+  }
+}
 const initial = ref('');
 const showErrors = ref(false);
 const dirty = computed(
@@ -149,6 +187,7 @@ function openNew(date?: string) {
     end: d,
     audience: 'Everyone',
     notes: '',
+    branch: defaultBranch(),
   });
   initial.value = JSON.stringify(form);
   showErrors.value = false;
@@ -169,6 +208,7 @@ function openEvent(e: CalendarEvent) {
       end: e.end,
       audience: e.audience,
       notes: e.notes,
+      branch: e.branch ?? '',
     });
     initial.value = JSON.stringify(form);
   }
@@ -331,11 +371,64 @@ const chip = (t: AcadEventType) =>
               class="flex w-full flex-col items-start text-left"
               @click="openEvent(e)"
             >
-              <span class="text-[13px] font-medium hover:text-primary">{{ e.title }}</span>
+              <span class="text-[13px] font-medium hover:text-primary"
+                >{{ e.title
+                }}<span v-if="e.branch" class="ml-1.5 text-[11px] font-normal text-faint">{{
+                  e.branch
+                }}</span></span
+              >
               <span class="text-xs text-muted-foreground"
                 >{{ fmtRange(e.start, e.end) }} · {{ e.type }}</span
               >
             </button>
+          </li>
+        </ul>
+      </SectionCard>
+      <SectionCard
+        v-if="data?.branch && data.terms?.length && !context.singleBranch"
+        :title="`Term dates at ${data.branch}`"
+        description="Shift them if this campus resumes or closes on different days. Results and fees stay with the term."
+      >
+        <ul class="flex flex-col gap-3">
+          <li v-for="t in data.terms" :key="t.id" class="flex flex-col gap-1.5">
+            <span class="text-[13px] font-medium"
+              >{{ t.name
+              }}<span v-if="t.own" class="ml-1.5 text-[11px] font-normal text-faint"
+                >this campus’s dates</span
+              ></span
+            >
+            <div class="grid grid-cols-2 gap-2">
+              <Input
+                v-model="termEdits[t.id]!.start"
+                type="date"
+                :aria-label="`${t.name} starts at ${data.branch}`"
+              />
+              <Input
+                v-model="termEdits[t.id]!.end"
+                type="date"
+                :aria-label="`${t.name} ends at ${data.branch}`"
+              />
+            </div>
+            <div class="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                :disabled="
+                  termDates.isPending.value ||
+                  (termEdits[t.id]!.start === t.start && termEdits[t.id]!.end === t.end)
+                "
+                @click="saveTermDates(t.id)"
+                >Save</Button
+              >
+              <Button
+                v-if="t.own"
+                size="sm"
+                variant="ghost"
+                :disabled="termDates.isPending.value"
+                @click="saveTermDates(t.id, true)"
+                >Use the term’s dates</Button
+              >
+            </div>
           </li>
         </ul>
       </SectionCard>
@@ -398,6 +491,21 @@ const chip = (t: AcadEventType) =>
           <Input id="ev-end" v-model="form.end" type="date" />
         </FieldShell>
       </div>
+      <FieldShell
+        v-if="branchChoices.length > 1"
+        id="ev-branch"
+        label="Campus"
+        hint="A holiday or break for one campus closes only its registers."
+      >
+        <select
+          id="ev-branch"
+          v-model="form.branch"
+          class="h-9 rounded-md border bg-card px-2.5 text-sm"
+        >
+          <option value="">Whole school</option>
+          <option v-for="b in branchChoices" :key="b" :value="b">{{ b }} only</option>
+        </select>
+      </FieldShell>
       <FieldShell id="ev-aud" label="Audience">
         <select
           id="ev-aud"

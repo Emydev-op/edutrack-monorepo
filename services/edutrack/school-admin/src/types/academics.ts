@@ -150,10 +150,16 @@ export interface CalendarEvent {
   /** Term events and holidays are edited from Sessions & Terms; custom events here. */
   source: 'term' | 'holiday' | 'custom';
   notes: string;
+  /** One campus's event; null: the whole school. */
+  branch?: string | null;
 }
 
 export interface CalendarView {
   session: string;
+  /** The campus shown (the header's branch), or null for all branches. */
+  branch?: string | null;
+  /** The session's terms with their dates at that campus (`own`: shifted for it). */
+  terms?: { id: string; name: string; start: string; end: string; own: boolean }[];
   events: CalendarEvent[];
   holidays: PublicHoliday[];
   /** Date range the calendar can show (the session's dates). */
@@ -168,6 +174,8 @@ export interface CalendarEventInput {
   end: string;
   audience: string;
   notes: string;
+  /** One campus (by name); empty: the whole school. */
+  branch?: string | null;
 }
 
 /* ---------------- Classes & arms ---------------- */

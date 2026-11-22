@@ -128,6 +128,7 @@ model School {
   assessmentSchemes        AssessmentScheme[]
   assessmentComponents     AssessmentComponent[]
   gradeBands               GradeBand[]
+  branchTermDates          BranchTermDates[]
   descriptiveRatings       DescriptiveRating[]
   attendanceRegisters      AttendanceRegister[]
   attendanceEntries        AttendanceEntry[]
@@ -300,6 +301,8 @@ model Branch {
   branchSections        BranchSection[]
   payments              Payment[]
   branchLevels          BranchLevel[]
+  calendarEvents        CalendarEvent[]
+  termDates             BranchTermDates[]
 
   @@unique([schoolId, id])
   @@unique([schoolId, code])

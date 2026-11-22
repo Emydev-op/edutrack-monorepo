@@ -199,8 +199,9 @@ export class ReportCardsService {
 
   /** Each student's register summary for the term, for their days in this arm. */
   async attendanceFor(term: TermInfo, armId: string) {
+    const branchId = await this.attendance.branchOfArm(armId);
     const [{ days }, spans, registers] = await Promise.all([
-      this.attendance.schoolDays(term),
+      this.attendance.schoolDays(term, undefined, branchId),
       armRollSpans(this.db, term.sessionId, [armId]),
       this.db.attendanceRegister.findMany({
         where: { termId: term.id, armId },
