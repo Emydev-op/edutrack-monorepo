@@ -374,6 +374,12 @@ export const useReportCardQuery = (studentId: MaybeRefOrGetter<string>) =>
   });
 
 /** Withholds a report card with a reason, or releases it (`action: 'release'`). */
+/** Nursery cards: the head teacher's comment (until the class is published). */
+export const useHeadRemarkMutation = () =>
+  useAcademicsMutation(({ studentId, remark }: { studentId: string; remark: string }) =>
+    putRequest<ReportCard>(`${A}/results/report-card/${studentId}/head-remark`, { remark }),
+  );
+
 export const useReportCardHoldMutation = () =>
   useAcademicsMutation(
     ({

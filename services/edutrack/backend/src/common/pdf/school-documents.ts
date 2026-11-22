@@ -45,6 +45,11 @@ export interface ReportCardDoc {
   publishedAt?: string | null;
   /** Prints a "Preview, not published" band (School Admin before publishing). */
   preview?: boolean;
+  /** Nursery cards: a rating and comment per learning area, height, weight, head's comment. */
+  mode?: 'scores' | 'descriptive';
+  headTeacherRemark?: string | null;
+  height?: number | null;
+  weight?: number | null;
 }
 
 export interface ReceiptDoc {
@@ -295,36 +300,60 @@ export function reportCardPdf(input: ReportCardDoc, photo?: Buffer | null): Prom
       ['Admission number', card.student.admissionNo],
       ['Class', card.student.className],
       ['Class teacher', card.classTeacher ?? ''],
-      ['Average', `${card.average}${card.grade && card.grade !== '—' ? ` (${card.grade})` : ''}`],
-      ['Position', card.position ?? 'Not shown'],
+      ...((card.mode === 'descriptive'
+        ? [
+            ['Height', card.height != null ? `${card.height} cm` : 'Not recorded'],
+            ['Weight', card.weight != null ? `${card.weight} kg` : 'Not recorded'],
+          ]
+        : [
+            [
+              'Average',
+              `${card.average}${card.grade && card.grade !== '—' ? ` (${card.grade})` : ''}`,
+            ],
+            ['Position', card.position ?? 'Not shown'],
+          ]) as [string, string][]),
     ],
     3,
     pictured ? W - PHOTO_W - 12 : W,
   );
   if (pictured && doc.y < top + PHOTO_H + 8) doc.y = top + PHOTO_H + 8;
 
-  section(doc, 'Subjects');
   const hasPos = card.subjects.some((s) => s.position);
-  table(
-    doc,
-    [
-      { label: 'Subject', width: 3 },
-      ...card.components.map((c) => ({ label: c, width: 1.2, align: 'center' as const })),
-      { label: 'Total', width: 1, align: 'center' },
-      { label: 'Grade', width: 0.9, align: 'center' },
-      ...(hasPos ? [{ label: 'Position', width: 1.3, align: 'center' as const }] : []),
-      { label: 'Remark', width: 2 },
-    ],
-    card.subjects.map((s) => [
-      s.name,
-      ...card.components.map((_, i) => String(s.scores[i] ?? '—')),
-      s.total,
-      s.grade,
-      ...(hasPos ? [s.position ?? '—'] : []),
-      s.remark,
-    ]),
-    color,
-  );
+  if (card.mode === 'descriptive') {
+    section(doc, 'Learning areas');
+    table(
+      doc,
+      [
+        { label: 'Learning area', width: 3 },
+        { label: 'Rating', width: 2 },
+        { label: 'Comment', width: 4 },
+      ],
+      card.subjects.map((s) => [s.name, s.grade, s.remark]),
+      color,
+    );
+  } else {
+    section(doc, 'Subjects');
+    table(
+      doc,
+      [
+        { label: 'Subject', width: 3 },
+        ...card.components.map((c) => ({ label: c, width: 1.2, align: 'center' as const })),
+        { label: 'Total', width: 1, align: 'center' },
+        { label: 'Grade', width: 0.9, align: 'center' },
+        ...(hasPos ? [{ label: 'Position', width: 1.3, align: 'center' as const }] : []),
+        { label: 'Remark', width: 2 },
+      ],
+      card.subjects.map((s) => [
+        s.name,
+        ...card.components.map((_, i) => String(s.scores[i] ?? '—')),
+        s.total,
+        s.grade,
+        ...(hasPos ? [s.position ?? '—'] : []),
+        s.remark,
+      ]),
+      color,
+    );
+  }
 
   const cum = cumulativeRows(card.cumulative);
   if (cum) {
@@ -365,6 +394,15 @@ export function reportCardPdf(input: ReportCardDoc, photo?: Buffer | null): Prom
     .fillColor(INK)
     .text(card.classTeacherRemark || 'No remark.', M, doc.y, { width: W });
   doc.moveDown(0.8);
+  if (card.headTeacherRemark) {
+    section(doc, 'Head teacher’s comment', 50);
+    doc
+      .font('Helvetica')
+      .fontSize(9.5)
+      .fillColor(INK)
+      .text(card.headTeacherRemark, M, doc.y, { width: W });
+    doc.moveDown(0.8);
+  }
   if (card.nextTerm) {
     doc
       .font('Helvetica-Bold')

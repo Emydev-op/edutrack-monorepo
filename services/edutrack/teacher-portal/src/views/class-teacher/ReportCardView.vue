@@ -41,18 +41,32 @@ const studentId = computed(() => String(route.params.studentId ?? ''));
 const { data: card, isPending, error } = useReportCardQuery(studentId);
 const save = useSaveReportCardMutation();
 const remarkId = useId();
+const heightId = useId();
+const weightId = useId();
 
 type Ratings = Record<ConductTrait, number | null>;
 const remark = ref('');
 const ratings = ref<Ratings>({} as Ratings);
+/** Nursery: height and weight instead of conduct ratings. */
+const nursery = computed(() => card.value?.mode === 'descriptive');
+const height = ref('');
+const weight = ref('');
 const saved = ref('');
 const errors = ref<Record<string, string>>({});
 const serverError = ref('');
 
-const current = () => JSON.stringify({ remark: remark.value.trim(), ratings: ratings.value });
+const current = () =>
+  JSON.stringify({
+    remark: remark.value.trim(),
+    ratings: ratings.value,
+    height: height.value.trim(),
+    weight: weight.value.trim(),
+  });
 function load(c: ReportCardEntry) {
   remark.value = c.remark;
   ratings.value = { ...c.ratings };
+  height.value = c.height == null ? '' : String(c.height);
+  weight.value = c.weight == null ? '' : String(c.weight);
   saved.value = current();
   errors.value = {};
   serverError.value = '';
@@ -103,8 +117,18 @@ function validate() {
     e.remark = `Write at least ${REMARK_LIMITS.min} characters (${length.value} so far).`;
   else if (length.value > REMARK_LIMITS.max)
     e.remark = `Keep the remark to ${REMARK_LIMITS.max} characters (${length.value} now).`;
-  for (const t of CONDUCT_TRAITS)
-    if (!ratings.value[t]) e[`ratings.${t}`] = `Rate ${t.toLowerCase()}.`;
+  if (nursery.value) {
+    const check = (key: 'height' | 'weight', v: string, min: number, max: number, unit: string) => {
+      if (!v.trim()) return;
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < min || n > max)
+        e[key] = `Enter the ${key} in ${unit} (${min}–${max}).`;
+    };
+    check('height', height.value, 40, 160, 'cm');
+    check('weight', weight.value, 5, 60, 'kg');
+  } else
+    for (const t of CONDUCT_TRAITS)
+      if (!ratings.value[t]) e[`ratings.${t}`] = `Rate ${t.toLowerCase()}.`;
   errors.value = e;
   return !Object.keys(e).length;
 }
@@ -117,7 +141,14 @@ async function submit(thenNext = false) {
   try {
     await save.mutateAsync({
       studentId: c.student.id,
-      payload: { remark: remark.value.trim(), ratings: ratings.value },
+      payload: nursery.value
+        ? {
+            remark: remark.value.trim(),
+            ratings: {},
+            height: height.value.trim() ? Number(height.value) : null,
+            weight: weight.value.trim() ? Number(weight.value) : null,
+          }
+        : { remark: remark.value.trim(), ratings: ratings.value },
     });
     saved.value = current();
     toast.success(`Saved ${c.student.name}’s remark and ratings.`);
@@ -233,6 +264,35 @@ const toStudent = (id: string | null) =>
           </SectionCard>
 
           <SectionCard
+            v-if="nursery"
+            title="Height and weight"
+            description="Measured this term. Printed on the report card; leave blank if not measured."
+          >
+            <div class="grid gap-3 sm:grid-cols-2">
+              <FieldShell :id="heightId" label="Height (cm)" :error="errors.height">
+                <input
+                  :id="heightId"
+                  v-model="height"
+                  inputmode="decimal"
+                  :disabled="!card.editable"
+                  placeholder="e.g. 104.5"
+                  class="h-9 w-full rounded-md border bg-card px-3 tabular-nums outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </FieldShell>
+              <FieldShell :id="weightId" label="Weight (kg)" :error="errors.weight">
+                <input
+                  :id="weightId"
+                  v-model="weight"
+                  inputmode="decimal"
+                  :disabled="!card.editable"
+                  placeholder="e.g. 17.2"
+                  class="h-9 w-full rounded-md border bg-card px-3 tabular-nums outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </FieldShell>
+            </div>
+          </SectionCard>
+          <SectionCard
+            v-else
             title="Conduct"
             description="Rate each from 1 (needs improvement) to 5 (excellent)."
           >

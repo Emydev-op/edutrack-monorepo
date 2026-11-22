@@ -107,9 +107,25 @@ export class ReportCardRemarkDto {
   @IsOptional()
   @IsObject()
   ratings?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ description: 'Nursery cards: height in cm (40–160)', example: 104.5 })
+  @Allow()
+  height?: unknown;
+
+  @ApiPropertyOptional({ description: 'Nursery cards: weight in kg (5–60)', example: 17.2 })
+  @Allow()
+  weight?: unknown;
 }
 
 /* ---------------- School Admin ---------------- */
+
+/** `PUT /v1/academics/results/report-card/:studentId/head-remark` (Nursery cards). */
+export class HeadTeacherRemarkDto {
+  @ApiProperty({ description: 'Up to 400 characters; empty removes it' })
+  @IsString()
+  @MaxLength(400, { message: 'Keep the comment to 400 characters.' })
+  remark!: string;
+}
 
 export class SheetDecisionDto {
   @ApiPropertyOptional({ description: 'Term id; the current term when omitted' })

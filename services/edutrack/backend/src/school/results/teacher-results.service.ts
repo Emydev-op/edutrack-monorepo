@@ -2,6 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import type { ScoreState } from '../../generated/prisma/enums.js';
+import { offeredInArm } from '../academics/academic-catalog.service.js';
 import { plural, staffName } from '../academics/academic-format.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { asTx } from '../shared/tenant-tx.js';
@@ -53,11 +54,32 @@ export class TeacherResultsService {
 
   /** My sheets for a term: one per class arm × subject I teach (lead or co-teacher). */
   async mySheets(staffId: string, term: TermInfo) {
-    const mine = await this.db.teachingAssignment.findMany({
-      where: { staffId, termId: term.id },
-      select: { armId: true, subjectId: true },
-    });
-    const sheets = await this.core.ensureSheets(term, mine);
+    const [mine, classes] = await Promise.all([
+      this.db.teachingAssignment.findMany({
+        where: { staffId, termId: term.id },
+        select: { armId: true, subjectId: true },
+      }),
+      this.db.classTeacherAssignment.findMany({
+        where: { staffId, sessionId: term.sessionId, endsOn: null },
+        select: { armId: true },
+      }),
+    ]);
+    // Nursery (descriptive) classes: their class teacher rates every learning area.
+    const pairs = [...mine];
+    if (classes.length) {
+      const [arms, schemes, offered] = await Promise.all([
+        this.core.catalog.arms(),
+        this.core.schemes(term.sessionId),
+        this.core.catalog.offeredByLevel(term.sessionId),
+      ]);
+      for (const c of classes) {
+        const arm = arms.find((a) => a.id === c.armId);
+        if (!arm || schemes.get(arm.sectionId)?.mode !== 'DESCRIPTIVE') continue;
+        for (const o of offeredInArm(offered.get(arm.levelId), arm.id))
+          pairs.push({ armId: arm.id, subjectId: o.subjectId });
+      }
+    }
+    const sheets = await this.core.ensureSheets(term, pairs);
     return this.core.contexts(sheets, term);
   }
 
@@ -137,12 +159,20 @@ export class TeacherResultsService {
         fields[row.studentId] = `Send ${scheme.components.length} scores.`;
         continue;
       }
-      row.scores.forEach((v, i) => {
-        const c = scheme.components[i]!;
-        if (!isValidScore(v, c.max))
-          fields[`${row.studentId}.${c.key}`] =
-            `Enter 0–${c.max} (one decimal place at most), ABS or EXM`;
-      });
+      if (scheme.mode === 'DESCRIPTIVE') {
+        const v = row.scores[0];
+        if (
+          v !== null &&
+          !(Number.isInteger(v) && (v as number) >= 1 && (v as number) <= scheme.ratings.length)
+        )
+          fields[`${row.studentId}.rating`] = 'Choose a rating from the scale.';
+      } else
+        row.scores.forEach((v, i) => {
+          const c = scheme.components[i]!;
+          if (!isValidScore(v, c.max))
+            fields[`${row.studentId}.${c.key}`] =
+              `Enter 0–${c.max} (one decimal place at most), ABS or EXM`;
+        });
       if (row.remark !== undefined && (typeof row.remark !== 'string' || row.remark.length > 300))
         fields[`${row.studentId}.remark`] = 'Keep the remark under 300 characters.';
     }
@@ -169,6 +199,23 @@ export class TeacherResultsService {
         const r = scoreRow(scheme, values);
         const remark = row.remark === undefined ? undefined : row.remark.trim() || null;
         const existing = ctx.entries.get(row.studentId);
+        if (scheme.mode === 'DESCRIPTIVE') {
+          // Nursery: the rating is kept on the entry; there are no scores.
+          const v = values[0];
+          const ratingId = typeof v === 'number' ? scheme.ratings[v - 1]!.id : null;
+          const data = {
+            ratingId,
+            total: null,
+            grade: r.grade,
+            ...(remark !== undefined && { teacherRemark: remark }),
+          };
+          if (existing) await tx.resultEntry.update({ where: { id: existing.id }, data });
+          else
+            await tx.resultEntry.create({
+              data: { schoolId, sheetId: sheet.id, studentId: row.studentId, ...data },
+            });
+          continue;
+        }
         const entry = existing
           ? await tx.resultEntry.update({
               where: { id: existing.id },
@@ -232,7 +279,9 @@ export class TeacherResultsService {
             `${missingOf(scheme.components, b.scores).join(', ')} missing`,
           ]),
         ),
-        `${blockers.length} student${blockers.length === 1 ? ' has' : 's have'} missing scores (${names.join(', ')}${blockers.length > 3 ? ', …' : ''}). Enter every score — ABS for absent, EXM for exempt — before submitting.`,
+        scheme.mode === 'DESCRIPTIVE'
+          ? `${blockers.length} child${blockers.length === 1 ? ' has' : 'ren have'} no rating yet (${names.join(', ')}${blockers.length > 3 ? ', …' : ''}). Rate every child before submitting.`
+          : `${blockers.length} student${blockers.length === 1 ? ' has' : 's have'} missing scores (${names.join(', ')}${blockers.length > 3 ? ', …' : ''}). Enter every score — ABS for absent, EXM for exempt — before submitting.`,
       );
     }
     const target = await this.core.submitTo(ctx);

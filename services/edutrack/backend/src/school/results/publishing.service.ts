@@ -475,6 +475,60 @@ export class PublishingService {
     return { file, name: pdfName(`${card.student.name} ${card.title}`) };
   }
 
+  /** Nursery cards: the head of section's comment, until the class is published. */
+  async headRemark(
+    auth: AuthUserContext,
+    studentId: string,
+    body: { term?: string; remark: string },
+  ) {
+    const term = await this.core.adminTerm(body.term);
+    const { student, arm } = await this.studentArm(studentId, term);
+    await this.sections.requireArm(arm.id, 'report cards');
+    const published = await this.db.resultPublication.findFirst({
+      where: { termId: term.id, armId: arm.id },
+    });
+    if (published)
+      throw conflict(
+        `${term.name} results for ${arm.label} are published, so the card is read-only.`,
+        'RESULTS_PUBLISHED',
+      );
+    const remark = body.remark.trim() || null;
+    const existing = await this.db.reportCard.findFirst({ where: { termId: term.id, studentId } });
+    const name = `${student.firstName} ${student.surname}`;
+    await this.db.$transaction(async (tx) => {
+      if (existing)
+        await tx.reportCard.update({
+          where: { id: existing.id },
+          data: { headTeacherRemark: remark },
+        });
+      else
+        await tx.reportCard.create({
+          data: {
+            schoolId: ResultsCoreService.schoolId(),
+            termId: term.id,
+            studentId,
+            armId: arm.id,
+            headTeacherRemark: remark,
+          },
+        });
+      await this.audit.record(
+        {
+          action: 'report_card.head_remark',
+          area: 'Academic',
+          entity: 'ReportCard',
+          entityId: existing?.id ?? null,
+          summary: remark
+            ? `Head teacher’s comment saved for ${name}`
+            : `Head teacher’s comment removed for ${name}`,
+          detail: `${arm.label} · ${term.name}`,
+        },
+        asTx(tx),
+      );
+    });
+    void auth;
+    return this.reportCard(studentId, term.id);
+  }
+
   async hold(auth: AuthUserContext, studentId: string, body: { term?: string; reason?: string }) {
     const term = await this.core.adminTerm(body.term);
     const { student, arm } = await this.studentArm(studentId, term);

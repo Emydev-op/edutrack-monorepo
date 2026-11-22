@@ -122,6 +122,12 @@ export interface ResultSheet extends ResultSheetSummary {
   /** True when submitting sends it to an HOD (status becomes Submitted). */
   submitToHod: boolean;
   components: SheetComponent[];
+  /**
+   * Nursery sections rate instead of scoring: one "Rating" column whose value is the rating's
+   * place on `ratings` (1 = first). No totals or positions.
+   */
+  mode?: 'scores' | 'descriptive';
+  ratings?: { id: string; name: string; description: string }[];
   scale: SheetGradeBand[];
   scaleName: string;
   passMark: number;

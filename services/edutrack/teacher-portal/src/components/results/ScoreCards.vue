@@ -142,9 +142,27 @@ const setQuick = (col: number, value: 'ABS' | 'EXM') => {
       <div v-for="(c, ci) in comps" :key="c.key" class="flex flex-col gap-1">
         <label :for="`card-${row.studentId}-${c.key}`" class="text-[13px] font-medium"
           >{{ c.name }}
-          <span class="font-normal text-faint">out of {{ c.max }} · {{ c.weight }}%</span></label
+          <span v-if="!entry.descriptive.value" class="font-normal text-faint"
+            >out of {{ c.max }} · {{ c.weight }}%</span
+          ></label
         >
-        <div v-if="editable" class="flex gap-2">
+        <select
+          v-if="editable && entry.descriptive.value"
+          :id="`card-${row.studentId}-${c.key}`"
+          :data-card-cell="ci"
+          :value="row.raw[ci]"
+          class="h-10 rounded-md border bg-card px-3 text-base outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+          @change="
+            entry.setCell(index, ci, ($event.target as HTMLSelectElement).value);
+            entry.saveSoon();
+          "
+        >
+          <option value="">Choose a rating…</option>
+          <option v-for="(r, i) in entry.ratings.value" :key="r.id" :value="String(i + 1)">
+            {{ r.name }}{{ r.description ? ` · ${r.description}` : '' }}
+          </option>
+        </select>
+        <div v-else-if="editable" class="flex gap-2">
           <input
             :id="`card-${row.studentId}-${c.key}`"
             :data-card-cell="ci"

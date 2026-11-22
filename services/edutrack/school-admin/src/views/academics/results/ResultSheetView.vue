@@ -43,18 +43,27 @@ const passMark = computed(() => sheet.value?.passMark ?? 40);
 const canDecide = computed(() => !!sheet.value?.canDecide);
 const teacher = computed(() => sheet.value?.teacher ?? 'the teacher');
 
-const columns = computed<Column[]>(() => [
-  { key: 'name', label: 'Student', width: 'minmax(180px,1.5fr)' },
-  ...(sheet.value?.components ?? []).map((c, i) => ({
-    key: `c${i}`,
-    label: `${c.name} /${c.max}`,
-    align: 'right' as const,
-    width: 'minmax(84px,0.6fr)',
-  })),
-  { key: 'total', label: 'Total', align: 'right', width: '80px' },
-  { key: 'grade', label: 'Grade', width: '64px' },
-  { key: 'flag', label: 'Flag / remark', width: 'minmax(200px,1.8fr)' },
-]);
+const descriptive = computed(() => sheet.value?.mode === 'descriptive');
+const columns = computed<Column[]>(() =>
+  descriptive.value
+    ? [
+        { key: 'name', label: 'Child', width: 'minmax(180px,1.5fr)' },
+        { key: 'grade', label: 'Rating', width: 'minmax(140px,1fr)' },
+        { key: 'flag', label: 'Comment', width: 'minmax(220px,2fr)' },
+      ]
+    : [
+        { key: 'name', label: 'Student', width: 'minmax(180px,1.5fr)' },
+        ...(sheet.value?.components ?? []).map((c, i) => ({
+          key: `c${i}`,
+          label: `${c.name} /${c.max}`,
+          align: 'right' as const,
+          width: 'minmax(84px,0.6fr)',
+        })),
+        { key: 'total', label: 'Total', align: 'right', width: '80px' },
+        { key: 'grade', label: 'Grade', width: '64px' },
+        { key: 'flag', label: 'Flag / remark', width: 'minmax(200px,1.8fr)' },
+      ],
+);
 const rows = computed(() =>
   (sheet.value?.rows ?? []).map((r) => ({
     ...r,
@@ -303,7 +312,9 @@ function returnSheet() {
           :class="row.flag === 'Missing score' ? 'text-error-strong' : 'text-info-strong'"
           >{{ row.flag }}</span
         >
-        <span v-else class="text-muted-foreground">{{ row.remark || '—' }}</span>
+        <span v-else class="text-muted-foreground">{{
+          (row as Row & { teacherRemark?: string }).teacherRemark || row.remark || '—'
+        }}</span>
       </template>
     </DataTable>
 

@@ -44,6 +44,27 @@ export interface Scheme {
   lockedAt: Date | null;
   /** SchoolSettings.reweightExempt. */
   reweightExempt: boolean;
+  /**
+   * Descriptive schemes (Nursery): the rating scale, best first. Their sheets have one "Rating"
+   * column whose value is the rating's place on the scale (1 = first), stored as the entry's
+   * rating; no totals, averages or positions.
+   */
+  ratings: { id: string; name: string; description: string }[];
+}
+
+/** The single column a descriptive scheme's sheets show. */
+export const RATING_COMPONENT_ID = 'rating';
+
+/** A descriptive scheme's sheet column: "Rating", 1…n on its scale. */
+export function ratingComponent(count: number): SchemeComponent {
+  return {
+    id: RATING_COMPONENT_ID,
+    key: 'rating',
+    name: 'Rating',
+    max: count,
+    weight: 0,
+    when: '',
+  };
 }
 
 /** A stored value the API accepts: null, ABS, EXM, or a number 0–max with ≤ 1 decimal. */
@@ -99,6 +120,17 @@ export const missingOf = (components: SchemeComponent[], values: ScoreValue[]) =
   components.filter((_, i) => values[i] === null || values[i] === undefined).map((c) => c.name);
 
 export function scoreRow(scheme: Scheme, scores: ScoreValue[]) {
+  if (scheme.mode === 'DESCRIPTIVE') {
+    const v = scores[0];
+    const rating = typeof v === 'number' ? scheme.ratings[v - 1] : undefined;
+    return {
+      scores,
+      total: null,
+      grade: rating?.name ?? null,
+      remark: rating?.description ?? '',
+      flag: rating ? '' : 'No rating yet',
+    };
+  }
   const total = totalOf(scheme, scores);
   const band = total === null ? null : gradeOf(scheme.scale, total);
   return {

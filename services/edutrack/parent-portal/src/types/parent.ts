@@ -227,6 +227,11 @@ export interface ReportCardSubject {
 
 export interface ReportCard {
   school: { name?: string; motto?: string | null; address?: string | null } | null;
+  /** Nursery cards: ratings per learning area, height, weight and the head's comment. */
+  mode?: 'scores' | 'descriptive' | null;
+  headTeacherRemark?: string | null;
+  height?: number | null;
+  weight?: number | null;
   title: string | null;
   student: {
     name?: string;

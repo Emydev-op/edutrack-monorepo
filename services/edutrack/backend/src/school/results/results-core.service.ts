@@ -16,6 +16,7 @@ import { TeacherScopeService } from '../teacher/teacher-scope.service.js';
 import {
   completionOf,
   gradeOf,
+  ratingComponent,
   scoreRow,
   statsOf,
   totalOf,
@@ -88,6 +89,8 @@ export interface EntryRecord {
   studentId: string;
   teacherRemark: string | null;
   position: number | null;
+  /** Descriptive schemes: the rating given. */
+  ratingId?: string | null;
   scores: { componentId: string; state: ScoreState; score: Prisma.Decimal | null }[];
 }
 
@@ -186,6 +189,7 @@ export class ResultsCoreService {
         include: {
           components: { orderBy: { sortOrder: 'asc' } },
           gradeBands: { orderBy: { sortOrder: 'asc' } },
+          ratings: { orderBy: { sortOrder: 'asc' } },
         },
       }),
       this.db.schoolSettings.findFirst({ select: { reweightExempt: true } }),
@@ -199,14 +203,19 @@ export class ResultsCoreService {
           sessionId: s.sessionId,
           sectionId: s.sectionId,
           mode: s.mode,
-          components: s.components.map((c) => ({
-            id: c.id,
-            key: c.key,
-            name: c.name,
-            max: Number(c.maxScore),
-            weight: Number(c.weight),
-            when: c.typicalWhen,
-          })),
+          // Descriptive (Nursery): one Rating column instead of score components.
+          components:
+            s.mode === 'DESCRIPTIVE'
+              ? [ratingComponent(s.ratings.length)]
+              : s.components.map((c) => ({
+                  id: c.id,
+                  key: c.key,
+                  name: c.name,
+                  max: Number(c.maxScore),
+                  weight: Number(c.weight),
+                  when: c.typicalWhen,
+                })),
+          ratings: s.ratings.map((r) => ({ id: r.id, name: r.name, description: r.description })),
           scale: s.gradeBands.map((g) => ({
             grade: g.grade,
             min: Number(g.minScore),
@@ -246,7 +255,7 @@ export class ResultsCoreService {
    */
   async ensureSheets(term: TermInfo, pairs: { armId: string; subjectId: string }[]) {
     if (!pairs.length) return [];
-    const [arms, offered, schemes, leads, existing] = await Promise.all([
+    const [arms, offered, schemes, leads, existing, classTeachers] = await Promise.all([
       this.catalog.arms(),
       this.catalog.offeredByLevel(term.sessionId),
       this.schemes(term.sessionId),
@@ -256,6 +265,10 @@ export class ResultsCoreService {
       this.db.resultSheet.findMany({
         where: { termId: term.id, armId: { in: pairs.map((p) => p.armId) } },
       }),
+      this.classTeachers(
+        term.sessionId,
+        pairs.map((p) => p.armId),
+      ),
     ]);
     const armById = new Map(arms.map((a) => [a.id, a]));
     const seen = new Set<string>();
@@ -267,10 +280,16 @@ export class ResultsCoreService {
       const arm = armById.get(p.armId);
       if (!arm) continue;
       const scheme = schemes.get(arm.sectionId);
-      if (!scheme || scheme.mode !== 'SCORES') continue;
+      if (!scheme) continue;
       if (!offeredInArm(offered.get(arm.levelId), arm.id).some((s) => s.subjectId === p.subjectId))
         continue;
-      const lead = leads.find((l) => l.armId === p.armId && l.subjectId === p.subjectId) ?? null;
+      // Nursery (descriptive): the class teacher rates every learning area of the class.
+      const descriptive = scheme.mode === 'DESCRIPTIVE';
+      const classTeacher = descriptive ? (classTeachers.get(p.armId) ?? null) : null;
+      const lead = descriptive
+        ? null
+        : (leads.find((l) => l.armId === p.armId && l.subjectId === p.subjectId) ?? null);
+      const owner = descriptive ? classTeacher : (lead?.staffId ?? null);
       const found = existing.find((s) => s.armId === p.armId && s.subjectId === p.subjectId);
       if (found) {
         ids.push(found.id);
@@ -279,6 +298,11 @@ export class ResultsCoreService {
           await this.db.resultSheet.update({
             where: { id: found.id },
             data: { teachingAssignmentId: lead.id, teacherStaffId: lead.staffId },
+          });
+        else if (follows && descriptive && classTeacher && found.teacherStaffId !== classTeacher)
+          await this.db.resultSheet.update({
+            where: { id: found.id },
+            data: { teachingAssignmentId: null, teacherStaffId: classTeacher },
           });
         continue;
       }
@@ -293,7 +317,7 @@ export class ResultsCoreService {
             subjectId: p.subjectId,
             schemeId: scheme.id,
             teachingAssignmentId: lead?.id ?? null,
-            teacherStaffId: lead?.staffId ?? null,
+            teacherStaffId: owner,
           },
         })
         // Two requests creating the same sheet at once: the other one won.
@@ -308,6 +332,18 @@ export class ResultsCoreService {
     return this.db.resultSheet.findMany({ where: { id: { in: ids } }, include: SHEET_INCLUDE });
   }
 
+  /** armId → its class teacher's staff id this session (current assignment). */
+  async classTeachers(sessionId: string, armIds: string[]): Promise<Map<string, string>> {
+    const rows = await this.db.classTeacherAssignment.findMany({
+      where: { sessionId, armId: { in: armIds }, endsOn: null },
+      orderBy: { startsOn: 'desc' },
+      select: { armId: true, staffId: true },
+    });
+    const out = new Map<string, string>();
+    for (const r of rows) if (!out.has(r.armId)) out.set(r.armId, r.staffId);
+    return out;
+  }
+
   /* ---------------- Loading ---------------- */
 
   /** Sheets of one term with their students, scores and rows. */
@@ -315,7 +351,7 @@ export class ResultsCoreService {
     if (!sheets.length) return [];
     const t = term ?? (await this.term(sheets[0]!.termId));
     const armIds = [...new Set(sheets.map((s) => s.armId))];
-    const [arms, schemes, codes, roll, entries, assignments] = await Promise.all([
+    const [arms, schemes, codes, roll, entries, assignments, classTeachers] = await Promise.all([
       this.catalog.arms(),
       this.schemes(t.sessionId),
       this.sectionCodes(),
@@ -335,6 +371,7 @@ export class ResultsCoreService {
         where: { termId: t.id, armId: { in: armIds } },
         select: { armId: true, subjectId: true, staffId: true, lead: true },
       }),
+      this.classTeachers(t.sessionId, armIds),
     ]);
     const electives = sheets.some((s) => s.curriculumEntry.offering !== 'COMPULSORY')
       ? await this.db.studentSubject.findMany({
@@ -378,10 +415,13 @@ export class ResultsCoreService {
         students: all,
         entries: byStudent,
         rows: all.map((s) => ResultsCoreService.row(scheme, s, byStudent.get(s.id))),
-        teacherIds: assignments
-          .filter((a) => a.armId === sheet.armId && a.subjectId === sheet.subjectId)
-          .sort((a, b) => Number(b.lead) - Number(a.lead))
-          .map((a) => a.staffId),
+        teacherIds:
+          scheme.mode === 'DESCRIPTIVE'
+            ? [classTeachers.get(sheet.armId)].filter((x): x is string => !!x)
+            : assignments
+                .filter((a) => a.armId === sheet.armId && a.subjectId === sheet.subjectId)
+                .sort((a, b) => Number(b.lead) - Number(a.lead))
+                .map((a) => a.staffId),
       });
     }
     return out;
@@ -413,6 +453,10 @@ export class ResultsCoreService {
   }
 
   static valuesOf(scheme: Scheme, entry: EntryRecord | undefined): ScoreValue[] {
+    if (scheme.mode === 'DESCRIPTIVE') {
+      const i = scheme.ratings.findIndex((r) => r.id === entry?.ratingId);
+      return [i >= 0 ? i + 1 : null];
+    }
     return scheme.components.map((c) => {
       const s = entry?.scores.find((x) => x.componentId === c.id);
       if (!s) return null;
@@ -771,6 +815,9 @@ export class ResultsCoreService {
       submitTo: returned ? returned.by : target.label,
       submitToHod: target.hodId !== null,
       components: ResultsCoreService.components(scheme),
+      // Nursery (descriptive): one Rating column; a row's scores[0] is its place on this scale.
+      mode: scheme.mode === 'DESCRIPTIVE' ? ('descriptive' as const) : ('scores' as const),
+      ratings: scheme.ratings,
       scale: scheme.scale,
       scaleName: scheme.scaleName,
       passMark: scheme.passMark,
@@ -779,7 +826,10 @@ export class ResultsCoreService {
       lock,
       returned,
       canRequestCorrection:
-        sheet.status === 'PUBLISHED' && !!viewerStaffId && ctx.teacherIds.includes(viewerStaffId),
+        scheme.mode === 'SCORES' &&
+        sheet.status === 'PUBLISHED' &&
+        !!viewerStaffId &&
+        ctx.teacherIds.includes(viewerStaffId),
       corrections: await this.correctionViews(ctx, corrections),
       history,
       // Phase 3b additions: co-teachers enter scores, only the lead submits or recalls.
@@ -810,7 +860,12 @@ export class ResultsCoreService {
       status: STATUS_LABEL[sheet.status],
       submittedAt: sheet.submittedAt ? stamp(sheet.submittedAt) : null,
       components: ResultsCoreService.components(scheme),
-      rows: ctx.rows.map(({ teacherRemark: _r, ...r }) => r),
+      mode: scheme.mode === 'DESCRIPTIVE' ? ('descriptive' as const) : ('scores' as const),
+      ratings: scheme.ratings,
+      // Nursery sheets keep the teacher's comment (it's the card's comment per learning area).
+      rows: ctx.rows.map(({ teacherRemark, ...r }) =>
+        scheme.mode === 'DESCRIPTIVE' ? { ...r, teacherRemark } : r,
+      ),
       stats: {
         average: stats.average,
         highest: stats.highest,

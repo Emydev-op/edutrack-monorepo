@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
+import { Textarea } from '@edutrack/ui/components/textarea';
 import { cn } from '@edutrack/ui/lib/utils';
 import { getApiErrorMessage } from '@edutrack/web-core/http';
 import { computed, ref, watch } from 'vue';
@@ -15,7 +16,11 @@ import { useRouteQuery } from '@edutrack/app-kit/composables/useRouteQuery';
 import { initials } from '@edutrack/app-kit/lib/format';
 
 import { downloadFile } from '@/api/helpers';
-import { useReportCardHoldMutation, useReportCardQuery } from '@/api/services/academics';
+import {
+  useHeadRemarkMutation,
+  useReportCardHoldMutation,
+  useReportCardQuery,
+} from '@/api/services/academics';
 import { routesPath } from '@/router/routes-path';
 import { useLayoutStore } from '@/stores/layout';
 import { CONDUCT_SCALE } from '@/types';
@@ -28,6 +33,21 @@ const { data: card, isPending, error } = useReportCardQuery(studentId);
 const confirm = useConfirm();
 const holdMut = useReportCardHoldMutation();
 const showPositions = computed(() => card.value?.subjects.some((s) => s.position) ?? false);
+/** Nursery: ratings per learning area, height and weight, and the head teacher's comment. */
+const nursery = computed(() => card.value?.mode === 'descriptive');
+const headMut = useHeadRemarkMutation();
+const headRemark = ref('');
+watch(card, (c) => (headRemark.value = c?.headTeacherRemark ?? ''), { immediate: true });
+async function saveHeadRemark() {
+  const c = card.value;
+  if (!c) return;
+  try {
+    await headMut.mutateAsync({ studentId: c.student.id, remark: headRemark.value });
+    toast.success('Head teacher’s comment saved.');
+  } catch (e) {
+    toast.error(getApiErrorMessage(e, 'The comment wasn’t saved. Try again.'));
+  }
+}
 
 function hold() {
   const c = card.value!;
@@ -261,7 +281,9 @@ const pickStudent = (id: string) =>
         <table class="w-full border-collapse text-[13px]">
           <thead>
             <tr :class="classic ? 'bg-muted' : 'border-b'">
-              <th class="px-2 py-2 text-left font-medium">Subject</th>
+              <th class="px-2 py-2 text-left font-medium">
+                {{ nursery ? 'Learning area' : 'Subject' }}
+              </th>
               <th
                 v-for="c in card.components"
                 :key="c"
@@ -269,10 +291,12 @@ const pickStudent = (id: string) =>
               >
                 {{ c }}
               </th>
-              <th class="px-2 py-2 text-right font-medium">Total</th>
-              <th class="px-2 py-2 text-left font-medium">Grade</th>
+              <th v-if="!nursery" class="px-2 py-2 text-right font-medium">Total</th>
+              <th class="px-2 py-2 text-left font-medium">{{ nursery ? 'Rating' : 'Grade' }}</th>
               <th v-if="showPositions" class="px-2 py-2 text-left font-medium">Position</th>
-              <th v-if="classic" class="px-2 py-2 text-left font-medium">Remark</th>
+              <th v-if="classic || nursery" class="px-2 py-2 text-left font-medium">
+                {{ nursery ? 'Comment' : 'Remark' }}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -291,12 +315,16 @@ const pickStudent = (id: string) =>
               >
                 {{ v }}
               </td>
-              <td class="px-2 py-1.5 text-right font-medium tabular-nums">{{ s.total }}</td>
+              <td v-if="!nursery" class="px-2 py-1.5 text-right font-medium tabular-nums">
+                {{ s.total }}
+              </td>
               <td class="px-2 py-1.5 font-semibold">{{ s.grade }}</td>
               <td v-if="showPositions" class="px-2 py-1.5 whitespace-nowrap">
                 {{ s.position ?? '—' }}
               </td>
-              <td v-if="classic" class="px-2 py-1.5 text-muted-foreground">{{ s.remark }}</td>
+              <td v-if="classic || nursery" class="px-2 py-1.5 text-muted-foreground">
+                {{ s.remark }}
+              </td>
             </tr>
           </tbody>
         </table>
@@ -358,21 +386,37 @@ const pickStudent = (id: string) =>
           )
         "
       >
-        <div class="flex flex-col">
-          <span class="text-xs text-faint">Average</span>
-          <span class="text-lg font-semibold">{{ card.average }}</span>
-        </div>
-        <div class="flex flex-col">
-          <span class="text-xs text-faint">Overall grade</span>
-          <span class="text-lg font-semibold">{{ card.grade }}</span>
-        </div>
-        <div class="flex flex-col">
-          <span class="text-xs text-faint">Position</span>
-          <span class="text-lg font-semibold">{{ card.position ?? 'Not shown' }}</span>
-        </div>
+        <template v-if="nursery">
+          <div class="flex flex-col">
+            <span class="text-xs text-faint">Height</span>
+            <span class="text-lg font-semibold">{{
+              card.height != null ? `${card.height} cm` : 'Not recorded'
+            }}</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-xs text-faint">Weight</span>
+            <span class="text-lg font-semibold">{{
+              card.weight != null ? `${card.weight} kg` : 'Not recorded'
+            }}</span>
+          </div>
+        </template>
+        <template v-else>
+          <div class="flex flex-col">
+            <span class="text-xs text-faint">Average</span>
+            <span class="text-lg font-semibold">{{ card.average }}</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-xs text-faint">Overall grade</span>
+            <span class="text-lg font-semibold">{{ card.grade }}</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-xs text-faint">Position</span>
+            <span class="text-lg font-semibold">{{ card.position ?? 'Not shown' }}</span>
+          </div>
+        </template>
       </div>
 
-      <div class="mt-4 grid gap-4 text-[13px] sm:grid-cols-2 print:grid-cols-2">
+      <div v-if="!nursery" class="mt-4 grid gap-4 text-[13px] sm:grid-cols-2 print:grid-cols-2">
         <section aria-labelledby="rc-attendance" class="flex flex-col gap-1.5">
           <h3 id="rc-attendance" class="text-xs font-semibold tracking-[0.04em] uppercase">
             Attendance
@@ -422,6 +466,40 @@ const pickStudent = (id: string) =>
             card.classTeacher ? ` · ${card.classTeacher} adds it in the Teacher Workspace` : ''
           }}
         </p>
+      </section>
+
+      <section
+        v-if="nursery"
+        aria-labelledby="rc-head"
+        class="mt-4 flex flex-col gap-1.5 text-[13px]"
+      >
+        <h3 id="rc-head" class="text-xs font-semibold tracking-[0.04em] uppercase">
+          Head teacher’s comment
+        </h3>
+        <template v-if="!card.published">
+          <Textarea
+            v-model="headRemark"
+            :maxlength="400"
+            rows="3"
+            class="print:hidden"
+            placeholder="A short comment on the child’s term (optional)."
+          />
+          <div class="flex justify-end print:hidden">
+            <Button
+              size="sm"
+              :disabled="headMut.isPending.value || headRemark === (card.headTeacherRemark ?? '')"
+              @click="saveHeadRemark"
+              >Save comment</Button
+            >
+          </div>
+          <p v-if="card.headTeacherRemark" class="hidden italic print:block">
+            “{{ card.headTeacherRemark }}”
+          </p>
+        </template>
+        <p v-else-if="card.headTeacherRemark" class="rounded-md bg-muted px-3 py-2 italic">
+          “{{ card.headTeacherRemark }}”
+        </p>
+        <p v-else class="text-muted-foreground">No comment.</p>
       </section>
 
       <footer

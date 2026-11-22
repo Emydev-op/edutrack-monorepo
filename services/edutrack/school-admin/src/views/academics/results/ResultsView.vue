@@ -233,8 +233,8 @@ async function startPublish(row: Row) {
     <InlineNotice
       v-else-if="data.descriptive"
       tone="info"
-      :title="`${data.section} uses descriptive ratings`"
-      description="Nursery reports use developmental descriptors instead of scores, so there is no score matrix. Teachers record a rating per learning area."
+      :title="`${data.section} is rated, not scored`"
+      description="Each class teacher rates every learning area on the section’s rating scale, then the sheets come here for review like any other. Report cards show the ratings, the teacher’s and head teacher’s comments, and height and weight."
     />
 
     <EmptyState
@@ -247,7 +247,7 @@ async function startPublish(row: Row) {
       "
     />
     <section
-      v-else-if="!data.schemeMissing && !data.descriptive"
+      v-else-if="!data.schemeMissing"
       class="overflow-x-auto rounded-lg border bg-card"
       :aria-label="`${data.section} result status by class and subject`"
     >
