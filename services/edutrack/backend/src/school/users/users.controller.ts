@@ -1,3 +1,4 @@
+import { SchoolWide } from '../../common/plan/branch-scope.js';
 import { Body, Controller, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import {
   ApiBadGatewayResponse,
@@ -20,6 +21,7 @@ const STATUS_CONFLICT = 'INVALID_STATUS (not possible in this status), SELF_LOCK
 
 @ApiTags('school · users')
 @Portals('SCHOOL_ADMIN')
+@SchoolWide()
 @Controller('users')
 export class SchoolUsersController {
   constructor(private readonly users: SchoolUsersService) {}
@@ -149,6 +151,7 @@ export class SchoolUsersController {
 
 @ApiTags('school · users')
 @Portals('SCHOOL_ADMIN')
+@SchoolWide()
 @Controller('staff')
 export class StaffOptionsController {
   constructor(private readonly users: SchoolUsersService) {}

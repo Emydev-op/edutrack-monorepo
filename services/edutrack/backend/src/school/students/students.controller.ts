@@ -1,3 +1,4 @@
+import { ScopedBy } from '../../common/plan/branch-scope.js';
 import { Body, Controller, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -104,6 +105,7 @@ export class StudentsController {
   })
   @ApiOkResponse({ type: StudentDetailDto })
   @ApiNotFoundResponse({ description: NOT_FOUND })
+  @ScopedBy('student')
   async get(@Param('id', studentId) id: string) {
     const [detail, photoUrl] = await Promise.all([this.students.detail(id), this.photos.url(id)]);
     return { ...detail, photoUrl };
@@ -120,6 +122,7 @@ export class StudentsController {
   @ApiNotFoundResponse({ description: NOT_FOUND })
   @ApiConflictResponse({ description: 'STUDENT_LEFT' })
   @ApiUnprocessableEntityResponse({ description: 'FILE_TYPE, FILE_TOO_LARGE' })
+  @ScopedBy('student')
   setPhoto(@Param('id', studentId) id: string, @Body() dto: StudentPhotoDto) {
     return this.photos.set(id, dto.photo ?? null);
   }
@@ -146,6 +149,7 @@ export class StudentsController {
       'VALIDATION (date, destination, branch, arm), TRANSFER_LETTER_REQUIRED, FILE_TYPE, ' +
       'FILE_TOO_LARGE, SAME_BRANCH, LEVEL_NOT_AT_BRANCH',
   })
+  @ScopedBy('student')
   transfer(@Param('id', studentId) id: string, @Body() dto: TransferStudentDto) {
     return this.moves.transfer(id, dto);
   }

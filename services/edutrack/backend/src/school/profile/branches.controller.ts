@@ -1,3 +1,4 @@
+import { SchoolWide } from '../../common/plan/branch-scope.js';
 import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -25,6 +26,7 @@ const branchId = new RecordIdPipe(BRANCH_NOT_FOUND);
 
 @ApiTags('school · branches')
 @Portals('SCHOOL_ADMIN')
+@SchoolWide()
 @Controller('branches')
 export class BranchesController {
   constructor(private readonly branches: BranchesService) {}

@@ -1,3 +1,4 @@
+import { SchoolWide } from '../../common/plan/branch-scope.js';
 import { PlanLimitsService } from '../shared/plan-limits.service.js';
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
@@ -34,6 +35,7 @@ import { SchoolSettingsService } from './settings.service.js';
  */
 @ApiTags('school · settings')
 @Portals('SCHOOL_ADMIN')
+@SchoolWide()
 @Controller('settings')
 export class SchoolSettingsController {
   constructor(

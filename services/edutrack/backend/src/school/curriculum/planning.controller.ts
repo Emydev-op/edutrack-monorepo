@@ -1,3 +1,4 @@
+import { SchoolWide } from '../../common/plan/branch-scope.js';
 import { RequiresModule } from '../../common/plan/plan-access.js';
 import {
   Body,
@@ -90,6 +91,7 @@ export class PlanningController {
       `${plural(v.subjects.length, 'subject')} added with the Nigerian curriculum. Change anything you need.`,
   )
   @RequiresModule('subjects')
+  @SchoolWide()
   @Post('subjects/defaults')
   @HttpCode(200)
   @RequirePermission('academics.configure')
@@ -124,6 +126,7 @@ export class PlanningController {
       : `${plural(r.total, 'subject')} ready to import.`,
   )
   @RequiresModule('subjects')
+  @SchoolWide()
   @Post('subjects/import')
   @HttpCode(200)
   @RequirePermission('academics.configure')
@@ -140,6 +143,7 @@ export class PlanningController {
 
   @ResponseMessage((r: { imported: number }) => `${plural(r.imported, 'subject')} imported.`)
   @RequiresModule('subjects')
+  @SchoolWide()
   @Post('subjects/import/commit')
   @RequirePermission('academics.configure')
   @ApiOperation({
@@ -155,6 +159,7 @@ export class PlanningController {
     (_: unknown, req: MessageRequest<SubjectInputDto>) => `${req.body.name.trim()} added.`,
   )
   @RequiresModule('subjects')
+  @SchoolWide()
   @Post('subjects')
   @RequirePermission('academics.configure')
   @ApiOperation({ summary: 'Add a subject' })
@@ -169,6 +174,7 @@ export class PlanningController {
     (_: unknown, req: MessageRequest<SubjectInputDto>) => `${req.body.name.trim()} saved.`,
   )
   @RequiresModule('subjects')
+  @SchoolWide()
   @Put('subjects/:code')
   @RequirePermission('academics.configure')
   @ApiOperation({ summary: 'Edit a subject (the code stays)' })
@@ -180,6 +186,7 @@ export class PlanningController {
 
   @ResponseMessage('Subject removed.')
   @RequiresModule('subjects')
+  @SchoolWide()
   @Delete('subjects/:code')
   @RequirePermission('academics.configure')
   @ApiOperation({
@@ -199,6 +206,7 @@ export class PlanningController {
       : 'Curriculum saved.',
   )
   @RequiresModule('subjects')
+  @SchoolWide()
   @Put('curriculum')
   @RequirePermission('academics.configure')
   @ApiOperation({
@@ -380,6 +388,7 @@ export class PlanningController {
 
   @ResponseMessage('Assessment & grading saved.')
   @RequiresModule('assess')
+  @SchoolWide()
   @Put('assessment')
   @RequirePermission('academics.configure')
   @ApiOperation({

@@ -1,3 +1,4 @@
+import { SchoolWide } from '../../common/plan/branch-scope.js';
 import { Body, Controller, Get, Put } from '@nestjs/common';
 import {
   ApiOkResponse,
@@ -14,6 +15,7 @@ import { SchoolProfileService } from './profile.service.js';
 
 @ApiTags('school · profile')
 @Portals('SCHOOL_ADMIN')
+@SchoolWide()
 @Controller('school/profile')
 export class SchoolProfileController {
   constructor(private readonly profile: SchoolProfileService) {}

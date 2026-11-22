@@ -33,6 +33,11 @@ export interface RequestContextState {
    * looking at. Writes always act on the active session, so it's only set for GET requests.
    */
   working?: WorkingContext;
+  /**
+   * A branch-scoped School Admin user's branches (set by BranchScopeGuard); undefined for
+   * whole-school admins and other portals.
+   */
+  branchScope?: { ids: string[]; names: string[] };
 }
 
 export interface WorkingContext {

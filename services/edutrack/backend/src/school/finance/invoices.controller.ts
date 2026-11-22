@@ -1,3 +1,4 @@
+import { ScopedBy } from '../../common/plan/branch-scope.js';
 import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
@@ -114,6 +115,7 @@ export class InvoicesController {
   @RequirePermission('finance.view')
   @ApiOperation({ summary: 'One invoice (by id or number) with lines, payments and history' })
   @ApiNotFoundResponse({ description: 'INVOICE_NOT_FOUND' })
+  @ScopedBy('invoice')
   get(@Param('id') id: string) {
     return this.invoices.detail(id);
   }
@@ -123,6 +125,7 @@ export class InvoicesController {
   @HttpCode(200)
   @RequirePermission('finance.invoice')
   @ApiOperation({ summary: 'Add an optional fee item or an ad-hoc charge' })
+  @ScopedBy('invoice')
   addLine(@Param('id') id: string, @Body() dto: AddLineDto) {
     return this.invoices.addLine(id, dto);
   }
@@ -144,6 +147,7 @@ export class InvoicesController {
   @HttpCode(200)
   @RequirePermission('finance.invoice')
   @ApiOperation({ summary: 'Apply a discount, scholarship or custom concession' })
+  @ScopedBy('invoice')
   applyDiscount(@Param('id') id: string, @Body() dto: ApplyDiscountDto) {
     return this.invoices.applyDiscount(id, dto);
   }
@@ -152,6 +156,7 @@ export class InvoicesController {
   @Delete('invoices/:id/discounts/:discountLineId')
   @RequirePermission('finance.invoice')
   @ApiOperation({ summary: 'Remove a discount from the invoice' })
+  @ScopedBy('invoice')
   removeDiscount(@Param('id') id: string, @Param('discountLineId') lineId: string) {
     return this.invoices.removeDiscount(id, lineId);
   }
@@ -160,6 +165,7 @@ export class InvoicesController {
   @Put('invoices/:id/plan')
   @RequirePermission('finance.invoice')
   @ApiOperation({ summary: 'Change the invoice’s (and the student’s) payment plan' })
+  @ScopedBy('invoice')
   changePlan(@Param('id') id: string, @Body() dto: ChangePlanDto) {
     return this.invoices.changePlan(id, dto);
   }
@@ -169,6 +175,7 @@ export class InvoicesController {
   @HttpCode(200)
   @RequirePermission('finance.invoice')
   @ApiOperation({ summary: 'Apply credit on the student’s account to this invoice' })
+  @ScopedBy('invoice')
   applyCredit(@Param('id') id: string, @Body() dto: ApplyCreditDto) {
     return this.invoices.applyCredit(id, dto);
   }
@@ -178,6 +185,7 @@ export class InvoicesController {
   @HttpCode(200)
   @RequirePermission('finance.invoice')
   @ApiOperation({ summary: 'Cancel an invoice (money paid on it becomes credit)' })
+  @ScopedBy('invoice')
   cancel(@Param('id') id: string, @Body() dto: CancelInvoiceDto) {
     return this.invoices.cancel(id, dto);
   }
@@ -187,6 +195,7 @@ export class InvoicesController {
   @HttpCode(200)
   @RequirePermission('finance.invoice')
   @ApiOperation({ summary: 'Remind the fee payer of this invoice’s balance' })
+  @ScopedBy('invoice')
   remindOne(@Param('id') id: string) {
     return this.invoices.remindOne(id);
   }
@@ -206,6 +215,7 @@ export class InvoicesController {
   @RequirePermission('finance.view')
   @ApiOperation({ summary: 'A student’s account: invoices, payments, refunds and statement' })
   @ApiNotFoundResponse({ description: 'STUDENT_NOT_FOUND' })
+  @ScopedBy('student', 'key')
   account(@Param('key') key: string) {
     return this.invoices.account(key);
   }
@@ -216,6 +226,7 @@ export class InvoicesController {
   @RequirePermission('finance.invoice')
   @ApiOperation({ summary: 'Send the bank details and transfer reference to the fee payer' })
   @ApiConflictResponse({ description: 'NO_PARENT_ACCOUNT' })
+  @ScopedBy('student', 'key')
   sendDetails(@Param('key') key: string) {
     return this.invoices.sendDetails(key);
   }

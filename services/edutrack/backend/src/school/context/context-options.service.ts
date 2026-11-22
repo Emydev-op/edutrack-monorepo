@@ -1,3 +1,4 @@
+import { RequestContext } from '../../common/context/request-context.js';
 import { Injectable } from '@nestjs/common';
 import { SESSION_STATUS } from '../academics/academic-format.js';
 import { AcademicStructureService } from '../academics/academic-structure.service.js';
@@ -29,9 +30,12 @@ export class ContextOptionsService {
       this.structure.currentSession(),
       this.structure.activeSession(),
     ]);
+    // A branch-scoped admin switches between their own branches only (no "All branches").
+    const scope = RequestContext.get()?.branchScope;
+    const mine = scope ? active.filter((b) => scope.ids.includes(b.id)) : active;
     const branches = [
-      ...active.map((b) => ({ name: b.name, status: 'Active' as const })),
-      ...(active.length > 1 ? [{ name: 'All branches', status: 'Active' as const }] : []),
+      ...mine.map((b) => ({ name: b.name, status: 'Active' as const })),
+      ...(!scope && active.length > 1 ? [{ name: 'All branches', status: 'Active' as const }] : []),
     ];
     // Defaults are the active session and term; the term list is the viewed session's.
     const term = live?.terms.find((t) => t.status === 'ACTIVE') ?? live?.terms[0];
