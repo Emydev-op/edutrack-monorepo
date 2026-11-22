@@ -294,9 +294,9 @@ describe('School academics and setup (e2e)', () => {
       expect(res.status).toBe(200);
       expect(res.body.data).toEqual({
         branches: [
-          { name: 'Main Campus', status: 'Active' },
-          { name: 'Lekki Campus', status: 'Active' },
-          { name: 'All branches', status: 'Active' },
+          { name: 'Main Campus', status: 'Active', brandColor: null, logoUrl: null },
+          { name: 'Lekki Campus', status: 'Active', brandColor: null, logoUrl: null },
+          { name: 'All branches', status: 'Active', brandColor: null, logoUrl: null },
         ],
         sessions: [
           { name: '2026/2027', status: 'Active' },
@@ -307,7 +307,7 @@ describe('School academics and setup (e2e)', () => {
       });
       const fresh = await cv.get('/api/v1/context-options');
       expect(fresh.body.data).toEqual({
-        branches: [{ name: 'Main Campus', status: 'Active' }],
+        branches: [{ name: 'Main Campus', status: 'Active', brandColor: null, logoUrl: null }],
         sessions: [],
         terms: [],
         defaults: { branch: 'Main Campus', session: '', term: '' },

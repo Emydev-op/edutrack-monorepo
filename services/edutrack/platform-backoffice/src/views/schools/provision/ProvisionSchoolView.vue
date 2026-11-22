@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AcademicSection } from '@/types';
 import { Button } from '@edutrack/ui/components/button';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { getApiErrorMessage } from '@edutrack/web-core/http';
@@ -24,27 +25,12 @@ import { goToStepKey } from './provision-nav';
 
 import AdministratorStep from './steps/AdministratorStep.vue';
 import BranchesStep from './steps/BranchesStep.vue';
-import OfferingStep from './steps/OfferingStep.vue';
 import ReviewStep from './steps/ReviewStep.vue';
 import SchoolStep from './steps/SchoolStep.vue';
 import SubscriptionStep from './steps/SubscriptionStep.vue';
 
-const STEPS = [
-  'School',
-  'Academic offering',
-  'Branches',
-  'Subscription',
-  'Administrators',
-  'Review',
-];
-const STEP_VIEWS = [
-  SchoolStep,
-  OfferingStep,
-  BranchesStep,
-  SubscriptionStep,
-  AdministratorStep,
-  ReviewStep,
-];
+const STEPS = ['School', 'Branches', 'Subscription', 'Administrators', 'Review'];
+const STEP_VIEWS = [SchoolStep, BranchesStep, SubscriptionStep, AdministratorStep, ReviewStep];
 
 const router = useRouter();
 const provision = useProvisionSchoolMutation();
@@ -64,8 +50,13 @@ const { values, meta, validate, validateField, handleSubmit, resetForm } = useFo
     state: '',
     lga: '',
     brandColor: '#24497A',
-    sections: ['Junior Secondary', 'Senior Secondary'],
-    branches: [{ name: 'Main Campus', address: '' }],
+    branches: [
+      {
+        name: 'Main Campus',
+        address: '',
+        sections: ['Junior Secondary', 'Senior Secondary'] as AcademicSection[],
+      },
+    ],
     plan: 'Starter' as const,
     startDate: new Date().toISOString().slice(0, 10),
     admins: [
@@ -127,8 +118,11 @@ const submit = handleSubmit(async (v) => {
       state: v.state,
       lga: v.lga ?? '',
       brandColor: v.brandColor,
-      sections: v.sections,
-      branches: v.branches.map((b) => ({ name: b.name, address: b.address ?? '' })),
+      branches: v.branches.map((b) => ({
+        name: b.name,
+        address: b.address ?? '',
+        sections: b.sections,
+      })),
       plan: v.plan,
       startDate: v.startDate,
       admins: v.admins.map((a) => ({

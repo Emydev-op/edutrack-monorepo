@@ -8,6 +8,7 @@ import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 import KeyValueCard from '@edutrack/app-kit/components/common/KeyValueCard.vue';
 import { formatCount } from '@edutrack/app-kit/lib/format';
 
+import BranchBrandingCard from '@/components/school/BranchBrandingCard.vue';
 import { routesPath } from '@/router/routes-path';
 import type { BranchDetail } from '@/types';
 
@@ -119,6 +120,7 @@ const term = computed(() => [
       />
     </div>
   </div>
+  <BranchBrandingCard :branch-id="b.id" :branch-name="b.name" :editable="b.status === 'Active'" />
   <ActivityTimeline
     title="Recent changes"
     :items="b.history"

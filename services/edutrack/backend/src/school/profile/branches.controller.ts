@@ -1,5 +1,6 @@
+import { BranchBrandingService } from './branch-branding.service.js';
 import { SchoolWide } from '../../common/plan/branch-scope.js';
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Put } from '@nestjs/common';
 import {
   ApiConflictResponse,
   ApiCreatedResponse,
@@ -14,7 +15,12 @@ import { CurrentTenant } from '../../common/decorators/request.decorators.js';
 import { type MessageRequest, ResponseMessage } from '../../common/http/api-response.js';
 import { RecordIdPipe } from '../../platform/shared/params.js';
 import { BRANCH_NOT_FOUND, BranchesService } from './branches.service.js';
-import { BranchDto, DeactivateBranchDto, ReactivateBranchDto } from './dto/branches.dto.js';
+import {
+  BranchBrandingDto,
+  BranchDto,
+  DeactivateBranchDto,
+  ReactivateBranchDto,
+} from './dto/branches.dto.js';
 import {
   BranchDeletedResponse,
   BranchDetailResponse,
@@ -29,7 +35,10 @@ const branchId = new RecordIdPipe(BRANCH_NOT_FOUND);
 @SchoolWide()
 @Controller('branches')
 export class BranchesController {
-  constructor(private readonly branches: BranchesService) {}
+  constructor(
+    private readonly branches: BranchesService,
+    private readonly brandingSvc: BranchBrandingService,
+  ) {}
 
   @ResponseMessage('Branches loaded.')
   @Get()
@@ -88,6 +97,24 @@ export class BranchesController {
     @Body() dto: BranchDto,
   ) {
     return this.branches.update(schoolId, id, dto);
+  }
+
+  @ResponseMessage('Branding loaded.')
+  @Get(':id/branding')
+  @RequirePermission('settings.branches')
+  @ApiOperation({ summary: 'The campus’s own logo and colour (null: the school’s)' })
+  branding(@Param('id', branchId) id: string) {
+    return this.brandingSvc.view(id);
+  }
+
+  @ResponseMessage((r: { name: string }) => `${r.name} branding saved.`)
+  @Put(':id/branding')
+  @RequirePermission('settings.branches')
+  @ApiOperation({
+    summary: 'Set the campus’s logo and colour, used on its report cards, receipts and screens',
+  })
+  setBranding(@Param('id', branchId) id: string, @Body() dto: BranchBrandingDto) {
+    return this.brandingSvc.set(id, dto);
   }
 
   @ResponseMessage((b: BranchResponse) => `${b.name} deactivated.`)

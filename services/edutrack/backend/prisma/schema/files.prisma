@@ -37,6 +37,7 @@ model StoredFile {
   school                   School?                   @relation("FileSchool", fields: [schoolId], references: [id], onDelete: Restrict)
   avatarOfUsers            User[]                    @relation("UserAvatar")
   logoOfSchools            School[]                  @relation("SchoolLogo")
+  logoOfBranches           Branch[]                  @relation("BranchLogo")
   certificateOfSchools     School[]                  @relation("SchoolCertificate")
   staffPhotos              Staff[]                   @relation("StaffPhoto")
   studentPhotos            Student[]                 @relation("StudentPhoto")

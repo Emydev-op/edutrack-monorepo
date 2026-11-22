@@ -1,3 +1,8 @@
+import {
+  isStandardSection,
+  SECTION_ORDER,
+  standardSectionData,
+} from '../shared/standard-sections.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { isNigerianState } from '@edutrack/shared';
 import { normalizePhone } from '../../auth/identifiers.js';
@@ -178,7 +183,8 @@ export class BranchesService {
       branches: await this.toViews(rows, rows.length),
       planName: p.planName,
       branchLimit: p.branchLimit,
-      offering: p.sections.map((s) => s.name),
+      // Any standard section can be chosen for a branch; the school's own come first.
+      offering: [...new Set([...p.sections.map((s) => s.name), ...SECTION_ORDER])],
       codePrefix: codePrefix(p.schoolName),
     };
   }
@@ -289,8 +295,16 @@ export class BranchesService {
     if (dto.state && !isNigerianState(dto.state)) throw fail('state', 'Choose a Nigerian state.');
     if (!dto.sections.length) throw fail('sections', 'Choose at least one section.');
     const byName = new Map(p.sections.map((s) => [s.name, s.id]));
-    if (dto.sections.some((s) => !byName.has(s)))
-      throw fail('sections', 'Only sections your school offers can be chosen.');
+    if (dto.sections.some((s) => !byName.has(s) && !isStandardSection(s)))
+      throw fail('sections', 'Choose Nursery, Primary, Junior or Senior Secondary.');
+    // A branch can run a section the school doesn't yet: it joins the school's sections.
+    for (const name of new Set(dto.sections))
+      if (!byName.has(name) && isStandardSection(name)) {
+        const row = await this.db.section.create({
+          data: { schoolId: RequestContext.schoolId()!, ...standardSectionData(name) },
+        });
+        byName.set(name, row.id);
+      }
     const sectionIds = [...new Set(dto.sections)].map((s) => byName.get(s)!);
     if (current) {
       const kept = new Set(sectionIds);

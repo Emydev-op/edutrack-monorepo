@@ -88,15 +88,16 @@ export const provisionSchema = toTypedSchema(
           `This color is too light for white text (${contrastWithWhite(v.value ?? '').toFixed(1)}:1). Pick a darker shade so buttons stay readable.`,
         (v) => contrastWithWhite(v ?? '') >= 4.5,
       ),
-    sections: yup
-      .array(yup.mixed<AcademicSection>().required())
-      .min(1, 'Choose at least one section')
-      .required(),
     branches: yup
       .array(
         yup.object({
           name: yup.string().trim().required('Name every branch'),
           address: yup.string().default(''),
+          // What this campus runs; the school's sections are its branches' together.
+          sections: yup
+            .array(yup.mixed<AcademicSection>().required())
+            .min(1, 'Choose what this branch runs')
+            .required(),
         }),
       )
       .min(1, 'Add at least one branch')
@@ -152,7 +153,6 @@ export const provisionSchema = toTypedSchema(
 
 export const PROVISION_STEP_FIELDS = [
   ['name', 'email', 'phone', 'brandColor'],
-  ['sections'],
   ['branches'],
   ['startDate'],
   // The administrators step is the last with inputs, so it validates the whole form (nested rows

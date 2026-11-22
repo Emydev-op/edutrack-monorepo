@@ -296,7 +296,12 @@ mock.post('/v1/platform/schools', ({ body }) => {
     id,
     name,
     legalName: p.legalName || name,
-    type: `${p.ownership} · ${p.sections.length > 2 ? 'Combined' : p.sections.join(', ')}`,
+    type: (() => {
+      const all = [
+        ...new Set([...(p.sections ?? []), ...p.branches.flatMap((b) => b.sections ?? [])]),
+      ];
+      return `${p.ownership} · ${all.length > 2 ? 'Combined' : all.join(', ')}`;
+    })(),
     state: p.state,
     plan: p.plan,
     status: 'Onboarding',

@@ -152,6 +152,16 @@ export class ProvisionBranchDto {
   @MaxLength(200)
   @IsString()
   address: string = '';
+
+  @ApiPropertyOptional({
+    enum: ACADEMIC_SECTIONS,
+    isArray: true,
+    description: 'The sections this branch runs (defaults to the school’s `sections`)',
+  })
+  @IsOptional()
+  @IsIn(ACADEMIC_SECTIONS, { each: true, message: 'Unknown academic section.' })
+  @IsArray()
+  sections?: (typeof ACADEMIC_SECTIONS)[number][];
 }
 
 export class ProvisionAdminDto {
@@ -245,11 +255,15 @@ export class ProvisionSchoolDto {
   @Matches(/^#[0-9a-fA-F]{6}$/, { message: 'Pick a brand colour.' })
   brandColor: string = '';
 
-  @ApiProperty({ enum: ACADEMIC_SECTIONS, isArray: true })
+  @ApiPropertyOptional({
+    enum: ACADEMIC_SECTIONS,
+    isArray: true,
+    description: 'Optional: the sections are each branch’s together (`branches[].sections`)',
+  })
+  @IsOptional()
   @IsIn(ACADEMIC_SECTIONS, { each: true, message: 'Unknown academic section.' })
-  @ArrayMinSize(1, { message: 'Choose at least one academic section.' })
   @IsArray()
-  sections!: (typeof ACADEMIC_SECTIONS)[number][];
+  sections?: (typeof ACADEMIC_SECTIONS)[number][];
 
   @ApiProperty({ type: [ProvisionBranchDto] })
   @ValidateNested({ each: true })

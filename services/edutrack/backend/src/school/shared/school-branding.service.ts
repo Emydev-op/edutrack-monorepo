@@ -31,6 +31,15 @@ export class SchoolBrandingService {
     return this.logoUrl(school?.logoFile);
   }
 
+  /** A fresh signed link to a campus's own logo (by school slug and branch code), or null. */
+  async branchLogoLink(slug: string, code: string) {
+    const branch = await this.prisma.branch.findFirst({
+      where: { code, school: { slug } },
+      select: { logoFile: { select: { storageKey: true, deletedAt: true } } },
+    });
+    return this.logoUrl(branch?.logoFile);
+  }
+
   async publicSchool(schoolId: string): Promise<PublicSchool | null> {
     const school = await this.prisma.school.findUnique({
       where: { id: schoolId },

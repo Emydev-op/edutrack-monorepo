@@ -10,7 +10,13 @@ export interface WorkingContext {
 export type SessionStatus = 'Upcoming' | 'Active' | 'Closing' | 'Closed' | 'Archived';
 
 export interface ContextOptions {
-  branches: { name: string; status: 'Active' | 'Inactive' }[];
+  branches: {
+    name: string;
+    status: 'Active' | 'Inactive';
+    /** The campus's own colour and logo; null: the school's. */
+    brandColor?: string | null;
+    logoUrl?: string | null;
+  }[];
   sessions: { name: string; status: SessionStatus }[];
   terms: string[];
   /** Where a new sign-in starts. */

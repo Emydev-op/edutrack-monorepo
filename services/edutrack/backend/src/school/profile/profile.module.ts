@@ -1,3 +1,4 @@
+import { BranchBrandingService } from './branch-branding.service.js';
 import { Module } from '@nestjs/common';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { SchoolBrandingService } from '../shared/school-branding.service.js';
@@ -12,7 +13,13 @@ import { SchoolProfileService } from './profile.service.js';
  */
 @Module({
   controllers: [SchoolProfileController, BranchesController],
-  providers: [SchoolProfileService, BranchesService, SchoolAuditService, SchoolBrandingService],
-  exports: [BranchesService],
+  providers: [
+    SchoolProfileService,
+    BranchesService,
+    BranchBrandingService,
+    SchoolAuditService,
+    SchoolBrandingService,
+  ],
+  exports: [BranchesService, BranchBrandingService],
 })
 export class SchoolProfileModule {}

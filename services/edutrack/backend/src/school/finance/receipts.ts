@@ -6,7 +6,12 @@ import type { FinView } from './finance-view.js';
 import type { TenantTx } from '../shared/tenant-tx.js';
 
 /** The school's name, motto, address and brand colour for a printed document. */
-export async function documentSchool(db: TenantTx, schoolId: string): Promise<DocSchool> {
+export async function documentSchool(
+  db: TenantTx,
+  schoolId: string,
+  /** The student's campus: its own colour and address replace the school's. */
+  branchId?: string | null,
+): Promise<DocSchool> {
   const s = await db.school.findUnique({
     where: { id: schoolId },
     select: {
@@ -20,16 +25,30 @@ export async function documentSchool(db: TenantTx, schoolId: string): Promise<Do
       brandColor: true,
     },
   });
+  const b = branchId
+    ? await db.branch.findFirst({
+        where: { id: branchId },
+        select: {
+          street: true,
+          city: true,
+          state: true,
+          phone: true,
+          email: true,
+          brandColor: true,
+        },
+      })
+    : null;
+  const at = b?.street ? b : s;
   return {
     name: s?.name ?? 'School',
     motto: s?.motto ?? null,
     address: [
-      [s?.street, s?.city, s?.state].filter(Boolean).join(', '),
-      [s?.phone, s?.email].filter(Boolean).join(' · '),
+      [at?.street, at?.city, at?.state].filter(Boolean).join(', '),
+      [b?.phone ?? s?.phone, b?.email ?? s?.email].filter(Boolean).join(' · '),
     ]
       .filter(Boolean)
       .join(' · '),
-    brandColor: s?.brandColor ?? null,
+    brandColor: b?.brandColor ?? s?.brandColor ?? null,
   };
 }
 

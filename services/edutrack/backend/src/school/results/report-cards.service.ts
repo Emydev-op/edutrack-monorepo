@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ENROLLED } from '../shared/enrolled.js';
-import { schoolLogoAddress } from '../../auth/auth.presenter.js';
+import { branchLogoAddress, schoolLogoAddress } from '../../auth/auth.presenter.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import type { ConductTrait } from '../../generated/prisma/enums.js';
 import { offeredInArm, type ArmInfo } from '../academics/academic-catalog.service.js';
@@ -253,7 +253,8 @@ export class ReportCardsService {
       : 'End of session';
   }
 
-  async schoolHeader() {
+  /** The school's header for a card: a campus's own logo, colour and address replace the school's. */
+  async schoolHeader(branchId?: string) {
     const school = await this.db.school.findUnique({
       where: { id: ResultsCoreService.schoolId() },
       select: {
@@ -270,14 +271,36 @@ export class ReportCardsService {
       },
     });
     if (!school) return { name: '', motto: '', address: '', logoUrl: null, brandColor: null };
+    const branch = branchId
+      ? await this.db.branch.findFirst({
+          where: { id: branchId },
+          select: {
+            code: true,
+            street: true,
+            city: true,
+            state: true,
+            email: true,
+            brandColor: true,
+            logoFileId: true,
+            logoFile: { select: { deletedAt: true } },
+          },
+        })
+      : null;
+    const at = branch?.street ? branch : school;
+    const branchLogo =
+      branch && branch.logoFileId && !branch.logoFile?.deletedAt
+        ? branchLogoAddress(school.slug, branch)
+        : null;
     return {
       name: school.name,
       motto: school.motto ?? '',
       address:
-        [school.street, school.city, school.state].filter(Boolean).join(', ') +
-        (school.email ? ` · ${school.email}` : ''),
-      logoUrl: school.logoFileId && !school.logoFile?.deletedAt ? schoolLogoAddress(school) : null,
-      brandColor: school.brandColor,
+        [at.street, at.city, at.state].filter(Boolean).join(', ') +
+        ((branch?.email ?? school.email) ? ` · ${branch?.email ?? school.email}` : ''),
+      logoUrl:
+        branchLogo ??
+        (school.logoFileId && !school.logoFile?.deletedAt ? schoolLogoAddress(school) : null),
+      brandColor: branch?.brandColor ?? school.brandColor,
     };
   }
 
@@ -328,7 +351,7 @@ export class ReportCardsService {
     const [att, remarks, header, nextTerm, classTeacher, publication] = await Promise.all([
       this.attendanceFor(term, arm.id),
       this.remarks(term.id, ids),
-      this.schoolHeader(),
+      this.schoolHeader(arm.branchId),
       this.nextTerm(term),
       this.scope.classTeacherOf(arm.id, term),
       this.db.resultPublication.findFirst({ where: { termId: term.id, armId: arm.id } }),

@@ -372,6 +372,54 @@ describe('Platform schools and subscriptions (e2e)', () => {
       ...overrides,
     });
 
+    it('gives each branch the sections it runs; the school runs them all', async () => {
+      const name = `Twin Sites ${suffix}`;
+      const res = await api.post('/api/v1/platform/schools').send(
+        payload(name, {
+          sections: undefined,
+          email: `twin@${suffix}.school.ng`,
+          branches: [
+            {
+              name: 'Main Campus',
+              address: '',
+              sections: ['Junior Secondary', 'Senior Secondary'],
+            },
+            { name: 'Lekki Campus', address: '', sections: ['Nursery', 'Primary'] },
+          ],
+          admins: [
+            {
+              name: 'Tade Owo',
+              email: `tade.${suffix}@school.ng`,
+              phone: '',
+              position: 'Proprietor',
+              scope: 'All branches',
+            },
+          ],
+        }),
+      );
+      expect(res.status).toBe(201);
+      const school = await t.prisma.school.findUniqueOrThrow({
+        where: { id: res.body.data.id },
+        include: {
+          sections: { orderBy: { sortOrder: 'asc' } },
+          branches: { include: { branchSections: { include: { section: true } } } },
+        },
+      });
+      expect(school.sections.map((x) => x.name)).toEqual([
+        'Nursery',
+        'Primary',
+        'Junior Secondary',
+        'Senior Secondary',
+      ]);
+      const runs = (b: string) =>
+        school.branches
+          .find((x) => x.name === b)!
+          .branchSections.map((x) => x.section.name)
+          .sort();
+      expect(runs('Main Campus')).toEqual(['Junior Secondary', 'Senior Secondary']);
+      expect(runs('Lekki Campus')).toEqual(['Nursery', 'Primary']);
+    });
+
     it('creates the school with everything it needs and invites its administrators', async () => {
       const name = `Bright Future ${suffix}`;
       const res = await api.post('/api/v1/platform/schools').send(payload(name));

@@ -9,10 +9,9 @@ const base = {
   state: 'FCT',
   lga: 'Bwari',
   brandColor: '#24497A',
-  sections: ['Primary'],
   branches: [
-    { name: 'Main Campus', address: '' },
-    { name: 'Lekki Campus', address: '' },
+    { name: 'Main Campus', address: '', sections: ['Primary'] },
+    { name: 'Lekki Campus', address: '', sections: ['Primary'] },
   ],
   plan: 'Growth',
   startDate: '2027-01-04',
