@@ -6,6 +6,7 @@ import { RequestContext } from '../../common/context/request-context.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import type { GroupRole } from '../../generated/prisma/enums.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { GroupBillingService } from './group-billing.service.js';
 
 /** Each group role's account in the group's schools: their predefined School Admin role. */
 const SCHOOL_ROLE: Record<GroupRole, string> = {
@@ -39,6 +40,7 @@ export class GroupsService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly invitations: InvitationService,
     private readonly clock: Clock,
+    private readonly billing: GroupBillingService,
   ) {}
 
   onModuleInit() {
@@ -163,6 +165,7 @@ export class GroupsService implements OnModuleInit {
       );
     await this.prisma.school.update({ where: { id: schoolId }, data: { groupId: id } });
     await this.sync(id);
+    await this.billing.syncMembers(id);
     return this.get(id);
   }
 
@@ -173,6 +176,7 @@ export class GroupsService implements OnModuleInit {
       data: { groupId: null },
     });
     await this.sync(id);
+    await this.billing.syncMembers(id);
     return this.get(id);
   }
 

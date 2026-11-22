@@ -496,14 +496,24 @@ enum GroupRole {
 /// A proprietor's schools: one owner, several separately branded schools. Group staff get an
 /// account in every school of the group and a group overview across them.
 model SchoolGroup {
-  id          String   @id @default(uuid(7)) @db.Uuid
-  name        String   @unique @db.Citext
-  createdById String?  @map("created_by_id") @db.Uuid
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                  String         @id @default(uuid(7)) @db.Uuid
+  name                String         @unique @db.Citext
+  /// One group plan: a single price for the whole group; member schools' subscriptions follow it.
+  planId              String?        @map("plan_id") @db.Uuid
+  billingPeriod       BillingPeriod? @map("billing_period")
+  priceKobo           BigInt?        @map("price_kobo")
+  startedOn           DateTime?      @map("started_on") @db.Date
+  renewsOn            DateTime?      @map("renews_on") @db.Date
+  billingContactEmail String?        @map("billing_contact_email") @db.Citext
+  createdById         String?        @map("created_by_id") @db.Uuid
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  schools School[]
-  staff   GroupStaff[]
+  plan          Plan?             @relation(fields: [planId], references: [id], onDelete: Restrict)
+  schools       School[]
+  staff         GroupStaff[]
+  subscriptions Subscription[]
+  invoices      PlatformInvoice[]
 
   @@map("school_groups")
 }

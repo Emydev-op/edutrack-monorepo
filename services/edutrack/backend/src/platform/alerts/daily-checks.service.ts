@@ -178,16 +178,20 @@ export class DailyChecksService {
   private async overdueInvoices() {
     const today = lagosToday(this.clock.now());
     const invoices = await this.prisma.platformInvoice.findMany({
-      where: { ...overdueInvoice(today), school: { status: { not: 'SUSPENDED' } } },
-      include: { school: { select: { name: true } } },
+      where: {
+        ...overdueInvoice(today),
+        // School invoices, or a school group's invoice for its group plan.
+        OR: [{ school: { status: { not: 'SUSPENDED' } } }, { groupId: { not: null } }],
+      },
+      include: { school: { select: { name: true } }, group: { select: { name: true } } },
     });
     for (const inv of invoices) {
       await this.alerts.tryNotify(
         'subscription.overdue',
         {
-          title: `${inv.school.name} has an overdue invoice`,
+          title: `${inv.school?.name ?? inv.group?.name ?? 'A school'} has an overdue invoice`,
           detail: `${inv.number} · ${formatNaira(inv.amountKobo)} · due ${formatDay(inv.dueOn, { calendar: true })}`,
-          link: `/schools/${inv.schoolId}/billing`,
+          link: inv.schoolId ? `/schools/${inv.schoolId}/billing` : `/groups/${inv.groupId}`,
           entityType: 'Subscription',
           entityId: inv.id,
         },

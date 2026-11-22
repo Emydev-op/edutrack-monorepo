@@ -159,6 +159,7 @@ model Plan {
 
   versions      PlanVersion[]
   subscriptions Subscription[]
+  groups        SchoolGroup[]
 
   @@map("plans")
 }
@@ -201,25 +202,31 @@ model Subscription {
   statusReason        String?            @map("status_reason")
   billingContactName  String?            @map("billing_contact_name")
   billingContactEmail String?            @map("billing_contact_email") @db.Citext
+  /// Set while the school is billed through its group's plan (its own price is then 0).
+  groupId             String?            @map("group_id") @db.Uuid
   createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   school   School            @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   plan     Plan              @relation(fields: [planId], references: [id], onDelete: Restrict)
+  group    SchoolGroup?      @relation(fields: [groupId], references: [id], onDelete: SetNull)
   invoices PlatformInvoice[]
 
   @@index([planId])
+  @@index([groupId])
   @@index([status, renewsOn])
   @@map("subscriptions")
 }
 
-/// EduTrack's invoice to a school for its subscription. Revenue reports read these.
+/// EduTrack's invoice to a school for its subscription, or to a school group for its group plan
+/// (then schoolId and subscriptionId are empty). Revenue reports read these.
 model PlatformInvoice {
   id               String                @id @default(uuid(7)) @db.Uuid
   /// Platform-wide number, e.g. ET-2026-00042.
   number           String                @unique
-  schoolId         String                @map("school_id") @db.Uuid
-  subscriptionId   String                @map("subscription_id") @db.Uuid
+  schoolId         String?               @map("school_id") @db.Uuid
+  subscriptionId   String?               @map("subscription_id") @db.Uuid
+  groupId          String?               @map("group_id") @db.Uuid
   kind             PlatformInvoiceKind
   status           PlatformInvoiceStatus @default(ISSUED)
   periodStart      DateTime              @map("period_start") @db.Date
@@ -233,10 +240,12 @@ model PlatformInvoice {
   createdAt        DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  school       School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
-  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  school       School?       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  group        SchoolGroup?  @relation(fields: [groupId], references: [id], onDelete: Restrict)
 
   @@index([schoolId, issuedOn])
+  @@index([groupId, issuedOn])
   @@index([status, dueOn])
   @@index([issuedOn])
   @@map("platform_invoices")

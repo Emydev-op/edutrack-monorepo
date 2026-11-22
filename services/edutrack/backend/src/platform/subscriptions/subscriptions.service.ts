@@ -113,7 +113,11 @@ export class SubscriptionsService {
   private async loadSubscription(schoolId: string) {
     const school = await this.prisma.school.findUnique({
       where: { id: schoolId },
-      include: { subscription: { include: { plan: true } } },
+      include: {
+        subscription: {
+          include: { plan: true, group: { select: { id: true, name: true } } },
+        },
+      },
     });
     if (!school) throw AppException.notFound(SCHOOL_NOT_FOUND);
     if (!school.subscription)
@@ -125,13 +129,22 @@ export class SubscriptionsService {
     const { school, subscription: s } = await this.loadSubscription(schoolId);
     const today = lagosToday(this.clock.now());
     const overdue = await this.prisma.platformInvoice.count({
-      where: { subscriptionId: s.id, ...overdueInvoice(today) },
+      // A group-billed school pays through its group's invoices.
+      where: {
+        ...(s.groupId ? { groupId: s.groupId } : { subscriptionId: s.id }),
+        ...overdueInvoice(today),
+      },
     });
     const custom = s.plan.pricingModel === 'CUSTOM' && s.priceKobo === 0n;
     const status = schoolStatusLabel(school.status, s.status);
     return {
       plan: s.plan.name,
-      price: custom ? 'Custom' : `${formatNaira(s.priceKobo)}${PERIOD_SUFFIX[s.billingPeriod]}`,
+      price: s.group
+        ? `Group plan · ${s.group.name}`
+        : custom
+          ? 'Custom'
+          : `${formatNaira(s.priceKobo)}${PERIOD_SUFFIX[s.billingPeriod]}`,
+      billedBy: s.group,
       studentLimit: formatLimit(s.plan.studentLimit),
       branchLimit: formatLimit(s.plan.branchLimit),
       renews: formatDay(s.renewsOn, { calendar: true }),
@@ -165,6 +178,12 @@ export class SubscriptionsService {
     let planName = s.plan.name;
     let next: SubscriptionStatus = s.status;
     const refuse = (message: string, code: string) => AppException.conflict(message, code);
+    // A group-billed school's plan and renewal follow its group's plan.
+    if (s.groupId && ['change_plan', 'extend', 'reactivate'].includes(dto.action))
+      throw refuse(
+        `${school.name} is billed through its school group. Change the plan or renewal on the group.`,
+        'GROUP_BILLED',
+      );
 
     switch (dto.action) {
       case 'change_plan': {
