@@ -708,8 +708,9 @@ describe('Parent Portal (e2e)', () => {
   describe('invitations', () => {
     it('shows the children linked to a parent invitation', async () => {
       const admin = authed(t, (await signIn(t, PRINCIPAL)).token);
+      // The seed keeps a duplicate "Ngozi Eze" (no email) for the merge demo: invite the real one.
       const g = await t.prisma.guardian.findFirstOrThrow({
-        where: { schoolId, fullName: 'Ngozi Eze' },
+        where: { schoolId, fullName: 'Ngozi Eze', email: { not: null } },
       });
       await data(admin.post(`/api/v1/guardians/${g.id}/invite`));
       const sent = t.notifications.find(g.email!, 'invitation')!;
