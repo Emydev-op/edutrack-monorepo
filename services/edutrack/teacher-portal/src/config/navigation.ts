@@ -8,6 +8,8 @@ export interface NavItem {
   label: string;
   route: string;
   requires?: NavRequirement;
+  /** The plan module the screen belongs to: hidden when the school's plan lacks it. */
+  module?: string;
 }
 export interface NavGroup {
   /** Groups without a label always show their items. */
@@ -16,11 +18,12 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-const item = (label: string, route: { name: string }, requires?: NavRequirement): NavItem => ({
-  label,
-  route: route.name,
-  requires,
-});
+const item = (
+  label: string,
+  route: { name: string },
+  requires?: NavRequirement,
+  module?: string,
+): NavItem => ({ label, route: route.name, requires, module });
 
 /** The Teacher Workspace sidebar, per the spec (§3). */
 export const navigation: NavGroup[] = [
@@ -30,7 +33,7 @@ export const navigation: NavGroup[] = [
     items: [
       item('My classes', r.teaching.classes),
       item('My subjects', r.teaching.subjects),
-      item('Timetable', r.teaching.timetable),
+      item('Timetable', r.teaching.timetable, undefined, 'timetable'),
       item('Students', r.teaching.students),
     ],
   },
@@ -39,17 +42,17 @@ export const navigation: NavGroup[] = [
     requires: 'classTeacher',
     items: [
       item('Register', r.classTeacher.register),
-      item('Class progress', r.classTeacher.progress),
-      item('Report cards', r.classTeacher.reportCards),
+      item('Class progress', r.classTeacher.progress, undefined, 'results'),
+      item('Report cards', r.classTeacher.reportCards, undefined, 'results'),
     ],
   },
   {
     label: 'Work',
     items: [
-      item('Assignments', r.assignments.list),
+      item('Assignments', r.assignments.list, undefined, 'homework'),
       item('Assessments', r.assessments.list),
-      item('Results', r.results.list),
-      item('Materials', r.materials.list),
+      item('Results', r.results.list, undefined, 'results'),
+      item('Materials', r.materials.list, undefined, 'homework'),
       item('Lesson notes', r.lessonNotes.list),
     ],
   },
@@ -57,7 +60,7 @@ export const navigation: NavGroup[] = [
     label: 'Reviews',
     requires: 'reviewer',
     items: [
-      item('Result sheets', r.reviews.results, 'sheetReviewer'),
+      item('Result sheets', r.reviews.results, 'sheetReviewer', 'results'),
       item('Lesson notes', r.reviews.lessonNotes, 'noteReviewer'),
     ],
   },
@@ -88,10 +91,15 @@ export function meets(me: Me | null | undefined, requires: NavRequirement | unde
 }
 
 /** The sidebar for this teacher: My class only for class teachers, Reviews only for reviewers. */
-export const navigationFor = (me: Me | null | undefined): NavGroup[] =>
+export const navigationFor = (me: Me | null | undefined, modules?: string[] | null): NavGroup[] =>
   navigation
     .filter((g) => meets(me, g.requires))
-    .map((g) => ({ ...g, items: g.items.filter((i) => meets(me, i.requires)) }))
+    .map((g) => ({
+      ...g,
+      items: g.items.filter(
+        (i) => meets(me, i.requires) && (!i.module || !modules || modules.includes(i.module)),
+      ),
+    }))
     .filter((g) => g.items.length);
 
 /** Pages that highlight another sidebar item (detail pages set `meta.nav` instead). */

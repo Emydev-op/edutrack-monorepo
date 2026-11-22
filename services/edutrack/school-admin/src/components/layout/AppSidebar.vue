@@ -19,15 +19,18 @@ import {
 import { ChevronDownIcon } from '@lucide/vue';
 import { useStorage } from '@vueuse/core';
 import { computed } from 'vue';
+import { LockKeyholeIcon } from '@lucide/vue';
 import { RouterLink, useRoute } from 'vue-router';
 
 import { useSetupQuery } from '@/api/services/setup';
 import { useNavCountsQuery } from '@/api/services/shell';
 import { navigation, navKeyAliases, type NavItem } from '@/config/navigation';
+import { usePlanModules } from '@/config/plan-modules';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
 
 const route = useRoute();
+const plan = usePlanModules();
 const auth = useAuthStore();
 const { data: counts } = useNavCountsQuery();
 const { data: setup } = useSetupQuery();
@@ -105,6 +108,11 @@ const { failed: logoFailed, onError: onLogoError } = useLogoFallback(() => auth.
                         :aria-current="activeKey === item.route ? 'page' : undefined"
                       >
                         {{ item.label }}
+                        <LockKeyholeIcon
+                          v-if="plan.lockedFor(item.route)"
+                          class="ml-auto size-3.5 text-faint"
+                          aria-label="Not in your plan"
+                        />
                       </RouterLink>
                     </SidebarMenuButton>
                     <SidebarMenuBadge

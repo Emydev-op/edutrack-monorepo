@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import {
   BellIcon,
   CalendarCheckIcon,
@@ -23,18 +24,30 @@ const LINKS = [
   { label: 'My children', route: routesPath.children.name, icon: UsersIcon },
   { label: 'Timetable', route: routesPath.timetable.name, icon: CalendarDaysIcon },
   { label: 'Attendance', route: routesPath.attendance.name, icon: CalendarCheckIcon },
-  { label: 'Materials', route: routesPath.materials.name, icon: FolderOpenIcon },
+  {
+    label: 'Materials',
+    route: routesPath.materials.name,
+    icon: FolderOpenIcon,
+    module: 'homework',
+  },
   { label: 'Announcements', route: routesPath.announcements.name, icon: MegaphoneIcon },
   { label: 'Notifications', route: routesPath.notifications.name, icon: BellIcon },
   { label: 'Profile & preferences', route: routesPath.profile.name, icon: UserIcon },
 ];
+// Links outside the school's plan are hidden.
+const links = computed(() =>
+  LINKS.filter((l) => {
+    const m = (l as { module?: string }).module;
+    return !m || !auth.school?.modules || auth.school.modules.includes(m);
+  }),
+);
 </script>
 
 <template>
   <PageTitle title="More" />
   <nav class="overflow-hidden rounded-lg border bg-card" aria-label="More">
     <RouterLink
-      v-for="l in LINKS"
+      v-for="l in links"
       :key="l.route"
       :to="{ name: l.route }"
       class="flex min-h-13 items-center gap-3 border-t border-divider px-3.5 first:border-t-0 hover:bg-surface-warm"

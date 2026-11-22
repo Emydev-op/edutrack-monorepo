@@ -80,6 +80,20 @@ export const useSubscriptionQuery = () =>
     queryFn: () => getRequest<SubscriptionView>('/v1/settings/subscription'),
   });
 
+export interface LimitUsage {
+  used: number;
+  limit: number | null;
+  near: boolean;
+  reached: boolean;
+}
+
+/** Students and staff logins against the plan's limits (warn from 90%, refused at 100%). */
+export const usePlanLimitsQuery = () =>
+  useQuery({
+    queryKey: k.key('plan-limits'),
+    queryFn: () => getRequest<{ students: LimitUsage; users: LimitUsage }>('/v1/settings/limits'),
+  });
+
 export const useModulesQuery = () =>
   useQuery({
     queryKey: k.key('modules'),

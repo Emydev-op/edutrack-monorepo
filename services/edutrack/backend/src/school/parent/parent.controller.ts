@@ -1,3 +1,4 @@
+import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Body, Controller, Get, HttpCode, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -89,6 +90,7 @@ export class ParentController {
   }
 
   @ResponseMessage('Fees loaded.')
+  @RequiresModule('fees')
   @Get('children/:studentId/fees')
   @ApiOperation({
     summary: 'A child’s invoices, installments, earlier balances, payments and where to pay',
@@ -101,6 +103,7 @@ export class ParentController {
   }
 
   @ResponseMessage('Thanks. The school will verify your transfer and update the balance.')
+  @RequiresModule('fees')
   @Post('children/:studentId/fees/claims')
   @HttpCode(200)
   @ApiOperation({
@@ -120,6 +123,7 @@ export class ParentController {
   }
 
   @RawResponse()
+  @RequiresModule('fees')
   @Get('children/:studentId/payments/:paymentId/receipt')
   @ApiOperation({ summary: 'A confirmed payment’s receipt for a child, as a PDF' })
   @ApiNotFoundResponse({ description: 'PAYMENT_NOT_FOUND' })
@@ -133,6 +137,7 @@ export class ParentController {
   }
 
   @ResponseMessage('Results loaded.')
+  @RequiresModule('results')
   @Get('children/:studentId/results')
   @ApiOperation({
     summary: 'A child’s report card for a term, once published (held cards say so)',
@@ -146,6 +151,7 @@ export class ParentController {
   }
 
   @RawResponse()
+  @RequiresModule('results')
   @Get('children/:studentId/results/pdf')
   @ApiOperation({ summary: 'A child’s published report card for a term, as a PDF' })
   @ApiConflictResponse({ description: 'RESULT_NOT_PUBLISHED · RESULT_HELD' })

@@ -1,3 +1,4 @@
+import { PlanLimitsService } from '../shared/plan-limits.service.js';
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -38,6 +39,7 @@ export class SchoolSettingsController {
   constructor(
     private readonly settings: SchoolSettingsService,
     private readonly security: SettingsSecurityService,
+    private readonly limitsSvc: PlanLimitsService,
   ) {}
 
   @ResponseMessage('Settings loaded.')
@@ -99,6 +101,19 @@ export class SchoolSettingsController {
   @ApiUnprocessableEntityResponse({ description: 'VALIDATION' })
   saveFinance(@Body() dto: FinanceTogglesDto) {
     return this.settings.saveFinance(dto);
+  }
+
+  @ResponseMessage('Plan limits loaded.')
+  @Get('limits')
+  @ApiOperation({
+    summary: 'Students and staff logins against the plan’s limits (warn from 90%, refuse at 100%)',
+  })
+  async limits() {
+    const [students, users] = await Promise.all([
+      this.limitsSvc.students(),
+      this.limitsSvc.users(),
+    ]);
+    return { students, users };
   }
 
   @ResponseMessage('Subscription loaded.')

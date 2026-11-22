@@ -1,3 +1,4 @@
+import { PlanLimitsService } from '../shared/plan-limits.service.js';
 import { NIGERIAN_STATES } from '@edutrack/shared';
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../../common/clock/clock.js';
@@ -42,6 +43,7 @@ export class AdmissionsService {
     private readonly records: AdmissionRecordsService,
     private readonly audit: SchoolAuditService,
     private readonly clock: Clock,
+    private readonly limits: PlanLimitsService,
   ) {}
 
   private get db() {
@@ -291,6 +293,7 @@ export class AdmissionsService {
   /* ---------------- Admit ---------------- */
 
   async admit(dto: AdmitDto) {
+    await this.limits.requireStudents(1);
     const schoolId = this.records.schoolId();
     const today = this.records.today();
 

@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Clock, DAY } from '../common/clock/clock.js';
+import { moduleName, planIncludes, PORTAL_MODULE } from '../common/plan/plan-access.js';
 import { isSubscriptionLocked, lapsedMessage } from '../common/subscription/subscription-lock.js';
 import { AppException } from '../common/errors/app.exception.js';
 import type { Env } from '../config/env.validation.js';
@@ -80,8 +81,17 @@ export function opensPortal(m: MembershipWithSchool, portal: SchoolPortal): bool
 const lapsedFor = (m: MembershipWithSchool, portal: Portal) =>
   portal !== 'SCHOOL_ADMIN' && isSubscriptionLocked(m.school.subscription?.status);
 
+/** The school's plan doesn't include this portal (Teacher Workspace, Parent or Student Portal). */
+const notInPlan = (m: MembershipWithSchool, portal: Portal) => {
+  const id = PORTAL_MODULE[portal];
+  return !!id && !planIncludes(m.school.subscription?.plan.modules, id);
+};
+
 const isUsable = (m: MembershipWithSchool, portal: Portal) =>
-  m.status === 'ACTIVE' && m.school.status !== 'SUSPENDED' && !lapsedFor(m, portal);
+  m.status === 'ACTIVE' &&
+  m.school.status !== 'SUSPENDED' &&
+  !lapsedFor(m, portal) &&
+  !notInPlan(m, portal);
 
 /** Why a membership that opens the portal can't be used right now. */
 function blockOf(m: MembershipWithSchool, portal: Portal): AppException {
@@ -96,6 +106,12 @@ function blockOf(m: MembershipWithSchool, portal: Portal): AppException {
       HttpStatus.FORBIDDEN,
       lapsedMessage(m.school.name),
       'SUBSCRIPTION_LAPSED',
+    );
+  if (m.status === 'ACTIVE' && notInPlan(m, portal))
+    return new AppException(
+      HttpStatus.FORBIDDEN,
+      `${m.school.name}’s EduTrack plan doesn’t include the ${moduleName(PORTAL_MODULE[portal]!)}. Contact the school.`,
+      'MODULE_NOT_IN_PLAN',
     );
   switch (m.status) {
     case 'SUSPENDED':
@@ -122,6 +138,7 @@ function blockOf(m: MembershipWithSchool, portal: Portal): AppException {
 const BLOCK_PRIORITY = [
   'SCHOOL_SUSPENDED',
   'SUBSCRIPTION_LAPSED',
+  'MODULE_NOT_IN_PLAN',
   'ACCOUNT_SUSPENDED',
   'ACCOUNT_DEACTIVATED',
 ];

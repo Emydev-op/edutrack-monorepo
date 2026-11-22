@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StudentLimitNotice from '@/components/common/StudentLimitNotice.vue';
 import { Button } from '@edutrack/ui/components/button';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
 import { computed, ref } from 'vue';
@@ -53,6 +54,7 @@ const columns: Column[] = [
       >
     </template>
   </PageHeader>
+  <StudentLimitNotice />
 
   <DataTable
     :columns="columns"

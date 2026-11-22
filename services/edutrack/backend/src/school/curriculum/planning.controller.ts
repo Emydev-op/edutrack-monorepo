@@ -1,3 +1,4 @@
+import { RequiresModule } from '../../common/plan/plan-access.js';
 import {
   Body,
   Controller,
@@ -74,6 +75,7 @@ export class PlanningController {
   /* ---------------- Subjects & curriculum ---------------- */
 
   @ResponseMessage('Curriculum loaded.')
+  @RequiresModule('subjects')
   @Get('curriculum')
   @RequirePermission('academics.view')
   @ApiOperation({
@@ -87,6 +89,7 @@ export class PlanningController {
     (v: { subjects: unknown[] }) =>
       `${plural(v.subjects.length, 'subject')} added with the Nigerian curriculum. Change anything you need.`,
   )
+  @RequiresModule('subjects')
   @Post('subjects/defaults')
   @HttpCode(200)
   @RequirePermission('academics.configure')
@@ -102,6 +105,7 @@ export class PlanningController {
   /* ---------------- Subject bulk upload ---------------- */
 
   @RawResponse()
+  @RequiresModule('subjects')
   @Get('subjects/template')
   @RequirePermission('academics.configure')
   @ApiOperation({
@@ -119,6 +123,7 @@ export class PlanningController {
       ? `${plural(r.total, 'subject')} read. ${plural(r.withIssues, 'row')} need fixing.`
       : `${plural(r.total, 'subject')} ready to import.`,
   )
+  @RequiresModule('subjects')
   @Post('subjects/import')
   @HttpCode(200)
   @RequirePermission('academics.configure')
@@ -134,6 +139,7 @@ export class PlanningController {
   }
 
   @ResponseMessage((r: { imported: number }) => `${plural(r.imported, 'subject')} imported.`)
+  @RequiresModule('subjects')
   @Post('subjects/import/commit')
   @RequirePermission('academics.configure')
   @ApiOperation({
@@ -148,6 +154,7 @@ export class PlanningController {
   @ResponseMessage(
     (_: unknown, req: MessageRequest<SubjectInputDto>) => `${req.body.name.trim()} added.`,
   )
+  @RequiresModule('subjects')
   @Post('subjects')
   @RequirePermission('academics.configure')
   @ApiOperation({ summary: 'Add a subject' })
@@ -161,6 +168,7 @@ export class PlanningController {
   @ResponseMessage(
     (_: unknown, req: MessageRequest<SubjectInputDto>) => `${req.body.name.trim()} saved.`,
   )
+  @RequiresModule('subjects')
   @Put('subjects/:code')
   @RequirePermission('academics.configure')
   @ApiOperation({ summary: 'Edit a subject (the code stays)' })
@@ -171,6 +179,7 @@ export class PlanningController {
   }
 
   @ResponseMessage('Subject removed.')
+  @RequiresModule('subjects')
   @Delete('subjects/:code')
   @RequirePermission('academics.configure')
   @ApiOperation({
@@ -189,6 +198,7 @@ export class PlanningController {
       ? `Curriculum saved. ${plural(v.cleared, 'teacher assignment')} cleared for subjects no longer offered.`
       : 'Curriculum saved.',
   )
+  @RequiresModule('subjects')
   @Put('curriculum')
   @RequirePermission('academics.configure')
   @ApiOperation({
@@ -205,6 +215,7 @@ export class PlanningController {
   /* ---------------- Teacher assignments ---------------- */
 
   @ResponseMessage('Teacher assignments loaded.')
+  @RequiresModule('assign')
   @Get('assignments')
   @RequirePermission('academics.view')
   @termQuery
@@ -215,6 +226,7 @@ export class PlanningController {
   }
 
   @ResponseMessage('Checked.')
+  @RequiresModule('assign')
   @Post('assignments/check')
   @HttpCode(200)
   @RequirePermission('academics.view')
@@ -230,6 +242,7 @@ export class PlanningController {
   }
 
   @ResponseMessage('Assignment saved.')
+  @RequiresModule('assign')
   @Post('assignments')
   @RequirePermission('academics.configure')
   @termQuery
@@ -249,6 +262,7 @@ export class PlanningController {
   @ResponseMessage(
     (v: { copied: number }) => `${plural(v.copied, 'assignment')} copied from the previous term.`,
   )
+  @RequiresModule('assign')
   @Post('assignments/copy-previous')
   @HttpCode(200)
   @RequirePermission('academics.configure')
@@ -259,6 +273,7 @@ export class PlanningController {
   }
 
   @ResponseMessage('Assignment removed.')
+  @RequiresModule('assign')
   @Delete('assignments/:id')
   @RequirePermission('academics.configure')
   @ApiOperation({ summary: 'Remove an assignment' })
@@ -271,6 +286,7 @@ export class PlanningController {
   /* ---------------- Timetable ---------------- */
 
   @ResponseMessage('Classes loaded.')
+  @RequiresModule('timetable')
   @Get('timetable/arms')
   @RequirePermission('academics.view')
   @termQuery
@@ -281,6 +297,7 @@ export class PlanningController {
   }
 
   @ResponseMessage('Timetable loaded.')
+  @RequiresModule('timetable')
   @Get('timetable')
   @RequirePermission('academics.view')
   @termQuery
@@ -294,6 +311,7 @@ export class PlanningController {
   }
 
   @ResponseMessage('Draft saved.')
+  @RequiresModule('timetable')
   @Put('timetable')
   @RequirePermission('academics.timetable')
   @ApiOperation({
@@ -311,6 +329,7 @@ export class PlanningController {
   }
 
   @ResponseMessage('Empty periods filled. Check the draft, then mark it reviewed.')
+  @RequiresModule('timetable')
   @Post('timetable/suggest')
   @HttpCode(200)
   @RequirePermission('academics.timetable')
@@ -320,6 +339,7 @@ export class PlanningController {
   }
 
   @ResponseMessage('Draft copied.')
+  @RequiresModule('timetable')
   @Post('timetable/copy')
   @HttpCode(200)
   @RequirePermission('academics.timetable')
@@ -336,6 +356,7 @@ export class PlanningController {
         revise: `Revision v${v.version} started. The published version stays until you publish this one.`,
       })[req.params.action ?? ''] ?? 'Saved.',
   )
+  @RequiresModule('timetable')
   @Post('timetable/:action')
   @HttpCode(200)
   @RequirePermission('academics.timetable')
@@ -349,6 +370,7 @@ export class PlanningController {
   /* ---------------- Assessment & grading ---------------- */
 
   @ResponseMessage('Assessment & grading loaded.')
+  @RequiresModule('assess')
   @Get('assessment')
   @RequirePermission('academics.view')
   @ApiOperation({ summary: 'Each section’s scheme for the session, pass mark and rounding' })
@@ -357,6 +379,7 @@ export class PlanningController {
   }
 
   @ResponseMessage('Assessment & grading saved.')
+  @RequiresModule('assess')
   @Put('assessment')
   @RequirePermission('academics.configure')
   @ApiOperation({

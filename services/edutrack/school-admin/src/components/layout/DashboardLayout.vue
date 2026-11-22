@@ -7,8 +7,11 @@ import { useLogoutMutation } from '@/api/services/auth';
 import { routesPath as idleRoutes } from '@/router/routes-path';
 import { useAuthStore as useIdleAuth } from '@/stores/auth';
 import { SidebarInset, SidebarProvider } from '@edutrack/ui/components/sidebar';
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { RouterView, useRoute } from 'vue-router';
+
+import LockedFeature from '@/components/common/LockedFeature.vue';
+import { usePlanModules } from '@/config/plan-modules';
 
 import { useContextOptionsQuery } from '@/api/services/shell';
 import { useContextStore } from '@/stores/context';
@@ -58,6 +61,8 @@ useIdleSignOut(
     idleQueries.clear();
   },
 );
+const plan = usePlanModules();
+const lockedModule = computed(() => plan.lockedFor(route.name));
 </script>
 
 <template>
@@ -68,7 +73,9 @@ useIdleSignOut(
       <ContextBanner class="print:hidden" />
       <div id="main-content" ref="content" class="flex-1 overflow-y-auto print:overflow-visible">
         <div class="mx-auto flex max-w-330 flex-col gap-5 px-8 pt-6 pb-14 max-md:px-4">
-          <RouterView />
+          <!-- Pages outside the school's plan show what they'd offer, not the page itself. -->
+          <LockedFeature v-if="lockedModule" :module="lockedModule" />
+          <RouterView v-else />
         </div>
       </div>
     </SidebarInset>

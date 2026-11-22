@@ -1,3 +1,4 @@
+import { planModules } from '../common/plan/plan-access.js';
 import { DEFAULT_BRAND_COLOR } from '@edutrack/shared';
 import type { User } from '../generated/prisma/client.js';
 import { initialsOf } from './identifiers.js';
@@ -34,6 +35,8 @@ export function schoolSummary(m: MembershipWithSchool) {
     // A stable address that redirects to a fresh signed link (signed links expire in an hour,
     // and this one is kept in the portal's session). `v` changes when the logo does.
     logoUrl: schoolLogoAddress(school),
+    /** The plan's modules (core ones included): the screens show the others as locked. */
+    modules: planModules(sub?.plan.modules),
     subscriptionStatus: (sub && ['RESTRICTED', 'EXPIRED', 'CANCELLED'].includes(sub.status)
       ? 'Restricted'
       : 'Active') as 'Active' | 'Restricted',
@@ -159,6 +162,7 @@ export function signedInBody(
         initials: school.initials,
         brandColor: school.brandColor,
         logoUrl: school.logoUrl,
+        modules: school.modules,
       },
     };
   }

@@ -1,3 +1,4 @@
+import { planIncludes } from '../../common/plan/plan-access.js';
 import { HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { flattenPermissions } from '../../auth/permissions/school-permissions.js';
 import { Clock } from '../../common/clock/clock.js';
@@ -12,6 +13,7 @@ import {
   SETUP_STEPS,
   type SetupGroup,
   type SetupStepDefinition,
+  STEP_MODULE,
 } from './setup-catalog.js';
 import { SETUP_STEP_SOURCES, type SetupStepSource, type StepTarget } from './setup-step-source.js';
 
@@ -89,7 +91,12 @@ export class SetupService {
     const [school, sections, confirmed, running] = await Promise.all([
       this.tenant.db.school.findUniqueOrThrow({
         where: { id: schoolId },
-        select: { name: true, status: true, setupFinishedAt: true },
+        select: {
+          name: true,
+          status: true,
+          setupFinishedAt: true,
+          subscription: { select: { plan: { select: { modules: true } } } },
+        },
       }),
       this.tenant.db.section.findMany({
         orderBy: { sortOrder: 'asc' },
@@ -102,7 +109,13 @@ export class SetupService {
       }),
     ]);
     const steps: SetupStepView[] = [];
-    for (const def of SETUP_STEPS) steps.push(await this.stepView(def, confirmed));
+    // Features outside the school's plan aren't part of its setup.
+    const modules = school.subscription?.plan.modules;
+    for (const def of SETUP_STEPS) {
+      const module = STEP_MODULE[def.id];
+      if (module && !planIncludes(modules, module)) continue;
+      steps.push(await this.stepView(def, confirmed));
+    }
     const onboarding = school.status === 'ONBOARDING';
     const finished = Boolean(school.setupFinishedAt);
     const foundationSteps = [...FOUNDATION_STEPS];

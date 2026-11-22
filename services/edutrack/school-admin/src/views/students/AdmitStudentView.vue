@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StudentLimitNotice from '@/components/common/StudentLimitNotice.vue';
 import { Button } from '@edutrack/ui/components/button';
 import { Checkbox } from '@edutrack/ui/components/checkbox';
 import { Input } from '@edutrack/ui/components/input';
@@ -399,6 +400,7 @@ const chip = (on: boolean, full = false) =>
       title="Admit a student"
       description="Admission creates an enrollment for this session, subject enrollments and a draft invoice. Nothing is saved until you admit."
     />
+    <StudentLimitNotice />
     <Skeleton v-if="isPending" class="h-96" />
     <template v-else-if="options">
       <InlineNotice
