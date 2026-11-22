@@ -1,3 +1,5 @@
+import { NIGERIAN_STATES } from '@edutrack/shared';
+import { buildTemplate, importText, type TemplateColumn } from '../shared/excel-template.js';
 import { PlanLimitsService } from '../shared/plan-limits.service.js';
 import { Injectable } from '@nestjs/common';
 import { Clock, HOUR } from '../../common/clock/clock.js';
@@ -126,15 +128,68 @@ export class StudentImportService {
     return this.records.db;
   }
 
+  /**
+   * `GET /v1/imports/template`: the student template as an Excel workbook, with dropdowns of the
+   * school's own options on every row: gender, the class levels and arms at the branch, guardian
+   * relationship and state of origin (and the branch, for a school with several).
+   */
+  async template(branchName?: string | null): Promise<Buffer> {
+    const session = await this.records.requireSession();
+    const placement = await this.records.placement(session.id);
+    const branch = branchName
+      ? placement.branches.find((b) => normalise(b.name) === normalise(branchName))
+      : placement.branches.length === 1
+        ? placement.branches[0]
+        : undefined;
+    const arms = placement.arms.filter((a) => !branch || a.branchId === branch.id);
+    const levels = placement.levels
+      .filter((l) => arms.some((a) => a.levelId === l.id))
+      .map((l) => l.name);
+    const armNames = [...new Set(arms.map((a) => a.name))].sort();
+    const many = placement.branches.length > 1;
+    const columns: TemplateColumn[] = [
+      { header: 'surname*', width: 18 },
+      { header: 'first_name*', width: 18 },
+      { header: 'other_names', width: 18 },
+      { header: 'gender*', options: ['Male', 'Female'] },
+      { header: 'date_of_birth* (DD/MM/YYYY)', width: 26, hint: 'Day/month/year, e.g. 12/05/2014' },
+      { header: 'class_level*', options: levels, width: 16 },
+      { header: 'arm*', options: armNames, width: 10 },
+      { header: 'guardian_name', width: 24 },
+      { header: 'guardian_phone', width: 18, hint: 'A Nigerian number, e.g. 0803 555 0161' },
+      { header: 'guardian_email', width: 26 },
+      { header: 'relationship', options: GUARDIAN_RELATIONSHIPS, width: 14 },
+      { header: 'state_of_origin', options: [...NIGERIAN_STATES], width: 18 },
+      { header: 'previous_school', width: 24 },
+      ...(many
+        ? [{ header: 'branch', options: placement.branches.map((b) => b.name), width: 18 }]
+        : []),
+    ];
+    const level = levels[0] ?? 'JSS 1';
+    const arm = armNames[0] ?? 'A';
+    const example = [
+      'Adeyemi',
+      'Tolu',
+      '',
+      'Female',
+      '12/05/2014',
+      level,
+      arm,
+      'Mrs. Funke Adeyemi',
+      '0803 555 0161',
+      'funke@example.ng',
+      'Mother',
+      'Lagos',
+      '',
+      ...(many ? [branch?.name ?? placement.branches[0]!.name] : []),
+    ];
+    return buildTemplate('Students', columns, [example]);
+  }
+
   async preview(dto: StudentImportDto) {
-    if (/\.xlsx$/i.test(dto.fileName))
-      throw unprocessable(
-        'Save the sheet as CSV (File › Save as › CSV) and upload that file.',
-        'IMPORT_FORMAT',
-      );
-    if (!/\.csv$/i.test(dto.fileName))
+    if (!/\.(csv|xlsx)$/i.test(dto.fileName))
       throw unprocessable('Upload the .xlsx or .csv template.', 'IMPORT_FORMAT');
-    const rows = this.parse(dto.text);
+    const rows = this.parse(await importText(dto.fileName, dto.text));
     const session = await this.records.requireSession();
     const ctx = await this.context(session.id, dto.branch);
     if (!ctx.defaultBranchId && rows.some((r) => !r.branch))
@@ -652,3 +707,6 @@ function targetOf(session: string, plans: RowPlan[], ctx: CheckContext) {
     .filter(Boolean)
     .join(' · ');
 }
+
+/** The relationships School Admin offers for a guardian. */
+export const GUARDIAN_RELATIONSHIPS = ['Mother', 'Father', 'Guardian', 'Grandparent', 'Sponsor'];

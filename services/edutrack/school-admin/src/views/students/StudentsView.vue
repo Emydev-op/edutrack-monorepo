@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import AddMenu from '@/components/common/AddMenu.vue';
+import ImportStudentsView from './ImportStudentsView.vue';
 import { Button } from '@edutrack/ui/components/button';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
 import { ArrowRightLeftIcon, EyeIcon, MessageSquareIcon } from '@lucide/vue';
 import { refDebounced } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
 import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
-import { RouterLink, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
 import CellLink from '@edutrack/app-kit/components/common/CellLink.vue';
@@ -217,16 +219,17 @@ const columns: Column[] = [
   >
     <template #actions>
       <Button variant="outline" @click="studentLogins">Student logins</Button>
-      <Button as-child variant="outline"
-        ><RouterLink :to="{ name: routesPath.students.import.name }"
-          >Import students</RouterLink
-        ></Button
+      <AddMenu
+        label="Add students"
+        manual-label="Admit a student"
+        :manual-to="{ name: routesPath.students.admit.name }"
+        bulk-title="Bulk upload students"
+        bulk-description="Download the Excel template (gender, class and arm are dropdowns of your own classes), fill one row per student, then upload it. Nothing is saved until you confirm."
       >
-      <Button as-child
-        ><RouterLink :to="{ name: routesPath.students.admit.name }"
-          >Admit student</RouterLink
-        ></Button
-      >
+        <template #default="{ close }">
+          <ImportStudentsView embedded @done="close" />
+        </template>
+      </AddMenu>
     </template>
   </PageHeader>
 

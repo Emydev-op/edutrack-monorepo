@@ -223,8 +223,11 @@ export class StudentImportDto {
   @IsNotEmpty({ message: 'Choose a file.' })
   fileName!: string;
 
-  @ApiProperty({ description: 'The CSV text (up to 4 MB), template columns in the first row.' })
-  @MaxLength(4 * 1_048_576, { message: 'The file is larger than 4 MB. Split it and try again.' })
+  @ApiProperty({
+    description:
+      'The CSV text, or the filled .xlsx template as base64 (up to 4 MB), template columns first.',
+  })
+  @MaxLength(5_600_000, { message: 'The file is larger than 4 MB. Split it and try again.' })
   @IsString({ message: 'The file has no student rows. Use the template’s columns.' })
   text!: string;
 

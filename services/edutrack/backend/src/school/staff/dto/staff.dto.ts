@@ -244,8 +244,11 @@ export class StaffImportDto {
   @IsNotEmpty({ message: 'Choose a file.' })
   fileName!: string;
 
-  @ApiProperty({ description: 'The CSV text (up to 1 MB), template columns in the first row.' })
-  @MaxLength(1_048_576, { message: 'The file is larger than 1 MB.' })
+  @ApiProperty({
+    description:
+      'The CSV text, or the filled .xlsx template as base64 (up to 2 MB), template columns first.',
+  })
+  @MaxLength(2_800_000, { message: 'The file is larger than 2 MB.' })
   @IsString({ message: 'The file has no staff rows. Use the template’s columns.' })
   text!: string;
 }

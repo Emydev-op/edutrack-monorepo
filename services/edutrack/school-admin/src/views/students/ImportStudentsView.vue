@@ -17,7 +17,9 @@ import PageHeader from '@edutrack/app-kit/components/common/PageHeader.vue';
 import StepIndicator from '@edutrack/app-kit/components/common/StepIndicator.vue';
 import { downloadCsv } from '@edutrack/app-kit/lib/csv';
 
+import { downloadFile } from '@/api/helpers';
 import { useCommitImportMutation, useValidateImportMutation } from '@/api/services/students';
+import { readImportFile } from '@/lib/import-file';
 import { env } from '@/config/env';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
@@ -40,6 +42,9 @@ const COLUMNS = [
   'previous_school',
 ];
 
+/** Inside the Students page's Bulk upload modal: no page header; finishing closes the modal. */
+const props = defineProps<{ embedded?: boolean }>();
+const emit = defineEmits<{ done: [] }>();
 const context = useContextStore();
 const validateFile = useValidateImportMutation();
 const commit = useCommitImportMutation();
@@ -53,29 +58,17 @@ const fixes = reactive<Record<string, string>>({});
 const exclude = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 
-function downloadTemplate() {
-  downloadCsv(
-    'student-import-template.csv',
-    COLUMNS.map((c) => c.replace(/\*.*$/, '').replace(/ \(.+\)$/, '')),
-    [
-      [
-        'Nwosu',
-        'Kamsi',
-        'Chidinma',
-        'Female',
-        '12/05/2014',
-        'JSS 1',
-        'A',
-        'Mr. Obinna Nwosu',
-        '0806 555 0193',
-        '',
-        'Father',
-        'Anambra',
-        'Little Angels School',
-      ],
-    ],
-  );
-  toast.success('Template downloaded. Excel opens it directly.');
+/** The Excel template, built by the server with the school's classes and choices as dropdowns. */
+async function downloadTemplate() {
+  try {
+    await downloadFile(
+      `/v1/imports/template?branch=${encodeURIComponent(context.current.branch)}`,
+      'edutrack-students-template.xlsx',
+    );
+    toast.success('Template downloaded. Choose from the dropdowns as you fill it in.');
+  } catch (e) {
+    toast.error(getApiErrorMessage(e, 'The template couldn’t be downloaded. Try again.'));
+  }
 }
 
 /** Animates a progress bar while the server works, finishing when it answers. */
@@ -103,7 +96,7 @@ async function onFile(event: Event) {
     return void (uploadError.value = `“${file.name}” is larger than 10 MB.`);
   step.value = 2;
   try {
-    const text = await file.text();
+    const text = await readImportFile(file);
     batch.value = await withProgress(
       validateFile.mutateAsync({ fileName: file.name, text, branch: context.current.branch }),
     );
@@ -216,6 +209,7 @@ const choice = (row: number, value: string) =>
 
 <template>
   <PageHeader
+    v-if="!props.embedded"
     title="Import students"
     :description="`Bulk import into ${context.current.session} · ${context.current.branch}. Validation runs on the server; nothing is imported until you confirm.`"
   />
@@ -232,9 +226,10 @@ const choice = (row: number, value: string) =>
       >
         <FileSpreadsheetIcon class="size-6 text-success-strong" aria-hidden="true" />
         <span class="flex flex-col text-[13px]">
-          <span class="font-semibold">Student import template (.csv)</span>
+          <span class="font-semibold">Student import template (.xlsx)</span>
           <span class="text-muted-foreground"
-            >Opens in Excel or Google Sheets. Save it as .xlsx or .csv.</span
+            >Gender, class, arm, relationship and state are dropdowns of your school’s own
+            options.</span
           >
         </span>
       </button>
@@ -459,7 +454,8 @@ const choice = (row: number, value: string) =>
         :description="`Batch ${result.batchId} · ${result.guardiansNew} guardians created · ${result.guardiansLinked} linked.`"
       />
       <div class="flex flex-wrap gap-2">
-        <Button as-child
+        <Button v-if="props.embedded" @click="emit('done')">View students</Button>
+        <Button v-else as-child
           ><RouterLink :to="{ name: routesPath.students.list.name }"
             >View students</RouterLink
           ></Button

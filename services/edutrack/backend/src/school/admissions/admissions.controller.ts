@@ -1,4 +1,13 @@
-import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
 import {
   ApiConflictResponse,
   ApiNotFoundResponse,
@@ -8,7 +17,7 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { Portals, RequirePermission } from '../../auth/decorators/auth.decorators.js';
-import { ResponseMessage } from '../../common/http/api-response.js';
+import { RawResponse, ResponseMessage } from '../../common/http/api-response.js';
 import { noticeOf } from '../staff/staff-audit.js';
 import { AdmissionsService } from './admissions.service.js';
 import {
@@ -117,6 +126,20 @@ export class AdmissionsController {
 @Controller('imports')
 export class StudentImportsController {
   constructor(private readonly imports: StudentImportService) {}
+
+  @RawResponse()
+  @Get('template')
+  @RequirePermission('students.create')
+  @ApiOperation({
+    summary:
+      'The student template (.xlsx): dropdowns for gender, class level, arm, relationship and state',
+  })
+  async template(@Query('branch') branch?: string) {
+    return new StreamableFile(await this.imports.template(branch), {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      disposition: 'attachment; filename="edutrack-students-template.xlsx"',
+    });
+  }
 
   @ResponseMessage('File checked.')
   @Post()
