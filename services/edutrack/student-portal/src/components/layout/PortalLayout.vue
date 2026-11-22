@@ -22,7 +22,7 @@ import { useNotificationsQuery, useOverviewQuery } from '@/api/services/student'
 import { formatDay } from '@/lib/dates';
 import { getApiErrorMessage } from '@/lib/api-errors';
 import { useSchoolBrand } from '@/lib/school-brand';
-import { routesPath, TABS } from '@/router/routes-path';
+import { routesPath, tabsFor } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
 
 import ContactSchoolSheet from './ContactSchoolSheet.vue';
@@ -70,6 +70,8 @@ watch(
   () => route.path,
   () => content.value?.scrollTo({ top: 0 }),
 );
+// Tabs outside the school's plan are hidden.
+const tabs = computed(() => tabsFor(auth.school?.modules));
 </script>
 
 <template>
@@ -130,7 +132,7 @@ watch(
         </div>
         <nav aria-label="Portal" class="flex gap-5 border-t border-divider pt-1.5 max-md:hidden">
           <RouterLink
-            v-for="t in TABS"
+            v-for="t in tabs"
             :key="t.key"
             :to="{ name: t.route }"
             class="border-b-2 py-1.5 text-[13px]"
@@ -177,7 +179,7 @@ watch(
       class="grid h-16 flex-none grid-cols-5 border-t bg-card pb-1.5 md:hidden"
     >
       <RouterLink
-        v-for="t in TABS"
+        v-for="t in tabs"
         :key="t.key"
         :to="{ name: t.route }"
         class="flex flex-col items-center justify-center gap-1 text-[11px]"

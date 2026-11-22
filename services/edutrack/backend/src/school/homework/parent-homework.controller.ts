@@ -1,3 +1,4 @@
+import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -23,6 +24,7 @@ const assignmentId = new RecordIdPipe('That assignment doesn’t exist.');
  */
 @ApiTags('parent portal')
 @Portals('PARENT')
+@RequiresModule('homework')
 @Controller('parent/children/:studentId')
 export class ParentHomeworkController {
   constructor(private readonly family: FamilyHomeworkService) {}

@@ -1,3 +1,4 @@
+import { PlanLimitsService } from '../shared/plan-limits.service.js';
 import { Injectable } from '@nestjs/common';
 import { Clock, HOUR } from '../../common/clock/clock.js';
 import { RequestContext } from '../../common/context/request-context.js';
@@ -118,6 +119,7 @@ export class StudentImportService {
     private readonly records: AdmissionRecordsService,
     private readonly audit: SchoolAuditService,
     private readonly clock: Clock,
+    private readonly limits: PlanLimitsService,
   ) {}
 
   private get db() {
@@ -220,6 +222,7 @@ export class StudentImportService {
         'No rows are ready to import. Fix the file and upload it again.',
         'IMPORT_NOTHING_VALID',
       );
+    await this.limits.requireStudents(ok.length);
 
     const result = await this.db.$transaction(
       async (tx) => {

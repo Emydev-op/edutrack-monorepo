@@ -25,6 +25,8 @@ export interface SchoolSummary {
   brandColor: string;
   /** Uploaded in School Profile; the sidebar shows initials until there is one. */
   logoUrl: string | null;
+  /** The plan's modules (core ones included); pages for the others show as locked. */
+  modules?: string[];
   /** Restricted: the subscription lapsed (restricted, expired or cancelled), so School Admin is view-only. */
   subscriptionStatus: 'Active' | 'Restricted';
 }

@@ -1,3 +1,5 @@
+import { PlatformModule } from '../../platform/platform.module.js';
+import { PlanLimitsService } from '../shared/plan-limits.service.js';
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../../auth/auth.module.js';
 import { AcademicsModule } from '../academics/academics.module.js';
@@ -11,8 +13,20 @@ import { SchoolSettingsService } from './settings.service.js';
 
 /** School Admin › Settings (`/v1/settings/*`). */
 @Module({
-  imports: [AuthModule, AcademicsModule, CurriculumModule, SetupModule, CommsCoreModule],
+  imports: [
+    PlatformModule,
+    AuthModule,
+    AcademicsModule,
+    CurriculumModule,
+    SetupModule,
+    CommsCoreModule,
+  ],
   controllers: [SchoolSettingsController],
-  providers: [SchoolSettingsService, SettingsSecurityService, SchoolAuditService],
+  providers: [
+    PlanLimitsService,
+    SchoolSettingsService,
+    SettingsSecurityService,
+    SchoolAuditService,
+  ],
 })
 export class SchoolSettingsModule {}

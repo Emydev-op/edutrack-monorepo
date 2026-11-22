@@ -31,7 +31,8 @@ const route = useRoute();
 const auth = useAuthStore();
 const { data: me } = useMeQuery();
 const { data: counts } = useNavCountsQuery();
-const groups = computed(() => navigationFor(me.value));
+// Screens outside the school's plan are hidden.
+const groups = computed(() => navigationFor(me.value, auth.school?.modules));
 
 const collapsed = useStorage<Record<string, boolean>>('edutrack.teacher-portal.nav-collapsed', {});
 

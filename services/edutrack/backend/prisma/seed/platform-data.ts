@@ -55,7 +55,7 @@ export const PLAN_SEEDS = [
     setupFeeKobo: 15_000_000n,
     studentLimit: 1500,
     branchLimit: 5,
-    userLimit: 100,
+    userLimit: 250,
     storageLimitGb: 50,
     smsCreditsPerTerm: 5_000,
     modules: [

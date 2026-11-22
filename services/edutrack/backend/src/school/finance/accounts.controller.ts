@@ -1,3 +1,4 @@
+import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Body, Controller, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
   ApiNotFoundResponse,
@@ -28,6 +29,7 @@ type StatementView = { lines: number; matched: number; confirmed: number };
  */
 @ApiTags('school · finance')
 @Portals('SCHOOL_ADMIN')
+@RequiresModule('fees')
 @Controller('finance')
 export class AccountsController {
   constructor(private readonly accounts: AccountsService) {}

@@ -43,3 +43,17 @@ export const TABS: { key: PortalTab; label: string; route: string }[] = [
   { key: 'assignments', label: 'Assignments', route: routesPath.assignments.list.name },
   { key: 'more', label: 'More', route: routesPath.more.name },
 ];
+
+/** Tabs that belong to a plan module: hidden when the school's plan lacks it. */
+export const TAB_MODULE: Partial<Record<PortalTab, string>> = {
+  fees: 'fees',
+  results: 'results',
+  assignments: 'homework',
+};
+
+/** The tabs the school's plan includes. */
+export const tabsFor = (modules?: string[] | null) =>
+  TABS.filter((t) => {
+    const m = TAB_MODULE[t.key];
+    return !m || !modules || modules.includes(m);
+  });

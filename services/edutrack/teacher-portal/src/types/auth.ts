@@ -20,6 +20,8 @@ export interface SchoolSummary {
   slug?: string;
   brandColor?: string;
   logoUrl?: string | null;
+  /** The school's plan modules; screens for the others are hidden. */
+  modules?: string[];
 }
 
 export interface LoginPayload {

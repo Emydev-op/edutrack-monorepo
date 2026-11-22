@@ -1,3 +1,4 @@
+import { RequiresModule } from '../../common/plan/plan-access.js';
 import {
   Body,
   Controller,
@@ -86,6 +87,7 @@ export class HomeworkController {
   /* ---------------- Assignments ---------------- */
 
   @ResponseMessage('Assignments loaded.')
+  @RequiresModule('homework')
   @Get('assignments')
   @termQuery
   @ApiQuery({ name: 'class', required: false, description: 'Class arm id' })
@@ -116,6 +118,7 @@ export class HomeworkController {
   }
 
   @ResponseMessage('Assignments loaded.')
+  @RequiresModule('homework')
   @Get('assignments/student/:studentId')
   @termQuery
   @ApiOperation({ summary: 'One student’s assignments from me this term (the student page)' })
@@ -129,6 +132,7 @@ export class HomeworkController {
   }
 
   @ResponseMessage('Assignment loaded.')
+  @RequiresModule('homework')
   @Get('assignments/:assignmentId')
   @ApiOperation({ summary: 'One of my assignments: counts, attachments, permissions, history' })
   @ApiForbiddenResponse({ description: FORBIDDEN })
@@ -141,6 +145,7 @@ export class HomeworkController {
       ? 'Draft saved.'
       : 'Assignment published. Students and their guardians were notified.',
   )
+  @RequiresModule('homework')
   @Post('assignments')
   @termQuery
   @ApiOperation({
@@ -166,6 +171,7 @@ export class HomeworkController {
       ? 'Draft saved.'
       : 'Assignment saved. Students and guardians were notified.',
   )
+  @RequiresModule('homework')
   @Patch('assignments/:assignmentId')
   @ApiOperation({
     summary: 'Edit (or publish) an assignment',
@@ -183,6 +189,7 @@ export class HomeworkController {
   }
 
   @ResponseMessage('Submissions closed.')
+  @RequiresModule('homework')
   @Post('assignments/:assignmentId/close')
   @HttpCode(200)
   @ApiOperation({ summary: 'Close submissions early (published only)' })
@@ -191,6 +198,7 @@ export class HomeworkController {
   }
 
   @ResponseMessage('Assignment reopened.')
+  @RequiresModule('homework')
   @Post('assignments/:assignmentId/reopen')
   @HttpCode(200)
   @ApiOperation({
@@ -202,6 +210,7 @@ export class HomeworkController {
   }
 
   @ResponseMessage('Draft deleted.')
+  @RequiresModule('homework')
   @Delete('assignments/:assignmentId')
   @ApiOperation({ summary: 'Delete a draft (published ones are closed instead)' })
   remove(@CurrentUser() auth: AuthUserContext, @Param('assignmentId', assignmentId) id: string) {
@@ -211,6 +220,7 @@ export class HomeworkController {
   /* ---------------- Submissions ---------------- */
 
   @ResponseMessage('Submissions loaded.')
+  @RequiresModule('homework')
   @Get('assignments/:assignmentId/submissions')
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'search', required: false })
@@ -232,6 +242,7 @@ export class HomeworkController {
       ? `${r.returned} returned, ${r.skipped.length} skipped.`
       : `${r.returned} returned. Students and guardians can see their scores and feedback.`,
   )
+  @RequiresModule('homework')
   @Post('assignments/:assignmentId/submissions/return')
   @HttpCode(200)
   @ApiOperation({ summary: 'Return graded submissions in bulk (others are skipped with a reason)' })
@@ -244,6 +255,7 @@ export class HomeworkController {
   }
 
   @ResponseMessage('Submission loaded.')
+  @RequiresModule('homework')
   @Get('assignments/:assignmentId/submissions/:submissionId')
   @ApiOperation({ summary: 'One student’s work: files, note, score, feedback, history' })
   submission(
@@ -255,6 +267,7 @@ export class HomeworkController {
   }
 
   @ResponseMessage('Grade saved. It stays private until you return it.')
+  @RequiresModule('homework')
   @Put('assignments/:assignmentId/submissions/:submissionId/grade')
   @ApiOperation({ summary: 'Grade handed-in work (private until returned)' })
   grade(
@@ -267,6 +280,7 @@ export class HomeworkController {
   }
 
   @ResponseMessage('Returned. The student and guardians can see the score and feedback.')
+  @RequiresModule('homework')
   @Post('assignments/:assignmentId/submissions/:submissionId/return')
   @HttpCode(200)
   @ApiOperation({
@@ -283,6 +297,7 @@ export class HomeworkController {
   }
 
   @ResponseMessage('Marked excused.')
+  @RequiresModule('homework')
   @Post('assignments/:assignmentId/submissions/:submissionId/excuse')
   @HttpCode(200)
   @ApiOperation({ summary: 'Excuse a student who hasn’t handed in (with a reason)' })
@@ -296,6 +311,7 @@ export class HomeworkController {
   }
 
   @ResponseMessage('Excuse removed.')
+  @RequiresModule('homework')
   @Delete('assignments/:assignmentId/submissions/:submissionId/excuse')
   @ApiOperation({ summary: 'Undo an excuse (back to Not submitted)' })
   unexcuse(
@@ -309,6 +325,7 @@ export class HomeworkController {
   /* ---------------- Materials ---------------- */
 
   @ResponseMessage('Materials loaded.')
+  @RequiresModule('homework')
   @Get('materials')
   @termQuery
   @ApiQuery({ name: 'class', required: false })
@@ -335,6 +352,7 @@ export class HomeworkController {
   }
 
   @ResponseMessage('Material loaded.')
+  @RequiresModule('homework')
   @Get('materials/:materialId')
   @ApiOperation({ summary: 'One of my materials, with a download link (an hour)' })
   @ApiForbiddenResponse({ description: FORBIDDEN })
@@ -343,6 +361,7 @@ export class HomeworkController {
   }
 
   @ResponseMessage((m: { classLabel: string }) => `Published to ${m.classLabel}.`)
+  @RequiresModule('homework')
   @Post('materials')
   @termQuery
   @ApiOperation({
@@ -358,6 +377,7 @@ export class HomeworkController {
   }
 
   @ResponseMessage('Material archived. Students no longer see it.')
+  @RequiresModule('homework')
   @Post('materials/:materialId/archive')
   @HttpCode(200)
   @ApiOperation({ summary: 'Archive (assignments that attach it show it as unavailable)' })
@@ -366,6 +386,7 @@ export class HomeworkController {
   }
 
   @ResponseMessage('Material restored. Students can see it again.')
+  @RequiresModule('homework')
   @Post('materials/:materialId/restore')
   @HttpCode(200)
   @ApiOperation({ summary: 'Restore an archived material' })

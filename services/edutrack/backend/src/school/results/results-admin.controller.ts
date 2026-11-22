@@ -1,3 +1,4 @@
+import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Body, Controller, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -41,6 +42,7 @@ const termQuery = ApiQuery({
  */
 @ApiTags('school · results')
 @Portals('SCHOOL_ADMIN')
+@RequiresModule('results')
 @Controller('academics/results')
 export class ResultsAdminController {
   constructor(
