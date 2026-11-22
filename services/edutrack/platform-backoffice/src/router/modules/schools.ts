@@ -7,6 +7,25 @@ const trail = [{ label: 'Schools', to: schools.list.name }];
 
 export const schoolRoutes: RouteRecordRaw[] = [
   {
+    ...routesPath.groups.list,
+    component: () => import('@/views/schools/groups/GroupsView.vue'),
+    meta: {
+      title: 'School groups',
+      breadcrumb: [{ label: 'Groups' }],
+      permission: ['Schools.View'],
+    },
+  },
+  {
+    ...routesPath.groups.detail,
+    component: () => import('@/views/schools/groups/GroupDetailView.vue'),
+    meta: {
+      title: 'School group',
+      breadcrumb: [{ label: 'Groups', to: routesPath.groups.list.name }],
+      nav: routesPath.groups.list.name,
+      permission: ['Schools.View'],
+    },
+  },
+  {
     ...schools.list,
     component: () => import('@/views/schools/SchoolsView.vue'),
     meta: {

@@ -1,3 +1,5 @@
+import { GroupsController } from './groups/groups.controller.js';
+import { GroupsService } from './groups/groups.service.js';
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
@@ -39,6 +41,7 @@ import { UsersService } from './users/users.service.js';
 @Module({
   imports: [AuthModule, CommsCoreModule, BullModule.registerQueue({ name: PLATFORM_JOBS_QUEUE })],
   controllers: [
+    GroupsController,
     ActivityController,
     AuditController,
     DashboardController,
@@ -55,6 +58,7 @@ import { UsersService } from './users/users.service.js';
     UsersController,
   ],
   providers: [
+    GroupsService,
     AccountService,
     DailyChecksProcessor,
     DailyChecksService,

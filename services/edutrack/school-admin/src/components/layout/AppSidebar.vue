@@ -22,6 +22,7 @@ import { computed } from 'vue';
 import { LockKeyholeIcon } from '@lucide/vue';
 import { RouterLink, useRoute } from 'vue-router';
 
+import { useGroupOverviewQuery } from '@/api/services/group';
 import { useSetupQuery } from '@/api/services/setup';
 import { useNavCountsQuery } from '@/api/services/shell';
 import { navigation, navKeyAliases, type NavItem } from '@/config/navigation';
@@ -36,12 +37,20 @@ const auth = useAuthStore();
 const { data: counts } = useNavCountsQuery();
 const { data: setup } = useSetupQuery();
 // Once setup is finished the Setup Center leaves the sidebar; it stays reachable from the dashboard.
-const groups = computed(() =>
-  navigation.map((g) => ({
+// Group staff (a proprietor's people) get the Group overview at the top.
+const { data: groupOverview } = useGroupOverviewQuery();
+const groups = computed(() => {
+  const list = navigation.map((g) => ({
     ...g,
     items: g.items.filter((i) => !(i.route === routesPath.setup.name && setup.value?.finished)),
-  })),
-);
+  }));
+  if (groupOverview.value)
+    list[0] = {
+      ...list[0]!,
+      items: [{ label: 'Group overview', route: routesPath.groupOverview.name }, ...list[0]!.items],
+    };
+  return list;
+});
 
 const collapsed = useStorage<Record<string, boolean>>('edutrack.school-admin.nav-collapsed', {});
 

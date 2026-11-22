@@ -24,6 +24,10 @@ export const routesPath = {
     activity: { name: 'school-activity', path: 'activity' },
     audit: { name: 'school-audit', path: 'audit' },
   },
+  groups: {
+    list: { name: 'groups', path: '/groups' },
+    detail: { name: 'group', path: '/groups/:id' },
+  },
   plans: {
     list: { name: 'plans', path: '/plans' },
     create: { name: 'create-plan', path: '/plans/new' },

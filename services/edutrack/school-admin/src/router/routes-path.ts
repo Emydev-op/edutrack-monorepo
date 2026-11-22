@@ -12,6 +12,7 @@ export const routesPath = {
     acceptInvitation: { name: 'accept-invitation', path: '/accept-invitation/:token' },
   },
   dashboard: { name: 'dashboard', path: '/dashboard' },
+  groupOverview: { name: 'group-overview', path: '/group' },
   setup: { name: 'setup', path: '/setup' },
   setupBranches: { name: 'setup-branches', path: '/setup/branches' },
   school: {
