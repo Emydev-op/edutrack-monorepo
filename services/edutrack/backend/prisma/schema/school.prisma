@@ -502,8 +502,9 @@ model SchoolGroup {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  schools School[]
-  staff   GroupStaff[]
+  schools   School[]
+  staff     GroupStaff[]
+  templates GroupTemplate[]
 
   @@map("school_groups")
 }
@@ -523,4 +524,34 @@ model GroupStaff {
   @@unique([groupId, userId])
   @@index([userId])
   @@map("group_staff")
+}
+
+/// What a group template holds.
+enum GroupTemplateKind {
+  GRADING
+  FEES
+  ROLES
+  MESSAGES
+
+  @@map("group_template_kind")
+}
+
+/// A group's shared setup, saved from one member school and applied on request to others (each
+/// gets its own copy it can still adjust).
+model GroupTemplate {
+  id             String            @id @default(uuid(7)) @db.Uuid
+  groupId        String            @map("group_id") @db.Uuid
+  kind           GroupTemplateKind
+  /// The copied setup (sections' schemes, fee items and amounts, roles, or message wording).
+  data           Json
+  sourceSchoolId String?           @map("source_school_id") @db.Uuid
+  savedById      String?           @map("saved_by_id") @db.Uuid
+  savedAt        DateTime          @map("saved_at") @db.Timestamptz(3)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  group SchoolGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, kind])
+  @@map("group_templates")
 }
