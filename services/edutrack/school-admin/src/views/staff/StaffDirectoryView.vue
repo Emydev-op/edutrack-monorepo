@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AddMenu from '@/components/common/AddMenu.vue';
+import ImportStaffView from './ImportStaffView.vue';
 import { Button } from '@edutrack/ui/components/button';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
 import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
@@ -172,10 +174,17 @@ const setupDetails = computed<[string, string][]>(() =>
     "
   >
     <template #actions>
-      <Button as-child variant="outline"
-        ><RouterLink :to="importTo">Import staff</RouterLink></Button
+      <AddMenu
+        label="Add staff"
+        manual-label="Add a staff member"
+        :manual-to="addTo"
+        bulk-title="Bulk upload staff"
+        bulk-description="Download the Excel template (type, branch, portal access and role are dropdowns), fill one row per person, then upload it. Rows with portal access get an invitation."
       >
-      <Button as-child><RouterLink :to="addTo">Add staff</RouterLink></Button>
+        <template #default="{ close }">
+          <ImportStaffView embedded @done="close" />
+        </template>
+      </AddMenu>
     </template>
   </PageHeader>
 
@@ -197,7 +206,7 @@ const setupDetails = computed<[string, string][]>(() =>
     >
       <div class="flex gap-2">
         <Button as-child variant="outline"
-          ><RouterLink :to="importTo">Import from CSV</RouterLink></Button
+          ><RouterLink :to="importTo">Bulk upload from Excel</RouterLink></Button
         >
         <Button as-child><RouterLink :to="addTo">Add staff member</RouterLink></Button>
       </div>

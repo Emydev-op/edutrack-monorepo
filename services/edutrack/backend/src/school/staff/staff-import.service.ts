@@ -1,3 +1,4 @@
+import { buildTemplate, importText } from '../shared/excel-template.js';
 import { Injectable } from '@nestjs/common';
 import { Clock, HOUR } from '../../common/clock/clock.js';
 import { RequestContext } from '../../common/context/request-context.js';
@@ -58,8 +59,58 @@ export class StaffImportService {
     return this.records.db;
   }
 
+  /**
+   * `GET /v1/staff/import/template`: the staff template as an Excel workbook, with dropdowns of
+   * the school's own options on every row: staff type, branch, portal access and role.
+   */
+  async template(): Promise<Buffer> {
+    const [branches, roles] = await Promise.all([
+      this.db.branch.findMany({
+        where: { status: 'ACTIVE' },
+        orderBy: { createdAt: 'asc' },
+        select: { name: true },
+      }),
+      this.db.schoolRole.findMany({
+        where: { archivedAt: null, NOT: { key: 'owner' } },
+        orderBy: { name: 'asc' },
+        select: { name: true },
+      }),
+    ]);
+    const branch = branches[0]?.name ?? 'Main Campus';
+    return buildTemplate(
+      'Staff',
+      [
+        { header: 'first_name', width: 16 },
+        { header: 'last_name', width: 16 },
+        { header: 'email', width: 26, hint: 'Needed for portal access (the invitation)' },
+        { header: 'phone', width: 16, hint: 'A Nigerian number, e.g. 0803 555 0161' },
+        { header: 'type', options: ['Teaching', 'Non-teaching'], width: 14 },
+        { header: 'position', width: 18, hint: 'e.g. Teacher, Bursar, Driver' },
+        { header: 'branch', options: branches.map((b) => b.name), width: 18 },
+        { header: 'portal_access', options: ['Yes', 'No'], width: 14 },
+        { header: 'role', options: roles.map((r) => r.name), width: 18 },
+      ],
+      [
+        [
+          'Grace',
+          'Okafor',
+          'g.okafor@school.ng',
+          '0803 555 0161',
+          'Teaching',
+          'Teacher',
+          branch,
+          'Yes',
+          'Teacher',
+        ],
+        ['Samuel', 'Ade', '', '0802 555 0199', 'Non-teaching', 'Driver', branch, 'No', ''],
+      ],
+    );
+  }
+
   async preview(dto: StaffImportDto) {
-    const rows = parseCsv(dto.text ?? '');
+    if (!/\.(csv|xlsx)$/i.test(dto.fileName ?? ''))
+      throw unprocessable('Upload the .xlsx or .csv template.', 'IMPORT_FORMAT');
+    const rows = parseCsv(await importText(dto.fileName, dto.text ?? ''));
     if (rows.length < 2)
       throw unprocessable(
         'The file has no staff rows. Use the template’s columns.',

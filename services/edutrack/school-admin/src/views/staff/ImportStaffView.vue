@@ -13,34 +13,21 @@ import KeyValueCard from '@edutrack/app-kit/components/common/KeyValueCard.vue';
 import PageHeader from '@edutrack/app-kit/components/common/PageHeader.vue';
 import StepIndicator from '@edutrack/app-kit/components/common/StepIndicator.vue';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
-import { downloadCsv } from '@edutrack/app-kit/lib/csv';
 
-import {
-  previewStaffImport,
-  useCommitStaffImportMutation,
-  useStaffFormOptionsQuery,
-} from '@/api/services/staff';
+import { previewStaffImport, useCommitStaffImportMutation } from '@/api/services/staff';
+import { downloadFile } from '@/api/helpers';
+import { readImportFile } from '@/lib/import-file';
 import { routesPath } from '@/router/routes-path';
 import type { StaffImportBatch, StaffImportRow } from '@/types';
 
 const STEPS = ['Template', 'Upload', 'Review', 'Import'];
-const HEADERS = [
-  'first_name',
-  'last_name',
-  'email',
-  'phone',
-  'type',
-  'position',
-  'branch',
-  'portal_access',
-  'role',
-];
-
+/** Inside the Staff page's Bulk upload modal: no page header; finishing closes the modal. */
+const props = defineProps<{ embedded?: boolean }>();
+const emit = defineEmits<{ done: [] }>();
 const route = useRoute();
 const router = useRouter();
 const confirm = useConfirm();
 const commit = useCommitStaffImportMutation();
-const { data: options } = useStaffFormOptionsQuery();
 
 const step = ref(0);
 const reading = ref(false);
@@ -53,23 +40,14 @@ const directory = computed(() => ({
   query: route.query.from === 'setup' ? { from: 'setup' } : {},
 }));
 
-function downloadTemplate() {
-  const branch = options.value?.branches[0]?.name ?? 'Main Campus';
-  downloadCsv('staff-template.csv', HEADERS, [
-    [
-      'Grace',
-      'Okafor',
-      'g.okafor@school.ng',
-      '08035550161',
-      'Teaching',
-      'Teacher',
-      branch,
-      'yes',
-      'Teacher',
-    ],
-    ['Samuel', 'Ade', '', '08025550199', 'Non-teaching', 'Driver', branch, 'no', ''],
-  ]);
-  toast.success('Template downloaded. Excel opens it directly.');
+/** The Excel template, built by the server with the school's branches and roles as dropdowns. */
+async function downloadTemplate() {
+  try {
+    await downloadFile('/v1/staff/import/template', 'edutrack-staff-template.xlsx');
+    toast.success('Template downloaded. Choose from the dropdowns as you fill it in.');
+  } catch (e) {
+    toast.error(getApiErrorMessage(e, 'The template couldn’t be downloaded. Try again.'));
+  }
 }
 
 function onFile(event: Event) {
@@ -78,14 +56,18 @@ function onFile(event: Event) {
   input.value = '';
   if (!file) return;
   uploadError.value = '';
-  if (!/\.csv$/i.test(file.name))
-    return void (uploadError.value = `“${file.name}” isn’t a CSV file. Save your sheet as CSV and try again.`);
-  if (file.size > 1048576) return void (uploadError.value = `“${file.name}” is larger than 1 MB.`);
+  if (!/\.(xlsx|csv)$/i.test(file.name))
+    return void (uploadError.value = `“${file.name}” isn’t an .xlsx or .csv file.`);
+  if (file.size > 2 * 1048576)
+    return void (uploadError.value = `“${file.name}” is larger than 2 MB.`);
   const reader = new FileReader();
   reading.value = true;
   reader.onload = async () => {
     try {
-      batch.value = await previewStaffImport({ fileName: file.name, text: String(reader.result) });
+      batch.value = await previewStaffImport({
+        fileName: file.name,
+        text: await readImportFile(file),
+      });
       step.value = 2;
     } catch (e) {
       uploadError.value = getApiErrorMessage(
@@ -148,7 +130,8 @@ function importRows() {
             `${r.imported} staff imported.${r.invites ? ` ${r.invites} invitation${r.invites === 1 ? '' : 's'} sent.` : ''}`,
           ),
         );
-        await router.push(directory.value);
+        if (props.embedded) emit('done');
+        else await router.push(directory.value);
       } catch (e) {
         step.value = 2;
         toast.error(getApiErrorMessage(e, 'The import didn’t finish. Try again.'));
@@ -170,6 +153,7 @@ const columns: Column[] = [
 
 <template>
   <PageHeader
+    v-if="!props.embedded"
     title="Import staff"
     description="One row per person. Rows with portal access get an invitation by email after import."
   >
@@ -190,7 +174,7 @@ const columns: Column[] = [
       <div class="flex items-center gap-3 rounded-md border bg-muted px-4 py-3">
         <FileSpreadsheetIcon class="size-5 text-primary" aria-hidden="true" />
         <span class="flex flex-1 flex-col">
-          <span class="font-semibold">Staff import template (.csv)</span>
+          <span class="font-semibold">Staff import template (.xlsx)</span>
           <span class="text-xs text-muted-foreground">Two example rows to copy</span>
         </span>
         <Button variant="outline" size="sm" @click="downloadTemplate">Download template</Button>
@@ -217,7 +201,7 @@ const columns: Column[] = [
       <input
         ref="fileInput"
         type="file"
-        accept=".csv,text/csv"
+        accept=".xlsx,.csv"
         class="sr-only"
         aria-label="Staff list CSV"
         @change="onFile"

@@ -1,5 +1,15 @@
 import { ScopedBy } from '../../common/plan/branch-scope.js';
-import { Body, Controller, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Put,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
 import {
   ApiConflictResponse,
   ApiNotFoundResponse,
@@ -9,7 +19,7 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { Portals, RequirePermission } from '../../auth/decorators/auth.decorators.js';
-import { ResponseMessage } from '../../common/http/api-response.js';
+import { RawResponse, ResponseMessage } from '../../common/http/api-response.js';
 import {
   DeactivateStaffDto,
   InviteStaffDto,
@@ -112,6 +122,19 @@ export class StaffController {
           ? `Invitation sent to ${emails[0]}.`
           : `${plural(invited, 'invitation')} sent.`;
     return withNotice(result, message);
+  }
+
+  @RawResponse()
+  @Get('import/template')
+  @RequirePermission('settings.users')
+  @ApiOperation({
+    summary: 'The staff template (.xlsx): dropdowns for type, branch, portal access and role',
+  })
+  async template() {
+    return new StreamableFile(await this.imports.template(), {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      disposition: 'attachment; filename="edutrack-staff-template.xlsx"',
+    });
   }
 
   @ResponseMessage('File checked.')
