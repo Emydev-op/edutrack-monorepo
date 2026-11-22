@@ -133,6 +133,7 @@ model User {
   supportTicketsRaised SupportTicket[]          @relation("TicketRequester")
   supportTicketsOwned  SupportTicket[]          @relation("TicketAssignee")
   supportSessions      SupportSession[]
+  groupStaff           GroupStaff[]
 
   @@index([lastSeenAt])
   @@map("users")
@@ -244,6 +245,8 @@ model SchoolMembership {
   /// STAFF: SCHOOL-wide or limited to the branches in MembershipBranch.
   scope        AccessScope      @default(SCHOOL)
   /// Exactly one of these is set, matching kind (a school user may have no staff record).
+  /// Given through group staff (kept in step with the group); null: the school's own account.
+  groupId      String?          @map("group_id") @db.Uuid
   staffId      String?          @map("staff_id") @db.Uuid
   guardianId   String?          @map("guardian_id") @db.Uuid
   studentId    String?          @map("student_id") @db.Uuid

@@ -69,6 +69,9 @@ model School {
   /// Optional custom domain for the school portals, verified later.
   customDomain           String?         @unique @map("custom_domain") @db.Citext
   customDomainVerifiedAt DateTime?       @map("custom_domain_verified_at") @db.Timestamptz(3)
+  /// The proprietor's group this school belongs to (one owner, several schools), if any.
+  groupId                String?         @map("group_id") @db.Uuid
+  group                  SchoolGroup?    @relation(fields: [groupId], references: [id], onDelete: SetNull)
   name                   String
   /// Set by EduTrack at provisioning; changed through support.
   legalName              String          @map("legal_name")
@@ -479,4 +482,45 @@ model ImportBatch {
 
   @@index([schoolId, kind, createdAt])
   @@map("import_batches")
+}
+
+/// Group staff: Owner (runs every school), Finance (bursar across them), Academic (academic head).
+enum GroupRole {
+  OWNER
+  FINANCE
+  ACADEMIC
+
+  @@map("group_role")
+}
+
+/// A proprietor's schools: one owner, several separately branded schools. Group staff get an
+/// account in every school of the group and a group overview across them.
+model SchoolGroup {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  name        String   @unique @db.Citext
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  schools School[]
+  staff   GroupStaff[]
+
+  @@map("school_groups")
+}
+
+/// Someone who works for the group rather than one school (the proprietor, a group bursar).
+model GroupStaff {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  groupId   String    @map("group_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  role      GroupRole
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  group SchoolGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("group_staff")
 }

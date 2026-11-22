@@ -21,6 +21,7 @@ export const navigation: NavGroup[] = [
     label: 'Schools',
     items: [
       { label: 'All Schools', route: routesPath.schools.list.name, permission: ['Schools.View'] },
+      { label: 'Groups', route: routesPath.groups.list.name, permission: ['Schools.View'] },
       {
         label: 'Provision School',
         route: routesPath.schools.provision.name,
