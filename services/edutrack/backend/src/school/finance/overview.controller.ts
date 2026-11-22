@@ -1,3 +1,4 @@
+import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Portals, RequirePermission } from '../../auth/decorators/auth.decorators.js';
@@ -11,6 +12,7 @@ import { FinanceOverviewService } from './overview.service.js';
  */
 @ApiTags('school · finance')
 @Portals('SCHOOL_ADMIN')
+@RequiresModule('fees')
 @Controller('finance')
 export class FinanceOverviewController {
   constructor(private readonly overview: FinanceOverviewService) {}

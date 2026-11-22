@@ -1,3 +1,4 @@
+import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -34,6 +35,7 @@ const plural = (n: number, word: string) =>
  */
 @ApiTags('school · finance')
 @Portals('SCHOOL_ADMIN')
+@RequiresModule('fees')
 @Controller('finance')
 export class InvoicesController {
   constructor(private readonly invoices: InvoicesService) {}

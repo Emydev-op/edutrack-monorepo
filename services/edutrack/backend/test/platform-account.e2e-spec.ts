@@ -101,6 +101,7 @@ describe('Platform account, settings, notifications, history and search (e2e)', 
         'Support issue urgent',
         'School replied to an issue',
         'Security alert',
+        'Plan limit reached',
       ]);
       expect(res.body.data[7]).toEqual({
         event: 'Security alert',

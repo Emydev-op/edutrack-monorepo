@@ -181,3 +181,13 @@ export const SETUP_STEPS: readonly SetupStepDefinition[] = [
  * current session created with its terms and started; class levels and arms set.
  */
 export const FOUNDATION_STEPS = ['school-profile', 'academic-session', 'classes-arms'] as const;
+
+/** Steps that belong to a plan module: left out of the Setup Center when the plan lacks it. */
+export const STEP_MODULE: Record<string, string> = {
+  'subjects-curriculum': 'subjects',
+  'assessment-grading': 'assess',
+  'teacher-assignments': 'assign',
+  fees: 'fees',
+  timetable: 'timetable',
+  notifications: 'announce',
+};

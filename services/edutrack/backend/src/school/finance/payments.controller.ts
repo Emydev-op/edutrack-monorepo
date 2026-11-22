@@ -1,3 +1,4 @@
+import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -32,6 +33,7 @@ type RefundView = { no: string; amount: number };
  */
 @ApiTags('school · finance')
 @Portals('SCHOOL_ADMIN')
+@RequiresModule('fees')
 @Controller('finance')
 export class PaymentsController {
   constructor(private readonly payments: PaymentsService) {}

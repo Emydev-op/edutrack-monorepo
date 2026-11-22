@@ -1,3 +1,4 @@
+import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -64,6 +65,7 @@ export class StudentController {
   }
 
   @ResponseMessage('Homework loaded.')
+  @RequiresModule('homework')
   @Get('homework')
   @ApiOperation({
     summary: 'My assignments (status; score and feedback once returned) and materials',
@@ -73,6 +75,7 @@ export class StudentController {
   }
 
   @ResponseMessage('Materials loaded.')
+  @RequiresModule('homework')
   @Get('materials')
   @ApiOperation({ summary: 'Materials my teachers shared with my class this term' })
   async materials(@CurrentUser() auth: AuthUserContext, @Query() q: StudentTermQuery) {
@@ -85,6 +88,7 @@ export class StudentController {
       ? 'Work handed in late. Your teacher can see it now.'
       : 'Work handed in. Your teacher can see it now.',
   )
+  @RequiresModule('homework')
   @Post('assignments/:assignmentId/submission')
   @HttpCode(200)
   @ApiOperation({
@@ -107,6 +111,7 @@ export class StudentController {
   }
 
   @ResponseMessage('Results loaded.')
+  @RequiresModule('results')
   @Get('results')
   @ApiOperation({ summary: 'My report card for a term, once published (held cards say so)' })
   async results(@CurrentUser() auth: AuthUserContext, @Query() q: StudentTermQuery) {
@@ -114,6 +119,7 @@ export class StudentController {
   }
 
   @RawResponse()
+  @RequiresModule('results')
   @Get('results/pdf')
   @ApiOperation({ summary: 'My published report card for a term, as a PDF' })
   @ApiConflictResponse({ description: 'RESULT_NOT_PUBLISHED · RESULT_HELD' })

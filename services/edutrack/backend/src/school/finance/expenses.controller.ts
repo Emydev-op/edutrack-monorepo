@@ -1,3 +1,4 @@
+import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Body, Controller, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -31,6 +32,7 @@ type Vendor = { name: string; status: string };
  */
 @ApiTags('school · finance')
 @Portals('SCHOOL_ADMIN')
+@RequiresModule('expenses')
 @Controller('finance')
 export class ExpensesController {
   constructor(private readonly expenses: ExpensesService) {}

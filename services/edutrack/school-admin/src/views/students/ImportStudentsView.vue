@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StudentLimitNotice from '@/components/common/StudentLimitNotice.vue';
 import { Button } from '@edutrack/ui/components/button';
 import { Checkbox } from '@edutrack/ui/components/checkbox';
 import { Input } from '@edutrack/ui/components/input';
@@ -218,6 +219,7 @@ const choice = (row: number, value: string) =>
     title="Import students"
     :description="`Bulk import into ${context.current.session} · ${context.current.branch}. Validation runs on the server; nothing is imported until you confirm.`"
   />
+  <StudentLimitNotice />
   <StepIndicator :steps="STEPS" :current="step" />
 
   <section class="flex flex-col gap-4 rounded-lg border bg-card p-5">

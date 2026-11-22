@@ -1,3 +1,4 @@
+import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiNotFoundResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import type { AuthUserContext } from '../../auth/auth-context.js';
@@ -70,6 +71,7 @@ export class SchoolReportsController {
   ) {}
 
   @ResponseMessage('Finance figures loaded.')
+  @RequiresModule('fees')
   @Get('dashboard/finance')
   @ApiOperation({
     summary: 'The dashboard’s fee receipts and collection by section',
@@ -81,6 +83,7 @@ export class SchoolReportsController {
   }
 
   @ResponseMessage('Reports loaded.')
+  @RequiresModule('reports')
   @Get('reports')
   @ApiOperation({
     summary: 'Every report, grouped as the Reports page lists them',
@@ -92,6 +95,7 @@ export class SchoolReportsController {
   }
 
   @ResponseMessage('Report loaded.')
+  @RequiresModule('reports')
   @Get('reports/:id')
   @ApiParam({ name: 'id', example: 'enrollment' })
   @ApiNotFoundResponse({ description: 'REPORT_NOT_FOUND' })

@@ -1,3 +1,4 @@
+import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Body, Controller, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
   ApiConflictResponse,
@@ -21,6 +22,7 @@ import { PromotionService } from './promotion.service.js';
  */
 @ApiTags('school · promotion')
 @Portals('SCHOOL_ADMIN')
+@RequiresModule('promotion')
 @Controller('academics/promotion')
 export class PromotionController {
   constructor(private readonly promotion: PromotionService) {}

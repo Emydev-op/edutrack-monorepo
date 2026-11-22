@@ -1,3 +1,4 @@
+import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
   ApiBody,
@@ -41,6 +42,7 @@ type Saved = { status: string; recipients: number | null };
  */
 @ApiTags('school · communication')
 @Portals('SCHOOL_ADMIN')
+@RequiresModule('announce')
 @Controller('comms')
 export class CommunicationController {
   constructor(

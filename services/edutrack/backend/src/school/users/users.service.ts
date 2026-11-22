@@ -1,3 +1,4 @@
+import { PlanLimitsService } from '../shared/plan-limits.service.js';
 import { randomUUID } from 'node:crypto';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InvitationService } from '../../auth/invitation.service.js';
@@ -77,6 +78,7 @@ export class SchoolUsersService {
     private readonly passwordReset: PasswordResetService,
     private readonly sessions: SessionService,
     private readonly clock: Clock,
+    private readonly limits: PlanLimitsService,
   ) {}
 
   private get db() {
@@ -291,6 +293,11 @@ export class SchoolUsersService {
       throw AppException.validation({ roles: 'The Owner role can’t be given by invitation.' });
     const { roles, branches, sections } = await this.resolveAccess(dto);
     const now = this.clock.now();
+    const existing = await this.db.schoolMembership.findFirst({
+      where: { kind: 'STAFF', status: { in: ['INVITED', 'ACTIVE', 'SUSPENDED'] }, user: { email } },
+      select: { id: true },
+    });
+    if (!existing) await this.limits.requireUser();
 
     const { membershipId, invitationId } = await this.db.$transaction(async (tx) => {
       let user = await tx.user.findUnique({ where: { email } });

@@ -1,3 +1,5 @@
+import { PlanLimitsService } from '../shared/plan-limits.service.js';
+import type { TenantTx } from '../shared/tenant-tx.js';
 import { randomUUID } from 'node:crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { InvitationService } from '../../auth/invitation.service.js';
@@ -44,6 +46,7 @@ export class StaffAccountsService {
     private readonly sessions: SessionService,
     private readonly audit: SchoolAuditService,
     private readonly clock: Clock,
+    private readonly limits: PlanLimitsService,
   ) {}
 
   /**
@@ -51,6 +54,7 @@ export class StaffAccountsService {
    * once the transaction commits. Throws ALREADY_MEMBER when the email already has access here.
    */
   async createInvitation(tx: Tx, staff: InviteeStaff, roleIds: string[]): Promise<string> {
+    await this.limits.requireUser(tx as unknown as TenantTx);
     const schoolId = this.records.schoolId();
     const email = staff.email;
     if (!email)
