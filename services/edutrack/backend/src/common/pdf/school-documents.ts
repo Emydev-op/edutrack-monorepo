@@ -48,6 +48,8 @@ export interface ReportCardDoc {
   /** Nursery cards: a rating and comment per learning area, height, weight, head's comment. */
   mode?: 'scores' | 'descriptive';
   headTeacherRemark?: string | null;
+  /** "Principal" or "Head teacher". */
+  headLabel?: string | null;
   height?: number | null;
   weight?: number | null;
 }
@@ -395,7 +397,7 @@ export function reportCardPdf(input: ReportCardDoc, photo?: Buffer | null): Prom
     .text(card.classTeacherRemark || 'No remark.', M, doc.y, { width: W });
   doc.moveDown(0.8);
   if (card.headTeacherRemark) {
-    section(doc, 'Head teacher’s comment', 50);
+    section(doc, `${card.headLabel ?? 'Head teacher'}’s comment`, 50);
     doc
       .font('Helvetica')
       .fontSize(9.5)

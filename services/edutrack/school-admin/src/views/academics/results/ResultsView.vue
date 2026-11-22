@@ -301,6 +301,12 @@ async function startPublish(row: Row) {
             </RouterLink>
           </template>
           <span class="flex items-center justify-end gap-2 text-xs">
+            <RouterLink
+              :to="{ name: routesPath.academics.headRemarks.name, params: { armId: row.armId } }"
+              class="text-primary hover:underline"
+              :title="`Principal’s or head teacher’s comments for ${row.arm}`"
+              >Remarks</RouterLink
+            >
             <template v-if="row.published">
               <StatusBadge label="Published" />
               <button

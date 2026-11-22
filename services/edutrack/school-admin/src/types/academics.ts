@@ -668,6 +668,8 @@ export interface ReportCard {
   /** Nursery cards: a rating and comment per learning area, height, weight, head's comment. */
   mode?: 'scores' | 'descriptive';
   headTeacherRemark?: string | null;
+  /** "Principal" (secondary sections) or "Head teacher". */
+  headLabel?: string | null;
   height?: number | null;
   weight?: number | null;
   title: string;

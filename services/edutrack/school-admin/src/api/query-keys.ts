@@ -67,6 +67,7 @@ export const queryKeys = {
     results: (params: object) => ['academics', 'results', params] as const,
     sheet: (arm: string, subject: string) => ['academics', 'sheet', arm, subject] as const,
     reportCard: (id: string) => ['academics', 'report-card', id] as const,
+    headRemarks: (arm: string) => ['academics', 'head-remarks', arm] as const,
     corrections: ['academics', 'corrections'] as const,
     attendance: (params: object) => ['academics', 'attendance', params] as const,
     attendanceArm: (arm: string, params: object) =>

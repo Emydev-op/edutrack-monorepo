@@ -1,3 +1,4 @@
+import { plural } from '../academics/academic-format.js';
 import { RequiresModule } from '../../common/plan/plan-access.js';
 import { Body, Controller, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
 import {
@@ -16,6 +17,7 @@ import { pdfFile } from '../../common/pdf/school-documents.js';
 import { RecordIdPipe } from '../../platform/shared/params.js';
 import { CorrectionsService } from './corrections.service.js';
 import {
+  HeadRemarksDto,
   HeadTeacherRemarkDto,
   CorrectionDecisionDto,
   HoldReportCardDto,
@@ -178,7 +180,7 @@ export class ResultsAdminController {
     return pdfFile(await this.publishing.reportCardPdf(id, term));
   }
 
-  @ResponseMessage('Head teacher’s comment saved.')
+  @ResponseMessage('Comment saved.')
   @Put('report-card/:studentId/head-remark')
   @RequirePermission('results.publish')
   @termQuery
@@ -192,6 +194,36 @@ export class ResultsAdminController {
     @Query('term') term?: string,
   ) {
     return this.publishing.headRemark(auth, id, { term, remark: dto.remark });
+  }
+
+  @ResponseMessage('Comments loaded.')
+  @Get('head-remarks/:armId')
+  @RequirePermission('results.view')
+  @termQuery
+  @ApiOperation({
+    summary:
+      'A class’s students with averages and class teacher remarks, for the Principal’s comments',
+  })
+  headRemarks(@Param('armId', armId) arm: string, @Query('term') term?: string) {
+    return this.publishing.headRemarks(arm, term);
+  }
+
+  @ResponseMessage((r: { saved: number; label: string }) =>
+    r.saved ? `${plural(r.saved, 'comment')} saved.` : 'No changes to save.',
+  )
+  @Put('head-remarks/:armId')
+  @RequirePermission('results.publish')
+  @termQuery
+  @ApiOperation({
+    summary: 'Save the Principal’s (head teacher’s) comments for a class (until published)',
+  })
+  @ApiConflictResponse({ description: 'RESULTS_PUBLISHED' })
+  saveHeadRemarks(
+    @Param('armId', armId) arm: string,
+    @Body() dto: HeadRemarksDto,
+    @Query('term') term?: string,
+  ) {
+    return this.publishing.saveHeadRemarks(arm, term, dto.remarks);
   }
 
   @ResponseMessage('Report card put on hold.')

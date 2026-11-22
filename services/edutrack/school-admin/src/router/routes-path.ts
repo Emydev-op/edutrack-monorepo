@@ -59,6 +59,7 @@ export const routesPath = {
     results: { name: 'results', path: '/academics/results' },
     resultSheet: { name: 'result-sheet', path: '/academics/results/:armId/:subject' },
     reportCard: { name: 'report-card', path: '/academics/report-card/:studentId' },
+    headRemarks: { name: 'head-remarks', path: '/academics/remarks/:armId' },
     corrections: { name: 'corrections', path: '/academics/corrections' },
     promotion: { name: 'promotion', path: '/academics/promotion' },
   },

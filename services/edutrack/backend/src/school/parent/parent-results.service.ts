@@ -42,6 +42,7 @@ export function parentCard(snapshot: Snapshot) {
   return pick(
     'mode',
     'headTeacherRemark',
+    'headLabel',
     'height',
     'weight',
     'school',

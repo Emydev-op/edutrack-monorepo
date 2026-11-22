@@ -43,7 +43,7 @@ async function saveHeadRemark() {
   if (!c) return;
   try {
     await headMut.mutateAsync({ studentId: c.student.id, remark: headRemark.value });
-    toast.success('Head teacher’s comment saved.');
+    toast.success('Comment saved.');
   } catch (e) {
     toast.error(getApiErrorMessage(e, 'The comment wasn’t saved. Try again.'));
   }
@@ -468,13 +468,9 @@ const pickStudent = (id: string) =>
         </p>
       </section>
 
-      <section
-        v-if="nursery"
-        aria-labelledby="rc-head"
-        class="mt-4 flex flex-col gap-1.5 text-[13px]"
-      >
+      <section aria-labelledby="rc-head" class="mt-4 flex flex-col gap-1.5 text-[13px]">
         <h3 id="rc-head" class="text-xs font-semibold tracking-[0.04em] uppercase">
-          Head teacher’s comment
+          {{ card.headLabel ?? 'Head teacher' }}’s comment
         </h3>
         <template v-if="!card.published">
           <Textarea

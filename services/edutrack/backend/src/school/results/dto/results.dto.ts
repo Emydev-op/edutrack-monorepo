@@ -119,7 +119,17 @@ export class ReportCardRemarkDto {
 
 /* ---------------- School Admin ---------------- */
 
-/** `PUT /v1/academics/results/report-card/:studentId/head-remark` (Nursery cards). */
+/** `PUT /v1/academics/results/head-remarks/:armId`: comments for several students at once. */
+export class HeadRemarksDto {
+  @ApiProperty({
+    description: 'studentId → comment (up to 400 characters; empty removes it)',
+    example: { '0190…': 'An excellent term. Keep it up.' },
+  })
+  @IsObject()
+  remarks!: Record<string, string>;
+}
+
+/** `PUT /v1/academics/results/report-card/:studentId/head-remark`. */
 export class HeadTeacherRemarkDto {
   @ApiProperty({ description: 'Up to 400 characters; empty removes it' })
   @IsString()

@@ -374,7 +374,41 @@ export const useReportCardQuery = (studentId: MaybeRefOrGetter<string>) =>
   });
 
 /** Withholds a report card with a reason, or releases it (`action: 'release'`). */
-/** Nursery cards: the head teacher's comment (until the class is published). */
+export interface HeadRemarksView {
+  armId: string;
+  arm: string;
+  term: string;
+  /** "Principal" (secondary sections) or "Head teacher". */
+  label: string;
+  mode: 'scores' | 'descriptive';
+  editable: boolean;
+  students: {
+    studentId: string;
+    name: string;
+    admissionNo: string;
+    average: number | null;
+    position: number | null;
+    classTeacherRemark: string | null;
+    headRemark: string | null;
+  }[];
+}
+
+/** A class's students for the Principal's (head teacher's) comments. */
+export const useHeadRemarksQuery = (armId: MaybeRefOrGetter<string>) =>
+  useQuery({
+    queryKey: computed(() => k.headRemarks(toValue(armId))),
+    queryFn: () => getRequest<HeadRemarksView>(`${A}/results/head-remarks/${toValue(armId)}`),
+  });
+
+/** Saves comments for several students of a class (empty text removes one). */
+export const useSaveHeadRemarksMutation = () =>
+  useAcademicsMutation(({ armId, remarks }: { armId: string; remarks: Record<string, string> }) =>
+    putRequest<HeadRemarksView & { saved: number }>(`${A}/results/head-remarks/${armId}`, {
+      remarks,
+    }),
+  );
+
+/** One card's head teacher (Principal) comment (until the class is published). */
 export const useHeadRemarkMutation = () =>
   useAcademicsMutation(({ studentId, remark }: { studentId: string; remark: string }) =>
     putRequest<ReportCard>(`${A}/results/report-card/${studentId}/head-remark`, { remark }),
