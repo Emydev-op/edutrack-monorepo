@@ -95,6 +95,28 @@ export const useUpdateBranchMutation = (id: MaybeRefOrGetter<string>) =>
     BRANCH_AREAS,
   );
 
+export interface BranchBranding {
+  /** null: the school's colour. */
+  brandColor: string | null;
+  /** A signed link to the campus's logo; null: the school's. */
+  logoUrl: string | null;
+}
+
+/** A campus's own logo and colour (null: the school's). */
+export const useBranchBrandingQuery = (id: MaybeRefOrGetter<string>) =>
+  useQuery({
+    queryKey: computed(() => [...queryKeys.branches.detail(toValue(id)), 'branding']),
+    queryFn: () => getRequest<BranchBranding>(`/v1/branches/${toValue(id)}/branding`),
+  });
+
+/** Sets the campus's colour (null: the school's) and logo (data URL, null removes, omit keeps). */
+export const useBranchBrandingMutation = (id: MaybeRefOrGetter<string>) =>
+  useSchoolMutation(
+    (p: { brandColor?: string | null; logo?: string | null }) =>
+      putRequest<BranchBranding & { name: string }>(`/v1/branches/${toValue(id)}/branding`, p),
+    BRANCH_AREAS,
+  );
+
 export const useBranchStatusMutation = (id: MaybeRefOrGetter<string>) =>
   useSchoolMutation(
     ({ action, reason }: { action: 'deactivate' | 'reactivate'; reason?: string }) =>

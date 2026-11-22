@@ -20,8 +20,7 @@ interface ProvisionValues {
   state: string;
   lga: string;
   brandColor: string;
-  sections: AcademicSection[];
-  branches: { name: string; address: string }[];
+  branches: { name: string; address: string; sections: AcademicSection[] }[];
   plan: PlanName;
   startDate: string;
   admins: {
@@ -45,7 +44,6 @@ const v = computed<ProvisionValues>(() => ({
   state: '',
   lga: '',
   brandColor: '#24497A',
-  sections: [],
   branches: [],
   plan: 'Starter',
   startDate: '',
@@ -112,24 +110,8 @@ const positionOf = (a: ProvisionValues['admins'][number]) =>
 
   <section class="review-card">
     <header>
-      <h3><span>2</span>Academic offering</h3>
+      <h3><span>2</span>Branches · {{ v.branches.length }}</h3>
       <button type="button" @click="goTo(1)"><PencilIcon class="size-3.5" />Edit</button>
-    </header>
-    <div class="flex flex-wrap gap-1.5">
-      <span
-        v-for="section in v.sections"
-        :key="section"
-        class="rounded-full border bg-muted px-2.5 py-0.5 text-xs"
-        >{{ section }}</span
-      >
-    </div>
-    <p class="text-xs text-faint">The Setup Center only shows steps for these sections.</p>
-  </section>
-
-  <section class="review-card">
-    <header>
-      <h3><span>3</span>Branches · {{ v.branches.length }}</h3>
-      <button type="button" @click="goTo(2)"><PencilIcon class="size-3.5" />Edit</button>
     </header>
     <ol class="flex flex-col divide-y divide-divider rounded-md border">
       <li
@@ -139,14 +121,17 @@ const positionOf = (a: ProvisionValues['admins'][number]) =>
       >
         <span class="font-medium">{{ dash(branch.name) }}</span>
         <span class="text-muted-foreground">{{ branch.address?.trim() || 'No address yet' }}</span>
+        <span class="w-full text-xs text-faint">{{
+          branch.sections?.length ? branch.sections.join(', ') : 'No sections chosen'
+        }}</span>
       </li>
     </ol>
   </section>
 
   <section class="review-card">
     <header>
-      <h3><span>4</span>Subscription</h3>
-      <button type="button" @click="goTo(3)"><PencilIcon class="size-3.5" />Edit</button>
+      <h3><span>3</span>Subscription</h3>
+      <button type="button" @click="goTo(2)"><PencilIcon class="size-3.5" />Edit</button>
     </header>
     <dl>
       <dt>Plan</dt>
@@ -162,8 +147,8 @@ const positionOf = (a: ProvisionValues['admins'][number]) =>
 
   <section class="review-card">
     <header>
-      <h3><span>5</span>Administrators · {{ v.admins.length }}</h3>
-      <button type="button" @click="goTo(4)"><PencilIcon class="size-3.5" />Edit</button>
+      <h3><span>4</span>Administrators · {{ v.admins.length }}</h3>
+      <button type="button" @click="goTo(3)"><PencilIcon class="size-3.5" />Edit</button>
     </header>
     <div class="overflow-x-auto rounded-md border">
       <table class="w-full min-w-[560px] text-left text-[13px]">

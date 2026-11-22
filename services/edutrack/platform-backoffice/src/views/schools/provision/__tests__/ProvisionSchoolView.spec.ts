@@ -71,7 +71,6 @@ describe('Provision school wizard', () => {
     await type(w, 'info@crestviewcollege.ng', 'info@wizardtest.ng');
     await choose(w, 'Select a state', 'FCT');
     await choose(w, 'Select an LGA', 'Bwari');
-    await next(w, 'Academic offering');
     await next(w, 'Branches');
     await w
       .findAll('button')

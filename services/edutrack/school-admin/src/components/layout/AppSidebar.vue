@@ -28,6 +28,7 @@ import { navigation, navKeyAliases, type NavItem } from '@/config/navigation';
 import { usePlanModules } from '@/config/plan-modules';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
+import { useContextStore } from '@/stores/context';
 
 const route = useRoute();
 const plan = usePlanModules();
@@ -53,15 +54,23 @@ const toggleGroup = (label: string) =>
   (collapsed.value = { ...collapsed.value, [label]: !collapsed.value[label] });
 
 // Initials stand in if the logo can't load; a new logo gets another try.
-const { failed: logoFailed, onError: onLogoError } = useLogoFallback(() => auth.school?.logoUrl);
+// The working branch's own logo, when it has one, else the school's.
+const context = useContextStore();
+const logo = computed(
+  () =>
+    context.options?.branches.find((b) => b.name === context.current.branch)?.logoUrl ??
+    auth.school?.logoUrl ??
+    null,
+);
+const { failed: logoFailed, onError: onLogoError } = useLogoFallback(() => logo.value);
 </script>
 
 <template>
   <Sidebar collapsible="offcanvas" class="border-r">
     <SidebarHeader class="flex-row items-center gap-2.5 px-4 pt-4 pb-3">
       <img
-        v-if="auth.school?.logoUrl && !logoFailed"
-        :src="auth.school.logoUrl"
+        v-if="logo && !logoFailed"
+        :src="logo"
         alt=""
         class="size-8 shrink-0 rounded-lg object-contain"
         @error="onLogoError"

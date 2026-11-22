@@ -215,7 +215,11 @@ export class ParentFeesService {
     const v = await this.load(auth);
     const p = v.fin.payments.find((x) => x.id === paymentId && x.studentKey === scope.student.id);
     if (!p) throw AppException.notFound('Payment not found', 'PAYMENT_NOT_FOUND');
-    const school = await documentSchool(this.scope.db as unknown as TenantTx, auth.schoolId!);
+    const school = await documentSchool(
+      this.scope.db as unknown as TenantTx,
+      auth.schoolId!,
+      v.fin.students.get(p.studentKey)?.branchId,
+    );
     return paymentReceipt(v, p, school, this.scope.now());
   }
 

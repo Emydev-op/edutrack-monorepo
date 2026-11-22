@@ -354,7 +354,7 @@ describe('School Admin profile and branches (e2e)', () => {
         [{ phone: '123' }, 'Enter a Nigerian phone number.'],
         [{ email: 'nope' }, 'Enter a valid email.'],
         [{ sections: [] }, 'Choose at least one section.'],
-        [{ sections: ['University'] }, 'Only sections your school offers can be chosen.'],
+        [{ sections: ['University'] }, 'Choose Nursery, Primary, Junior or Senior Secondary.'],
         [{ headId: UNKNOWN_ID }, 'Choose a current member of staff as head of campus.'],
       ];
       for (const [patch, message, code] of cases) {

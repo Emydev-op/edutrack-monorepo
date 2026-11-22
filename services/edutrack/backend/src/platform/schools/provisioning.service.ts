@@ -17,15 +17,8 @@ import { PlatformAuditService } from '../shared/platform-audit.service.js';
 import { nextPlatformNumber, platformInvoiceNumber } from '../shared/platform-sequence.js';
 import type { ProvisionSchoolDto } from './dto/schools.dto.js';
 import { SchoolsService } from './schools.service.js';
-import { defaultStudentLogins } from '../../school/student-logins/student-login-rules.js';
+import { SECTION_ORDER, standardSectionData } from '../../school/shared/standard-sections.js';
 
-const SECTION_CODES: Record<ProvisionSchoolDto['sections'][number], string> = {
-  Nursery: 'NUR',
-  Primary: 'PRI',
-  'Junior Secondary': 'JSS',
-  'Senior Secondary': 'SSS',
-};
-const SECTION_ORDER = Object.keys(SECTION_CODES);
 const OWNERSHIP = { Private: 'PRIVATE', Public: 'PUBLIC', Mission: 'MISSION' } as const;
 
 /** Initials for codes: `Lagoon View College` → `LVC`, `Main Campus` → `MC`. */
@@ -147,7 +140,18 @@ export class ProvisioningService {
     const slug = await this.slugFor(dto.name);
     const now = this.clock.now();
     const actorId = RequestContext.get()?.userId ?? null;
-    const sections = SECTION_ORDER.filter((s) => dto.sections.includes(s as never));
+    // Each branch runs its own sections (all of the school's when a branch names none); the
+    // school's sections are the branches' together.
+    const branchSections = dto.branches.map((b) =>
+      b.sections?.length ? b.sections : (dto.sections ?? []),
+    );
+    const chosen = new Set([...(dto.sections ?? []), ...branchSections.flat()]);
+    const sections = SECTION_ORDER.filter((s) => chosen.has(s));
+    if (!sections.length)
+      throw AppException.validation(
+        { sections: 'Choose at least one section for a branch.' },
+        'Choose at least one section for a branch.',
+      );
     const { period, priceKobo } = startingPrice(plan);
     const trialEndsOn = plan.trialDays > 0 ? addDays(start, plan.trialDays) : null;
     const renewsOn = addDays(addMonths(start, PERIOD_MONTHS[period]), -1);
@@ -175,20 +179,10 @@ export class ProvisioningService {
         });
         const schoolId = school.id;
 
-        const sectionIds = [];
-        for (const [i, name] of sections.entries()) {
-          const row = await tx.section.create({
-            data: {
-              schoolId,
-              name,
-              code: SECTION_CODES[name as keyof typeof SECTION_CODES],
-              sortOrder: i,
-              studentLogins: defaultStudentLogins(
-                SECTION_CODES[name as keyof typeof SECTION_CODES],
-              ),
-            },
-          });
-          sectionIds.push(row.id);
+        const sectionIds = new Map<string, string>();
+        for (const name of sections) {
+          const row = await tx.section.create({ data: { schoolId, ...standardSectionData(name) } });
+          sectionIds.set(name, row.id);
         }
 
         const prefix = initials(dto.name, 3);
@@ -208,7 +202,7 @@ export class ProvisioningService {
               state: dto.state,
               isOriginal: i === 0,
               branchSections: {
-                create: sectionIds.map((sectionId) => ({ sectionId })),
+                create: branchSections[i]!.map((name) => ({ sectionId: sectionIds.get(name)! })),
               },
             },
           });
