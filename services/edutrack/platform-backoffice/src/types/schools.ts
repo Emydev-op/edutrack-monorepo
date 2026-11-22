@@ -95,8 +95,10 @@ export interface ProvisionSchoolPayload {
   state: string;
   lga: string;
   brandColor: string;
-  sections: AcademicSection[];
-  branches: { name: string; address: string }[];
+  /** Optional: the school's sections are its branches' together. */
+  sections?: AcademicSection[];
+  /** Each campus and the sections it runs. */
+  branches: { name: string; address: string; sections: AcademicSection[] }[];
   plan: PlanName;
   startDate: string;
   /** First administrators. Each gets an invitation; scope is "All branches" or one branch name. */

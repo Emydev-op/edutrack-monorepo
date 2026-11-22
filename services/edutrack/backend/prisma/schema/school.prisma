@@ -276,6 +276,11 @@ model Branch {
   phone         String?
   email         String?      @db.Citext
   headStaffId   String?      @map("head_staff_id") @db.Uuid
+  /// Optional branding for this campus (its report cards, receipts and School Admin while it's
+  /// selected); falls back to the school's.
+  brandColor    String?      @map("brand_color")
+  logoFileId    String?      @map("logo_file_id") @db.Uuid
+  logoFile      StoredFile?  @relation("BranchLogo", fields: [logoFileId], references: [id], onDelete: SetNull)
   hasStore      Boolean      @default(false) @map("has_store")
   status        BranchStatus @default(ACTIVE)
   /// Created at provisioning: can be deactivated but never deleted.

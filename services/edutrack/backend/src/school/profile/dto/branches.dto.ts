@@ -9,6 +9,7 @@ import {
   IsString,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { trim } from '../../../platform/shared/params.js';
 
@@ -116,4 +117,23 @@ export class ReactivateBranchDto {
   @IsOptional()
   @IsString()
   reason?: string;
+}
+
+/** `PUT /v1/branches/:id/branding`. */
+export class BranchBrandingDto {
+  @ApiPropertyOptional({ nullable: true, example: '#1F6FEB', description: 'null: the school’s' })
+  @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
+  @IsString()
+  brandColor?: string | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'PNG or JPG data URL (1 MB); null removes it; omit to keep',
+  })
+  @IsOptional()
+  @ValidateIf((_o, v) => v !== null)
+  @MaxLength(1_500_000, { message: 'The logo is larger than 1 MB.' })
+  @IsString()
+  logo?: string | null;
 }

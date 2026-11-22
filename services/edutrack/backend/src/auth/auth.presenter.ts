@@ -20,6 +20,12 @@ const PERIOD: Record<string, string> = { ANNUAL: 'Annual', TERM: 'Termly', MONTH
 export const schoolLogoAddress = (s: { slug: string; logoFileId: string | null }) =>
   s.logoFileId ? `/api/v1/public/schools/${s.slug}/logo?v=${s.logoFileId.slice(-8)}` : null;
 
+/** A campus's own logo at an address that doesn't expire, or null (use the school's). */
+export const branchLogoAddress = (slug: string, b: { code: string; logoFileId: string | null }) =>
+  b.logoFileId
+    ? `/api/v1/public/schools/${slug}/branches/${encodeURIComponent(b.code)}/logo?v=${b.logoFileId.slice(-8)}`
+    : null;
+
 export function schoolSummary(m: MembershipWithSchool) {
   const { school } = m;
   const sub = school.subscription;

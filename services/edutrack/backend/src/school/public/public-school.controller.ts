@@ -69,4 +69,19 @@ export class PublicSchoolController {
     res.setHeader('Cache-Control', 'public, max-age=300');
     res.redirect(302, url);
   }
+
+  @Public()
+  @RawResponse()
+  @Get('schools/:slug/branches/:code/logo')
+  @ApiOperation({
+    summary: 'A campus’s own logo, at an address that doesn’t expire (report cards keep it)',
+  })
+  @ApiFoundResponse({ description: 'Location: a signed link to the logo, valid for an hour.' })
+  @ApiNotFoundResponse({ description: 'LOGO_NOT_FOUND: no such campus, or it has no logo.' })
+  async branchLogo(@Param('slug') slug: string, @Param('code') code: string, @Res() res: Response) {
+    const url = await this.branding.branchLogoLink(slug, code);
+    if (!url) throw AppException.notFound('This campus has no logo.', 'LOGO_NOT_FOUND');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.redirect(302, url);
+  }
 }

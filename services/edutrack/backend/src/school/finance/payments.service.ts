@@ -159,8 +159,13 @@ export class PaymentsService {
   /** A confirmed payment's receipt PDF. */
   async receipt(id: string) {
     const v = await this.core.load();
-    const school = await documentSchool(this.core.db, this.core.schoolId());
-    return paymentReceipt(v, this.findPayment(v, id), school, this.core.now());
+    const p = this.findPayment(v, id);
+    const school = await documentSchool(
+      this.core.db,
+      this.core.schoolId(),
+      v.fin.students.get(p.studentKey)?.branchId,
+    );
+    return paymentReceipt(v, p, school, this.core.now());
   }
 
   async get(id: string) {
