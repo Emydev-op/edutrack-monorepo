@@ -169,6 +169,11 @@ export const academicsRoutes: RouteRecordRaw[] = [
     meta: { title: 'Result sheet', nav: a.results.name, breadcrumb: [ACADEMICS, RESULTS] },
   },
   {
+    ...a.headRemarks,
+    component: () => import('@/views/academics/results/HeadRemarksView.vue'),
+    meta: { title: 'Principal’s remarks', nav: a.results.name, breadcrumb: [ACADEMICS, RESULTS] },
+  },
+  {
     ...a.reportCard,
     component: () => import('@/views/academics/results/ReportCardView.vue'),
     meta: { title: 'Report card', nav: a.results.name, breadcrumb: [ACADEMICS, RESULTS] },

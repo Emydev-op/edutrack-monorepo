@@ -116,7 +116,8 @@ const STARS = ['', 'Needs improvement', 'Fair', 'Good', 'Very good', 'Excellent'
           {{ card.classTeacherRemark }}</span
         >
         <span v-if="card.headTeacherRemark"
-          ><b class="font-semibold">Head teacher:</b> {{ card.headTeacherRemark }}</span
+          ><b class="font-semibold">{{ card.headLabel ?? 'Head teacher' }}:</b>
+          {{ card.headTeacherRemark }}</span
         >
         <span v-if="card.mode === 'descriptive' && (card.height != null || card.weight != null)"
           >Height {{ card.height != null ? `${card.height} cm` : '—' }} · Weight

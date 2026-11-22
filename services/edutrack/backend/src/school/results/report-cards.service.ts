@@ -417,6 +417,8 @@ export class ReportCardsService {
       classmates: p.classmates,
       classTeacherRemark: remark?.classTeacherRemark ?? null,
       headTeacherRemark: remark?.headTeacherRemark ?? null,
+      /** Who signs the second comment: the Principal in secondary sections, else the Head teacher. */
+      headLabel: headLabelFor(arm.section),
       height: remark?.heightCm != null ? Number(remark.heightCm) : null,
       weight: remark?.weightKg != null ? Number(remark.weightKg) : null,
       conduct: CONDUCT_TRAITS.map((trait) => ({
@@ -446,3 +448,7 @@ export class ReportCardsService {
     };
   }
 }
+
+/** "Principal" for secondary sections, "Head teacher" for Nursery and Primary. */
+export const headLabelFor = (section: string) =>
+  /secondary/i.test(section) ? 'Principal' : 'Head teacher';

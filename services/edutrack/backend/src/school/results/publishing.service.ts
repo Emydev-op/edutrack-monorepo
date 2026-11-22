@@ -13,7 +13,7 @@ import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { SectionAccessService } from '../shared/section-access.service.js';
 import { asTx, type TenantTx } from '../shared/tenant-tx.js';
 import { TeacherScopeService } from '../teacher/teacher-scope.service.js';
-import { ReportCardsService } from './report-cards.service.js';
+import { headLabelFor, ReportCardsService } from './report-cards.service.js';
 import {
   conflict,
   ResultsCoreService,
@@ -475,58 +475,143 @@ export class PublishingService {
     return { file, name: pdfName(`${card.student.name} ${card.title}`) };
   }
 
-  /** Nursery cards: the head of section's comment, until the class is published. */
-  async headRemark(
-    auth: AuthUserContext,
-    studentId: string,
-    body: { term?: string; remark: string },
-  ) {
-    const term = await this.core.adminTerm(body.term);
-    const { student, arm } = await this.studentArm(studentId, term);
-    await this.sections.requireArm(arm.id, 'report cards');
+  /** Refuses changes to a published class's cards. */
+  private async requireUnpublished(term: TermInfo, arm: ArmInfo) {
     const published = await this.db.resultPublication.findFirst({
       where: { termId: term.id, armId: arm.id },
     });
     if (published)
       throw conflict(
-        `${term.name} results for ${arm.label} are published, so the card is read-only.`,
+        `${term.name} results for ${arm.label} are published, so the cards are read-only.`,
         'RESULTS_PUBLISHED',
       );
-    const remark = body.remark.trim() || null;
-    const existing = await this.db.reportCard.findFirst({ where: { termId: term.id, studentId } });
-    const name = `${student.firstName} ${student.surname}`;
-    await this.db.$transaction(async (tx) => {
-      if (existing)
-        await tx.reportCard.update({
-          where: { id: existing.id },
-          data: { headTeacherRemark: remark },
-        });
-      else
-        await tx.reportCard.create({
-          data: {
-            schoolId: ResultsCoreService.schoolId(),
-            termId: term.id,
-            studentId,
-            armId: arm.id,
-            headTeacherRemark: remark,
-          },
-        });
-      await this.audit.record(
-        {
-          action: 'report_card.head_remark',
-          area: 'Academic',
-          entity: 'ReportCard',
-          entityId: existing?.id ?? null,
-          summary: remark
-            ? `Head teacher’s comment saved for ${name}`
-            : `Head teacher’s comment removed for ${name}`,
-          detail: `${arm.label} · ${term.name}`,
-        },
-        asTx(tx),
-      );
+  }
+
+  /** Saves head teacher (Principal) comments for several students of one arm. */
+  private async writeHeadRemarks(
+    term: TermInfo,
+    arm: ArmInfo,
+    remarks: Map<string, string | null>,
+  ) {
+    const existing = await this.db.reportCard.findMany({
+      where: { termId: term.id, studentId: { in: [...remarks.keys()] } },
+      select: { id: true, studentId: true, headTeacherRemark: true },
     });
-    void auth;
+    const label = headLabelFor(arm.section);
+    let changed = 0;
+    await this.db.$transaction(async (tx) => {
+      for (const [studentId, remark] of remarks) {
+        const card = existing.find((c) => c.studentId === studentId);
+        if ((card?.headTeacherRemark ?? null) === remark) continue;
+        changed++;
+        if (card)
+          await tx.reportCard.update({
+            where: { id: card.id },
+            data: { headTeacherRemark: remark },
+          });
+        else
+          await tx.reportCard.create({
+            data: {
+              schoolId: ResultsCoreService.schoolId(),
+              termId: term.id,
+              studentId,
+              armId: arm.id,
+              headTeacherRemark: remark,
+            },
+          });
+      }
+      if (changed)
+        await this.audit.record(
+          {
+            action: 'report_card.head_remark',
+            area: 'Academic',
+            entity: 'ReportCard',
+            entityId: null,
+            summary: `${label}’s comment${changed === 1 ? '' : 's'} saved for ${plural(changed, 'student')}`,
+            detail: `${arm.label} · ${term.name}`,
+          },
+          asTx(tx),
+        );
+    });
+    return changed;
+  }
+
+  /** One card's head teacher (Principal) comment, until the class is published. */
+  async headRemark(
+    _auth: AuthUserContext,
+    studentId: string,
+    body: { term?: string; remark: string },
+  ) {
+    const term = await this.core.adminTerm(body.term);
+    const { arm } = await this.studentArm(studentId, term);
+    await this.sections.requireArm(arm.id, 'report cards');
+    await this.requireUnpublished(term, arm);
+    await this.writeHeadRemarks(term, arm, new Map([[studentId, body.remark.trim() || null]]));
     return this.reportCard(studentId, term.id);
+  }
+
+  /**
+   * `GET /v1/academics/results/head-remarks/:armId`: every student of an arm with their average,
+   * position and class teacher's remark, for the Principal to comment on the whole class at once.
+   */
+  async headRemarks(armId: string, termId?: string) {
+    const term = await this.core.adminTerm(termId);
+    const arm = await this.arm(armId);
+    const [results, cards, published] = await Promise.all([
+      this.cards.armResults(term, arm),
+      this.db.reportCard.findMany({
+        where: { termId: term.id, armId: arm.id },
+        select: { studentId: true, classTeacherRemark: true, headTeacherRemark: true },
+      }),
+      this.db.resultPublication.findFirst({ where: { termId: term.id, armId: arm.id } }),
+    ]);
+    const descriptive = results.scheme?.mode === 'DESCRIPTIVE';
+    return {
+      armId: arm.id,
+      arm: arm.label,
+      term: `${term.session.name} · ${term.name}`,
+      label: headLabelFor(arm.section),
+      mode: descriptive ? ('descriptive' as const) : ('scores' as const),
+      editable: !published && term.status === 'ACTIVE',
+      students: results.students.map((r) => {
+        const card = cards.find((c) => c.studentId === r.student.id);
+        return {
+          studentId: r.student.id,
+          name: r.student.name,
+          admissionNo: r.student.admissionNo,
+          average: descriptive || r.average === null ? null : r.average,
+          position: descriptive ? null : r.position,
+          classTeacherRemark: card?.classTeacherRemark ?? null,
+          headRemark: card?.headTeacherRemark ?? null,
+        };
+      }),
+    };
+  }
+
+  /** `PUT …/head-remarks/:armId`: `{ remarks: { [studentId]: text } }`; empty text removes one. */
+  async saveHeadRemarks(armId: string, termId: string | undefined, input: Record<string, string>) {
+    const term = await this.core.adminTerm(termId);
+    const arm = await this.arm(armId);
+    await this.sections.requireArm(arm.id, 'report cards');
+    await this.requireUnpublished(term, arm);
+    const roll = new Set(
+      (await this.cards.armResults(term, arm)).students.map((r) => r.student.id),
+    );
+    const fields: Record<string, string> = {};
+    const remarks = new Map<string, string | null>();
+    for (const [id, text] of Object.entries(input ?? {})) {
+      if (!roll.has(id)) fields[id] = 'This student isn’t in the class.';
+      else if (typeof text !== 'string') fields[id] = 'Send the comment as text.';
+      else if (text.trim().length > 400) fields[id] = 'Keep the comment to 400 characters.';
+      else remarks.set(id, text.trim() || null);
+    }
+    if (Object.keys(fields).length)
+      throw AppException.validation(
+        fields,
+        'Some comments couldn’t be saved. Check the highlighted rows.',
+      );
+    const saved = await this.writeHeadRemarks(term, arm, remarks);
+    return { ...(await this.headRemarks(armId, term.id)), saved };
   }
 
   async hold(auth: AuthUserContext, studentId: string, body: { term?: string; reason?: string }) {
