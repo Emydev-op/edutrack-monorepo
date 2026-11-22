@@ -22,7 +22,7 @@ const { fields, push, remove } = useFieldArray<BranchRow>('branches');
 const list = ref<HTMLElement>();
 /** Adds a branch running what the last one runs, with the cursor in its name, ready to type. */
 async function addBranch() {
-  const last = fields.value.at(-1)?.value.sections ?? [];
+  const last = fields.value[fields.value.length - 1]?.value.sections ?? [];
   push({ name: '', address: '', sections: [...last] });
   await nextTick();
   list.value
