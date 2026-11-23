@@ -4,6 +4,7 @@ import { AppException } from '../../common/errors/app.exception.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { GROUP_ROLE_LABEL } from '../../platform/groups/groups.service.js';
 import { ON_ROLL } from '../students/student-view.js';
+import { BILLED } from './group-reports.service.js';
 
 const naira = (kobo: bigint | null | undefined) => Number(kobo ?? 0n) / 100;
 
@@ -59,7 +60,7 @@ export class GroupOverviewService {
           this.prisma.branch.count({ where: { schoolId: s.id, status: 'ACTIVE' } }),
           seesFees && term
             ? this.prisma.invoice.aggregate({
-                where: { schoolId: s.id, termId: term.id, status: 'ISSUED' },
+                where: { schoolId: s.id, termId: term.id, status: { in: BILLED } },
                 _sum: { totalKobo: true, paidKobo: true },
               })
             : null,

@@ -55,6 +55,18 @@ const router = createRouter({
           },
         },
         {
+          ...routesPath.groupReports,
+          component: () => import('@/views/group/GroupReportsView.vue'),
+          meta: {
+            title: 'Group reports',
+            nav: routesPath.groupOverview.name,
+            breadcrumb: [
+              { label: 'Group overview', to: routesPath.groupOverview.name },
+              { label: 'Reports' },
+            ],
+          },
+        },
+        {
           ...routesPath.setup,
           component: () => import('@/views/setup/SetupCenterView.vue'),
           meta: { title: 'Setup Center', breadcrumb: [{ label: 'Setup Center' }] },

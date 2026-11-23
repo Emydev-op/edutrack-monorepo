@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
+import type { Ref } from 'vue';
 
 import { useAuthStore } from '@/stores/auth';
 import type { LoginResponse } from '@/types';
@@ -96,3 +97,74 @@ export const useApplyGroupTemplateMutation = () => {
     onSuccess: (data) => qc.setQueryData(['group-templates'], data),
   });
 };
+
+export type ReportPeriod = 'current' | 'previous';
+export interface GroupReportSchool {
+  id: string;
+  name: string;
+  brandColor: string | null;
+  term: string | null;
+  compareTerm: string | null;
+  students: { onRoll: number; admitted: number; left: number };
+  staff: { total: number; teaching: number; perTeacher: number | null };
+  attendance: { rate: number | null; before: number | null };
+  results: {
+    graded: number;
+    average: number | null;
+    passRate: number | null;
+    averageBefore: number | null;
+    passRateBefore: number | null;
+  };
+  fees: {
+    billed: number;
+    collected: number;
+    outstanding: number;
+    rate: number | null;
+    rateBefore: number | null;
+    collectedBefore: number | null;
+  } | null;
+  enrolmentBefore: { admitted: number; left: number } | null;
+}
+export interface GroupReports {
+  group: { id: string; name: string };
+  role: string;
+  period: ReportPeriod;
+  seesFees: boolean;
+  schools: GroupReportSchool[];
+  totals: {
+    schools: number;
+    students: { onRoll: number; admitted: number; left: number };
+    staff: { total: number; teaching: number; perTeacher: number | null };
+    attendance: number | null;
+    results: { graded: number; average: number | null; passRate: number | null };
+    fees: { billed: number; collected: number; outstanding: number; rate: number | null } | null;
+  };
+  subjects: {
+    subject: string;
+    schools: Record<string, number>;
+    average: number;
+    results: number;
+  }[];
+  topStudents: {
+    name: string;
+    school: string;
+    className: string;
+    subjects: number;
+    average: number;
+  }[];
+  arrears:
+    | { school: string; schoolId: string; level: string; students: number; outstanding: number }[]
+    | null;
+  collections: { month: string; schools: Record<string, number>; total: number }[] | null;
+  methods: { method: string; amount: number }[] | null;
+}
+
+/** Group reports for this term or the term before, compared with the term before that. */
+export const useGroupReportsQuery = (period: Ref<ReportPeriod>) =>
+  useQuery({
+    queryKey: ['group-reports', period],
+    queryFn: () =>
+      getRequest<GroupReports>('/v1/group/reports', { params: { period: period.value } }),
+    retry: false,
+    staleTime: 60_000,
+  });
