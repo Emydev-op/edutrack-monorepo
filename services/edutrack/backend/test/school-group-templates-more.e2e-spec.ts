@@ -100,6 +100,8 @@ describe('Group templates: term dates, subjects, policies, branding; group annou
     // Crestview goes back to a new school: no session, its own subjects, branding and policies.
     const sessions = await t.prisma.academicSession.findMany({ where: { schoolId: crestview } });
     const ids = sessions.map((x) => x.id);
+    // The announcement gave Crestview its term's SMS allowance; it goes with the term.
+    await t.prisma.smsCreditTransaction.deleteMany({ where: { term: { sessionId: { in: ids } } } });
     await t.prisma.termEvent.deleteMany({ where: { term: { sessionId: { in: ids } } } });
     await t.prisma.term.deleteMany({ where: { sessionId: { in: ids } } });
     await t.prisma.curriculumEntry.deleteMany({ where: { sessionId: { in: ids } } });
