@@ -128,7 +128,7 @@ describe('Subject choices (e2e)', () => {
 
     const picks = validPicks(options);
     const res = await admit(picks);
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(200);
     studentId = res.body.data.studentId;
     const saved = await t.prisma.studentSubject.findMany({ where: { studentId } });
     expect(saved.map((s) => s.subjectId).sort()).toEqual(

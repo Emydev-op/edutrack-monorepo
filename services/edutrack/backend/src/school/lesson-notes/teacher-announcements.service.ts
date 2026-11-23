@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { ROLE_DISPLAY_ORDER } from '../../auth/permissions/school-permissions.js';
 import { Clock } from '../../common/clock/clock.js';
+import { RequestContext } from '../../common/context/request-context.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import type { Prisma } from '../../generated/prisma/client.js';
 import { fromIso } from '../academics/academic-format.js';
@@ -70,7 +71,10 @@ export class TeacherAnnouncementsService {
             },
           })
         : [],
-      this.db.school.findFirst({ select: { name: true } }),
+      this.db.school.findFirst({
+        where: { id: RequestContext.schoolId() },
+        select: { name: true },
+      }),
     ]);
     const now = this.clock.now();
     return rows.map((a) => {
