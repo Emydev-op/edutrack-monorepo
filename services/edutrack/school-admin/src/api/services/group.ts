@@ -53,3 +53,46 @@ export const useSwitchSchoolMutation = () => {
     },
   });
 };
+
+export interface GroupTemplate {
+  key: 'grading' | 'fees' | 'roles' | 'messages';
+  label: string;
+  description: string;
+  canEdit: boolean;
+  saved: { at: string; from: string | null } | null;
+  schools: { schoolId: string; school: string; status: 'Matches' | 'Differs' | 'Not set' | null }[];
+}
+export interface GroupTemplatesView {
+  group: string;
+  templates: GroupTemplate[];
+}
+type ApplyResult = GroupTemplatesView & {
+  label: string;
+  results: { school: string; applied: boolean; notes: string[] }[];
+};
+
+/** The group's shared setup and whether each school matches it. */
+export const useGroupTemplatesQuery = () =>
+  useQuery({
+    queryKey: ['group-templates'],
+    queryFn: () => getRequest<GroupTemplatesView>('/v1/group/templates'),
+    retry: false,
+  });
+
+export const useSaveGroupTemplateMutation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ key, schoolId }: { key: string; schoolId: string }) =>
+      postRequest<GroupTemplatesView>(`/v1/group/templates/${key}/save`, { schoolId }),
+    onSuccess: (data) => qc.setQueryData(['group-templates'], data),
+  });
+};
+
+export const useApplyGroupTemplateMutation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ key, schoolIds }: { key: string; schoolIds: string[] }) =>
+      postRequest<ApplyResult>(`/v1/group/templates/${key}/apply`, { schoolIds }),
+    onSuccess: (data) => qc.setQueryData(['group-templates'], data),
+  });
+};
