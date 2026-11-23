@@ -1,4 +1,5 @@
 import { GroupModule } from './group/group.module.js';
+import { MessagingModule } from './messaging/messaging.module.js';
 import { BranchAccessModule } from './shared/branch-access.service.js';
 import { Module } from '@nestjs/common';
 import { OrganogramModule } from './organogram/organogram.module.js';
@@ -38,6 +39,7 @@ import { StudentsModule } from './students/students.module.js';
   // StaffModule last: OrganogramModule's GET /v1/staff/options must register before GET /v1/staff/:id.
   imports: [
     GroupModule,
+    MessagingModule,
     BranchAccessModule,
     SchoolProfileModule,
     OrganogramModule,

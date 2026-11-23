@@ -92,6 +92,20 @@ export interface AnnouncementData {
   schoolName: string;
 }
 
+/** A new message in a conversation (Parent Portal, Teacher Workspace or the school office). */
+export interface ChatMessageData {
+  /** "Mrs. Funke Adeyemi", "Mr. Gabriel Okafor", "Greenfield Academy office". */
+  recipientName: string;
+  /** Who wrote it, as the recipient sees them. */
+  from: string;
+  subject: string;
+  /** The start of the message. */
+  preview: string;
+  /** The conversation in the recipient's portal. */
+  link: string;
+  schoolName: string;
+}
+
 export interface TemplateDataMap {
   invitation: InvitationData;
   'password-reset': PasswordResetData;
@@ -102,6 +116,7 @@ export interface TemplateDataMap {
   'email-changed': EmailChangedData;
   'support-update': SupportUpdateData;
   announcement: AnnouncementData;
+  'chat-message': ChatMessageData;
 }
 
 export type TemplateName = keyof TemplateDataMap;
@@ -268,6 +283,21 @@ export function renderEmail<T extends TemplateName>(
         html: layout(lines, undefined, footer),
       };
     }
+    case 'chat-message': {
+      const d = data as ChatMessageData;
+      const lines = [
+        `Hello ${d.recipientName},`,
+        `${d.from} sent you a message about “${d.subject}”:`,
+        d.preview,
+        'Open the conversation to read it all and reply.',
+      ];
+      const footer = `Sent by ${d.schoolName} through EduTrack. Reply in the portal, not to this email.`;
+      return {
+        subject: `New message from ${d.from}: ${d.subject}`,
+        text: `${lines.join('\n\n')}\n\n${d.link}\n\n${footer}`,
+        html: layout(lines, { label: 'Open the conversation', href: d.link }, footer),
+      };
+    }
     default:
       throw new Error(`Unknown email template: ${String(template)}`);
   }
@@ -308,6 +338,10 @@ export function renderSms<T extends TemplateName>(template: T, data: TemplateDat
     }
     case 'announcement':
       return (data as AnnouncementData).body;
+    case 'chat-message': {
+      const d = data as ChatMessageData;
+      return `${d.from} sent you a message: ${d.subject}. ${d.link}`;
+    }
     default:
       throw new Error(`Unknown SMS template: ${String(template)}`);
   }

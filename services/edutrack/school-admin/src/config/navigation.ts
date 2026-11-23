@@ -77,6 +77,7 @@ export const navigation: NavGroup[] = [
   {
     label: 'Communication',
     items: [
+      item('Messages', r.communication.messages),
       item('Announcements', r.communication.announcements),
       item('Notifications', r.communication.notifications),
       item('Delivery Logs', r.communication.delivery),

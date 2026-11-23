@@ -228,6 +228,9 @@ model School {
   lessonNotes              LessonNote[]
   branchLevels             BranchLevel[]
 
+  conversations Conversation[]
+  chatMessages  ChatMessage[]
+
   @@index([status])
   @@index([state])
   @@index([createdAt])

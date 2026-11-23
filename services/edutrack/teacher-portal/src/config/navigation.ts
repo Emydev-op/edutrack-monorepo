@@ -67,6 +67,7 @@ export const navigation: NavGroup[] = [
   {
     label: '',
     items: [
+      item('Messages', r.messages.list),
       item('Announcements', r.announcements.list),
       item('Notifications', r.notifications.list),
       item('Profile', r.profile.view),

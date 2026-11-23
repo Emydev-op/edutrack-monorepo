@@ -72,6 +72,12 @@ export const routesPath = {
     lessonNotes: { name: 'review-notes', path: '/reviews/lesson-notes' },
     note: { name: 'review-note', path: '/reviews/lesson-notes/:noteId' },
   },
+  messages: {
+    list: { name: 'messages', path: '/messages' },
+    new: { name: 'message-new', path: '/messages/new' },
+    /** Emails link here, so the path must stay `/messages/:id`. */
+    thread: { name: 'message', path: '/messages/:id' },
+  },
   announcements: {
     list: { name: 'announcements', path: '/announcements' },
     detail: { name: 'announcement', path: '/announcements/:id' },

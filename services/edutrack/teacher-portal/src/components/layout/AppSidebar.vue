@@ -22,8 +22,10 @@ import { useStorage } from '@vueuse/core';
 import { computed, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 
+import { useConversationsQuery } from '@/api/services/messages';
 import { useMeQuery, useNavCountsQuery } from '@/api/services/shell';
 import { navigationFor, navKeyAliases, type NavItem } from '@/config/navigation';
+import { routesPath } from '@/router/routes-path';
 import { useSchoolBrand } from '@/lib/school-brand';
 import { useAuthStore } from '@/stores/auth';
 
@@ -31,6 +33,8 @@ const route = useRoute();
 const auth = useAuthStore();
 const { data: me } = useMeQuery();
 const { data: counts } = useNavCountsQuery();
+// Unread messages from parents: the conversation list refreshes itself every 30 s.
+const { data: inbox } = useConversationsQuery();
 // Screens outside the school's plan are hidden.
 const groups = computed(() => navigationFor(me.value, auth.school?.modules));
 
@@ -40,7 +44,10 @@ const activeKey = computed(() => {
   const key = (route.meta.nav as string | undefined) ?? (route.name as string | undefined) ?? '';
   return navKeyAliases[key] ?? key;
 });
-const badgeFor = (item: NavItem) => counts.value?.[item.route] || undefined;
+const badgeFor = (item: NavItem) =>
+  (item.route === routesPath.messages.list.name
+    ? inbox.value?.unread
+    : counts.value?.[item.route]) || undefined;
 const toggleGroup = (label: string) =>
   (collapsed.value = { ...collapsed.value, [label]: !collapsed.value[label] });
 

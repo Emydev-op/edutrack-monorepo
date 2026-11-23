@@ -164,6 +164,8 @@ model Staff {
   assignments               Assignment[]
   materials                 Material[]
 
+  conversations Conversation[]
+
   @@unique([schoolId, id])
   @@unique([schoolId, staffNumber])
   @@index([schoolId, status, group])
@@ -270,6 +272,8 @@ model Guardian {
   messageRecipients MessageRecipient[]
   payments          Payment[]
 
+  conversations Conversation[]
+
   @@unique([schoolId, id])
   @@index([schoolId, phone])
   @@index([schoolId, email])
@@ -339,6 +343,8 @@ model Student {
   reportCards          ReportCard[]
   submissions          Submission[]
   materialViews        MaterialView[]
+
+  conversations Conversation[]
 
   @@unique([schoolId, id])
   @@unique([schoolId, admissionNo])

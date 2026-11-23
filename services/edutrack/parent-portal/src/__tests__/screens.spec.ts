@@ -364,6 +364,56 @@ const DATA: Record<string, unknown> = {
     unread: 1,
     total: 1,
   },
+  '/v1/parent/messages': {
+    conversations: [
+      {
+        id: 'c1',
+        kind: 'Teacher',
+        subject: 'Reading at home',
+        with: 'Mrs. Bisi Okafor',
+        about: 'Michael Adeyemi',
+        lastMessage: {
+          body: 'Thank you, I’ll check.',
+          at: '2026-11-20T09:00:00.000Z',
+          fromMe: false,
+        },
+        unread: 1,
+      },
+    ],
+    unread: 1,
+  },
+  '/v1/parent/messages/contacts': {
+    school: 'Greenfield Academy',
+    children: [
+      {
+        studentId: 'michael',
+        name: 'Michael Adeyemi',
+        onRoll: true,
+        className: 'Primary 4A',
+        teachers: [
+          { staffId: 's1', name: 'Mrs. Bisi Okafor', roles: ['Class teacher', 'Mathematics'] },
+        ],
+      },
+    ],
+  },
+  '/v1/parent/messages/c1': {
+    id: 'c1',
+    kind: 'Teacher',
+    subject: 'Reading at home',
+    with: 'Mrs. Bisi Okafor',
+    about: 'Michael Adeyemi',
+    canReply: true,
+    messages: [
+      {
+        id: 'm1',
+        body: 'Thank you, I’ll check.',
+        at: '2026-11-20T09:00:00.000Z',
+        sender: 'Teacher',
+        mine: false,
+        from: 'Mrs. Bisi Okafor',
+      },
+    ],
+  },
 };
 
 vi.mock('@/api/helpers', () => ({
@@ -396,6 +446,9 @@ const SCREENS: [string, string][] = [
   ['/notifications', 'Results published'],
   ['/profile', 'Notifications'],
   ['/more', 'Contact school'],
+  ['/messages', 'Reading at home'],
+  ['/messages/new', 'Class teacher · Mathematics'],
+  ['/messages/c1', 'Thank you, I’ll check.'],
 ];
 
 async function render(path: string) {
@@ -419,6 +472,7 @@ async function render(path: string) {
 
 vi.stubGlobal('scrollTo', () => undefined);
 Element.prototype.scrollTo = () => undefined;
+Element.prototype.scrollIntoView = () => undefined;
 
 describe('sign-in screens', () => {
   beforeEach(() => {
