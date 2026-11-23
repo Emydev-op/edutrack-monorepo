@@ -23,6 +23,8 @@ import {
 import { useSchoolsQuery } from '@/api/services/schools';
 import { routesPath } from '@/router/routes-path';
 
+import GroupBillingCard from './GroupBillingCard.vue';
+
 /**
  * One school group: its schools (each in one group at most) and its staff (Group owner, finance or
  * academic), who get an account in every school of the group. New staff are invited by email.
@@ -179,6 +181,7 @@ const removeStaff = (s: { id: string; name: string }) =>
           <Button type="submit" :disabled="addStaff.isPending.value">Add and invite</Button>
         </form>
       </SectionCard>
+      <GroupBillingCard :group-id="group.id" class="lg:col-span-2" />
     </div>
   </template>
 </template>

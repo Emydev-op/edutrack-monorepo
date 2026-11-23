@@ -75,3 +75,77 @@ export const useGroupStaffMutation = (id: MaybeRefOrGetter<string>) =>
       ? putRequest<GroupDetail>(`/v1/platform/groups/${toValue(id)}/staff/${staffId}`, { role })
       : deleteRequest<GroupDetail>(`/v1/platform/groups/${toValue(id)}/staff/${staffId}`),
   );
+
+export type GroupPeriod = 'Annual' | 'Termly' | 'Monthly';
+export const GROUP_PERIODS: GroupPeriod[] = ['Annual', 'Termly', 'Monthly'];
+
+export interface GroupBilling {
+  plan: string | null;
+  period: GroupPeriod | null;
+  priceKobo: number | null;
+  price: string | null;
+  /** What the member schools would pay on their own. */
+  separately: string | null;
+  startedOn: string | null;
+  renewsOn: string | null;
+  renewsOnLabel: string | null;
+  billingContactEmail: string | null;
+  status: 'Not set' | 'Active' | 'Overdue' | 'Lapsed';
+  invoices: {
+    number: string;
+    period: string;
+    amount: string;
+    dueOn: string;
+    status: 'Paid' | 'Due' | 'Overdue';
+    reference: string | null;
+  }[];
+}
+
+const billingKey = (id: string) => ['groups', id, 'billing'] as const;
+
+export const useGroupBillingQuery = (id: MaybeRefOrGetter<string>) =>
+  useQuery({
+    queryKey: computed(() => billingKey(toValue(id))),
+    queryFn: () => getRequest<GroupBilling>(`/v1/platform/groups/${toValue(id)}/billing`),
+  });
+
+/** Group plan, stop, invoice and payment: they all change the group's schools' subscriptions. */
+export const useGroupBillingMutation = (id: MaybeRefOrGetter<string>) => {
+  const qc = useQueryClient();
+  const base = () => `/v1/platform/groups/${toValue(id)}/billing`;
+  return useMutation({
+    mutationFn: (
+      a:
+        | {
+            kind: 'plan';
+            plan: string;
+            period: GroupPeriod;
+            priceNaira: number;
+            renewsOn?: string;
+            billingContactEmail?: string;
+          }
+        | { kind: 'stop' }
+        | { kind: 'invoice' }
+        | { kind: 'payment'; number: string; reference: string },
+    ) => {
+      if (a.kind === 'plan')
+        return putRequest<GroupBilling>(base(), {
+          plan: a.plan,
+          period: a.period,
+          priceNaira: a.priceNaira,
+          renewsOn: a.renewsOn,
+          billingContactEmail: a.billingContactEmail,
+        });
+      if (a.kind === 'stop') return deleteRequest<GroupBilling>(base());
+      if (a.kind === 'invoice') return postRequest<GroupBilling>(`${base()}/invoices`, {});
+      return postRequest<GroupBilling>(`${base()}/invoices/${a.number}/payment`, {
+        reference: a.reference,
+      });
+    },
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: keys.all }),
+        qc.invalidateQueries({ queryKey: queryKeys.schools.all }),
+      ]),
+  });
+};

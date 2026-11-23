@@ -1,5 +1,6 @@
 import { GroupsController } from './groups/groups.controller.js';
 import { GroupsService } from './groups/groups.service.js';
+import { GroupBillingService } from './groups/group-billing.service.js';
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
@@ -59,6 +60,7 @@ import { UsersService } from './users/users.service.js';
   ],
   providers: [
     GroupsService,
+    GroupBillingService,
     AccountService,
     DailyChecksProcessor,
     DailyChecksService,

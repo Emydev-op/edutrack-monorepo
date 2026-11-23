@@ -218,7 +218,7 @@ export class DashboardService {
       }),
       this.prisma.platformInvoice.findMany({
         where: overdueInvoice(today),
-        select: { schoolId: true, amountKobo: true },
+        select: { schoolId: true, groupId: true, amountKobo: true },
       }),
       this.prisma.subscription.count({
         where: {
@@ -244,7 +244,7 @@ export class DashboardService {
       stats: {
         activeSubscriptions,
         renewals,
-        overdue: new Set(overdueRows.map((r) => r.schoolId)).size,
+        overdue: new Set(overdueRows.map((r) => r.schoolId ?? r.groupId)).size,
         overdueAmount: formatNairaShort(overdueAmount),
         expiringSoon,
       },
