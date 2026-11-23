@@ -37,7 +37,10 @@ import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import type { ClassArm, ClassLevel } from '@/types';
 
+import AddMenu from '@/components/common/AddMenu.vue';
+
 import ArmDrawer from './ArmDrawer.vue';
+import ImportClassesPanel from './ImportClassesPanel.vue';
 import LevelDrawer from './LevelDrawer.vue';
 
 const r = routesPath.academics;
@@ -246,10 +249,17 @@ const armActions = (a: ClassArm): RowAction[] => [
       <Button as-child variant="outline"
         ><RouterLink :to="{ name: r.sections.name }">Academic sections</RouterLink></Button
       >
-      <Button variant="outline" :disabled="!sectionsReady" @click="addLevel()"
-        >Add class level</Button
+      <AddMenu
+        label="Add class level"
+        manual-label="Add a class level"
+        bulk-title="Bulk upload classes and arms"
+        bulk-description="One row per arm. Class levels a branch doesn’t have yet are added with their arms."
+        :disabled="!sectionsReady"
+        @manual="addLevel()"
       >
-      <Button :disabled="!levels.length" @click="pickLevelForArm">Add arm</Button>
+        <template #default="{ close }"><ImportClassesPanel @done="close" /></template>
+      </AddMenu>
+      <Button variant="outline" :disabled="!levels.length" @click="pickLevelForArm">Add arm</Button>
     </template>
   </PageHeader>
 

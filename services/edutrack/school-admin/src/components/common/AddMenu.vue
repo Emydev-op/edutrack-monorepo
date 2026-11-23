@@ -19,16 +19,20 @@ import { useRouter, type RouteLocationRaw } from 'vue-router';
 
 /**
  * "Add" with two ways in: one record by hand (the form), or many at once from the Excel template
- * (the bulk upload in a modal, given as the default slot; it emits `done` to close).
+ * (the bulk upload in a modal, given as the default slot; it emits `done` to close). Without
+ * `manualTo`, choosing the form emits `manual` (for a form that opens in a drawer).
  */
 const props = defineProps<{
   label: string;
   manualLabel: string;
-  manualTo: RouteLocationRaw;
+  manualTo?: RouteLocationRaw;
+  disabled?: boolean;
   bulkTitle: string;
   bulkDescription: string;
 }>();
+const emit = defineEmits<{ manual: [] }>();
 const router = useRouter();
+const manual = () => (props.manualTo ? router.push(props.manualTo) : emit('manual'));
 const open = ref(false);
 const close = () => (open.value = false);
 </script>
@@ -36,10 +40,12 @@ const close = () => (open.value = false);
 <template>
   <DropdownMenu>
     <DropdownMenuTrigger as-child>
-      <Button><PlusIcon />{{ props.label }}<ChevronDownIcon class="size-4" /></Button>
+      <Button :disabled="props.disabled"
+        ><PlusIcon />{{ props.label }}<ChevronDownIcon class="size-4"
+      /></Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end" class="w-60">
-      <DropdownMenuItem @select="router.push(props.manualTo)">
+      <DropdownMenuItem @select="manual">
         <PlusIcon />
         <span class="flex flex-col">
           <span>{{ props.manualLabel }}</span>

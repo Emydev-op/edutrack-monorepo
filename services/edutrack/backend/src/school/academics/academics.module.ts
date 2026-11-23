@@ -8,6 +8,7 @@ import { AcademicSetupSteps } from './academic-steps.js';
 import { AcademicStructureService } from './academic-structure.service.js';
 import { AcademicsController } from './academics.controller.js';
 import { ClassesService } from './classes.service.js';
+import { ClassImportService } from './class-import.service.js';
 import { SectionsService } from './sections.service.js';
 import { SessionsService } from './sessions.service.js';
 
@@ -27,6 +28,7 @@ import { SessionsService } from './sessions.service.js';
     SectionsService,
     SessionsService,
     ClassesService,
+    ClassImportService,
     SchoolAuditService,
     SetupStateService,
   ],
