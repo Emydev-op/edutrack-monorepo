@@ -50,6 +50,11 @@ async function open(id: string, name: string) {
       :description="`Group overview · ${data.role} · ${data.totals.schools} schools`"
     >
       <template #actions>
+        <Button v-if="data.role === 'Group owner'" as-child variant="outline"
+          ><RouterLink :to="{ name: routesPath.groupAnnouncement.name }"
+            >Announcement</RouterLink
+          ></Button
+        >
         <Button as-child variant="outline"
           ><RouterLink :to="{ name: routesPath.groupReports.name }">Reports</RouterLink></Button
         >

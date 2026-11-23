@@ -129,6 +129,7 @@ export const REAL_ROUTES: readonly string[] = [
   // Communication: announcements, delivery logs, templates and notification settings (SMS units,
   // sender ID, quiet hours).
   'GET /v1/comms/options',
+  'GET /v1/comms/people',
   '* /v1/comms/announcements/**',
   '* /v1/comms/deliveries/**',
   '* /v1/comms/templates/**',

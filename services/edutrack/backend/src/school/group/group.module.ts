@@ -10,14 +10,30 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
-import { ArrayMaxSize, IsArray, IsString, IsUUID } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsIn,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 import { ApiForbiddenResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { Portals } from '../../auth/decorators/auth.decorators.js';
 import { CurrentUser } from '../../common/decorators/request.decorators.js';
 import { RawResponse, ResponseMessage } from '../../common/http/api-response.js';
 import { InsightsResultsService } from '../insights/insights-results.service.js';
+import { AcademicsModule } from '../academics/academics.module.js';
+import { CHANNELS, type Channel } from '../communication/comms-catalog.js';
+import { CommunicationModule } from '../communication/communication.module.js';
 import { ResultsModule } from '../results/results.module.js';
+import {
+  GROUP_AUDIENCES,
+  GroupAnnouncementsService,
+  type GroupAudience,
+} from './group-announcements.service.js';
 import { GroupOverviewService } from './group-overview.service.js';
 import { GroupReportsService, type Period } from './group-reports.service.js';
 import { GroupTemplatesService } from './group-templates.service.js';
@@ -36,6 +52,41 @@ export class TemplateTargetsDto {
   schoolIds!: string[];
 }
 
+export class GroupAudienceDto {
+  @ApiProperty({ enum: GROUP_AUDIENCES })
+  @IsIn(GROUP_AUDIENCES, { message: 'Choose who the announcement is for.' })
+  audience!: GroupAudience;
+
+  @ApiProperty({ type: [String], enum: CHANNELS })
+  @IsArray()
+  @IsIn(CHANNELS, { each: true, message: 'Choose In-app, Email or SMS.' })
+  channels!: Channel[];
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  smsText?: string;
+
+  @ApiProperty({ type: [String], description: 'The group’s schools to send it in' })
+  @ArrayMaxSize(100)
+  @IsString({ each: true })
+  @IsArray()
+  schoolIds!: string[];
+}
+
+export class GroupAnnouncementDto extends GroupAudienceDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(120)
+  title!: string;
+
+  @ApiProperty()
+  @IsString()
+  @MaxLength(2000)
+  body!: string;
+}
+
 const periodOf = (p?: string): Period => (p === 'previous' ? 'previous' : 'current');
 
 /** School Admin › Group overview (`/v1/group`), for a school group's own staff. */
@@ -47,7 +98,34 @@ export class GroupController {
     private readonly groups: GroupOverviewService,
     private readonly templates: GroupTemplatesService,
     private readonly reports: GroupReportsService,
+    private readonly announcements: GroupAnnouncementsService,
   ) {}
+
+  @ResponseMessage('Recipients counted.')
+  @Post('announcements/preview')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Who a group announcement reaches in each chosen school, and the SMS units it needs',
+  })
+  @ApiForbiddenResponse({ description: 'NOT_GROUP_STAFF, GROUP_ROLE_FORBIDDEN (owner only)' })
+  previewAnnouncement(@CurrentUser() auth: AuthUserContext, @Body() dto: GroupAudienceDto) {
+    return this.announcements.preview(auth, dto);
+  }
+
+  @ResponseMessage(
+    (r: { sent: number; results: unknown[]; recipients: number }) =>
+      `Sent in ${r.sent} of ${r.results.length} schools to ${r.recipients.toLocaleString('en-NG')} recipients.`,
+  )
+  @Post('announcements')
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'Send one announcement in several of the group’s schools (each school sends its own copy)',
+  })
+  @ApiForbiddenResponse({ description: 'NOT_GROUP_STAFF, GROUP_ROLE_FORBIDDEN (owner only)' })
+  sendAnnouncement(@CurrentUser() auth: AuthUserContext, @Body() dto: GroupAnnouncementDto) {
+    return this.announcements.send(auth, dto);
+  }
 
   @ResponseMessage('Group reports loaded.')
   @Get('reports')
@@ -96,7 +174,8 @@ export class GroupController {
   @Post('templates/:key/save')
   @HttpCode(200)
   @ApiOperation({
-    summary: 'Save a template (grading, fees, roles, messages) from a member school',
+    summary:
+      'Save a template (grading, fees, roles, messages, term dates, subjects, policies, branding) from a member school',
   })
   saveTemplate(
     @CurrentUser() auth: AuthUserContext,
@@ -125,12 +204,13 @@ export class GroupController {
 }
 
 @Module({
-  imports: [ResultsModule],
+  imports: [ResultsModule, AcademicsModule, CommunicationModule],
   controllers: [GroupController],
   providers: [
     GroupOverviewService,
     GroupTemplatesService,
     GroupReportsService,
+    GroupAnnouncementsService,
     InsightsResultsService,
   ],
 })

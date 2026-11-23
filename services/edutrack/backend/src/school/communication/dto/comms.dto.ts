@@ -30,6 +30,12 @@ export class AudienceDto {
   @IsOptional()
   @IsString()
   branchId?: string | null;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  people?: string[];
 }
 
 class ChannelsAndAudience {

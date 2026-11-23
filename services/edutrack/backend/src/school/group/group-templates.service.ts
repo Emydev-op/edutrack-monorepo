@@ -1,9 +1,15 @@
+import { createHash } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { Clock } from '../../common/clock/clock.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import type { GroupRole, GroupTemplateKind, Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { StorageService } from '../../storage/storage.service.js';
+import { eventTypeFromDb, isoDate } from '../academics/academic-format.js';
+import { SessionsService } from '../academics/sessions.service.js';
+import { schoolFileKey } from '../profile/school-files.js';
+import { asGroupSchool } from './group-context.js';
 
 type Kind = GroupTemplateKind;
 export const TEMPLATE_KINDS: { kind: Kind; key: string; label: string; description: string }[] = [
@@ -31,6 +37,32 @@ export const TEMPLATE_KINDS: { kind: Kind; key: string; label: string; descripti
     label: 'Message templates',
     description: 'SMS and email wording for results, fees and announcements',
   },
+  {
+    kind: 'CALENDAR',
+    key: 'calendar',
+    label: 'Term dates',
+    description:
+      'This session’s term dates and events (resumption, mid-term, exams), for a session of the same name',
+  },
+  {
+    kind: 'SUBJECTS',
+    key: 'subjects',
+    label: 'Subjects & curriculum',
+    description: 'Subjects, and which class levels offer each one this session',
+  },
+  {
+    kind: 'POLICIES',
+    key: 'policies',
+    label: 'School policies',
+    description:
+      'Exempt-score reweighting, promotion suggestions and fee holds, register edit window and sign-in rules',
+  },
+  {
+    kind: 'BRANDING',
+    key: 'branding',
+    label: 'Branding',
+    description: 'Logo, brand colour and motto',
+  },
 ];
 const byKey = new Map(TEMPLATE_KINDS.map((k) => [k.key, k]));
 
@@ -40,6 +72,10 @@ const MAY: Record<Kind, GroupRole[]> = {
   FEES: ['OWNER', 'FINANCE'],
   ROLES: ['OWNER'],
   MESSAGES: ['OWNER'],
+  CALENDAR: ['OWNER', 'ACADEMIC'],
+  SUBJECTS: ['OWNER', 'ACADEMIC'],
+  POLICIES: ['OWNER'],
+  BRANDING: ['OWNER'],
 };
 
 const dec = (v: Prisma.Decimal | number | null | undefined) =>
@@ -64,16 +100,19 @@ function matches(template: unknown, own: unknown): boolean {
   if (!own) return false;
   const t = template as Record<string, unknown[]>;
   const o = own as Record<string, unknown[]>;
-  return Object.keys(t).every((key) => {
-    const mine = new Set((o[key] ?? []).map(canonical));
-    const theirs = t[key] ?? [];
-    if (key === 'sections') {
-      const codes = new Set((o[key] ?? []).map((x) => (x as { code: string }).code));
-      const shared = theirs.filter((x) => codes.has((x as { code: string }).code));
-      return shared.length > 0 && shared.every((x) => mine.has(canonical(x)));
-    }
-    return theirs.every((x) => mine.has(canonical(x)));
-  });
+  // Keys starting with "_" carry what's needed to copy (a logo's file), not what's compared.
+  return Object.keys(t)
+    .filter((key) => !key.startsWith('_'))
+    .every((key) => {
+      const mine = new Set((o[key] ?? []).map(canonical));
+      const theirs = t[key] ?? [];
+      if (key === 'sections') {
+        const codes = new Set((o[key] ?? []).map((x) => (x as { code: string }).code));
+        const shared = theirs.filter((x) => codes.has((x as { code: string }).code));
+        return shared.length > 0 && shared.every((x) => mine.has(canonical(x)));
+      }
+      return theirs.every((x) => mine.has(canonical(x)));
+    });
 }
 
 interface GradingData {
@@ -114,6 +153,42 @@ interface RolesData {
 interface MessagesData {
   templates: { event: string; channel: string; subject: string; body: string }[];
 }
+interface CalendarData {
+  session: { name: string; startsOn: string; endsOn: string }[];
+  terms: {
+    sequence: number;
+    name: string;
+    startsOn: string;
+    endsOn: string;
+    events: { type: string; name: string; startsOn: string; endsOn: string }[];
+  }[];
+}
+interface SubjectsData {
+  subjects: {
+    code: string;
+    name: string;
+    category: string;
+    periodsPerWeek: number;
+    section: string | null;
+  }[];
+  offerings: { level: string; subject: string; offering: string; periodsPerWeek: number | null }[];
+}
+interface PoliciesData {
+  policies: {
+    reweightExempt: boolean;
+    promotionSuggestions: boolean;
+    blockPromotionOnFees: boolean;
+    registerEditDays: number;
+    idleTimeoutMinutes: number;
+    lockoutAttempts: number;
+    lockoutMinutes: number;
+    passwordExpiryDays: number;
+  }[];
+}
+interface BrandingData {
+  brand: { brandColor: string | null; motto: string | null; logo: string | null }[];
+  _logo?: { storageKey: string; mimeType: string; name: string } | null;
+}
 
 /**
  * Group templates (School Admin › Group overview › Templates): the group's shared setup, saved
@@ -127,6 +202,8 @@ export class GroupTemplatesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly clock: Clock,
+    private readonly sessions: SessionsService,
+    private readonly storage: StorageService,
   ) {}
 
   private async staff(auth: AuthUserContext) {
@@ -295,6 +372,116 @@ export class GroupTemplatesService {
         };
         return data.templates.length ? data : null;
       }
+      case 'CALENDAR': {
+        const session = await this.prisma.academicSession.findFirst({
+          where: { schoolId, status: 'ACTIVE' },
+          include: {
+            terms: {
+              orderBy: { sequence: 'asc' },
+              include: { events: { orderBy: [{ startsOn: 'asc' }, { name: 'asc' }] } },
+            },
+          },
+        });
+        if (!session?.terms.length) return null;
+        const data: CalendarData = {
+          session: [
+            {
+              name: session.name,
+              startsOn: isoDate(session.startsOn),
+              endsOn: isoDate(session.endsOn),
+            },
+          ],
+          terms: session.terms.map((t) => ({
+            sequence: t.sequence,
+            name: t.name,
+            startsOn: isoDate(t.startsOn),
+            endsOn: isoDate(t.endsOn),
+            events: t.events.map((e) => ({
+              type: eventTypeFromDb(e.type),
+              name: e.name,
+              startsOn: isoDate(e.startsOn),
+              endsOn: isoDate(e.endsOn),
+            })),
+          })),
+        };
+        return data;
+      }
+      case 'SUBJECTS': {
+        const session = await this.activeSession(schoolId);
+        const subjects = await this.prisma.subject.findMany({
+          where: { schoolId, status: 'ACTIVE' },
+          orderBy: { code: 'asc' },
+          include: { section: { select: { code: true } } },
+        });
+        if (!subjects.length) return null;
+        const entries = session
+          ? await this.prisma.curriculumEntry.findMany({
+              where: { schoolId, sessionId: session.id },
+              include: {
+                level: { select: { name: true } },
+                subject: { select: { code: true } },
+              },
+            })
+          : [];
+        const data: SubjectsData = {
+          subjects: subjects.map((x) => ({
+            code: x.code,
+            name: x.name,
+            category: x.category,
+            periodsPerWeek: x.periodsPerWeek,
+            section: x.section?.code ?? null,
+          })),
+          offerings: entries
+            .map((e) => ({
+              level: e.level.name,
+              subject: e.subject.code,
+              offering: e.offering,
+              periodsPerWeek: e.periodsPerWeek,
+            }))
+            .sort((a, b) => a.level.localeCompare(b.level) || a.subject.localeCompare(b.subject)),
+        };
+        return data;
+      }
+      case 'POLICIES': {
+        const p = await this.prisma.schoolSettings.findUnique({ where: { schoolId } });
+        if (!p) return null;
+        const data: PoliciesData = {
+          policies: [
+            {
+              reweightExempt: p.reweightExempt,
+              promotionSuggestions: p.promotionSuggestions,
+              blockPromotionOnFees: p.blockPromotionOnFees,
+              registerEditDays: p.registerEditDays,
+              idleTimeoutMinutes: p.idleTimeoutMinutes,
+              lockoutAttempts: p.lockoutAttempts,
+              lockoutMinutes: p.lockoutMinutes,
+              passwordExpiryDays: p.passwordExpiryDays,
+            },
+          ],
+        };
+        return data;
+      }
+      case 'BRANDING': {
+        const school = await this.prisma.school.findUniqueOrThrow({
+          where: { id: schoolId },
+          select: { brandColor: true, motto: true, logoFile: true },
+        });
+        const logo = school.logoFile && !school.logoFile.deletedAt ? school.logoFile : null;
+        if (!school.brandColor && !school.motto && !logo) return null;
+        const data: BrandingData = {
+          brand: [
+            {
+              brandColor: school.brandColor?.toUpperCase() ?? null,
+              motto: school.motto ?? null,
+              logo: logo?.sha256 ?? null,
+            },
+          ],
+          _logo: logo
+            ? { storageKey: logo.storageKey, mimeType: logo.mimeType, name: logo.originalName }
+            : null,
+        };
+        return data;
+      }
     }
   }
 
@@ -393,7 +580,7 @@ export class GroupTemplatesService {
     const results = [];
     for (const sc of targets) {
       try {
-        const notes = await this.write(k.kind, sc.id, t.data);
+        const notes = await this.write(k.kind, sc.id, t.data, auth.userId);
         results.push({ school: sc.name, applied: true, notes });
       } catch (e) {
         results.push({
@@ -408,7 +595,12 @@ export class GroupTemplatesService {
 
   /* ---------------- Writing a school's copy ---------------- */
 
-  private async write(kind: Kind, schoolId: string, raw: unknown): Promise<string[]> {
+  private async write(
+    kind: Kind,
+    schoolId: string,
+    raw: unknown,
+    userId: string,
+  ): Promise<string[]> {
     const notes: string[] = [];
     switch (kind) {
       case 'GRADING': {
@@ -613,6 +805,182 @@ export class GroupTemplatesService {
           });
         return notes;
       }
+      case 'CALENDAR':
+        return this.writeCalendar(schoolId, raw as CalendarData, userId);
+      case 'SUBJECTS':
+        return this.writeSubjects(schoolId, raw as SubjectsData);
+      case 'POLICIES': {
+        const p = (raw as PoliciesData).policies[0];
+        if (!p) return notes;
+        await this.prisma.schoolSettings.upsert({
+          where: { schoolId },
+          create: { schoolId, ...p },
+          update: p,
+        });
+        return notes;
+      }
+      case 'BRANDING':
+        return this.writeBranding(schoolId, raw as BrandingData, userId);
     }
+  }
+
+  /** The session of the same name gets the template's term dates and events. */
+  private async writeCalendar(schoolId: string, data: CalendarData, userId: string) {
+    const from = data.session[0];
+    if (!from) return [];
+    const session = await this.prisma.academicSession.findFirst({
+      where: { schoolId, name: from.name },
+      include: { terms: { orderBy: { sequence: 'asc' } } },
+    });
+    if (!session)
+      throw new Error(
+        `No ${from.name} session yet. Add it in Academics › Sessions, then apply the term dates.`,
+      );
+    if (['CLOSED', 'ARCHIVED'].includes(session.status))
+      throw new Error(`${session.name} is closed, so its term dates can’t change.`);
+    await this.prisma.academicSession.update({
+      where: { id: session.id },
+      data: { startsOn: new Date(from.startsOn), endsOn: new Date(from.endsOn) },
+    });
+    await asGroupSchool(this.prisma, schoolId, userId, () =>
+      this.sessions.saveTerms(
+        schoolId,
+        session.id,
+        data.terms.map((t) => ({
+          id: session.terms.find((x) => x.sequence === t.sequence)?.id,
+          name: t.name,
+          start: t.startsOn,
+          end: t.endsOn,
+          events: t.events.map((e) => ({
+            type: e.type as never,
+            name: e.name,
+            start: e.startsOn,
+            end: e.endsOn,
+          })),
+        })),
+      ),
+    );
+    return [];
+  }
+
+  /**
+   * Subjects are added or updated by code (the school's own extra subjects stay), and this
+   * session's curriculum gains the template's offerings at class levels of the same name.
+   */
+  private async writeSubjects(schoolId: string, data: SubjectsData) {
+    const notes: string[] = [];
+    const [sections, levels, session] = await Promise.all([
+      this.prisma.section.findMany({ where: { schoolId }, select: { id: true, code: true } }),
+      this.prisma.classLevel.findMany({ where: { schoolId }, select: { id: true, name: true } }),
+      this.activeSession(schoolId),
+    ]);
+    const ids = new Map<string, string>();
+    const notRun = new Set<string>();
+    for (const x of data.subjects) {
+      const sectionId = x.section ? (sections.find((s) => s.code === x.section)?.id ?? null) : null;
+      // A subject of a section this school doesn't run isn't copied.
+      if (x.section && !sectionId) {
+        notRun.add(x.section);
+        continue;
+      }
+      const fields = {
+        name: x.name,
+        category: x.category as never,
+        periodsPerWeek: x.periodsPerWeek,
+        sectionId,
+        status: 'ACTIVE' as const,
+      };
+      const row = await this.prisma.subject.upsert({
+        where: { schoolId_code: { schoolId, code: x.code } },
+        create: { schoolId, code: x.code, ...fields },
+        update: fields,
+      });
+      ids.set(x.code, row.id);
+    }
+    if (notRun.size)
+      notes.push(
+        `Subjects of sections this school doesn’t run (${[...notRun].join(', ')}) were skipped.`,
+      );
+    if (!data.offerings.length) return notes;
+    if (!session) {
+      notes.push('Curriculum not copied: there’s no active session.');
+      return notes;
+    }
+    const missing = new Set<string>();
+    for (const o of data.offerings) {
+      const levelId = levels.find((l) => l.name === o.level)?.id;
+      const subjectId = ids.get(o.subject);
+      if (!levelId) {
+        missing.add(o.level);
+        continue;
+      }
+      if (!subjectId) continue;
+      await this.prisma.curriculumEntry.upsert({
+        where: {
+          sessionId_levelId_subjectId: { sessionId: session.id, levelId, subjectId },
+        },
+        create: {
+          schoolId,
+          sessionId: session.id,
+          levelId,
+          subjectId,
+          offering: o.offering as never,
+          periodsPerWeek: o.periodsPerWeek,
+        },
+        update: { offering: o.offering as never, periodsPerWeek: o.periodsPerWeek },
+      });
+    }
+    if (missing.size)
+      notes.push(`No class level named ${[...missing].join(', ')}: those offerings were skipped.`);
+    return notes;
+  }
+
+  /** The brand colour and motto, and a copy of the logo file. */
+  private async writeBranding(schoolId: string, data: BrandingData, userId: string) {
+    const b = data.brand[0];
+    if (!b) return [];
+    const notes: string[] = [];
+    let logoFileId: string | null | undefined;
+    if (data._logo) {
+      try {
+        const bytes = await this.storage.download(data._logo.storageKey);
+        const ext = data._logo.name.split('.').pop() ?? 'png';
+        const file = schoolFileKey(schoolId, 'branding', ext);
+        await this.storage.upload(file.storageKey, bytes, data._logo.mimeType);
+        await this.prisma.storedFile.create({
+          data: {
+            id: file.id,
+            schoolId,
+            storageKey: file.storageKey,
+            originalName: data._logo.name,
+            mimeType: data._logo.mimeType,
+            sizeBytes: BigInt(bytes.length),
+            sha256: createHash('sha256').update(bytes).digest('hex'),
+            uploadedById: userId,
+          },
+        });
+        logoFileId = file.id;
+      } catch {
+        notes.push('Logo not copied: the template’s logo file couldn’t be read.');
+      }
+    } else if (!b.logo) logoFileId = null;
+    const previous = await this.prisma.school.findUniqueOrThrow({
+      where: { id: schoolId },
+      select: { logoFileId: true },
+    });
+    await this.prisma.school.update({
+      where: { id: schoolId },
+      data: {
+        brandColor: b.brandColor,
+        motto: b.motto,
+        ...(logoFileId !== undefined && { logoFileId }),
+      },
+    });
+    if (logoFileId !== undefined && previous.logoFileId && previous.logoFileId !== logoFileId)
+      await this.prisma.storedFile.update({
+        where: { id: previous.logoFileId },
+        data: { deletedAt: this.clock.now() },
+      });
+    return notes;
   }
 }
