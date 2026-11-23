@@ -45,9 +45,9 @@ const toggleGroup = (label: string) =>
   (collapsed.value = { ...collapsed.value, [label]: !collapsed.value[label] });
 
 // On phones the sidebar is a sheet: close it once a page is chosen.
-// The school's logo: from the session, else the school at this address.
+// Their campus's logo (one campus), else the school's from the session or this address.
 const brand = useSchoolBrand();
-const logo = computed(() => auth.school?.logoUrl ?? brand.logoUrl);
+const logo = computed(() => me.value?.campus?.logoUrl ?? auth.school?.logoUrl ?? brand.logoUrl);
 const { failed: logoFailed, onError: onLogoError } = useLogoFallback(() => logo.value);
 
 const sidebar = useSidebar();

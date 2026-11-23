@@ -1,3 +1,4 @@
+import type { CampusBrand } from '@edutrack/app-kit/composables/useCampusTheme';
 /* The Student Portal's API shapes (`/v1/student/*` and the school inbox). */
 
 export type ChildAccess = 'full' | 'read-only';
@@ -217,6 +218,8 @@ export interface Overview {
     access: ChildAccess;
     leftOn: string | null;
   };
+  /** The pupil's campus: the portal is themed in it. */
+  campus?: CampusBrand | null;
   school: {
     name: string;
     initials: string;

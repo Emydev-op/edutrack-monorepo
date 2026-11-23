@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { campusBrands, type CampusBrand } from '../shared/campus-brand.js';
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { initialsOf } from '../../auth/identifiers.js';
 import { leftOnOf, readOnlyUntil } from '../../auth/school-portal-rules.js';
@@ -52,6 +53,8 @@ export interface ChildSummary {
   /** Primary pupils hand in through a parent; JSS and SSS students hand in themselves. */
   handsInThrough: 'student' | 'guardian';
   fees: { outstanding: number; pending: number; overdue: boolean };
+  /** The child's campus: the portal is themed in it while this child is selected. */
+  campus: CampusBrand | null;
 }
 
 /**
@@ -83,6 +86,10 @@ export class ParentSchoolService {
       this.fees.summaries(auth, ids),
       this.scope.terms(),
     ]);
+    const campuses = await campusBrands(
+      this.db,
+      students.map((s) => s.branchId),
+    );
     const current = ParentScopeService.current(terms, this.scope.today());
     const out: ChildSummary[] = [];
     for (const l of links) {
@@ -108,6 +115,7 @@ export class ParentSchoolService {
         readOnlyUntil: left ? isoDate(readOnlyUntil(left)) : null,
         handsInThrough: place?.studentLogins ? 'student' : 'guardian',
         fees: fees.get(s.id) ?? { outstanding: 0, pending: 0, overdue: false },
+        campus: campuses.get(s.branchId) ?? null,
       });
     }
     return out;

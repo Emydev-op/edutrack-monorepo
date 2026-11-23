@@ -1,3 +1,4 @@
+import type { CampusBrand } from '@edutrack/app-kit/composables/useCampusTheme';
 /* Shapes of the Parent Portal API (`/v1/parent/*`), as the backend returns them. */
 
 export type ChildAccess = 'full' | 'read-only';
@@ -26,6 +27,8 @@ export interface ChildSummary {
   readOnlyUntil: string | null;
   handsInThrough: 'student' | 'guardian';
   fees: FeeBadge;
+  /** The child's campus: the portal is themed in it while this child is selected. */
+  campus?: CampusBrand | null;
 }
 
 export interface Overview {

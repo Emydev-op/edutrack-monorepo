@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useLogoFallback } from '@edutrack/app-kit/composables/useLogoFallback';
 import { useIdleSignOut } from '@edutrack/app-kit/composables/useIdleSignOut';
+import { useCampusTheme } from '@edutrack/app-kit/composables/useCampusTheme';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { BellIcon, BookOpenIcon, HomeIcon, MenuIcon, TrophyIcon, WalletIcon } from '@lucide/vue';
 import { useQueryClient } from '@tanstack/vue-query';
@@ -30,6 +31,12 @@ const auth = useAuthStore();
 const store = useChildrenStore();
 const brand = useSchoolBrand();
 const { overview, children, child } = useCurrentChild();
+// Themed in the selected child's campus (its own colour and logo), else the school's.
+useCampusTheme(
+  () => child.value?.campus,
+  () => auth.school?.brandColor,
+);
+const logoUrl = computed(() => child.value?.campus?.logoUrl ?? auth.school?.logoUrl ?? null);
 const notifications = useNotificationsQuery('unread');
 const unread = computed(() => notifications.data.value?.unread ?? 0);
 
@@ -56,7 +63,7 @@ const termLabel = computed(() => {
   const t = overview.data.value?.term;
   return t ? `${t.session} · ${t.name}` : '';
 });
-const { failed: logoFailed, onError: onLogoError } = useLogoFallback(() => auth.school?.logoUrl);
+const { failed: logoFailed, onError: onLogoError } = useLogoFallback(() => logoUrl.value);
 
 // Shared phones: sign out after the school's idle time, unless "Remember this device".
 const queries = useQueryClient();
@@ -95,15 +102,10 @@ const tabs = computed(() => tabsFor(auth.school?.modules));
             class="flex min-w-0 flex-1 items-center gap-2.5"
           >
             <span
-              v-if="auth.school?.logoUrl && !logoFailed"
+              v-if="logoUrl && !logoFailed"
               class="flex size-8 shrink-0 items-center justify-center rounded-md border bg-card p-0.5"
             >
-              <img
-                :src="auth.school.logoUrl"
-                alt=""
-                class="size-full object-contain"
-                @error="onLogoError"
-              />
+              <img :src="logoUrl" alt="" class="size-full object-contain" @error="onLogoError" />
             </span>
             <span
               v-else
