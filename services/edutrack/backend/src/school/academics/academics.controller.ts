@@ -1,5 +1,15 @@
 import { SchoolWide, ScopedBy } from '../../common/plan/branch-scope.js';
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+  Put,
+  StreamableFile,
+} from '@nestjs/common';
 import {
   ApiConflictResponse,
   ApiCreatedResponse,
@@ -11,7 +21,13 @@ import {
 } from '@nestjs/swagger';
 import { Portals, RequirePermission } from '../../auth/decorators/auth.decorators.js';
 import { CurrentTenant } from '../../common/decorators/request.decorators.js';
-import { ResponseMessage, type MessageRequest } from '../../common/http/api-response.js';
+import {
+  RawResponse,
+  ResponseMessage,
+  type MessageRequest,
+} from '../../common/http/api-response.js';
+import { StaffImportDto } from '../staff/dto/staff.dto.js';
+import { ClassImportService } from './class-import.service.js';
 import { RecordIdPipe } from '../../platform/shared/params.js';
 import { plural } from './academic-format.js';
 import { CalendarService } from './calendar.service.js';
@@ -57,6 +73,7 @@ export class AcademicsController {
     private readonly sessions: SessionsService,
     private readonly classes: ClassesService,
     private readonly calendarService: CalendarService,
+    private readonly classImport: ClassImportService,
   ) {}
 
   /* ---------------- Sections ---------------- */
@@ -253,6 +270,57 @@ export class AcademicsController {
   }
 
   /* ---------------- Classes & arms ---------------- */
+
+  @RawResponse()
+  @Get('classes/import/template')
+  @RequirePermission('academics.configure')
+  @ApiOperation({
+    summary:
+      'The classes and arms template (.xlsx): one row per arm, with branch and section lists',
+  })
+  async classTemplate() {
+    return new StreamableFile(await this.classImport.template(), {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      disposition: 'attachment; filename="edutrack-classes-template.xlsx"',
+    });
+  }
+
+  @ResponseMessage('File checked.')
+  @SchoolWide()
+  @Post('classes/import')
+  @HttpCode(200)
+  @RequirePermission('academics.configure')
+  @ApiOperation({
+    summary: 'Check a file of classes and arms',
+    description:
+      'Columns: branch, section, class_level, arm (required), capacity, room, class_teacher ' +
+      '(email or staff number). Every row comes back with its errors and warnings; nothing is ' +
+      'saved until the import is committed.',
+  })
+  @ApiUnprocessableEntityResponse({
+    description: 'IMPORT_FORMAT, IMPORT_EMPTY, IMPORT_COLUMNS, IMPORT_TOO_LONG',
+  })
+  previewClasses(@Body() dto: StaffImportDto) {
+    return this.classImport.preview(dto);
+  }
+
+  @ResponseMessage((r: { imported: number; skipped: number }) =>
+    r.skipped
+      ? `${plural(r.imported, 'arm')} imported. ${plural(r.skipped, 'row')} skipped.`
+      : `${plural(r.imported, 'arm')} imported.`,
+  )
+  @SchoolWide()
+  @Post('classes/import/:id/commit')
+  @HttpCode(200)
+  @RequirePermission('academics.configure')
+  @ApiOperation({
+    summary: 'Import the valid rows (new class levels are added at their branch)',
+  })
+  @ApiNotFoundResponse({ description: 'IMPORT_EXPIRED: upload the file again.' })
+  @ApiUnprocessableEntityResponse({ description: 'IMPORT_NOTHING_VALID' })
+  commitClasses(@Param('id') id: string) {
+    return this.classImport.commit(id);
+  }
 
   @ResponseMessage('Classes loaded.')
   @Get('classes')

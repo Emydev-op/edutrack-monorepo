@@ -42,6 +42,7 @@ enum NumberKind {
 enum ImportKind {
   STUDENTS
   STAFF
+  CLASSES
 
   @@map("import_kind")
 }

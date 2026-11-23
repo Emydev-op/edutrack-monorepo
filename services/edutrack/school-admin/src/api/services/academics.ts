@@ -492,3 +492,36 @@ export const useApplyPromotionMutation = () =>
   useAcademicsMutation((classId: string) =>
     postRequest<PromotionView & { created: number }>(`${A}/promotion/${classId}/apply`),
   );
+
+/** A row of a classes and arms upload, as checked by the server. */
+export interface ClassImportRow {
+  line: number;
+  branch: string;
+  section: string;
+  level: string;
+  arm: string;
+  capacity: number;
+  room: string;
+  classTeacher: string;
+  newLevel: boolean;
+  errors: string[];
+  warnings: string[];
+}
+export interface ClassImportBatch {
+  id: string;
+  fileName: string;
+  rows: ClassImportRow[];
+}
+
+export const previewClassImport = (p: { fileName: string; text: string }) =>
+  postRequest<ClassImportBatch>(`${A}/classes/import`, p);
+
+export const useCommitClassImportMutation = () =>
+  useAcademicsMutation((id: string) =>
+    postRequest<{
+      imported: number;
+      levels: number;
+      skipped: number;
+      problems: { line: number; reason: string }[];
+    }>(`${A}/classes/import/${id}/commit`),
+  );
