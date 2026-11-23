@@ -373,7 +373,8 @@ export class GroupTemplatesService {
         return data.templates.length ? data : null;
       }
       case 'CALENDAR': {
-        const session = await this.prisma.academicSession.findFirst({
+        // The session under way, else (a school still setting up) the next one.
+        const active = await this.prisma.academicSession.findFirst({
           where: { schoolId, status: 'ACTIVE' },
           include: {
             terms: {
@@ -382,6 +383,18 @@ export class GroupTemplatesService {
             },
           },
         });
+        const session =
+          active ??
+          (await this.prisma.academicSession.findFirst({
+            where: { schoolId, status: 'UPCOMING' },
+            orderBy: { startsOn: 'asc' },
+            include: {
+              terms: {
+                orderBy: { sequence: 'asc' },
+                include: { events: { orderBy: [{ startsOn: 'asc' }, { name: 'asc' }] } },
+              },
+            },
+          }));
         if (!session?.terms.length) return null;
         const data: CalendarData = {
           session: [

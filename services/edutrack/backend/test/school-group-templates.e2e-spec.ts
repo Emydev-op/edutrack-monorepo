@@ -78,9 +78,18 @@ describe('Group templates (e2e)', () => {
     await t.close();
   });
 
-  it('lists the four templates, none saved yet', async () => {
+  it('lists the templates, none saved yet', async () => {
     const list = await templates();
-    expect(list.map((x) => x.key)).toEqual(['grading', 'fees', 'roles', 'messages']);
+    expect(list.map((x) => x.key)).toEqual([
+      'grading',
+      'fees',
+      'roles',
+      'messages',
+      'calendar',
+      'subjects',
+      'policies',
+      'branding',
+    ]);
     expect(list.every((x) => x.saved === null)).toBe(true);
   });
 

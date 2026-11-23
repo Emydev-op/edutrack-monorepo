@@ -332,7 +332,7 @@ export class MessagingService {
     const v = await this.parent(auth);
     const [children, school] = await Promise.all([
       this.parentChildren(v),
-      this.db.school.findFirstOrThrow({ select: { name: true } }),
+      this.db.school.findUniqueOrThrow({ where: { id: this.schoolId() }, select: { name: true } }),
     ]);
     return { school: school.name, children };
   }
@@ -412,7 +412,12 @@ export class MessagingService {
   }
 
   private async schoolName() {
-    return (await this.db.school.findFirstOrThrow({ select: { name: true } })).name;
+    return (
+      await this.db.school.findUniqueOrThrow({
+        where: { id: this.schoolId() },
+        select: { name: true },
+      })
+    ).name;
   }
 
   /** Who the conversation is with, as the viewer sees it. */
@@ -500,7 +505,8 @@ export class MessagingService {
       }),
       this.schoolName(),
     ]);
-    const now = this.clock.now();
+    // Read up to the newest message (never behind it, even when the clock hasn't moved on).
+    const now = new Date(Math.max(this.clock.now().getTime(), c.lastMessageAt.getTime()));
     await this.db.conversation.update({
       where: { id: c.id },
       data: v.side === 'parent' ? { parentReadAt: now } : { staffReadAt: now },
@@ -640,8 +646,17 @@ export class MessagingService {
         'This teacher has left the school, so the conversation is closed. Write to the school instead.',
         'CONVERSATION_CLOSED',
       );
-    await this.write(v, c.id, body, this.clock.now());
+    await this.write(v, c.id, body, this.after(c.lastMessageAt));
     return this.thread(v, c.id);
+  }
+
+  /**
+   * When a new message is stamped: now, but always after the conversation's last message, so
+   * messages keep their order and read markers (a message is unread when it's after the marker)
+   * stay right even when two land in the same millisecond.
+   */
+  private after(last: Date) {
+    return new Date(Math.max(this.clock.now().getTime(), last.getTime() + 1));
   }
 
   private async write(v: Viewer, conversationId: string, body: string, at: Date) {
@@ -675,7 +690,8 @@ export class MessagingService {
       where: { id: conversationId },
       include: CONVERSATION_INCLUDE,
     });
-    const school = await this.db.school.findFirstOrThrow({
+    const school = await this.db.school.findUniqueOrThrow({
+      where: { id: this.schoolId() },
       select: { name: true, slug: true, email: true },
     });
     const send = async (
