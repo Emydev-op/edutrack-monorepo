@@ -104,6 +104,21 @@ const portalRoutes: RouteRecordRaw[] = [
     meta: { title: 'Announcements', tab: 'more' },
   },
   {
+    ...routesPath.messages.list,
+    component: () => import('@/views/messages/MessagesView.vue'),
+    meta: { title: 'Messages', tab: 'more' },
+  },
+  {
+    ...routesPath.messages.create,
+    component: () => import('@/views/messages/NewMessageView.vue'),
+    meta: { title: 'New message', tab: 'more' },
+  },
+  {
+    ...routesPath.messages.thread,
+    component: () => import('@/views/messages/ThreadView.vue'),
+    meta: { title: 'Message', tab: 'more' },
+  },
+  {
     ...routesPath.notifications,
     component: () => import('@/views/account/NotificationsView.vue'),
     meta: { title: 'Notifications', tab: 'more' },

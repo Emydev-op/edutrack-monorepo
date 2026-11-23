@@ -6,12 +6,14 @@ import {
   CalendarDaysIcon,
   FolderOpenIcon,
   MegaphoneIcon,
+  MessageSquareIcon,
   PhoneIcon,
   UserIcon,
   UsersIcon,
 } from '@lucide/vue';
 import { RouterLink } from 'vue-router';
 
+import { useMessagesQuery } from '@/api/services/messages';
 import PageTitle from '@/components/common/PageTitle.vue';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
@@ -20,7 +22,10 @@ import { useUiStore } from '@/stores/ui';
 /** Everything that isn't a tab. */
 const ui = useUiStore();
 const auth = useAuthStore();
+const messages = useMessagesQuery();
+const unreadMessages = computed(() => messages.data.value?.unread ?? 0);
 const LINKS = [
+  { label: 'Messages', route: routesPath.messages.list.name, icon: MessageSquareIcon },
   { label: 'My children', route: routesPath.children.name, icon: UsersIcon },
   { label: 'Timetable', route: routesPath.timetable.name, icon: CalendarDaysIcon },
   { label: 'Attendance', route: routesPath.attendance.name, icon: CalendarCheckIcon },
@@ -53,7 +58,13 @@ const links = computed(() =>
       class="flex min-h-13 items-center gap-3 border-t border-divider px-3.5 first:border-t-0 hover:bg-surface-warm"
     >
       <component :is="l.icon" class="size-4.5 text-muted-foreground" aria-hidden="true" />
-      <span class="text-sm">{{ l.label }}</span>
+      <span class="flex-1 text-sm">{{ l.label }}</span>
+      <span
+        v-if="l.route === routesPath.messages.list.name && unreadMessages"
+        class="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground"
+        :aria-label="`${unreadMessages} unread`"
+        >{{ unreadMessages > 9 ? '9+' : unreadMessages }}</span
+      >
     </RouterLink>
     <button
       type="button"

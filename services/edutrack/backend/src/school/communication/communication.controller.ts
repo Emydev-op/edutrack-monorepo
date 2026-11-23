@@ -59,6 +59,17 @@ export class CommunicationController {
     return this.announcements.options();
   }
 
+  @ResponseMessage('People found.')
+  @Get('people')
+  @RequirePermission('comms.school')
+  @ApiOperation({
+    summary: 'Parents, students and staff matching a name, email, phone or number',
+    description: 'For a “Specific people” announcement. Up to 8 of each; needs 2 characters.',
+  })
+  people(@Query('q') q?: string) {
+    return this.announcements.people(q ?? '');
+  }
+
   /* ---------------- Announcements ---------------- */
 
   @ResponseMessage('Announcements loaded.')

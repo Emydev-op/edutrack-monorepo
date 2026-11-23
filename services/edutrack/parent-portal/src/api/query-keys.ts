@@ -19,4 +19,7 @@ export const queryKeys = {
   notificationsAll: ['notifications'] as const,
   profile: ['profile'] as const,
   preferences: ['preferences'] as const,
+  messages: ['messages', 'list'] as const,
+  messageContacts: ['messages', 'contacts'] as const,
+  thread: (id: string) => ['messages', 'thread', id] as const,
 };

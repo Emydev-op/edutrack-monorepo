@@ -11,6 +11,7 @@ import { classTeacherRoutes } from './modules/class-teacher';
 import { dashboardRoutes } from './modules/dashboard';
 import { lessonNoteRoutes } from './modules/lesson-notes';
 import { materialRoutes } from './modules/materials';
+import { messageRoutes } from './modules/messages';
 import { resultRoutes } from './modules/results';
 import { reviewRoutes } from './modules/reviews';
 import { teachingRoutes } from './modules/teaching';
@@ -37,6 +38,7 @@ const router = createRouter({
         ...materialRoutes,
         ...lessonNoteRoutes,
         ...reviewRoutes,
+        ...messageRoutes,
         ...accountRoutes,
         {
           ...routesPath.forbidden,

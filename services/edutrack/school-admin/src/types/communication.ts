@@ -44,7 +44,17 @@ export interface CommsOptions {
 /* ---------------- Announcements ---------------- */
 
 export type AnnouncementStatus = 'Draft' | 'Scheduled' | 'Sent' | 'Withdrawn' | 'Expired';
-export type AudienceKind = 'everyone' | 'parents' | 'students' | 'teachers' | 'staff' | 'classes';
+export type AudienceKind =
+  'everyone' | 'parents' | 'students' | 'teachers' | 'staff' | 'classes' | 'people';
+
+/** A person picked for a "Specific people" announcement. */
+export interface PersonOption {
+  /** "g:<guardianId>", "s:<studentId>" or "st:<staffId>". */
+  key: string;
+  name: string;
+  role: 'Parent' | 'Student' | 'Teacher' | 'Staff';
+  detail: string;
+}
 
 export interface Audience {
   kind: AudienceKind;
@@ -52,6 +62,8 @@ export interface Audience {
   classes: string[];
   /** null = all branches. */
   branchId: string | null;
+  /** Keys of the chosen people when kind is "people". */
+  people?: string[];
 }
 
 export interface AnnouncementPayload {
@@ -131,6 +143,8 @@ export interface ChannelStats {
 
 export interface AnnouncementDetail extends AnnouncementPayload {
   id: string;
+  /** The chosen people, when the audience is "people". */
+  people?: PersonOption[];
   status: AnnouncementStatus;
   audienceLabel: string;
   createdBy: string;
@@ -321,4 +335,61 @@ export interface InboxList {
   meta: PaginationMeta;
   unread: number;
   total: number;
+}
+
+/* ---------------- Messages (the school office's inbox) ---------------- */
+
+export type ConversationKind = 'Teacher' | 'School';
+
+/** One conversation with a parent, as the office sees it. */
+export interface ConversationSummary {
+  id: string;
+  kind: ConversationKind;
+  subject: string;
+  /** The parent's name. */
+  with: string;
+  /** The child it’s about, if any. */
+  about: string | null;
+  lastMessage: { body: string; at: string; fromMe: boolean } | null;
+  unread: number;
+}
+
+export interface ConversationList {
+  conversations: ConversationSummary[];
+  /** Unread messages across every conversation. */
+  unread: number;
+}
+
+export type MessageSender = 'Parent' | 'Teacher' | 'School';
+
+export interface ThreadMessage {
+  id: string;
+  body: string;
+  at: string;
+  sender: MessageSender;
+  /** Sent by the school (any colleague), so shown on the right. */
+  mine: boolean;
+  /** Office messages read "<staff name> · <school>". */
+  from: string;
+}
+
+export interface MessageThread {
+  id: string;
+  kind: ConversationKind;
+  subject: string;
+  with: string;
+  about: string | null;
+  canReply: boolean;
+  messages: ThreadMessage[];
+}
+
+export interface MessageContacts {
+  parents: { guardianId: string; name: string; children: { studentId: string; name: string }[] }[];
+}
+
+export interface NewMessagePayload {
+  guardianId: string;
+  studentId?: string;
+  subject: string;
+  body: string;
 }
