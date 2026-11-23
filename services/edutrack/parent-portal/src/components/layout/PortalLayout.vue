@@ -3,7 +3,15 @@ import { useLogoFallback } from '@edutrack/app-kit/composables/useLogoFallback';
 import { useIdleSignOut } from '@edutrack/app-kit/composables/useIdleSignOut';
 import { useCampusTheme } from '@edutrack/app-kit/composables/useCampusTheme';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
-import { BellIcon, BookOpenIcon, HomeIcon, MenuIcon, TrophyIcon, WalletIcon } from '@lucide/vue';
+import {
+  BellIcon,
+  BookOpenIcon,
+  HomeIcon,
+  MenuIcon,
+  MessageSquareIcon,
+  TrophyIcon,
+  WalletIcon,
+} from '@lucide/vue';
 import { useQueryClient } from '@tanstack/vue-query';
 import { computed, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
@@ -12,6 +20,7 @@ import EmptyState from '@edutrack/app-kit/components/common/EmptyState.vue';
 import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 
 import { useLogoutMutation } from '@/api/services/auth';
+import { useMessagesQuery } from '@/api/services/messages';
 import { useNotificationsQuery } from '@/api/services/parent';
 import { useCurrentChild } from '@/composables/useCurrentChild';
 import { formatDay } from '@/lib/dates';
@@ -39,6 +48,8 @@ useCampusTheme(
 const logoUrl = computed(() => child.value?.campus?.logoUrl ?? auth.school?.logoUrl ?? null);
 const notifications = useNotificationsQuery('unread');
 const unread = computed(() => notifications.data.value?.unread ?? 0);
+const messages = useMessagesQuery();
+const unreadMessages = computed(() => messages.data.value?.unread ?? 0);
 
 // Keep the chosen child valid as the list loads, and follow `?child=` (from a notification).
 watch(
@@ -119,6 +130,18 @@ const tabs = computed(() => tabsFor(auth.school?.modules));
               }}</span>
               <span class="text-[11px] text-faint">Parent portal</span>
             </span>
+          </RouterLink>
+          <RouterLink
+            :to="{ name: routesPath.messages.list.name }"
+            class="relative flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+            :aria-label="unreadMessages ? `Messages, ${unreadMessages} unread` : 'Messages'"
+          >
+            <MessageSquareIcon class="size-5" />
+            <span
+              v-if="unreadMessages"
+              class="absolute top-2 right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
+              >{{ unreadMessages > 9 ? '9+' : unreadMessages }}</span
+            >
           </RouterLink>
           <RouterLink
             :to="{ name: routesPath.notifications.name }"
@@ -202,7 +225,15 @@ const tabs = computed(() => tabsFor(auth.school?.modules));
         :class="activeTab === t.key ? 'font-semibold text-primary' : 'text-muted-foreground'"
         :aria-current="activeTab === t.key ? 'page' : undefined"
       >
-        <component :is="ICONS[t.key]" class="size-5" aria-hidden="true" />
+        <span class="relative">
+          <component :is="ICONS[t.key]" class="size-5" aria-hidden="true" />
+          <!-- Messages live under More: a dot while any are unread. -->
+          <span
+            v-if="t.key === 'more' && unreadMessages"
+            class="absolute -top-0.5 -right-1 size-2 rounded-full bg-primary ring-2 ring-card"
+            aria-hidden="true"
+          />
+        </span>
         {{ t.label }}
       </RouterLink>
     </nav>

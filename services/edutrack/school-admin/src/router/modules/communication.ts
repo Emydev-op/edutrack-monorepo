@@ -6,8 +6,24 @@ const { communication: c } = routesPath;
 const COMMS = { label: 'Communication', to: c.announcements.name };
 const ANNOUNCEMENTS = { label: 'Announcements', to: c.announcements.name };
 const DELIVERY = { label: 'Delivery Logs', to: c.delivery.name };
+const MESSAGES = { label: 'Messages', to: c.messages.name };
 
 export const communicationRoutes: RouteRecordRaw[] = [
+  {
+    ...c.messages,
+    component: () => import('@/views/communication/MessagesView.vue'),
+    meta: { title: 'Messages', breadcrumb: [COMMS, { label: 'Messages' }] },
+  },
+  {
+    // Emails to the office link here, so the path must stay /communication/messages/:id.
+    ...c.messageThread,
+    component: () => import('@/views/communication/MessageThreadView.vue'),
+    meta: {
+      title: 'Message',
+      nav: c.messages.name,
+      breadcrumb: [COMMS, MESSAGES, { label: 'Conversation' }],
+    },
+  },
   {
     ...c.announcements,
     component: () => import('@/views/communication/AnnouncementsView.vue'),

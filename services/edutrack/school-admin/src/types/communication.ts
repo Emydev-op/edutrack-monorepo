@@ -322,3 +322,60 @@ export interface InboxList {
   unread: number;
   total: number;
 }
+
+/* ---------------- Messages (the school office's inbox) ---------------- */
+
+export type ConversationKind = 'Teacher' | 'School';
+
+/** One conversation with a parent, as the office sees it. */
+export interface ConversationSummary {
+  id: string;
+  kind: ConversationKind;
+  subject: string;
+  /** The parent's name. */
+  with: string;
+  /** The child it’s about, if any. */
+  about: string | null;
+  lastMessage: { body: string; at: string; fromMe: boolean } | null;
+  unread: number;
+}
+
+export interface ConversationList {
+  conversations: ConversationSummary[];
+  /** Unread messages across every conversation. */
+  unread: number;
+}
+
+export type MessageSender = 'Parent' | 'Teacher' | 'School';
+
+export interface ThreadMessage {
+  id: string;
+  body: string;
+  at: string;
+  sender: MessageSender;
+  /** Sent by the school (any colleague), so shown on the right. */
+  mine: boolean;
+  /** Office messages read "<staff name> · <school>". */
+  from: string;
+}
+
+export interface MessageThread {
+  id: string;
+  kind: ConversationKind;
+  subject: string;
+  with: string;
+  about: string | null;
+  canReply: boolean;
+  messages: ThreadMessage[];
+}
+
+export interface MessageContacts {
+  parents: { guardianId: string; name: string; children: { studentId: string; name: string }[] }[];
+}
+
+export interface NewMessagePayload {
+  guardianId: string;
+  studentId?: string;
+  subject: string;
+  body: string;
+}

@@ -77,6 +77,9 @@ export const REAL_ROUTES: readonly string[] = [
   'GET /v1/materials/:materialId',
   'POST /v1/materials/:materialId/archive',
   'POST /v1/materials/:materialId/restore',
+  // Messages with parents: conversations, contacts, threads and replies.
+  '* /v1/messages',
+  '* /v1/messages/**',
   // Announcements for staff.
   'GET /v1/announcements',
   'GET /v1/announcements/:id',

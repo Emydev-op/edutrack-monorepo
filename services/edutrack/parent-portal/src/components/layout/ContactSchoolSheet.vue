@@ -6,13 +6,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@edutrack/ui/components/sheet';
-import { MailIcon, MapPinIcon, PhoneIcon } from '@lucide/vue';
+import { Button } from '@edutrack/ui/components/button';
+import { MailIcon, MapPinIcon, MessageSquareIcon, PhoneIcon } from '@lucide/vue';
+import { RouterLink } from 'vue-router';
 
 import { useOverviewQuery } from '@/api/services/parent';
 import { useSchoolBrand } from '@/lib/school-brand';
+import { routesPath } from '@/router/routes-path';
 import { useUiStore } from '@/stores/ui';
 
-/** The school office's phone, email and address (no messaging from the portal). */
+/** The school office's phone, email and address, and a link to write to the office here. */
 const ui = useUiStore();
 const overview = useOverviewQuery();
 const brand = useSchoolBrand();
@@ -57,6 +60,13 @@ const brand = useSchoolBrand();
           The school hasn’t added its contact details yet. Visit the school office.
         </li>
       </ul>
+      <Button as-child variant="outline" size="lg" class="h-12">
+        <RouterLink
+          :to="{ name: routesPath.messages.create.name, query: { to: 'school' } }"
+          @click="ui.contactOpen = false"
+          ><MessageSquareIcon aria-hidden="true" /> Send a message</RouterLink
+        >
+      </Button>
     </SheetContent>
   </Sheet>
 </template>

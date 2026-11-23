@@ -32,4 +32,6 @@ export const queryKeys = {
   reviews: area('reviews'),
   lessonNotes: area('lesson-notes'),
   classTeacher: area('class-teacher'),
+  /** Conversations with parents. */
+  messages: area('messages'),
 };

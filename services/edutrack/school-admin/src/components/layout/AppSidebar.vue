@@ -23,6 +23,7 @@ import { LockKeyholeIcon } from '@lucide/vue';
 import { RouterLink, useRoute } from 'vue-router';
 
 import { useGroupOverviewQuery } from '@/api/services/group';
+import { useMessagesQuery } from '@/api/services/messages';
 import { useSetupQuery } from '@/api/services/setup';
 import { useNavCountsQuery } from '@/api/services/shell';
 import { navigation, navKeyAliases, type NavItem } from '@/config/navigation';
@@ -58,7 +59,13 @@ const activeKey = computed(() => {
   const key = (route.meta.nav as string | undefined) ?? (route.name as string | undefined) ?? '';
   return navKeyAliases[key] ?? key;
 });
-const badgeFor = (item: NavItem) => counts.value?.[item.route] || undefined;
+// Unread parent messages come from the inbox itself (it 403s, and stays blank, for staff
+// without school-wide messaging).
+const { data: messages } = useMessagesQuery();
+const badgeFor = (item: NavItem) =>
+  (item.route === routesPath.communication.messages.name
+    ? messages.value?.unread
+    : counts.value?.[item.route]) || undefined;
 const toggleGroup = (label: string) =>
   (collapsed.value = { ...collapsed.value, [label]: !collapsed.value[label] });
 

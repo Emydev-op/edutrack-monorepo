@@ -28,6 +28,12 @@ export const routesPath = {
   materials: { name: 'materials', path: '/materials' },
   attendance: { name: 'attendance', path: '/attendance' },
   announcements: { name: 'announcements', path: '/announcements' },
+  messages: {
+    list: { name: 'messages', path: '/messages' },
+    create: { name: 'message-new', path: '/messages/new' },
+    // Message emails link here: keep the path `/messages/:id`.
+    thread: { name: 'message', path: '/messages/:id' },
+  },
   notifications: { name: 'notifications', path: '/notifications' },
   profile: { name: 'profile', path: '/profile' },
   more: { name: 'more', path: '/more' },

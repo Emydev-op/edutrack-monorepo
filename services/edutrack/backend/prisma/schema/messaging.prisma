@@ -1,0 +1,66 @@
+// Messaging: a parent's conversations with their children's teachers and with the school office.
+
+/// TEACHER: a parent and one teacher. SCHOOL: a parent and the school office (a shared inbox in
+/// School Admin, answered by anyone with school-wide messaging).
+enum ConversationKind {
+  TEACHER
+  SCHOOL
+
+  @@map("conversation_kind")
+}
+
+enum ChatSender {
+  PARENT
+  TEACHER
+  SCHOOL
+
+  @@map("chat_sender")
+}
+
+model Conversation {
+  id            String           @id @default(uuid(7)) @db.Uuid
+  schoolId      String           @map("school_id") @db.Uuid
+  kind          ConversationKind
+  guardianId    String           @map("guardian_id") @db.Uuid
+  /// The teacher (TEACHER conversations only).
+  staffId       String?          @map("staff_id") @db.Uuid
+  /// The child it's about, if one was chosen.
+  studentId     String?          @map("student_id") @db.Uuid
+  subject       String
+  lastMessageAt DateTime         @map("last_message_at") @db.Timestamptz(3)
+  /// When each side last read it: the parent, and the teacher or the school office.
+  parentReadAt  DateTime?        @map("parent_read_at") @db.Timestamptz(3)
+  staffReadAt   DateTime?        @map("staff_read_at") @db.Timestamptz(3)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school   School        @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  guardian Guardian      @relation(fields: [schoolId, guardianId], references: [schoolId, id], onDelete: Restrict)
+  staff    Staff?        @relation(fields: [schoolId, staffId], references: [schoolId, id], onDelete: Restrict)
+  student  Student?      @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  messages ChatMessage[]
+
+  @@unique([schoolId, id])
+  @@index([schoolId, guardianId, lastMessageAt])
+  @@index([schoolId, staffId, lastMessageAt])
+  @@index([schoolId, kind, lastMessageAt])
+  @@map("conversations")
+}
+
+model ChatMessage {
+  id             String     @id @default(uuid(7)) @db.Uuid
+  schoolId       String     @map("school_id") @db.Uuid
+  conversationId String     @map("conversation_id") @db.Uuid
+  sender         ChatSender
+  /// Who wrote it (for the school office: the staff member, shown to the parent as the school).
+  senderUserId   String?    @map("sender_user_id") @db.Uuid
+  senderName     String     @map("sender_name")
+  body           String
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  conversation Conversation @relation(fields: [schoolId, conversationId], references: [schoolId, id], onDelete: Cascade)
+
+  @@index([schoolId, conversationId, createdAt])
+  @@map("chat_messages")
+}

@@ -134,6 +134,9 @@ export const REAL_ROUTES: readonly string[] = [
   '* /v1/comms/templates/**',
   'GET /v1/comms/events',
   '* /v1/comms/settings/**',
+  // Messages: the school office's conversations with parents.
+  '* /v1/comms/messages',
+  '* /v1/comms/messages/**',
   // Settings: school, academic, finance, subscription, modules, security and change history.
   '* /v1/settings/**',
   // Finance: fees, invoices and student accounts, payments and refunds, bank and cash accounts,

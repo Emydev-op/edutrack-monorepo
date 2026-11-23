@@ -133,6 +133,8 @@ export const routesPath = {
     announcementEdit: { name: 'announcement-edit', path: '/communication/announcements/:id/edit' },
     deliveryDetail: { name: 'delivery', path: '/communication/delivery-logs/:id' },
     templateDetail: { name: 'message-template', path: '/communication/templates/:id' },
+    messages: { name: 'messages', path: '/communication/messages' },
+    messageThread: { name: 'message-thread', path: '/communication/messages/:id' },
   },
   reports: { name: 'reports', path: '/reports' },
   reportDetail: { name: 'report', path: '/reports/:id' },
