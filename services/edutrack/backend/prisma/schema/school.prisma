@@ -543,6 +543,10 @@ enum GroupTemplateKind {
   FEES
   ROLES
   MESSAGES
+  CALENDAR
+  SUBJECTS
+  POLICIES
+  BRANDING
 
   @@map("group_template_kind")
 }

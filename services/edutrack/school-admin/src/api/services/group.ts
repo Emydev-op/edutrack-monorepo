@@ -56,7 +56,8 @@ export const useSwitchSchoolMutation = () => {
 };
 
 export interface GroupTemplate {
-  key: 'grading' | 'fees' | 'roles' | 'messages';
+  key:
+    'grading' | 'fees' | 'roles' | 'messages' | 'calendar' | 'subjects' | 'policies' | 'branding';
   label: string;
   description: string;
   canEdit: boolean;
@@ -146,6 +147,8 @@ export interface GroupReports {
     results: number;
   }[];
   topStudents: {
+    studentId: string;
+    schoolId: string;
     name: string;
     school: string;
     className: string;
@@ -167,4 +170,50 @@ export const useGroupReportsQuery = (period: Ref<ReportPeriod>) =>
       getRequest<GroupReports>('/v1/group/reports', { params: { period: period.value } }),
     retry: false,
     staleTime: 60_000,
+  });
+
+export type GroupAudience = 'everyone' | 'parents' | 'students' | 'teachers' | 'staff';
+export type GroupChannel = 'In-app' | 'Email' | 'SMS';
+export interface GroupAnnouncementAudience {
+  audience: GroupAudience;
+  channels: GroupChannel[];
+  smsText?: string;
+  schoolIds: string[];
+}
+export interface GroupAnnouncementPreview {
+  schools: {
+    schoolId: string;
+    school: string;
+    recipients: number;
+    reach: Record<GroupChannel, number> | null;
+    smsUnits: number;
+    credit: number;
+    enough: boolean;
+    notes: string[];
+    error: string | null;
+  }[];
+  recipients: number;
+  smsUnits: number;
+}
+export interface GroupAnnouncementResult {
+  results: {
+    schoolId: string;
+    school: string;
+    sent: boolean;
+    recipients: number;
+    error: string | null;
+  }[];
+  sent: number;
+  recipients: number;
+}
+
+/** Who a group announcement reaches in each chosen school. */
+export const previewGroupAnnouncement = (p: GroupAnnouncementAudience) =>
+  postRequest<GroupAnnouncementPreview>('/v1/group/announcements/preview', p);
+
+/** Sends one announcement in each chosen school (each school sends its own copy). */
+export const useSendGroupAnnouncementMutation = () =>
+  useMutation({
+    mutationFn: (p: GroupAnnouncementAudience & { title: string; body: string }) =>
+      postRequest<GroupAnnouncementResult>('/v1/group/announcements', p),
   });

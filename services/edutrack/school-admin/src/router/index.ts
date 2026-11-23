@@ -55,6 +55,18 @@ const router = createRouter({
           },
         },
         {
+          ...routesPath.groupAnnouncement,
+          component: () => import('@/views/group/GroupAnnouncementView.vue'),
+          meta: {
+            title: 'Group announcement',
+            nav: routesPath.groupOverview.name,
+            breadcrumb: [
+              { label: 'Group overview', to: routesPath.groupOverview.name },
+              { label: 'Announcement' },
+            ],
+          },
+        },
+        {
           ...routesPath.groupReports,
           component: () => import('@/views/group/GroupReportsView.vue'),
           meta: {
