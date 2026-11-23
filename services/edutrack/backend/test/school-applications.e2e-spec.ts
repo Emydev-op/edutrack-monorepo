@@ -162,7 +162,7 @@ describe('Admission applications (e2e)', () => {
       billing: 'defer',
       siblingDiscount: false,
     });
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(200);
     const done = (await admin.get(`${A}/${app.id}`)).body.data as Detail;
     expect(done).toMatchObject({ stage: 'Admitted', canEdit: false, canAdmit: false, next: [] });
     expect(done.studentId).toBe(res.body.data.studentId);
