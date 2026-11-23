@@ -3,7 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
 import { getApiErrorMessage } from '@edutrack/web-core/http';
-import { useRouter } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
 import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
@@ -48,7 +48,15 @@ async function open(id: string, name: string) {
     <PageHeader
       :title="data.group.name"
       :description="`Group overview · ${data.role} · ${data.totals.schools} schools`"
-    />
+    >
+      <template #actions>
+        <Button as-child variant="outline"
+          ><RouterLink :to="{ name: routesPath.groupTemplates.name }"
+            >Shared templates</RouterLink
+          ></Button
+        >
+      </template>
+    </PageHeader>
     <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Group totals">
       <div class="rounded-lg border bg-card p-4">
         <p class="text-xs text-faint">Students on roll</p>
