@@ -1,3 +1,4 @@
+import type { CampusBrand } from '@edutrack/app-kit/composables/useCampusTheme';
 import type { RouteLocationRaw } from 'vue-router';
 
 export type TermStatus = 'Closed' | 'Active' | 'Upcoming';
@@ -69,6 +70,8 @@ export interface Me {
   roles: StaffRole[];
   isClassTeacher: boolean;
   classArm: { id: string; name: string; branchId: string; branchName: string } | null;
+  /** Their campus's brand when they work at one campus; null at several (the school's). */
+  campus?: CampusBrand | null;
   /** HOD: reviews result sheets and lesson notes of `hodOf`. */
   isHod: boolean;
   hodOf: { id: string; name: string } | null;

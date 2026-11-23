@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { campusBrand } from '../shared/campus-brand.js';
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { initialsOf } from '../../auth/identifiers.js';
 import { leftOnOf } from '../../auth/school-portal-rules.js';
@@ -47,10 +48,12 @@ export class StudentPortalService {
   /** `GET /v1/student/overview`: who is signed in, the school, the term. */
   async overview(auth: AuthUserContext, me: StudentScope) {
     const s = me.student;
-    const [school, terms, place] = await Promise.all([
+    const [school, terms, place, campus] = await Promise.all([
       this.db.school.findUniqueOrThrow({ where: { id: auth.schoolId! } }),
       this.scope.terms(),
       this.place(s.id),
+      // The pupil's campus, which the portal is themed in.
+      campusBrand(this.db, s.branchId),
     ]);
     const term = ParentScopeService.current(terms, this.scope.today());
     const left = me.access === 'read-only' ? leftOnOf(s) : null;
@@ -67,6 +70,7 @@ export class StudentPortalService {
         access: me.access,
         leftOn: left ? isoDate(left) : null,
       },
+      campus,
       school: {
         name: school.name,
         initials: initialsOf(school.name),

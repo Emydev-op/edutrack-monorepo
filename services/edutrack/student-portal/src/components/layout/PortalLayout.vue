@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useLogoFallback } from '@edutrack/app-kit/composables/useLogoFallback';
 import { useIdleSignOut } from '@edutrack/app-kit/composables/useIdleSignOut';
+import { useCampusTheme } from '@edutrack/app-kit/composables/useCampusTheme';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import {
   BellIcon,
@@ -34,6 +35,10 @@ const auth = useAuthStore();
 const brand = useSchoolBrand();
 const overview = useOverviewQuery();
 const student = computed(() => overview.data.value?.student ?? null);
+// Themed in the pupil's campus (its own colour and logo), else the school's.
+const campus = computed(() => overview.data.value?.campus ?? null);
+useCampusTheme(campus, () => auth.school?.brandColor);
+const logoUrl = computed(() => campus.value?.logoUrl ?? auth.school?.logoUrl ?? null);
 const notifications = useNotificationsQuery('unread');
 const unread = computed(() => notifications.data.value?.unread ?? 0);
 
@@ -45,7 +50,7 @@ const ICONS = {
   more: MenuIcon,
 };
 const activeTab = computed(() => route.meta.tab ?? 'home');
-const { failed: logoFailed, onError: onLogoError } = useLogoFallback(() => auth.school?.logoUrl);
+const { failed: logoFailed, onError: onLogoError } = useLogoFallback(() => logoUrl.value);
 
 // Shared phones: sign out after the school's idle time, unless "Remember this device".
 const queries = useQueryClient();
@@ -84,15 +89,10 @@ const tabs = computed(() => tabsFor(auth.school?.modules));
             class="flex min-w-0 flex-1 items-center gap-2.5"
           >
             <span
-              v-if="auth.school?.logoUrl && !logoFailed"
+              v-if="logoUrl && !logoFailed"
               class="flex size-8 shrink-0 items-center justify-center rounded-md border bg-card p-0.5"
             >
-              <img
-                :src="auth.school.logoUrl"
-                alt=""
-                class="size-full object-contain"
-                @error="onLogoError"
-              />
+              <img :src="logoUrl" alt="" class="size-full object-contain" @error="onLogoError" />
             </span>
             <span
               v-else

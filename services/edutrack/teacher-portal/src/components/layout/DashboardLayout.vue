@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useIdleSignOut } from '@edutrack/app-kit/composables/useIdleSignOut';
+import { useCampusTheme } from '@edutrack/app-kit/composables/useCampusTheme';
 import { useQueryClient } from '@tanstack/vue-query';
 import { useRouter } from 'vue-router';
 
@@ -28,6 +29,11 @@ const route = useRoute();
 const layout = useLayoutStore();
 const context = useContextStore();
 const me = useMeQuery();
+// Themed in the teacher's campus when they work at one campus, else the school's colour.
+useCampusTheme(
+  () => me.data.value?.campus,
+  () => useIdleAuth().school?.brandColor,
+);
 const shell = useShellContextQuery();
 watch(shell.data, (s) => s && context.useShell(s), { immediate: true });
 

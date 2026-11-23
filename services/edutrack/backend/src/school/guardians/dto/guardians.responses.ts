@@ -116,6 +116,24 @@ export class GuardianInviteResultDto {
   @ApiProperty({ type: [SkippedGuardianDto] }) skipped!: SkippedGuardianDto[];
 }
 
+export class CampusBrandDto {
+  @ApiProperty({ example: 'Lekki Campus' }) name!: string;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: '#0F766E',
+    description: 'The campus’s own colour; null keeps the school’s',
+  })
+  brandColor!: string | null;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: null,
+    description: 'The campus’s own logo; null keeps the school’s',
+  })
+  logoUrl!: string | null;
+}
+
 export class ParentChildDto {
   @ApiProperty({ example: UUID }) id!: string;
   @ApiProperty({ example: 'Chidi Okafor' }) name!: string;
@@ -139,4 +157,10 @@ export class ParentChildDto {
     description: 'Read-only access ends on this day (YYYY-MM-DD)',
   })
   readOnlyUntil!: string | null;
+  @ApiProperty({
+    type: CampusBrandDto,
+    nullable: true,
+    description: 'The child’s campus; the portal is themed in it while this child is selected',
+  })
+  campus!: CampusBrandDto | null;
 }

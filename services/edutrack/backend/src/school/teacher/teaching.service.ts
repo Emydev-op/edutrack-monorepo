@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
+import { campusBrand } from '../shared/campus-brand.js';
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { AssignmentsHomeworkService } from '../homework/assignments-homework.service.js';
 import { MaterialsHomeworkService } from '../homework/materials-homework.service.js';
@@ -111,6 +112,8 @@ export class TeachingService {
         .map((b) => ({ id: b.id, name: b.name, short: branchShort(b.name) })),
       hasAssignments: assignments.length > 0,
       profileComplete: !!s.phone?.trim(),
+      // Their campus's brand when they work at one campus; at several, the school's.
+      campus: branchIds.size === 1 ? await campusBrand(this.db, [...branchIds][0]) : null,
     };
   }
 
