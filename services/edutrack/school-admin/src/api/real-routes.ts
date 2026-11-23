@@ -95,6 +95,9 @@ export const REAL_ROUTES: readonly string[] = [
   'POST /v1/students/assign-arm',
   'GET /v1/students/:id',
   'POST /v1/students/:id/transfer',
+  // Subject choices: a student's subjects, and a class arm's choices at once.
+  '* /v1/students/:id/subjects',
+  '* /v1/subject-choices/:armId',
   'GET /v1/enrollment/options',
   'POST /v1/enrollments',
   // Setup Center and the header's working context.
@@ -106,6 +109,7 @@ export const REAL_ROUTES: readonly string[] = [
   'GET /v1/admissions',
   'GET /v1/admissions/options',
   'GET /v1/admissions/matches',
+  'GET /v1/admissions/subject-options',
   'POST /v1/admissions',
   'POST /v1/imports',
   'POST /v1/imports/:id/commit',

@@ -516,8 +516,8 @@ mock.post('/v1/admissions', (req) => {
     admissionType: p.admissionType,
     admittedInto: `${SESSION} · ${p.level}${p.arm}`,
     enrolledSince: 'Today',
-    religious: p.religious,
-    elective: p.elective,
+    religious: p.subjects?.religious ?? 'CRS',
+    elective: p.subjects?.electives[0] ?? '',
     balance: 0,
     admittedToday: true,
     activity: [

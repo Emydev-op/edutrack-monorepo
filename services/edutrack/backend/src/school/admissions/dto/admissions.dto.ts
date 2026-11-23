@@ -160,10 +160,24 @@ export class AdmitDto {
   @IsString()
   religious?: string;
 
-  @ApiPropertyOptional({ example: 'Computer Studies', description: 'Elective subject name' })
+  @ApiPropertyOptional({
+    example: 'Computer Studies',
+    description: 'Elective subject name (older clients)',
+  })
   @IsOptional()
   @IsString()
   elective?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'The subjects chosen for the class level (from `GET /v1/admissions/subject-options`): one ' +
+      'religious subject id and the elective subject ids. Checked against each elective group’s ' +
+      'minimum and maximum. Replaces `religious` and `elective`.',
+    example: { religious: '0190…', electives: ['0190…', '0190…'] },
+  })
+  @IsOptional()
+  @IsObject()
+  subjects?: { religious?: string | null; electives?: string[] };
 
   @ApiProperty({
     type: 'object',
@@ -183,6 +197,16 @@ export class AdmitDto {
   @IsOptional()
   @IsBoolean()
   siblingDiscount?: boolean;
+}
+
+export class SubjectOptionsQueryDto {
+  @ApiProperty({ example: 'Main Campus' })
+  @IsString()
+  branch!: string;
+
+  @ApiProperty({ example: 'SS 1' })
+  @IsString()
+  level!: string;
 }
 
 export class AdmissionMatchesQueryDto {

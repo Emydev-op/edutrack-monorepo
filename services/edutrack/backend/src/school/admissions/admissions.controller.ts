@@ -22,6 +22,7 @@ import { noticeOf } from '../staff/staff-audit.js';
 import { AdmissionsService } from './admissions.service.js';
 import {
   AdmissionMatchesQueryDto,
+  SubjectOptionsQueryDto,
   AdmitDto,
   StudentImportCommitDto,
   StudentImportDto,
@@ -74,6 +75,20 @@ export class AdmissionsController {
   @ApiOkResponse({ type: AdmissionOptionsDto })
   options() {
     return this.admissions.options();
+  }
+
+  @ResponseMessage('Subject options loaded.')
+  @Get('subject-options')
+  @RequirePermission('students.view')
+  @ApiOperation({
+    summary: 'What a class level offers this session: compulsory, religious and elective groups',
+    description:
+      'Elective groups come from Academics › Curriculum, each with its minimum and maximum picks; ' +
+      'electives in no group are “Other electives” (no minimum). `unstaffed` lists subject ids ' +
+      'with no teacher this term.',
+  })
+  subjectOptions(@Query() query: SubjectOptionsQueryDto) {
+    return this.admissions.subjectOptions(query.branch, query.level);
   }
 
   @ResponseMessage('Matches checked.')
