@@ -45,6 +45,7 @@ export const navigation: NavGroup[] = [
       item('Students', r.students.list),
       item('Admissions', r.students.admissions),
       item('Enrollment', r.students.enrollment),
+      item('Subject choices', r.students.subjectChoices),
       item('Parents / Guardians', r.students.parents),
     ],
   },

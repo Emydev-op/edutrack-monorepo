@@ -81,6 +81,7 @@ export const routesPath = {
     admit: { name: 'admit-student', path: '/students/admissions/new' },
     import: { name: 'import-students', path: '/students/import' },
     enrollment: { name: 'enrollment', path: '/students/enrollment' },
+    subjectChoices: { name: 'subject-choices', path: '/students/subject-choices' },
     parents: { name: 'parents', path: '/students/parents' },
     parent: { name: 'parent', path: '/students/parents/:id' },
     loginSlips: { name: 'student-login-slips', path: '/students/login-slips' },

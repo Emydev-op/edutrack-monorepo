@@ -10,6 +10,7 @@ import { fail, plural } from '../academics/academic-format.js';
 import { outstandingBalances } from '../finance/finance-balances.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { SectionAccessService } from '../shared/section-access.service.js';
+import { carryChoices } from '../shared/subject-choices.js';
 import { asTx } from '../shared/tenant-tx.js';
 import {
   closeStudentAccess,
@@ -605,7 +606,10 @@ export class PromotionService {
     const leftOn = st.from.endsOn;
     const closed: ClosedStudentAccess[] = [];
     let created = 0;
+    let needChoosing = 0;
     await this.db.$transaction(async (tx) => {
+      // Students moving into a class next session, whose subject choices carry over.
+      const carry: { studentId: string; levelId: string }[] = [];
       const already = await tx.enrollment.findMany({
         where: { sessionId: to.id, studentId: { in: pending.map((l) => l.enrollment.studentId) } },
       });
@@ -650,6 +654,7 @@ export class PromotionService {
                 enrolledOn: to.startsOn,
               },
             });
+            carry.push({ studentId: e.studentId, levelId: target.id });
             created++;
           }
           const armName = st.arms.find((a) => a.id === nextArmId)?.name;
@@ -728,6 +733,10 @@ export class PromotionService {
         );
       }
 
+      // Subjects still offered at the new level carry over; the rest wait on Subject choices.
+      const carried = await carryChoices(tx, schoolId, carry, st.from.id, to.id, to.startsOn);
+      needChoosing = carried.incomplete;
+
       const counts = (Object.keys(DECISION_LABEL) as PromotionOutcome[])
         .map((k) => [DECISION_LABEL[k], pending.filter((l) => l.decision === k).length] as const)
         .filter(([, n]) => n)
@@ -745,6 +754,8 @@ export class PromotionService {
             ...counts,
             exceptions && plural(exceptions, 'exception'),
             `${plural(created, 'enrollment')} created`,
+            carried.incomplete &&
+              `${plural(carried.incomplete, 'student')} need subject choices for ${to.name}`,
           ]
             .filter(Boolean)
             .join(' · '),
@@ -753,6 +764,6 @@ export class PromotionService {
       );
     });
     for (const c of closed) await this.access.forget(c);
-    return { ...(await this.view(st.cls.key)), created };
+    return { ...(await this.view(st.cls.key)), created, needChoosing };
   }
 }

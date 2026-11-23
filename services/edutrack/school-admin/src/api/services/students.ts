@@ -8,6 +8,9 @@ import type {
   AdmissionOptions,
   AdmitPayload,
   AdmitResult,
+  ChangeSubjectsPayload,
+  ClassSubjectChoices,
+  ClassSubjectChoicesPayload,
   EnrollmentOptions,
   EnrollPayload,
   GuardianDetail,
@@ -21,6 +24,8 @@ import type {
   StudentDetail,
   StudentQuery,
   StudentRow,
+  StudentSubjects,
+  SubjectOptions,
   TransferPayload,
 } from '@/types';
 
@@ -110,6 +115,51 @@ export const useAdmissionMatchesQuery = (
 
 export const useAdmitMutation = () =>
   useStudentsMutation((p: AdmitPayload) => postRequest<AdmitResult>('/v1/admissions', p));
+
+/** What a class level at a branch offers this session: compulsory, religious and elective groups. */
+export const useSubjectOptionsQuery = (
+  branch: MaybeRefOrGetter<string>,
+  level: MaybeRefOrGetter<string>,
+) =>
+  useQuery({
+    queryKey: computed(() => queryKeys.admissions.subjectOptions(toValue(branch), toValue(level))),
+    queryFn: () =>
+      getRequest<SubjectOptions>('/v1/admissions/subject-options', {
+        params: { branch: toValue(branch), level: toValue(level) },
+      }),
+    enabled: computed(() => !!toValue(branch) && !!toValue(level)),
+  });
+
+/* ---------------- Subject choices ---------------- */
+
+export const useStudentSubjectsQuery = (id: MaybeRefOrGetter<string>) =>
+  useQuery({
+    queryKey: computed(() => queryKeys.students.subjects(toValue(id))),
+    queryFn: () => getRequest<StudentSubjects>(`/v1/students/${toValue(id)}/subjects`),
+  });
+
+export const useChangeSubjectsMutation = (id: MaybeRefOrGetter<string>) =>
+  useStudentsMutation((p: ChangeSubjectsPayload) =>
+    putRequest<StudentSubjects>(`/v1/students/${toValue(id)}/subjects`, p),
+  );
+
+export const useClassSubjectChoicesQuery = (
+  armId: MaybeRefOrGetter<string>,
+  sessionId: MaybeRefOrGetter<string> = '',
+) =>
+  useQuery({
+    queryKey: computed(() => queryKeys.students.choices(toValue(armId), toValue(sessionId))),
+    queryFn: () =>
+      getRequest<ClassSubjectChoices>(`/v1/subject-choices/${toValue(armId)}`, {
+        params: cleanParams({ sessionId: toValue(sessionId) }),
+      }),
+    enabled: computed(() => !!toValue(armId)),
+  });
+
+export const useSaveClassSubjectChoicesMutation = () =>
+  useStudentsMutation(({ armId, ...p }: ClassSubjectChoicesPayload & { armId: string }) =>
+    putRequest<ClassSubjectChoices>(`/v1/subject-choices/${armId}`, p),
+  );
 
 /* ---------------- Import & enrollment ---------------- */
 

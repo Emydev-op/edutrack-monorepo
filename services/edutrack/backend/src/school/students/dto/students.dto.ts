@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
@@ -10,6 +10,7 @@ import {
   Matches,
   MaxLength,
   ValidateIf,
+  ValidateNested,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/pagination/pagination.js';
 import { trim } from '../../../platform/shared/params.js';
@@ -178,4 +179,74 @@ export class StudentPhotoDto {
   @MaxLength(3_000_000, { message: 'The photo is larger than 2 MB.' })
   @IsString()
   photo?: string | null;
+}
+
+/** PUT /v1/students/:id/subjects. */
+export class StudentSubjectsDto {
+  @ApiPropertyOptional({ description: 'The religious studies subject id', nullable: true })
+  @IsOptional()
+  @IsString()
+  religious?: string | null;
+
+  @ApiProperty({ type: [String], description: 'Elective subject ids' })
+  @IsArray()
+  @ArrayMaxSize(40)
+  @IsString({ each: true })
+  electives!: string[];
+
+  @ApiPropertyOptional({ example: '2026-11-23', description: 'YYYY-MM-DD; today when empty' })
+  @IsOptional()
+  @IsString()
+  effectiveOn?: string | null;
+
+  @ApiPropertyOptional({ description: 'Move to this arm of the same class, if given' })
+  @IsOptional()
+  @IsString()
+  armId?: string | null;
+
+  @ApiPropertyOptional({ example: 'Moved from Arts to Science after the first-term review' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  reason?: string | null;
+}
+
+/** GET /v1/subject-choices/:armId. */
+export class SubjectChoicesQueryDto {
+  @ApiPropertyOptional({ description: 'The session (Active, else Upcoming, when empty)' })
+  @IsOptional()
+  @IsString()
+  sessionId?: string;
+}
+
+export class StudentChoiceDto {
+  @ApiProperty()
+  @IsString()
+  studentId!: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  religious?: string | null;
+
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayMaxSize(40)
+  @IsString({ each: true })
+  electives!: string[];
+}
+
+/** PUT /v1/subject-choices/:armId. */
+export class ClassSubjectChoicesDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sessionId?: string;
+
+  @ApiProperty({ type: [StudentChoiceDto] })
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => StudentChoiceDto)
+  students!: StudentChoiceDto[];
 }

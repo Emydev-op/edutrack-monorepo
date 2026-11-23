@@ -44,6 +44,11 @@ export const studentRoutes: RouteRecordRaw[] = [
     meta: { title: 'Enrollment', breadcrumb: [STUDENTS, { label: 'Enrollment' }] },
   },
   {
+    ...s.subjectChoices,
+    component: () => import('@/views/students/SubjectChoicesView.vue'),
+    meta: { title: 'Subject choices', breadcrumb: [STUDENTS, { label: 'Subject choices' }] },
+  },
+  {
     ...s.parents,
     component: () => import('@/views/students/ParentsView.vue'),
     meta: {

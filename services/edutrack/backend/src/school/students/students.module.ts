@@ -10,6 +10,7 @@ import { StudentAccessService } from './student-access.js';
 import { StudentMovesService } from './student-moves.service.js';
 import { StudentSetupSteps } from './student-steps.js';
 import { EnrollmentController, StudentsController } from './students.controller.js';
+import { StudentSubjectsService } from './student-subjects.service.js';
 import { StudentsService } from './students.service.js';
 
 /**
@@ -31,6 +32,7 @@ import { StudentsService } from './students.service.js';
     StudentsService,
     StudentMovesService,
     StudentPhotoService,
+    StudentSubjectsService,
     StudentSetupSteps,
   ],
   exports: [StudentsService, StudentAccessService, StudentSetupSteps],
