@@ -10,6 +10,8 @@
 export const REAL_ROUTES: readonly string[] = [
   // Sign-in, invitations, passwords, sessions.
   '* /v1/auth/**',
+  // Group overview, shared templates and group reports, for a school group's own staff.
+  '* /v1/group/**',
   // School › Organogram, Settings › Users & Roles, and the staff picker.
   '* /v1/organogram/**',
   '* /v1/users/**',
@@ -45,6 +47,10 @@ export const REAL_ROUTES: readonly string[] = [
   'PUT /v1/academics/classes/arms/:id',
   'DELETE /v1/academics/classes/arms/:id',
   'GET /v1/academics/classes/:id',
+  // Classes & arms bulk upload.
+  'GET /v1/academics/classes/import/template',
+  'POST /v1/academics/classes/import',
+  'POST /v1/academics/classes/import/:id/commit',
   // Academics, Phase 3a: subjects and curriculum, teacher assignments, timetable, assessment and
   // grading, and the attendance view.
   'GET /v1/academics/curriculum',
