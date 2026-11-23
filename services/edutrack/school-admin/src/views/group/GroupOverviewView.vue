@@ -51,6 +51,9 @@ async function open(id: string, name: string) {
     >
       <template #actions>
         <Button as-child variant="outline"
+          ><RouterLink :to="{ name: routesPath.groupReports.name }">Reports</RouterLink></Button
+        >
+        <Button as-child variant="outline"
           ><RouterLink :to="{ name: routesPath.groupTemplates.name }"
             >Shared templates</RouterLink
           ></Button

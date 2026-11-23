@@ -1,12 +1,25 @@
-import { Body, Controller, Get, HttpCode, Module, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Module,
+  Param,
+  Post,
+  Query,
+  StreamableFile,
+} from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { ArrayMaxSize, IsArray, IsString, IsUUID } from 'class-validator';
-import { ApiForbiddenResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiForbiddenResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { Portals } from '../../auth/decorators/auth.decorators.js';
 import { CurrentUser } from '../../common/decorators/request.decorators.js';
-import { ResponseMessage } from '../../common/http/api-response.js';
+import { RawResponse, ResponseMessage } from '../../common/http/api-response.js';
+import { InsightsResultsService } from '../insights/insights-results.service.js';
+import { ResultsModule } from '../results/results.module.js';
 import { GroupOverviewService } from './group-overview.service.js';
+import { GroupReportsService, type Period } from './group-reports.service.js';
 import { GroupTemplatesService } from './group-templates.service.js';
 
 export class TemplateSourceDto {
@@ -23,6 +36,8 @@ export class TemplateTargetsDto {
   schoolIds!: string[];
 }
 
+const periodOf = (p?: string): Period => (p === 'previous' ? 'previous' : 'current');
+
 /** School Admin › Group overview (`/v1/group`), for a school group's own staff. */
 @ApiTags('school · group')
 @Portals('SCHOOL_ADMIN')
@@ -31,7 +46,32 @@ export class GroupController {
   constructor(
     private readonly groups: GroupOverviewService,
     private readonly templates: GroupTemplatesService,
+    private readonly reports: GroupReportsService,
   ) {}
+
+  @ResponseMessage('Group reports loaded.')
+  @Get('reports')
+  @ApiOperation({
+    summary:
+      'Each school side by side for a term, compared with the term before: results, attendance, fees, enrolment and staff',
+  })
+  @ApiQuery({ name: 'period', required: false, enum: ['current', 'previous'] })
+  @ApiForbiddenResponse({ description: 'NOT_GROUP_STAFF' })
+  groupReports(@CurrentUser() auth: AuthUserContext, @Query('period') period?: string) {
+    return this.reports.report(auth, periodOf(period));
+  }
+
+  @RawResponse()
+  @Get('reports/export')
+  @ApiOperation({ summary: 'The group reports as an Excel workbook (.xlsx), one sheet per part' })
+  @ApiQuery({ name: 'period', required: false, enum: ['current', 'previous'] })
+  async exportReports(@CurrentUser() auth: AuthUserContext, @Query('period') period?: string) {
+    const { buffer, fileName } = await this.reports.workbook(auth, periodOf(period));
+    return new StreamableFile(buffer, {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      disposition: `attachment; filename="${fileName}"`,
+    });
+  }
 
   @ResponseMessage('Group overview loaded.')
   @Get('overview')
@@ -85,7 +125,13 @@ export class GroupController {
 }
 
 @Module({
+  imports: [ResultsModule],
   controllers: [GroupController],
-  providers: [GroupOverviewService, GroupTemplatesService],
+  providers: [
+    GroupOverviewService,
+    GroupTemplatesService,
+    GroupReportsService,
+    InsightsResultsService,
+  ],
 })
 export class GroupModule {}

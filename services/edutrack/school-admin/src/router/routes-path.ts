@@ -14,6 +14,7 @@ export const routesPath = {
   dashboard: { name: 'dashboard', path: '/dashboard' },
   groupOverview: { name: 'group-overview', path: '/group' },
   groupTemplates: { name: 'group-templates', path: '/group/templates' },
+  groupReports: { name: 'group-reports', path: '/group/reports' },
   setup: { name: 'setup', path: '/setup' },
   setupBranches: { name: 'setup-branches', path: '/setup/branches' },
   school: {
