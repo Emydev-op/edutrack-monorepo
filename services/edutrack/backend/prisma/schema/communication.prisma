@@ -73,6 +73,7 @@ enum AudienceKind {
   TEACHERS
   STAFF
   CLASSES
+  PEOPLE
 
   @@map("audience_kind")
 }
@@ -212,6 +213,8 @@ model Announcement {
   audienceKind     AudienceKind       @map("audience_kind")
   /// Null = all branches.
   audienceBranchId String?            @map("audience_branch_id") @db.Uuid
+  /// Chosen people when the audience is PEOPLE: "g:<guardianId>", "s:<studentId>", "st:<staffId>".
+  audiencePeople   String[]           @default([]) @map("audience_people")
   channels         Channel[]
   status           AnnouncementStatus @default(DRAFT)
   scheduledFor     DateTime?          @map("scheduled_for") @db.Timestamptz(3)
