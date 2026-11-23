@@ -193,7 +193,10 @@ const onSubmit = handleSubmit((v) => {
         });
       } catch (e) {
         const fields = fieldErrorsOf(e);
-        if (fields.evidence) fileError.value = fields.evidence;
+        // Nested checks on the file (`evidence.name`, `evidence.type`…) belong under the picker too.
+        const evidence =
+          fields.evidence ?? Object.entries(fields).find(([k]) => k.startsWith('evidence.'))?.[1];
+        if (evidence) fileError.value = evidence;
         setErrors(fields);
         throw e;
       }

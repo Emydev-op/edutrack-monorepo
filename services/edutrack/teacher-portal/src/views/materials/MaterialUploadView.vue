@@ -89,7 +89,7 @@ const { handleSubmit, values, meta, resetForm, setErrors } = useForm({
   ),
   initialValues: { classKey: '', type: 'PDF', title: '', description: '', link: '' },
 });
-const { value: type } = useField<MaterialType>('type');
+const { value: type, errorMessage: typeError } = useField<MaterialType>('type');
 
 const classOptions = computed(() =>
   (scope.value?.assignments ?? []).map((a) => ({
@@ -291,6 +291,7 @@ const start = handleSubmit(async (v) => {
               label="Material type"
               :columns="3"
             />
+            <p v-if="typeError" role="alert" class="text-xs text-destructive">{{ typeError }}</p>
           </div>
         </div>
       </SectionCard>

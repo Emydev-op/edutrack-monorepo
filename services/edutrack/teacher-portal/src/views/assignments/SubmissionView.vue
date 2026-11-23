@@ -43,7 +43,7 @@ const max = computed(() => a.value?.maxScore ?? 100);
 const score = ref('');
 const feedback = ref('');
 const excuseReason = ref('');
-const errors = ref<{ score?: string; reason?: string; form?: string }>({});
+const errors = ref<{ score?: string; feedback?: string; reason?: string; form?: string }>({});
 
 // Reset the form when the record (or the student) changes.
 watch(
@@ -58,6 +58,10 @@ watch(
   { immediate: true },
 );
 watch(score, () => errors.value.score && (errors.value = { ...errors.value, score: undefined }));
+watch(
+  feedback,
+  () => errors.value.feedback && (errors.value = { ...errors.value, feedback: undefined }),
+);
 watch(
   excuseReason,
   () => errors.value.reason && (errors.value = { ...errors.value, reason: undefined }),
@@ -93,10 +97,13 @@ function parsedScore(required: boolean): number | null | undefined {
 
 function showError(e: unknown, fallback: string) {
   const fields = fieldErrorsOf(e);
+  const { score, feedback, reason } = fields;
   errors.value = {
-    score: fields.score,
-    reason: fields.reason,
-    form: Object.keys(fields).length ? undefined : getApiErrorMessage(e, fallback),
+    score,
+    feedback,
+    reason,
+    // Anything not shown under an input still needs a message.
+    form: score || feedback || reason ? undefined : getApiErrorMessage(e, fallback),
   };
 }
 
@@ -358,8 +365,13 @@ const listTo = computed(() => ({
                 :id="`${uid}-feedback`"
                 v-model="feedback"
                 :rows="4"
+                maxlength="2000"
                 placeholder="Good method. Check the signs in question 4."
+                :aria-invalid="!!errors.feedback"
               />
+              <p v-if="errors.feedback" role="alert" class="text-xs text-destructive">
+                {{ errors.feedback }}
+              </p>
             </div>
           </fieldset>
           <p v-if="!handedIn" class="text-xs text-muted-foreground">
