@@ -264,8 +264,8 @@ export interface AdmitPayload {
   arm: string;
   admissionType: 'New intake' | 'Transfer in';
   admissionDate: string;
-  religious: string;
-  elective: string;
+  /** Subject ids: one religious subject (when the level offers any) and the chosen electives. */
+  subjects: SubjectChoice;
   documents: Record<string, string | null>;
   billing: 'full' | 'defer';
   siblingDiscount: boolean;
@@ -280,6 +280,99 @@ export interface AdmitResult {
   guardianName: string | null;
   invited: boolean;
   invoiceTotal: number;
+}
+
+/* ---------------- Subject choices ---------------- */
+
+export interface SubjectRef {
+  subjectId: string;
+  code: string;
+  name: string;
+}
+
+/** An elective group from Academics › Curriculum; electives in no group form "Other electives". */
+export interface SubjectGroup<S extends SubjectRef = SubjectRef> {
+  id: string | null;
+  name: string;
+  minPicks: number;
+  maxPicks: number;
+  note: string;
+  /** e.g. "choose 2 to 3" */
+  rule: string;
+  subjects: S[];
+}
+
+/** A student's religious subject and electives, as subject ids. */
+export interface SubjectChoice {
+  religious: string | null;
+  electives: string[];
+}
+
+/** What a class level offers this session, for the admission wizard. */
+export interface SubjectOptions {
+  sessionId: string;
+  levelId: string;
+  compulsory: SubjectRef[];
+  religious: SubjectRef[];
+  groups: SubjectGroup[];
+  /** Subject ids with no teacher this term. */
+  unstaffed: string[];
+}
+
+export interface TaughtSubject extends SubjectRef {
+  teacher: string | null;
+  since: string | null;
+}
+
+/** Student › Subjects: what the student takes this session and what their class offers. */
+export interface StudentSubjects {
+  name: string;
+  session: string | null;
+  enrolled: boolean;
+  editable: boolean;
+  /** The signed-in member may change subjects (students.edit). */
+  canEdit: boolean;
+  className: string | null;
+  armId?: string | null;
+  compulsory: TaughtSubject[];
+  religious: TaughtSubject[];
+  groups: SubjectGroup<TaughtSubject>[];
+  chosen: SubjectChoice;
+  /** Whether the choices meet every rule of the class level. */
+  complete: boolean;
+  arms: { id: string; label: string; capacity: number; used: number }[];
+}
+
+export interface ChangeSubjectsPayload extends SubjectChoice {
+  effectiveOn?: string;
+  armId?: string | null;
+  reason?: string;
+}
+
+export interface ClassChoiceRow extends SubjectChoice {
+  studentId: string;
+  name: string;
+  admissionNo: string;
+  complete: boolean;
+}
+
+/** Students › Subject choices: everyone in an arm with their choices for the session. */
+export interface ClassSubjectChoices {
+  session: string;
+  sessionId: string;
+  className: string;
+  compulsory: SubjectRef[];
+  religious: SubjectRef[];
+  groups: SubjectGroup[];
+  students: ClassChoiceRow[];
+  needChoosing: number;
+  /** Set after a save. */
+  changed?: number;
+}
+
+export interface ClassSubjectChoicesPayload {
+  sessionId?: string;
+  students: ({ studentId: string } & SubjectChoice)[];
 }
 
 /* ---------------- Import ---------------- */

@@ -6,7 +6,7 @@ import { StatusBadge } from '@edutrack/ui/components/status-badge';
 import { cn } from '@edutrack/ui/lib/utils';
 import { getApiErrorMessage } from '@edutrack/web-core/http';
 import { computed, ref, watch } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
 import { toast } from 'vue-sonner';
 
 import EmptyState from '@edutrack/app-kit/components/common/EmptyState.vue';
@@ -34,6 +34,15 @@ const { data: view, isPending } = usePromotionQuery(classId);
 const { data: sessions } = useSessionsQuery();
 const save = useSaveDecisionsMutation();
 const apply = useApplyPromotionMutation();
+const router = useRouter();
+/** Promoted students whose subjects need choosing in the next session, after applying. */
+const needChoosing = ref<{ count: number; sessionId: string | null; classId: string } | null>(null);
+const subjectChoicesLink = computed(() => ({
+  name: routesPath.students.subjectChoices.name,
+  query: needChoosing.value?.sessionId ? { session: needChoosing.value.sessionId } : {},
+}));
+const studentsNeed = (n: number) =>
+  `${n} student${n === 1 ? '' : 's'} need${n === 1 ? 's' : ''} subjects chosen for next session`;
 
 /** Local edits: studentId → decision and reason. */
 const edits = ref<Record<string, { decision: PromotionDecision | null; reason: string }>>({});
@@ -182,6 +191,22 @@ async function confirmApply() {
       toast.success(
         `${v.className} decisions applied. ${res.created} ${v.to} enrollment${res.created === 1 ? '' : 's'} created.`,
       );
+      const count = res.needChoosing ?? 0;
+      needChoosing.value = count
+        ? {
+            count,
+            sessionId: sessions.value?.sessions.find((s) => s.name === v.to)?.id ?? null,
+            classId: v.classId,
+          }
+        : null;
+      if (count)
+        toast.warning(studentsNeed(count), {
+          description: `Their ${v.to} class offers different electives. Choose them in Subject choices.`,
+          action: {
+            label: 'Choose subjects',
+            onClick: () => void router.push(subjectChoicesLink.value),
+          },
+        });
     },
   });
 }
@@ -266,6 +291,18 @@ async function confirmApply() {
       :title="`${view.className} decisions applied`"
       :description="`${view.to} enrollments were created for promoted and repeating students. Students who left keep their records.`"
     />
+    <InlineNotice
+      v-if="needChoosing && needChoosing.classId === view.classId"
+      tone="warning"
+      :title="studentsNeed(needChoosing.count)"
+      :description="`Their religious subject or electives don’t meet the rules of their ${view.to} class yet.`"
+    >
+      <template #action>
+        <Button size="sm" as-child
+          ><RouterLink :to="subjectChoicesLink">Open Subject choices</RouterLink></Button
+        >
+      </template>
+    </InlineNotice>
 
     <section class="flex flex-col gap-1 rounded-lg border bg-card px-4.5 py-3.5">
       <span class="text-xs font-medium tracking-[0.04em] text-faint uppercase">Promotion rule</span>

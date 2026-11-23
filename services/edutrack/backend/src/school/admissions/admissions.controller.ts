@@ -26,6 +26,7 @@ import {
   AdmissionMatchesQueryDto,
   ApplicationDto,
   ApplicationStageDto,
+  SubjectOptionsQueryDto,
   AdmitDto,
   StudentImportCommitDto,
   StudentImportDto,
@@ -126,6 +127,20 @@ export class AdmissionsController {
   })
   moveApplication(@Param('id') id: string, @Body() dto: ApplicationStageDto) {
     return this.applications.move(id, dto);
+  }
+
+  @ResponseMessage('Subject options loaded.')
+  @Get('subject-options')
+  @RequirePermission('students.view')
+  @ApiOperation({
+    summary: 'What a class level offers this session: compulsory, religious and elective groups',
+    description:
+      'Elective groups come from Academics › Curriculum, each with its minimum and maximum picks; ' +
+      'electives in no group are “Other electives” (no minimum). `unstaffed` lists subject ids ' +
+      'with no teacher this term.',
+  })
+  subjectOptions(@Query() query: SubjectOptionsQueryDto) {
+    return this.admissions.subjectOptions(query.branch, query.level);
   }
 
   @ResponseMessage('Matches checked.')

@@ -490,7 +490,9 @@ export const useSaveDecisionsMutation = () =>
 
 export const useApplyPromotionMutation = () =>
   useAcademicsMutation((classId: string) =>
-    postRequest<PromotionView & { created: number }>(`${A}/promotion/${classId}/apply`),
+    postRequest<PromotionView & { created: number; needChoosing?: number }>(
+      `${A}/promotion/${classId}/apply`,
+    ),
   );
 
 /** A row of a classes and arms upload, as checked by the server. */

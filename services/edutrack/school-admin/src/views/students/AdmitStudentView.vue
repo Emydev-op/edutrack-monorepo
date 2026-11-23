@@ -7,7 +7,7 @@ import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { Switch } from '@edutrack/ui/components/switch';
 import { cn } from '@edutrack/ui/lib/utils';
-import { getApiErrorMessage } from '@edutrack/web-core/http';
+import { getApiErrorFields, getApiErrorMessage } from '@edutrack/web-core/http';
 import { CircleCheckIcon } from '@lucide/vue';
 import { refDebounced, useStorage } from '@vueuse/core';
 import { computed, reactive, ref, watch } from 'vue';
@@ -26,11 +26,14 @@ import {
   useAdmissionMatchesQuery,
   useAdmissionOptionsQuery,
   useAdmitMutation,
+  useSubjectOptionsQuery,
   useStudentPhotoMutation,
   useApplicationQuery,
   useGuardiansQuery,
 } from '@/api/services/students';
 import FileUpload from '@/components/school/FileUpload.vue';
+import SubjectPicker from '@/components/students/SubjectPicker.vue';
+import { choiceProblems, keepOffered, namesOf } from '@/lib/subject-choices';
 import { routesPath } from '@/router/routes-path';
 import type { AdmitResult, FileRef, Gender } from '@/types';
 
@@ -73,8 +76,9 @@ const blank = () => ({
   arm: '',
   admissionType: 'New intake' as 'New intake' | 'Transfer in',
   admissionDate: new Date().toISOString().slice(0, 10),
-  religious: 'CRS',
-  elective: 'Computer Studies',
+  /** Subject ids, from the class level's offer. */
+  religious: null as string | null,
+  electives: [] as string[],
   billing: 'full' as 'full' | 'defer',
   siblingDiscount: true,
 });
@@ -129,7 +133,19 @@ function saveDraft() {
 }
 function resumeDraft() {
   const saved = JSON.parse(draft.value ?? '{}') as { d?: Partial<typeof d>; step?: number };
-  Object.assign(d, saved.d ?? {});
+  // Only the fields this version knows (older drafts kept a religious code and one elective).
+  const known = Object.keys(blank()) as (keyof typeof d)[];
+  Object.assign(
+    d,
+    Object.fromEntries(known.flatMap((k) => (saved.d?.[k] === undefined ? [] : [[k, saved.d[k]]]))),
+  );
+  if (typeof d.religious !== 'string') d.religious = null;
+  if (!Array.isArray(d.electives)) d.electives = [];
+  if (subjectOffer.value)
+    Object.assign(
+      d,
+      keepOffered(subjectOffer.value, { religious: d.religious, electives: d.electives }),
+    );
   step.value = saved.step ?? 0;
 }
 
@@ -188,6 +204,23 @@ const guardianLabel = computed(() =>
 );
 const className = computed(() => (d.arm ? `${d.level}${d.arm}` : d.level));
 
+/** What the chosen class level offers at the branch: compulsory, religious and elective groups. */
+const {
+  data: subjectOffer,
+  isPending: offerPending,
+  isError: offerFailed,
+} = useSubjectOptionsQuery(
+  () => d.branch,
+  () => d.level,
+);
+// Picks the class level no longer offers are cleared (e.g. after changing the level).
+watch(subjectOffer, (offer) => {
+  if (!offer) return;
+  const kept = keepOffered(offer, { religious: d.religious, electives: d.electives });
+  d.religious = kept.religious;
+  if (kept.electives.length !== d.electives.length) d.electives = kept.electives;
+});
+
 /** This term's fees for the chosen branch and class, from Finance's published structure. */
 const classFees = computed(() => options.value?.feeLines?.[`${d.branch}|${d.level}`] ?? null);
 const feeLines = computed(() => {
@@ -226,6 +259,17 @@ function validate(i: number) {
     else if (a.used >= a.capacity)
       e.arm = `${d.level}${d.arm} is at capacity (${a.used} of ${a.capacity}). Choose another arm.`;
   }
+  if (i === 3) {
+    if (!subjectOffer.value)
+      e.subjects = offerFailed.value
+        ? 'The subjects for this class couldn’t be loaded. Try again.'
+        : 'Subjects are still loading.';
+    else
+      Object.assign(
+        e,
+        choiceProblems(subjectOffer.value, { religious: d.religious, electives: d.electives }),
+      );
+  }
   if (i === 4) {
     if (!docs.birth) e.birth = 'Birth certificate is required by your school settings';
     if (d.admissionType === 'Transfer in' && !docs.report)
@@ -245,7 +289,7 @@ const goTo = (i: number) => {
 };
 
 async function submit() {
-  for (const i of [0, 1, 2, 4]) {
+  for (const i of [0, 1, 2, 3, 4]) {
     const e = validate(i);
     if (Object.keys(e).length) return ((errors.value = e), (step.value = i));
   }
@@ -279,8 +323,7 @@ async function submit() {
       arm: d.arm,
       admissionType: d.admissionType,
       admissionDate: d.admissionDate,
-      religious: d.religious,
-      elective: d.elective,
+      subjects: { religious: d.religious, electives: d.electives },
       documents: Object.fromEntries(Object.entries(docs).map(([k, f]) => [k, f?.name ?? null])),
       billing: d.billing,
       siblingDiscount: showSibling.value && d.siblingDiscount,
@@ -301,6 +344,12 @@ async function submit() {
       e,
       'The admission couldn’t be saved. Nothing was created. Try again.',
     );
+    const fields = getApiErrorFields(e);
+    const subjectError = fields['subjects.religious'] ?? fields['subjects.electives'];
+    if (subjectError) {
+      errors.value = { subjects: subjectError };
+      step.value = 3;
+    }
   }
 }
 
@@ -355,9 +404,9 @@ const review = computed(() => [
     title: 'Subjects',
     step: 3,
     rows: [
-      ['Compulsory', `${options.value?.compulsorySubjects.length} subjects`],
-      ['Religious', d.religious],
-      ['Elective', d.elective],
+      ['Compulsory', subjectOffer.value?.compulsory.map((s) => s.name).join(', ') ?? ''],
+      ['Religious', subjectOffer.value ? namesOf(subjectOffer.value, [d.religious]).join('') : ''],
+      ['Electives', subjectOffer.value ? namesOf(subjectOffer.value, d.electives).join(', ') : ''],
     ],
   },
   {
@@ -713,56 +762,41 @@ const chip = (on: boolean, full = false) =>
           <h2 class="text-base font-semibold">
             Subjects · {{ d.level }} curriculum {{ options.session }}
           </h2>
-          <div class="flex flex-col gap-1.5">
-            <span class="text-[13px] font-medium">Compulsory · enrolled automatically</span>
-            <div class="flex flex-wrap gap-1.5">
-              <span
-                v-for="c in options.compulsorySubjects"
-                :key="c"
-                class="rounded-md border bg-muted px-2.5 py-1 text-[13px]"
-                >{{ c }}</span
-              >
+          <Skeleton v-if="offerPending" class="h-40" />
+          <InlineNotice
+            v-else-if="!subjectOffer"
+            tone="error"
+            title="We couldn’t load the subjects"
+            :description="`The subjects ${d.level} offers at ${d.branch} couldn’t be loaded. Go back and try again.`"
+          />
+          <template v-else>
+            <div class="flex flex-col gap-1.5">
+              <span class="text-[13px] font-medium">Compulsory · enrolled automatically</span>
+              <div class="flex flex-wrap gap-1.5">
+                <span
+                  v-for="c in subjectOffer.compulsory"
+                  :key="c.subjectId"
+                  class="rounded-md border bg-muted px-2.5 py-1 text-[13px]"
+                  >{{ c.name }}</span
+                >
+                <span v-if="!subjectOffer.compulsory.length" class="text-[13px] text-faint"
+                  >No compulsory subjects in the curriculum yet</span
+                >
+              </div>
             </div>
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <span class="text-[13px] font-medium">Religious studies · choose 1</span>
-            <div role="radiogroup" aria-label="Religious studies" class="flex flex-wrap gap-2">
-              <button
-                v-for="[code, name] in options.religiousSubjects"
-                :key="code"
-                type="button"
-                role="radio"
-                :aria-checked="d.religious === code"
-                :class="chip(d.religious === code)"
-                @click="d.religious = code"
-              >
-                {{ name }}
-              </button>
-            </div>
-          </div>
-          <div class="flex flex-col gap-1.5">
-            <span class="text-[13px] font-medium">Elective group A · choose 1</span>
-            <div role="radiogroup" aria-label="Elective" class="flex flex-wrap gap-2">
-              <button
-                v-for="e in options.electives"
-                :key="e"
-                type="button"
-                role="radio"
-                :aria-checked="d.elective === e"
-                :class="chip(d.elective === e)"
-                @click="d.elective = e"
-              >
-                {{ e }}
-              </button>
-            </div>
-            <p
-              v-if="options.unstaffedElectives.includes(d.elective)"
-              class="text-xs text-warning-strong"
-            >
-              {{ d.elective }} has no teacher for {{ options.session }} yet. The student can still
-              enroll; lessons start when a teacher is assigned.
-            </p>
-          </div>
+            <SubjectPicker
+              v-model:religious="d.religious"
+              v-model:electives="d.electives"
+              :religious-options="subjectOffer.religious"
+              :groups="subjectOffer.groups"
+              :unstaffed="subjectOffer.unstaffed"
+              :errors="errors"
+              :session="options.session"
+            />
+          </template>
+          <p v-if="errors.subjects" role="alert" class="text-xs text-destructive">
+            {{ errors.subjects }}
+          </p>
         </template>
 
         <!-- 5 · Documents -->

@@ -21,8 +21,12 @@ import {
   EnrollmentOptionsQueryDto,
   StudentPhotoDto,
   StudentQueryDto,
+  StudentSubjectsDto,
+  SubjectChoicesQueryDto,
+  ClassSubjectChoicesDto,
   TransferStudentDto,
 } from './dto/students.dto.js';
+import { StudentSubjectsService } from './student-subjects.service.js';
 import { StudentPhotoService } from './student-photo.service.js';
 import {
   EnrolledDto,
@@ -50,6 +54,7 @@ export class StudentsController {
     private readonly students: StudentsService,
     private readonly moves: StudentMovesService,
     private readonly photos: StudentPhotoService,
+    private readonly subjectsService: StudentSubjectsService,
   ) {}
 
   @ResponseMessage('Students loaded.')
@@ -127,6 +132,39 @@ export class StudentsController {
     return this.photos.set(id, dto.photo ?? null);
   }
 
+  @ResponseMessage('Subjects loaded.')
+  @Get(':id/subjects')
+  @RequirePermission('students.view')
+  @ApiOperation({
+    summary: 'What the student takes this session, and what their class offers',
+    description:
+      'Compulsory subjects, religious options and elective groups (with minimum and maximum ' +
+      'picks) for the student’s class level, what they chose, whether that meets every rule ' +
+      '(`complete`), and the other arms of their class.',
+  })
+  @ApiNotFoundResponse({ description: NOT_FOUND })
+  @ScopedBy('student')
+  subjects(@Param('id', studentId) id: string) {
+    return this.subjectsService.view(id);
+  }
+
+  @ResponseMessage('Subjects saved.')
+  @Put(':id/subjects')
+  @RequirePermission('students.edit')
+  @ApiOperation({
+    summary: 'Change a student’s religious subject and electives (and optionally their arm)',
+    description:
+      'New subjects start on `effectiveOn` (today when empty); dropped ones are removed and ' +
+      'any scores already entered stay on that subject’s sheet. `armId` moves the student to ' +
+      'another arm of the same class at their branch.',
+  })
+  @ApiConflictResponse({ description: 'STUDENT_LEFT, NOT_ENROLLED, ARM_FULL' })
+  @ApiUnprocessableEntityResponse({ description: 'VALIDATION (religious, electives, armId)' })
+  @ScopedBy('student')
+  changeSubjects(@Param('id', studentId) id: string, @Body() dto: StudentSubjectsDto) {
+    return this.subjectsService.change(id, dto);
+  }
+
   @ResponseMessage((r: unknown) => noticeOf(r, 'Transfer recorded.'))
   @Post(':id/transfer')
   @HttpCode(200)
@@ -163,7 +201,35 @@ export class EnrollmentController {
   constructor(
     private readonly students: StudentsService,
     private readonly moves: StudentMovesService,
+    private readonly subjects: StudentSubjectsService,
   ) {}
+
+  @ResponseMessage('Subject choices loaded.')
+  @Get('subject-choices/:armId')
+  @RequirePermission('students.view')
+  @ApiOperation({
+    summary: 'Everyone in a class arm with their subject choices for the session',
+    description:
+      'What the class level offers (compulsory, religious, elective groups with their rules) ' +
+      'and each student’s religious subject and electives, flagged when they don’t meet the ' +
+      'rules (`complete`), e.g. after promotion into a level with different electives.',
+  })
+  subjectChoices(@Param('armId') armId: string, @Query() q: SubjectChoicesQueryDto) {
+    return this.subjects.classView(armId, q.sessionId);
+  }
+
+  @ResponseMessage((r: { changed: number }) =>
+    r.changed
+      ? `Subject choices saved for ${r.changed} student${r.changed === 1 ? '' : 's'}.`
+      : 'No changes to save.',
+  )
+  @Put('subject-choices/:armId')
+  @RequirePermission('students.edit')
+  @ApiOperation({ summary: 'Save the subject choices of several students in a class at once' })
+  @ApiUnprocessableEntityResponse({ description: 'VALIDATION (students.<i>)' })
+  saveSubjectChoices(@Param('armId') armId: string, @Body() dto: ClassSubjectChoicesDto) {
+    return this.subjects.saveClass(armId, dto.sessionId, dto.students);
+  }
 
   @ResponseMessage('Enrollment options loaded.')
   @Get('enrollment/options')

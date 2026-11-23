@@ -2,6 +2,7 @@ import { PlanLimitsService } from '../shared/plan-limits.service.js';
 import { NIGERIAN_STATES } from '@edutrack/shared';
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../../common/clock/clock.js';
+import { choiceOptions, pickRule, requireChoices, saveChoices } from '../shared/subject-choices.js';
 import { RequestContext } from '../../common/context/request-context.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import { displayPhone, formatDay } from '../../platform/shared/format.js';
@@ -149,6 +150,53 @@ export class AdmissionsService {
       feeLines: fees.feeLines,
       feesReady: fees.feesReady,
       requiredDocuments: REQUIRED_DOCUMENTS.map((d) => ({ ...d })),
+    };
+  }
+
+  /* ---------------- Subjects ---------------- */
+
+  /** The class level by branch and level name, in the admission session. */
+  private async levelAt(branchName: string, levelName: string) {
+    const session = await this.records.requireSession();
+    const placement = await this.records.placement(session.id);
+    const branch = placement.branches.find((b) => normalise(b.name) === normalise(branchName));
+    const arm = branch
+      ? placement.arms.find(
+          (a) => a.branchId === branch.id && normalise(a.levelName) === normalise(levelName),
+        )
+      : undefined;
+    if (!arm) throw unprocessable('Choose a class level.', 'VALIDATION', 'level');
+    return { session, levelId: arm.levelId };
+  }
+
+  /** What the class level offers this session, for the wizard's Subjects step. */
+  async subjectOptions(branchName: string, levelName: string) {
+    const { session, levelId } = await this.levelAt(branchName, levelName);
+    const [options, term] = await Promise.all([
+      choiceOptions(this.db, session.id, levelId),
+      this.db.term.findFirst({
+        where: { sessionId: session.id, status: 'ACTIVE' },
+        select: { id: true },
+      }),
+    ]);
+    const ids = [...options.religious, ...options.groups.flatMap((g) => g.subjects)].map(
+      (s) => s.subjectId,
+    );
+    const staffed = term
+      ? new Set(
+          (
+            await this.db.teachingAssignment.findMany({
+              where: { termId: term.id, levelId, subjectId: { in: ids } },
+              distinct: ['subjectId'],
+              select: { subjectId: true },
+            })
+          ).map((t) => t.subjectId),
+        )
+      : null;
+    return {
+      ...options,
+      groups: options.groups.map((g) => ({ ...g, rule: pickRule(g) })),
+      unstaffed: staffed ? ids.filter((id) => !staffed.has(id)) : [],
     };
   }
 
@@ -353,6 +401,18 @@ export class AdmissionsService {
         'DUPLICATE_STUDENT',
       );
 
+    // The subjects chosen for the class level (newer wizard), checked before anything is saved.
+    const subjectRows = dto.subjects
+      ? requireChoices(
+          await choiceOptions(this.db, session.id, arm.levelId),
+          {
+            religious: dto.subjects.religious ?? null,
+            electives: Array.isArray(dto.subjects.electives) ? dto.subjects.electives : [],
+          },
+          'subjects.',
+        )
+      : null;
+
     const name = `${dto.firstName} ${dto.surname}`;
     const result = await this.db.$transaction(async (tx) => {
       await this.records.lockArms(tx, [arm.id]);
@@ -428,27 +488,31 @@ export class AdmissionsService {
         },
       });
 
-      // Religious studies and the elective, when Academics has those subjects.
-      const picks = await tx.subject.findMany({
-        where: {
-          status: 'ACTIVE',
-          OR: [
-            ...(dto.religious
-              ? [
-                  {
-                    category: 'RELIGIOUS' as const,
-                    code: { equals: dto.religious, mode: 'insensitive' as const },
-                  },
-                ]
-              : []),
-            ...(dto.elective
-              ? [{ name: { equals: dto.elective, mode: 'insensitive' as const } }]
-              : []),
-          ],
-        },
-        select: { id: true },
-      });
-      if (picks.length && (dto.religious || dto.elective))
+      // The subjects chosen for the class, or (older clients) religious studies and one elective.
+      if (subjectRows)
+        await saveChoices(tx, schoolId, student.id, session.id, subjectRows, admittedOn);
+      const picks = subjectRows
+        ? []
+        : await tx.subject.findMany({
+            where: {
+              status: 'ACTIVE',
+              OR: [
+                ...(dto.religious
+                  ? [
+                      {
+                        category: 'RELIGIOUS' as const,
+                        code: { equals: dto.religious, mode: 'insensitive' as const },
+                      },
+                    ]
+                  : []),
+                ...(dto.elective
+                  ? [{ name: { equals: dto.elective, mode: 'insensitive' as const } }]
+                  : []),
+              ],
+            },
+            select: { id: true },
+          });
+      if (!subjectRows && picks.length && (dto.religious || dto.elective))
         await tx.studentSubject.createMany({
           data: picks.map((s) => ({
             schoolId,

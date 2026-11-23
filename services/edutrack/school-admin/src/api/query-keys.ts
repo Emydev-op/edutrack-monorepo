@@ -36,12 +36,17 @@ export const queryKeys = {
     all: ['students'] as const,
     list: (params: object) => ['students', 'list', params] as const,
     detail: (id: string) => ['students', 'detail', id] as const,
+    subjects: (id: string) => ['students', 'subjects', id] as const,
+    choices: (armId: string, sessionId: string) =>
+      ['students', 'subject-choices', armId, sessionId] as const,
   },
   admissions: {
     all: ['admissions'] as const,
     options: ['admissions', 'options'] as const,
     matches: (first: string, surname: string) => ['admissions', 'matches', first, surname] as const,
     application: (id: string) => ['admissions', 'application', id] as const,
+    subjectOptions: (branch: string, level: string) =>
+      ['admissions', 'subject-options', branch, level] as const,
   },
   enrollment: ['enrollment'] as const,
   staff: {
