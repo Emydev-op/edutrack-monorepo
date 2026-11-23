@@ -107,6 +107,7 @@ export const REAL_ROUTES: readonly string[] = [
   'GET /v1/admissions/options',
   'GET /v1/admissions/matches',
   'POST /v1/admissions',
+  'GET /v1/imports/template',
   'POST /v1/imports',
   'POST /v1/imports/:id/commit',
   // Students, Phase 2: guardians, Parent Portal invitations and Student Portal logins.
