@@ -9,6 +9,7 @@ import type {
   AudiencePreview,
   CommsOptions,
   CommsSettings,
+  PersonOption,
   DeliveryDetail,
   DeliveryDetailQuery,
   DeliveryList,
@@ -77,6 +78,17 @@ export const useAudiencePreviewQuery = (input: MaybeRefOrGetter<PreviewInput | n
     queryKey: computed(() => k.key('preview', toValue(input))),
     queryFn: () => postRequest<AudiencePreview>('/v1/comms/announcements/preview', toValue(input)),
     enabled: computed(() => !!toValue(input)),
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
+
+/** Parents, students and staff matching a search, for a "Specific people" announcement. */
+export const usePeopleSearchQuery = (q: MaybeRefOrGetter<string>) =>
+  useQuery({
+    queryKey: computed(() => k.key('people', toValue(q).trim())),
+    queryFn: () =>
+      getRequest<PersonOption[]>('/v1/comms/people', { params: { q: toValue(q).trim() } }),
+    enabled: computed(() => toValue(q).trim().length >= 2),
     placeholderData: keepPreviousData,
     retry: false,
   });

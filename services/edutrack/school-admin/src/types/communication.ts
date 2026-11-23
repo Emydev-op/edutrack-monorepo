@@ -44,7 +44,17 @@ export interface CommsOptions {
 /* ---------------- Announcements ---------------- */
 
 export type AnnouncementStatus = 'Draft' | 'Scheduled' | 'Sent' | 'Withdrawn' | 'Expired';
-export type AudienceKind = 'everyone' | 'parents' | 'students' | 'teachers' | 'staff' | 'classes';
+export type AudienceKind =
+  'everyone' | 'parents' | 'students' | 'teachers' | 'staff' | 'classes' | 'people';
+
+/** A person picked for a "Specific people" announcement. */
+export interface PersonOption {
+  /** "g:<guardianId>", "s:<studentId>" or "st:<staffId>". */
+  key: string;
+  name: string;
+  role: 'Parent' | 'Student' | 'Teacher' | 'Staff';
+  detail: string;
+}
 
 export interface Audience {
   kind: AudienceKind;
@@ -52,6 +62,8 @@ export interface Audience {
   classes: string[];
   /** null = all branches. */
   branchId: string | null;
+  /** Keys of the chosen people when kind is "people". */
+  people?: string[];
 }
 
 export interface AnnouncementPayload {
@@ -131,6 +143,8 @@ export interface ChannelStats {
 
 export interface AnnouncementDetail extends AnnouncementPayload {
   id: string;
+  /** The chosen people, when the audience is "people". */
+  people?: PersonOption[];
   status: AnnouncementStatus;
   audienceLabel: string;
   createdBy: string;

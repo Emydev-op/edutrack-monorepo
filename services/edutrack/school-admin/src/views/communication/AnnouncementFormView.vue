@@ -23,12 +23,13 @@ import {
   useAnnouncementQuery,
   useAudiencePreviewQuery,
   useCommsOptionsQuery,
+  usePeopleSearchQuery,
   useSaveAnnouncementMutation,
   type PreviewInput,
 } from '@/api/services/communication';
 import { smsLength, smsSafe } from '@/lib/sms';
 import { routesPath } from '@/router/routes-path';
-import type { AnnouncementPayload, AudienceKind, Channel } from '@/types';
+import type { AnnouncementPayload, AudienceKind, Channel, PersonOption } from '@/types';
 
 import { fmtCount, fmtStamp, localStamp } from './comms-tones';
 
@@ -51,6 +52,11 @@ const AUDIENCES: { value: AudienceKind; label: string; description: string }[] =
     label: 'Specific classes',
     description: 'Parents and students of chosen arms',
   },
+  {
+    value: 'people',
+    label: 'Specific people',
+    description: 'Parents, students or staff you pick by name',
+  },
 ];
 const CHANNELS: { value: Channel; hint: string }[] = [
   { value: 'In-app', hint: 'Portals and the app. Free.' },
@@ -64,6 +70,7 @@ const blank = () => ({
   smsText: '',
   kind: 'parents' as AudienceKind,
   classes: [] as string[],
+  people: [] as string[],
   branchId: '',
   channels: ['In-app', 'Email'] as Channel[],
   when: 'now' as 'now' | 'later',
@@ -71,6 +78,23 @@ const blank = () => ({
   expiresOn: '',
 });
 const form = reactive(blank());
+// The people picked so far, with their names (form.people holds their keys).
+const chosen = ref<PersonOption[]>([]);
+const search = ref('');
+const debouncedSearch = refDebounced(search, 250);
+const { data: found, isFetching: searching } = usePeopleSearchQuery(debouncedSearch);
+const ROLE_ORDER = ['Parent', 'Student', 'Teacher', 'Staff'] as const;
+function addPerson(p: PersonOption) {
+  if (!form.people.includes(p.key)) {
+    form.people = [...form.people, p.key];
+    chosen.value = [...chosen.value, p];
+  }
+  search.value = '';
+}
+function removePerson(key: string) {
+  form.people = form.people.filter((k) => k !== key);
+  chosen.value = chosen.value.filter((p) => p.key !== key);
+}
 const initial = ref(JSON.stringify(form));
 const loaded = ref(!editId.value);
 const showErrors = ref(false);
@@ -95,12 +119,14 @@ watch(
       smsText: a.smsText,
       kind: a.audience.kind,
       classes: [...a.audience.classes],
+      people: [...(a.audience.people ?? [])],
       branchId: a.audience.branchId ?? '',
       channels: [...a.channels],
       when: a.status === 'Scheduled' ? 'later' : 'now',
       scheduledFor: a.scheduledFor ?? '',
       expiresOn: a.expiresOn ?? '',
     });
+    chosen.value = [...(a.people ?? [])];
     initial.value = JSON.stringify(form);
     loaded.value = true;
   },
@@ -172,10 +198,12 @@ function copyToSms() {
 const audience = computed(() => ({
   kind: form.kind,
   classes: form.kind === 'classes' ? form.classes : [],
-  branchId: form.branchId || null,
+  branchId: form.kind === 'people' ? null : form.branchId || null,
+  people: form.kind === 'people' ? form.people : [],
 }));
 const previewInput = computed<PreviewInput | null>(() =>
-  form.kind === 'classes' && !form.classes.length
+  (form.kind === 'classes' && !form.classes.length) ||
+  (form.kind === 'people' && !form.people.length)
     ? null
     : {
         audience: audience.value,
@@ -201,6 +229,7 @@ const errors = computed(() => {
   else if (studentsOnly.value && !form.channels.includes('In-app'))
     e.channels = 'Students only receive In-app messages. Add In-app.';
   if (form.kind === 'classes' && !form.classes.length) e.classes = 'Choose at least one class.';
+  if (form.kind === 'people' && !form.people.length) e.people = 'Choose at least one person.';
   if (hasSms.value) {
     if (!form.smsText.trim()) e.smsText = 'Write the SMS version.';
     else if (sms.value.pages > 3) e.smsText = 'Keep the SMS to 3 pages.';
@@ -370,13 +399,76 @@ const selectClass = 'h-9 w-full rounded-md border bg-card px-2.5 text-sm';
               :columns="3"
               @update:model-value="form.kind = $event as AudienceKind"
             />
-            <FieldShell id="an-branch" label="Branch">
+            <FieldShell v-if="form.kind !== 'people'" id="an-branch" label="Branch">
               <select id="an-branch" v-model="form.branchId" :class="selectClass">
                 <option value="">All branches</option>
                 <option v-for="b in options?.branches ?? []" :key="b.id" :value="b.id">
                   {{ b.name }}
                 </option>
               </select>
+            </FieldShell>
+            <FieldShell
+              v-if="form.kind === 'people'"
+              id="an-people"
+              label="People"
+              required
+              :error="err('people')"
+              :hint="`${form.people.length} chosen · search by name, email, phone, admission or staff number`"
+            >
+              <div class="flex flex-col gap-2">
+                <div v-if="chosen.length" class="flex flex-wrap gap-1.5" aria-label="Chosen people">
+                  <span
+                    v-for="p in chosen"
+                    :key="p.key"
+                    class="flex items-center gap-1 rounded-md border border-primary bg-brand-subtle px-2 py-1 text-xs"
+                  >
+                    {{ p.name }} <span class="text-faint">{{ p.role }}</span>
+                    <button
+                      type="button"
+                      class="ml-0.5 text-muted-foreground hover:text-foreground"
+                      :aria-label="`Remove ${p.name}`"
+                      @click="removePerson(p.key)"
+                    >
+                      ×
+                    </button>
+                  </span>
+                </div>
+                <Input
+                  id="an-people"
+                  v-model="search"
+                  placeholder="Type at least 2 letters, e.g. Adeyemi"
+                  autocomplete="off"
+                />
+                <div
+                  v-if="search.trim().length >= 2"
+                  class="flex max-h-72 flex-col overflow-y-auto rounded-md border"
+                >
+                  <p v-if="searching && !found?.length" class="p-3 text-sm text-muted-foreground">
+                    Searching…
+                  </p>
+                  <p v-else-if="!found?.length" class="p-3 text-sm text-muted-foreground">
+                    No one matches “{{ search.trim() }}”.
+                  </p>
+                  <template v-for="role in ROLE_ORDER" :key="role">
+                    <button
+                      v-for="p in (found ?? []).filter((x) => x.role === role)"
+                      :key="p.key"
+                      type="button"
+                      class="flex items-center justify-between gap-3 border-b px-3 py-2 text-left text-sm last:border-b-0 hover:bg-muted disabled:opacity-50"
+                      :disabled="form.people.includes(p.key)"
+                      @click="addPerson(p)"
+                    >
+                      <span class="flex min-w-0 flex-col">
+                        <span class="truncate font-medium">{{ p.name }}</span>
+                        <span class="truncate text-xs text-muted-foreground">{{ p.detail }}</span>
+                      </span>
+                      <span class="shrink-0 text-xs text-faint">{{
+                        form.people.includes(p.key) ? 'Added' : p.role
+                      }}</span>
+                    </button>
+                  </template>
+                </div>
+              </div>
             </FieldShell>
             <FieldShell
               v-if="form.kind === 'classes'"
@@ -537,7 +629,11 @@ const selectClass = 'h-9 w-full rounded-md border bg-card px-2.5 text-sm';
       <div class="flex flex-col gap-4 lg:sticky lg:top-4">
         <SectionCard title="Summary">
           <p v-if="!previewInput" class="text-sm text-muted-foreground">
-            Choose at least one class to count recipients.
+            {{
+              form.kind === 'people'
+                ? 'Choose at least one person to count recipients.'
+                : 'Choose at least one class to count recipients.'
+            }}
           </p>
           <p v-else-if="previewError" class="text-sm text-error-strong">
             {{ getApiErrorMessage(previewError, 'Couldn’t count recipients.') }}

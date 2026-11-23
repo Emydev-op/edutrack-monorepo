@@ -103,6 +103,11 @@ export class AnnouncementsService {
 
   /* ---------------- Options ---------------- */
 
+  /** People to pick for a "Specific people" announcement. */
+  people(q: string) {
+    return this.audiences.search(q);
+  }
+
   async options() {
     const [branches, classes] = await Promise.all([
       this.audiences.branches(),
@@ -136,6 +141,7 @@ export class AnnouncementsService {
         ...new Set(a.audienceArms.map((x) => armLabel(x.arm.level.name, x.arm.name))),
       ].sort(),
       branchId: a.audienceBranchId,
+      people: a.audiencePeople,
     };
   }
 
@@ -252,6 +258,7 @@ export class AnnouncementsService {
       body: a.body,
       smsText: a.smsText,
       audience: this.audienceOf(a),
+      people: a.audiencePeople.length ? await this.audiences.describe(a.audiencePeople) : [],
       channels,
       scheduledFor: a.scheduledFor ? localStamp(a.scheduledFor) : null,
       expiresOn: a.expiresOn ? a.expiresOn.toISOString().slice(0, 10) : null,
@@ -502,6 +509,7 @@ export class AnnouncementsService {
           channels: v.channels.map(channelToDb),
           audienceKind: kindToDb(v.audience.kind),
           audienceBranchId: v.audience.branchId,
+          audiencePeople: v.audience.people,
           expiresOn: v.expiresOn ? new Date(`${v.expiresOn}T00:00:00.000Z`) : null,
           status: v.action === 'draft' ? 'DRAFT' : v.action === 'schedule' ? 'SCHEDULED' : a.status,
           scheduledFor: v.action === 'schedule' ? v.scheduledFor : null,
@@ -717,6 +725,7 @@ export class AnnouncementsService {
           smsText: src.smsText,
           audienceKind: src.audienceKind,
           audienceBranchId: src.audienceBranchId,
+          audiencePeople: src.audiencePeople,
           channels: src.channels,
           expiresOn: keepExpiry ? src.expiresOn : null,
           createdById: auth.userId,
