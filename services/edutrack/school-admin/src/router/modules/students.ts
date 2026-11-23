@@ -30,6 +30,37 @@ export const studentRoutes: RouteRecordRaw[] = [
     },
   },
   {
+    ...s.applicationNew,
+    component: () => import('@/views/students/ApplicationFormView.vue'),
+    meta: {
+      title: 'New application',
+      nav: s.admissions.name,
+      breadcrumb: [
+        STUDENTS,
+        { label: 'Admissions', to: s.admissions.name },
+        { label: 'New application' },
+      ],
+    },
+  },
+  {
+    ...s.applicationEdit,
+    component: () => import('@/views/students/ApplicationFormView.vue'),
+    meta: {
+      title: 'Edit application',
+      nav: s.admissions.name,
+      breadcrumb: [STUDENTS, { label: 'Admissions', to: s.admissions.name }],
+    },
+  },
+  {
+    ...s.application,
+    component: () => import('@/views/students/ApplicationDetailView.vue'),
+    meta: {
+      title: 'Application',
+      nav: s.admissions.name,
+      breadcrumb: [STUDENTS, { label: 'Admissions', to: s.admissions.name }],
+    },
+  },
+  {
     ...s.import,
     component: () => import('@/views/students/ImportStudentsView.vue'),
     meta: {

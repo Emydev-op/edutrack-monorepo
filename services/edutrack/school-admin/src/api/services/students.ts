@@ -6,6 +6,9 @@ import type {
   AdmissionApplication,
   AdmissionMatches,
   AdmissionOptions,
+  ApplicationDetail,
+  ApplicationInput,
+  ApplicationStagePayload,
   AdmitPayload,
   AdmitResult,
   ChangeSubjectsPayload,
@@ -112,6 +115,44 @@ export const useAdmissionMatchesQuery = (
       }),
     enabled: computed(() => toValue(surname).trim().length > 1),
   });
+
+export const useApplicationQuery = (id: MaybeRefOrGetter<string>) =>
+  useQuery({
+    queryKey: computed(() => queryKeys.admissions.application(toValue(id))),
+    queryFn: () => getRequest<ApplicationDetail>(`/v1/admissions/applications/${toValue(id)}`),
+    enabled: computed(() => !!toValue(id)),
+  });
+
+/** Creating, editing or moving an application refreshes the list, its detail and the dashboard. */
+function useApplicationMutation<V>(fn: (vars: V) => Promise<ApplicationDetail>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (detail) => {
+      qc.setQueryData(queryKeys.admissions.application(detail.id), detail);
+      return Promise.all(
+        [queryKeys.admissions.all, queryKeys.dashboard.all, queryKeys.notifications].map(
+          (queryKey) => qc.invalidateQueries({ queryKey }),
+        ),
+      );
+    },
+  });
+}
+
+export const useCreateApplicationMutation = () =>
+  useApplicationMutation((p: ApplicationInput) =>
+    postRequest<ApplicationDetail>('/v1/admissions/applications', p),
+  );
+
+export const useUpdateApplicationMutation = () =>
+  useApplicationMutation(({ id, ...p }: ApplicationInput & { id: string }) =>
+    putRequest<ApplicationDetail>(`/v1/admissions/applications/${id}`, p),
+  );
+
+export const useMoveApplicationMutation = () =>
+  useApplicationMutation(({ id, ...p }: ApplicationStagePayload & { id: string }) =>
+    postRequest<ApplicationDetail>(`/v1/admissions/applications/${id}/stage`, p),
+  );
 
 export const useAdmitMutation = () =>
   useStudentsMutation((p: AdmitPayload) => postRequest<AdmitResult>('/v1/admissions', p));

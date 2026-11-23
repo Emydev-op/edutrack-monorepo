@@ -111,6 +111,8 @@ export const REAL_ROUTES: readonly string[] = [
   'GET /v1/admissions/matches',
   'GET /v1/admissions/subject-options',
   'POST /v1/admissions',
+  // Admission applications: create, edit and move through the pipeline.
+  '* /v1/admissions/applications/**',
   'POST /v1/imports',
   'POST /v1/imports/:id/commit',
   // Students, Phase 2: guardians, Parent Portal invitations and Student Portal logins.

@@ -1,5 +1,7 @@
 import type { StatusTone } from '@edutrack/ui/lib/status';
 
+import type { ApplicationStage } from '@/types';
+
 const TONES: Record<string, StatusTone> = {
   Active: 'success',
   'Incomplete profile': 'warning',
@@ -15,9 +17,12 @@ const TONES: Record<string, StatusTone> = {
   Promoted: 'success',
   Pending: 'warning',
   'Under review': 'warning',
+  'Offer sent': 'brand',
   'Offer accepted': 'info',
+  'Offer expired': 'warning',
   Admitted: 'success',
   Rejected: 'error',
+  Declined: 'neutral',
   Invited: 'info',
   'No account': 'neutral',
   Closed: 'neutral',
@@ -26,3 +31,14 @@ const TONES: Record<string, StatusTone> = {
 
 /** Badge colours for student, fee, document, application and portal states. */
 export const tone = (status: string): StatusTone => TONES[status] ?? 'neutral';
+
+/** Admission stages in pipeline order, for filters. */
+export const APPLICATION_STAGES: ApplicationStage[] = [
+  'Pending',
+  'Under review',
+  'Offer sent',
+  'Offer accepted',
+  'Admitted',
+  'Rejected',
+  'Declined',
+];

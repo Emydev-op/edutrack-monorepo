@@ -72,6 +72,9 @@ export class AdmissionsService {
       stage: STAGE_LABEL[a.stage],
       stageNote: a.stageNote ?? '',
       studentId: a.studentId,
+      number: a.number,
+      appliedOn: a.appliedOn.toISOString().slice(0, 10),
+      offerExpiresOn: a.offerExpiresOn ? a.offerExpiresOn.toISOString().slice(0, 10) : null,
     }));
   }
 
@@ -596,9 +599,11 @@ export class AdmissionsService {
     if (!application)
       throw AppException.notFound('This application doesn’t exist.', 'APPLICATION_NOT_FOUND');
     if (application.stage === 'ADMITTED' || application.studentId) throw alreadyAdmitted();
-    if (application.stage === 'REJECTED')
+    if (application.stage === 'REJECTED' || application.stage === 'DECLINED')
       throw AppException.conflict(
-        'This application was rejected, so the applicant can’t be admitted from it.',
+        application.stage === 'REJECTED'
+          ? 'This application was rejected, so the applicant can’t be admitted from it.'
+          : 'The family declined this offer, so the applicant can’t be admitted from it.',
         'APPLICATION_REJECTED',
       );
     return application;

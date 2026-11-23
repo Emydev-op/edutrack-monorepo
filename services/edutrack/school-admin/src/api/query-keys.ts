@@ -44,6 +44,7 @@ export const queryKeys = {
     all: ['admissions'] as const,
     options: ['admissions', 'options'] as const,
     matches: (first: string, surname: string) => ['admissions', 'matches', first, surname] as const,
+    application: (id: string) => ['admissions', 'application', id] as const,
     subjectOptions: (branch: string, level: string) =>
       ['admissions', 'subject-options', branch, level] as const,
   },

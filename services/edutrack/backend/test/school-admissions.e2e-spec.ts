@@ -157,7 +157,7 @@ describe('School Admin admissions and student import (e2e)', () => {
         'Kamsi Nwosu',
         'Oghenekaro Edewor',
       ]);
-      expect(rows[3]).toEqual({
+      expect(rows[3]).toMatchObject({
         id: kamsiApplicationId,
         applicant: 'Kamsi Nwosu',
         note: 'Sister of David Nwosu (JSS 2B)',

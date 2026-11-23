@@ -78,9 +78,12 @@ enum StudentExitKind {
 enum ApplicationStage {
   PENDING
   UNDER_REVIEW
+  OFFER_SENT
   OFFER_ACCEPTED
   ADMITTED
   REJECTED
+  /// The family turned the offer down.
+  DECLINED
 
   @@map("application_stage")
 }
@@ -424,6 +427,13 @@ model AdmissionApplication {
   guardianPhone      String?          @map("guardian_phone")
   guardianEmail      String?          @map("guardian_email") @db.Citext
   appliedOn          DateTime         @map("applied_on") @db.Date
+  previousSchool     String?          @map("previous_school")
+  /// Entrance assessment or interview: when, and the result as the school records it ("68%", "Passed").
+  assessmentOn       DateTime?        @map("assessment_on") @db.Date
+  assessmentResult   String?          @map("assessment_result")
+  /// The offer: when it was made and until when the family can accept it.
+  offerSentOn        DateTime?        @map("offer_sent_on") @db.Date
+  offerExpiresOn     DateTime?        @map("offer_expires_on") @db.Date
   stage              ApplicationStage @default(PENDING)
   stageNote          String?          @map("stage_note")
   /// Set once admitted.

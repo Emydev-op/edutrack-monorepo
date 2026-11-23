@@ -9,9 +9,11 @@ import type {
 export const STAGE_LABEL: Record<ApplicationStage, string> = {
   PENDING: 'Pending',
   UNDER_REVIEW: 'Under review',
+  OFFER_SENT: 'Offer sent',
   OFFER_ACCEPTED: 'Offer accepted',
   ADMITTED: 'Admitted',
   REJECTED: 'Rejected',
+  DECLINED: 'Declined',
 };
 
 export type AdmissionTypeLabel = 'New intake' | 'Transfer in';
