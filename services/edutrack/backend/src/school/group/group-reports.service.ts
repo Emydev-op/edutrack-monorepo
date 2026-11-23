@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import ExcelJS from 'exceljs';
 import type { AuthUserContext } from '../../auth/auth-context.js';
-import { RequestContext } from '../../common/context/request-context.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import type { InvoiceStatus, PaymentMethod, StudentStatus } from '../../generated/prisma/enums.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -10,6 +9,7 @@ import { attendanceRate } from '../attendance/attendance.service.js';
 import { InsightsResultsService } from '../insights/insights-results.service.js';
 import type { SheetCtx } from '../results/results-core.service.js';
 import { ON_ROLL } from '../students/student-view.js';
+import { asGroupSchool } from './group-context.js';
 
 /** Invoices that count as billed: issued, part-paid or paid (never drafts or cancelled). */
 export const BILLED: InvoiceStatus[] = ['ISSUED', 'PARTIALLY_PAID', 'PAID'];
@@ -77,21 +77,6 @@ export class GroupReportsService {
     return m;
   }
 
-  /** Runs `fn` as that school, with none of the signed-in person's working term or branch. */
-  private asSchool<T>(schoolId: string, fn: () => Promise<T>): Promise<T> {
-    const parent = RequestContext.get();
-    return RequestContext.run(
-      {
-        ...parent,
-        requestId: parent?.requestId ?? 'group-reports',
-        schoolId,
-        working: undefined,
-        branchScope: undefined,
-      },
-      fn,
-    );
-  }
-
   /** The school's current term (the active one, else the latest started) and the terms before. */
   private async terms(schoolId: string, period: Period) {
     const select = {
@@ -123,7 +108,7 @@ export class GroupReportsService {
 
   /** Approved and published scored sheets of the school for the term. */
   private sheets(schoolId: string, term: TermRow): Promise<SheetCtx[]> {
-    return this.asSchool(schoolId, async () =>
+    return asGroupSchool(this.prisma, schoolId, undefined, async () =>
       this.results.approved(term, await this.results.arms(null)),
     );
   }
@@ -208,7 +193,15 @@ export class GroupReportsService {
     const subjects = new Map<string, Map<string, { total: number; n: number }>>();
     const students = new Map<
       string,
-      { name: string; school: string; className: string; total: number; n: number }
+      {
+        studentId: string;
+        schoolId: string;
+        name: string;
+        school: string;
+        className: string;
+        total: number;
+        n: number;
+      }
     >();
     const arrears: {
       school: string;
@@ -262,6 +255,8 @@ export class GroupReportsService {
             subjects.set(subject, bySchool);
             const key = `${s.id}|${r.studentId}`;
             const st = students.get(key) ?? {
+              studentId: r.studentId,
+              schoolId: s.id,
               name: r.name,
               school: s.name,
               className: c.arm.label,
@@ -418,6 +413,8 @@ export class GroupReportsService {
       topStudents: [...students.values()]
         .filter((s) => s.n >= 3)
         .map((s) => ({
+          studentId: s.studentId,
+          schoolId: s.schoolId,
           name: s.name,
           school: s.school,
           className: s.className,
@@ -566,7 +563,7 @@ export class GroupReportsService {
         { header: 'Subjects', key: 'subjects' },
         { header: 'Average score', key: 'average' },
       ],
-      r.topStudents.map((s, i) => ({ rank: i + 1, ...s })),
+      r.topStudents.map(({ studentId: _s, schoolId: _c, ...s }, i) => ({ rank: i + 1, ...s })),
     );
     if (r.arrears && r.collections && r.methods) {
       add(

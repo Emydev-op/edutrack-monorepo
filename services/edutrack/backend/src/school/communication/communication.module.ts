@@ -27,5 +27,6 @@ import { DeliveriesService } from './deliveries.service.js';
     SchoolAuditService,
     MemberPermissions,
   ],
+  exports: [AnnouncementsService],
 })
 export class CommunicationModule {}

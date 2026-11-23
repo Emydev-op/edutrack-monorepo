@@ -15,6 +15,7 @@ export const routesPath = {
   groupOverview: { name: 'group-overview', path: '/group' },
   groupTemplates: { name: 'group-templates', path: '/group/templates' },
   groupReports: { name: 'group-reports', path: '/group/reports' },
+  groupAnnouncement: { name: 'group-announcement', path: '/group/announcement' },
   setup: { name: 'setup', path: '/setup' },
   setupBranches: { name: 'setup-branches', path: '/setup/branches' },
   school: {

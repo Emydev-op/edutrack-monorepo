@@ -22,6 +22,9 @@ import { formatNaira } from '@edutrack/app-kit/lib/format';
 
 import { downloadFile } from '@/api/helpers';
 import { useGroupReportsQuery, type ReportPeriod } from '@/api/services/group';
+import { routesPath } from '@/router/routes-path';
+
+import { useOpenInSchool } from './use-open-in-school';
 
 /**
  * School Admin › Group overview › Reports: each school of the group side by side for this term
@@ -32,6 +35,7 @@ import { useGroupReportsQuery, type ReportPeriod } from '@/api/services/group';
 const period = ref<ReportPeriod>('current');
 const { data, isPending, isFetching, error } = useGroupReportsQuery(period);
 const downloading = ref(false);
+const { open: openIn, pending: opening } = useOpenInSchool();
 
 const fmt = (n: number) => n.toLocaleString('en-NG');
 const show = (n: number | null | undefined, suffix = '') =>
@@ -309,7 +313,19 @@ async function download() {
                 <TableCell class="tabular-nums">{{ i + 1 }}</TableCell>
                 <TableCell>
                   <span class="flex flex-col">
-                    <span class="font-medium">{{ st.name }}</span>
+                    <button
+                      type="button"
+                      class="text-left font-medium hover:underline disabled:opacity-60"
+                      :disabled="opening"
+                      @click="
+                        openIn(st.schoolId, st.school, {
+                          name: routesPath.students.detail.name,
+                          params: { id: st.studentId },
+                        })
+                      "
+                    >
+                      {{ st.name }}
+                    </button>
                     <span class="text-xs text-muted-foreground"
                       >{{ st.className }} · {{ st.school }}</span
                     >
