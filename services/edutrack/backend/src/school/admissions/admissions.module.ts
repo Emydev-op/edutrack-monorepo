@@ -5,6 +5,7 @@ import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { AdmissionRecordsService } from './admission-records.service.js';
 import { AdmissionsController, StudentImportsController } from './admissions.controller.js';
 import { AdmissionsService } from './admissions.service.js';
+import { ApplicationsService } from './applications.service.js';
 import { StudentImportService } from './student-import.service.js';
 
 /** School Admin › Students › Admissions (`/v1/admissions`) and the student import (`/v1/imports`). */
@@ -16,6 +17,7 @@ import { StudentImportService } from './student-import.service.js';
     SchoolAuditService,
     AdmissionRecordsService,
     AdmissionsService,
+    ApplicationsService,
     StudentImportService,
   ],
 })

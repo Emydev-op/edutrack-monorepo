@@ -258,3 +258,67 @@ export class StudentImportCommitDto {
   @IsBoolean()
   excludeErrors?: boolean;
 }
+
+const TYPES_LABEL = ['New intake', 'Transfer in'] as const;
+
+/** POST /v1/admissions/applications and PUT /v1/admissions/applications/:id. */
+export class ApplicationDto {
+  @ApiProperty({ example: 'Kamsi' }) @IsString() @MaxLength(80) firstName!: string;
+  @ApiProperty({ example: 'Nwosu' }) @IsString() @MaxLength(80) surname!: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(80) otherNames?: string | null;
+  @ApiPropertyOptional({ enum: ['Male', 'Female'] }) @IsOptional() @IsString() gender?:
+    string | null;
+  @ApiPropertyOptional({ example: '2014-05-12' }) @IsOptional() @IsString() dateOfBirth?:
+    string | null;
+  @ApiProperty({ enum: TYPES_LABEL }) @IsString() type!: string;
+  @ApiProperty({ example: 'Main Campus' }) @IsString() branch!: string;
+  @ApiProperty({ example: 'JSS 1' }) @IsString() level!: string;
+  @ApiProperty({ example: 'Mr. Obinna Nwosu' }) @IsString() @MaxLength(120) guardianName!: string;
+  @ApiPropertyOptional({ example: '0809 555 0193' }) @IsOptional() @IsString() guardianPhone?:
+    string | null;
+  @ApiPropertyOptional() @IsOptional() @IsString() guardianEmail?: string | null;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(160) previousSchool?: string | null;
+  @ApiPropertyOptional({ example: 'Sibling of Favour Okeke' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  note?: string | null;
+  @ApiPropertyOptional({ example: '2026-11-20', description: 'Today when empty' })
+  @IsOptional()
+  @IsString()
+  appliedOn?: string | null;
+}
+
+/** POST /v1/admissions/applications/:id/stage. */
+export class ApplicationStageDto {
+  @ApiProperty({
+    enum: ['Pending', 'Under review', 'Offer sent', 'Offer accepted', 'Rejected', 'Declined'],
+  })
+  @IsString()
+  stage!: string;
+
+  @ApiPropertyOptional({ description: 'Why (required for Rejected and Declined)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string | null;
+
+  @ApiPropertyOptional({
+    example: '2026-11-28',
+    description: 'Under review: assessment or interview day',
+  })
+  @IsOptional()
+  @IsString()
+  assessmentOn?: string | null;
+
+  @ApiPropertyOptional({ example: '68%', description: 'Under review: the result' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  assessmentResult?: string | null;
+
+  @ApiPropertyOptional({ example: '2026-12-15', description: 'Offer sent: accept by' })
+  @IsOptional()
+  @IsString()
+  offerExpiresOn?: string | null;
+}

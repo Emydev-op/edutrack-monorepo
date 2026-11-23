@@ -107,20 +107,98 @@ export interface TransferPayload {
 /* ---------------- Admissions ---------------- */
 
 export type ApplicationStage =
-  'Pending' | 'Under review' | 'Offer accepted' | 'Admitted' | 'Rejected';
+  | 'Pending'
+  | 'Under review'
+  | 'Offer sent'
+  | 'Offer accepted'
+  | 'Admitted'
+  | 'Rejected'
+  | 'Declined';
+
+export type AdmissionType = 'New intake' | 'Transfer in';
 
 export interface AdmissionApplication {
   id: string;
+  /** e.g. APP-2026-0012. */
+  number: string;
   applicant: string;
   note: string;
+  /** e.g. "JSS 1 · Main Campus". */
   applyingFor: string;
-  type: 'New intake' | 'Transfer in';
+  type: AdmissionType;
   applied: string;
+  /** YYYY-MM-DD. */
+  appliedOn: string;
   guardian: string;
   stage: ApplicationStage;
   stageNote: string;
   /** Set once admitted. */
   studentId: string | null;
+  /** YYYY-MM-DD the family has to accept the offer by, while an offer is out. */
+  offerExpiresOn: string | null;
+}
+
+/** What the office records when a family applies (create and edit). */
+export interface ApplicationInput {
+  firstName: string;
+  surname: string;
+  otherNames?: string;
+  gender?: Gender | null;
+  dateOfBirth?: string | null;
+  type: AdmissionType;
+  /** Branch name. */
+  branch: string;
+  /** Class level name. */
+  level: string;
+  guardianName: string;
+  guardianPhone?: string;
+  guardianEmail?: string;
+  previousSchool?: string;
+  note?: string;
+  appliedOn?: string;
+}
+
+export interface ApplicationDetail {
+  id: string;
+  number: string;
+  firstName: string;
+  surname: string;
+  otherNames: string;
+  applicant: string;
+  gender: Gender | '';
+  dateOfBirth: string | null;
+  type: AdmissionType;
+  session: string;
+  branch: string;
+  level: string;
+  guardianName: string;
+  guardianPhone: string;
+  guardianEmail: string;
+  previousSchool: string;
+  note: string;
+  appliedOn: string;
+  applied: string;
+  stage: ApplicationStage;
+  stageNote: string;
+  assessmentOn: string | null;
+  assessmentResult: string;
+  offerSentOn: string | null;
+  offerExpiresOn: string | null;
+  offerExpired: boolean;
+  studentId: string | null;
+  /** Stages it can move to from here. */
+  next: ApplicationStage[];
+  canEdit: boolean;
+  canAdmit: boolean;
+  history: { at: string; title: string; detail: string; by: string }[];
+}
+
+export interface ApplicationStagePayload {
+  stage: ApplicationStage;
+  note?: string;
+  assessmentOn?: string;
+  assessmentResult?: string;
+  offerExpiresOn?: string;
 }
 
 /** What the admission wizard needs to know about the school. */

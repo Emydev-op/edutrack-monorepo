@@ -27,7 +27,7 @@ import {
   useAdmissionOptionsQuery,
   useAdmitMutation,
   useStudentPhotoMutation,
-  useApplicationsQuery,
+  useApplicationQuery,
   useGuardiansQuery,
 } from '@/api/services/students';
 import FileUpload from '@/components/school/FileUpload.vue';
@@ -48,7 +48,6 @@ const NG_PHONE = /^(\+234|0)[789][01]\d{8}$/;
 
 const route = useRoute();
 const { data: options, isPending } = useAdmissionOptionsQuery();
-const { data: applications } = useApplicationsQuery();
 const { data: guardians } = useGuardiansQuery({ pageSize: 200 });
 const admit = useAdmitMutation();
 
@@ -89,18 +88,33 @@ const photoMut = useStudentPhotoMutation();
 
 /* An accepted offer fills in what the application already knows. */
 const applicationId = computed(() => (route.query.application as string | undefined) ?? null);
+const { data: application } = useApplicationQuery(() => applicationId.value ?? '');
 watch(
-  [applications, applicationId],
-  () => {
-    const app = applications.value?.find((a) => a.id === applicationId.value);
-    if (!app || d.firstName) return;
-    const [first = '', ...rest] = app.applicant.split(' ');
+  application,
+  (app) => {
+    if (!app || app.id !== applicationId.value || d.firstName) return;
     Object.assign(d, {
-      firstName: first,
-      surname: rest.join(' '),
+      firstName: app.firstName,
+      surname: app.surname,
+      otherNames: app.otherNames,
+      gender: app.gender || d.gender,
+      dateOfBirth: app.dateOfBirth ?? '',
+      previousSchool: app.previousSchool,
       admissionType: app.type,
-      level: app.applyingFor.split(' · ')[0] ?? d.level,
-      branch: app.applyingFor.split(' · ')[1] ?? d.branch,
+      branch: app.branch || d.branch,
+      level: app.level || d.level,
+      arm: '',
+      // The family on the application is added as a new guardian unless the office links an
+      // existing one instead.
+      ...(app.guardianName
+        ? {
+            guardianMode: 'new' as const,
+            guardianId: '',
+            guardianName: app.guardianName,
+            guardianPhone: app.guardianPhone,
+            guardianEmail: app.guardianEmail,
+          }
+        : {}),
     });
   },
   { immediate: true },
@@ -147,6 +161,24 @@ const branchArms = computed(
 const arms = computed(() => branchArms.value[d.level] ?? []);
 const levels = computed(() => Object.keys(branchArms.value));
 const linkedGuardian = computed(() => guardians.value?.data.find((g) => g.id === d.guardianId));
+/** A guardian already on record with the new guardian's phone or email, offered for linking. */
+const lastTen = (phone: string) => phone.replace(/\D/g, '').slice(-10);
+const guardianOnRecord = computed(() => {
+  if (d.guardianMode !== 'new') return null;
+  const phone = lastTen(d.guardianPhone);
+  const email = d.guardianEmail.trim().toLowerCase();
+  return (
+    guardians.value?.data.find(
+      (g) =>
+        (phone.length === 10 && lastTen(g.phone) === phone) ||
+        (!!email && g.email.toLowerCase() === email),
+    ) ?? null
+  );
+});
+function linkGuardian(id: string) {
+  d.guardianMode = 'link';
+  d.guardianId = id;
+}
 const guardianLabel = computed(() =>
   d.guardianMode === 'link'
     ? (linkedGuardian.value?.name ?? '')
@@ -520,6 +552,18 @@ const chip = (on: boolean, full = false) =>
               { value: 'skip', label: 'Skip for now' },
             ]"
           />
+          <InlineNotice
+            v-if="guardianOnRecord"
+            tone="info"
+            :title="`${guardianOnRecord.name} is already on record`"
+            :description="`Same ${lastTen(guardianOnRecord.phone) === lastTen(d.guardianPhone) ? 'phone number' : 'email'}${guardianOnRecord.children.length ? ` · guardian of ${guardianOnRecord.children.map((c) => c.name).join(', ')}` : ''}. Link them instead of adding a new guardian.`"
+          >
+            <template #action>
+              <Button size="sm" variant="outline" @click="linkGuardian(guardianOnRecord.id)"
+                >Link {{ guardianOnRecord.name }}</Button
+              >
+            </template>
+          </InlineNotice>
           <template v-if="d.guardianMode === 'link'">
             <div
               v-if="sibling && d.guardianId === sibling.guardianId"

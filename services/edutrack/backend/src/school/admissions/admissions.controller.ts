@@ -5,6 +5,7 @@ import {
   HttpCode,
   Param,
   Post,
+  Put,
   Query,
   StreamableFile,
 } from '@nestjs/common';
@@ -20,8 +21,11 @@ import { Portals, RequirePermission } from '../../auth/decorators/auth.decorator
 import { RawResponse, ResponseMessage } from '../../common/http/api-response.js';
 import { noticeOf } from '../staff/staff-audit.js';
 import { AdmissionsService } from './admissions.service.js';
+import { ApplicationsService } from './applications.service.js';
 import {
   AdmissionMatchesQueryDto,
+  ApplicationDto,
+  ApplicationStageDto,
   AdmitDto,
   StudentImportCommitDto,
   StudentImportDto,
@@ -45,7 +49,10 @@ import { StudentImportService } from './student-import.service.js';
 @Portals('SCHOOL_ADMIN')
 @Controller('admissions')
 export class AdmissionsController {
-  constructor(private readonly admissions: AdmissionsService) {}
+  constructor(
+    private readonly admissions: AdmissionsService,
+    private readonly applications: ApplicationsService,
+  ) {}
 
   @ResponseMessage('Applications loaded.')
   @Get()
@@ -74,6 +81,51 @@ export class AdmissionsController {
   @ApiOkResponse({ type: AdmissionOptionsDto })
   options() {
     return this.admissions.options();
+  }
+
+  /* ---------------- Applications ---------------- */
+
+  @ResponseMessage('Application recorded.')
+  @Post('applications')
+  @RequirePermission('students.create')
+  @ApiOperation({
+    summary: 'Record an application (walk-in, phone call, form handed in)',
+    description: 'Starts as Pending with the next APP-<year>-<####> number.',
+  })
+  @ApiUnprocessableEntityResponse({ description: 'VALIDATION' })
+  createApplication(@Body() dto: ApplicationDto) {
+    return this.applications.create(dto);
+  }
+
+  @ResponseMessage('Application loaded.')
+  @Get('applications/:id')
+  @RequirePermission('students.view')
+  @ApiOperation({ summary: 'One application, the stages it can move to, and its history' })
+  application(@Param('id') id: string) {
+    return this.applications.detail(id);
+  }
+
+  @ResponseMessage('Application saved.')
+  @Put('applications/:id')
+  @RequirePermission('students.create')
+  @ApiOperation({ summary: 'Change an application’s details (not once admitted)' })
+  updateApplication(@Param('id') id: string, @Body() dto: ApplicationDto) {
+    return this.applications.update(id, dto);
+  }
+
+  @ResponseMessage((r: { stage: string }) => `Application moved to ${r.stage.toLowerCase()}.`)
+  @Post('applications/:id/stage')
+  @HttpCode(200)
+  @RequirePermission('students.create')
+  @ApiOperation({
+    summary: 'Move an application on: Under review, Offer sent, Offer accepted, Rejected, Declined',
+    description:
+      'Pending → Under review (assessment day and result) → Offer sent (accept-by date) → Offer ' +
+      'accepted, then Admit in the admission wizard. Rejected and Declined need a note; both can ' +
+      'be reopened. 409 STAGE_NOT_ALLOWED for a move the stage doesn’t allow.',
+  })
+  moveApplication(@Param('id') id: string, @Body() dto: ApplicationStageDto) {
+    return this.applications.move(id, dto);
   }
 
   @ResponseMessage('Matches checked.')
