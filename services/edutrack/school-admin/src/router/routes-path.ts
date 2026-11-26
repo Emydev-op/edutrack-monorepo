@@ -89,6 +89,11 @@ export const routesPath = {
     parent: { name: 'parent', path: '/students/parents/:id' },
     loginSlips: { name: 'student-login-slips', path: '/students/login-slips' },
   },
+  boarding: {
+    setup: { name: 'boarding-setup', path: '/boarding/setup' },
+    hostels: { name: 'boarding-hostels', path: '/boarding/hostels' },
+    hostel: { name: 'boarding-hostel', path: '/boarding/hostels/:id' },
+  },
   staff: {
     directory: { name: 'staff', path: '/staff' },
     teachers: { name: 'teachers', path: '/staff/teachers' },

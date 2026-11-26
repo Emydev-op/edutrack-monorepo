@@ -1,5 +1,6 @@
 export * from './academics';
 export * from './auth';
+export * from './boarding';
 export * from './common';
 export * from './dashboard';
 export * from './setup';

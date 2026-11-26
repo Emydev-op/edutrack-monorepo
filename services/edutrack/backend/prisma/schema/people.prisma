@@ -169,6 +169,8 @@ model Staff {
 
   conversations Conversation[]
 
+  hostelPosts HostelStaff[]
+
   @@unique([schoolId, id])
   @@unique([schoolId, staffNumber])
   @@index([schoolId, status, group])

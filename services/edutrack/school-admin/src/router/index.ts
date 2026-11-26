@@ -8,6 +8,7 @@ import type { SetupProgress } from '@/types';
 
 import { academicsRoutes } from './modules/academics';
 import { authRoutes } from './modules/auth';
+import { boardingRoutes } from './modules/boarding';
 import { plannedRoutes } from './modules/planned';
 import { schoolRoutes } from './modules/school';
 import { foundationRedirect } from './guards/foundation';
@@ -98,6 +99,7 @@ const router = createRouter({
         ...academicsRoutes,
         ...schoolRoutes,
         ...studentRoutes,
+        ...boardingRoutes,
         ...staffRoutes,
         ...financeRoutes,
         ...communicationRoutes,

@@ -43,6 +43,7 @@ enum ImportKind {
   STUDENTS
   STAFF
   CLASSES
+  HOSTEL_ROOMS
 
   @@map("import_kind")
 }
@@ -231,6 +232,11 @@ model School {
   conversations Conversation[]
   chatMessages  ChatMessage[]
 
+  hostels      Hostel[]
+  hostelFloors HostelFloor[]
+  hostelRooms  HostelRoom[]
+  hostelStaff  HostelStaff[]
+
   @@index([status])
   @@index([state])
   @@index([createdAt])
@@ -316,6 +322,8 @@ model Branch {
   calendarEvents        CalendarEvent[]
   termDates             BranchTermDates[]
 
+  hostels Hostel[]
+
   @@unique([schoolId, id])
   @@unique([schoolId, code])
   @@unique([schoolId, name])
@@ -325,11 +333,15 @@ model Branch {
 
 /// Sections a branch offers (a subset of the school's sections).
 model BranchSection {
-  schoolId  String   @map("school_id") @db.Uuid
-  branchId  String   @map("branch_id") @db.Uuid
-  sectionId String   @map("section_id") @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  schoolId         String   @map("school_id") @db.Uuid
+  branchId         String   @map("branch_id") @db.Uuid
+  sectionId        String   @map("section_id") @db.Uuid
+  /// The section takes boarders at this campus.
+  boarding         Boolean  @default(false)
+  /// Class levels that board; empty = every level of the section.
+  boardingLevelIds String[] @default([]) @map("boarding_level_ids") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   school  School  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   branch  Branch  @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Cascade)

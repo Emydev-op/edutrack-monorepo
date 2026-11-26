@@ -1,0 +1,111 @@
+// Boarding: where a school takes boarders (per campus and section) and how its hostels are laid
+// out: hostel → optional floor or wing → room (capacity) → optional named beds.
+
+/// Who a hostel houses.
+enum HostelGender {
+  BOYS
+  GIRLS
+  MIXED
+
+  @@map("hostel_gender")
+}
+
+/// House staff: the hostel's house master or mistress, a floor or wing's master, or an assistant.
+enum HostelStaffRole {
+  HOUSE_MASTER
+  FLOOR_MASTER
+  ASSISTANT
+
+  @@map("hostel_staff_role")
+}
+
+model Hostel {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  schoolId   String       @map("school_id") @db.Uuid
+  branchId   String       @map("branch_id") @db.Uuid
+  name       String
+  gender     HostelGender
+  /// Class levels it takes; empty = every level that boards at its campus.
+  levelIds   String[]     @default([]) @map("level_ids") @db.Uuid
+  note       String       @default("")
+  sortOrder  Int          @default(0) @map("sort_order")
+  archivedAt DateTime?    @map("archived_at") @db.Timestamptz(3)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School        @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  branch Branch        @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+  floors HostelFloor[]
+  rooms  HostelRoom[]
+  staff  HostelStaff[]
+
+  @@unique([schoolId, id])
+  @@index([schoolId, branchId])
+  @@map("hostels")
+}
+
+/// A floor, wing or block of a hostel (optional: small hostels have rooms only).
+model HostelFloor {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @map("school_id") @db.Uuid
+  hostelId  String   @map("hostel_id") @db.Uuid
+  name      String
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School        @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  hostel Hostel        @relation(fields: [schoolId, hostelId], references: [schoolId, id], onDelete: Cascade)
+  rooms  HostelRoom[]
+  staff  HostelStaff[]
+
+  @@unique([schoolId, id])
+  @@unique([hostelId, name])
+  @@map("hostel_floors")
+}
+
+/// A room or dormitory: from a single room to a 40-bed dorm.
+model HostelRoom {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  schoolId   String    @map("school_id") @db.Uuid
+  hostelId   String    @map("hostel_id") @db.Uuid
+  floorId    String?   @map("floor_id") @db.Uuid
+  name       String
+  capacity   Int
+  /// Bed or bunk labels ("1", "2", "Bunk 3 top"…); empty = places are just counted.
+  beds       String[]  @default([])
+  sortOrder  Int       @default(0) @map("sort_order")
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  hostel Hostel       @relation(fields: [schoolId, hostelId], references: [schoolId, id], onDelete: Cascade)
+  floor  HostelFloor? @relation(fields: [schoolId, floorId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([schoolId, id])
+  @@unique([hostelId, name])
+  @@index([schoolId, hostelId])
+  @@map("hostel_rooms")
+}
+
+model HostelStaff {
+  id        String          @id @default(uuid(7)) @db.Uuid
+  schoolId  String          @map("school_id") @db.Uuid
+  hostelId  String          @map("hostel_id") @db.Uuid
+  /// The floor or wing they look after (floor masters).
+  floorId   String?         @map("floor_id") @db.Uuid
+  staffId   String          @map("staff_id") @db.Uuid
+  role      HostelStaffRole
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School       @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  hostel Hostel       @relation(fields: [schoolId, hostelId], references: [schoolId, id], onDelete: Cascade)
+  floor  HostelFloor? @relation(fields: [schoolId, floorId], references: [schoolId, id], onDelete: Cascade)
+  staff  Staff        @relation(fields: [schoolId, staffId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([hostelId, staffId])
+  @@index([schoolId, staffId])
+  @@map("hostel_staff")
+}

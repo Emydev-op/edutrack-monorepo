@@ -17,7 +17,8 @@ export type SchoolAuditArea =
   | 'Security'
   | 'Setup'
   | 'Communication'
-  | 'Notifications';
+  | 'Notifications'
+  | 'Boarding';
 
 export interface SchoolAuditEntry {
   /** Dotted verb: branch.create, staff.deactivate, profile.update… */
