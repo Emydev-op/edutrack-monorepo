@@ -122,6 +122,17 @@ mock.get('/v1/me', (req): Me => {
       department: dept ? { id: dept.id, name: dept.name } : null,
     },
     roles: t.roles,
+    // The mock's staff all teach; boarding pages are served by the real API only.
+    teaches: true,
+    boarding: {
+      houseStaff: false,
+      view: false,
+      exeats: false,
+      gate: false,
+      health: false,
+      rollcall: false,
+      manage: false,
+    },
     isClassTeacher: arm !== null,
     classArm: arm
       ? {

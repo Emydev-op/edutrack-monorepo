@@ -126,7 +126,7 @@ describe('Boarders and beds (e2e)', () => {
     const yes = await admin.put(`${B}/students/${girl}`).send({ boarding: true });
     expect(yes.status).toBe(200);
     expect(yes.body.data).toMatchObject({ boarding: true, status: 'Boarder', place: null });
-    const list = (await admin.get('/api/v1/students?boarding=Boarder&pageSize=100')).body.data as {
+    const list = (await admin.get('/api/v1/students?boarding=Boarder&pageSize=50')).body.data as {
       id: string;
       boarder: boolean;
     }[];

@@ -79,6 +79,8 @@ export const REAL_ROUTES: readonly string[] = [
   'POST /v1/materials/:materialId/restore',
   // My hostel: the hostels I look after as house staff, their rooms and boarders.
   'GET /v1/my-hostel',
+  // Boarding for staff: dashboard, roll calls, exeats, gate, sick bay, incidents and property.
+  '* /v1/staff-boarding/**',
   // Messages with parents: conversations, contacts, threads and replies.
   '* /v1/messages',
   '* /v1/messages/**',
