@@ -237,6 +237,8 @@ model School {
   hostelRooms  HostelRoom[]
   hostelStaff  HostelStaff[]
 
+  bedAllocations BedAllocation[]
+
   @@index([status])
   @@index([state])
   @@index([createdAt])

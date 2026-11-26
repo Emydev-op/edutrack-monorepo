@@ -13,7 +13,9 @@ import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 import PageHeader from '@edutrack/app-kit/components/common/PageHeader.vue';
 import RowActions, { type RowAction } from '@edutrack/app-kit/components/common/RowActions.vue';
 import SectionCard from '@edutrack/app-kit/components/common/SectionCard.vue';
+import SegmentedControl from '@edutrack/app-kit/components/common/SegmentedControl.vue';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
+import { useRouteQuery } from '@edutrack/app-kit/composables/useRouteQuery';
 import { formatCount, pluralize } from '@edutrack/app-kit/lib/format';
 
 import {
@@ -30,6 +32,7 @@ import type { Hostel, HostelFloor, HostelRoom, HostelStaff } from '@/types';
 import { bedSummary, FLOOR_MASTER, GENDER_TONE, HOUSE_MASTER } from './boarding-format';
 import CopyHostelDialog from './CopyHostelDialog.vue';
 import FloorDialog from './FloorDialog.vue';
+import HostelBedsPanel from './HostelBedsPanel.vue';
 import HostelFormDialog from './HostelFormDialog.vue';
 import HostelStaffDialog from './HostelStaffDialog.vue';
 import RoomDialog from './RoomDialog.vue';
@@ -37,7 +40,7 @@ import RoomGeneratorDialog from './RoomGeneratorDialog.vue';
 
 /**
  * One hostel: its house staff, and its floors or wings with their rooms. Rooms are added many at
- * a time with the generator, or one by one.
+ * a time with the generator, or one by one. The Beds view shows who sleeps where this session.
  */
 const route = useRoute();
 const router = useRouter();
@@ -53,6 +56,13 @@ const removeFloor = useDeleteFloorMutation();
 const removeRoom = useDeleteRoomMutation();
 
 watch(hostel, (h) => layoutStore.setRecordLabel(h?.name ?? null), { immediate: true });
+
+/** Rooms (the layout) or Beds (who sleeps where), kept in the URL. */
+const view = useRouteQuery<'rooms' | 'beds'>('view', 'rooms');
+const VIEWS = [
+  { value: 'rooms' as const, label: 'Rooms' },
+  { value: 'beds' as const, label: 'Beds' },
+];
 
 /* ---------------- Layout ---------------- */
 
@@ -217,6 +227,8 @@ const onCopied = (h: Hostel) => router.push({ name: b.hostel.name, params: { id:
         { label: 'Floors', value: String(hostel.totals.floors) },
         { label: 'Rooms', value: formatCount(hostel.totals.rooms) },
         { label: 'Places', value: formatCount(hostel.totals.places) },
+        { label: 'Taken', value: formatCount(hostel.totals.taken) },
+        { label: 'Free', value: formatCount(hostel.totals.free) },
       ]"
     >
       <template #actions>
@@ -272,7 +284,12 @@ const onCopied = (h: Hostel) => router.push({ name: b.hostel.name, params: { id:
       />
     </SectionCard>
 
+    <SegmentedControl v-model="view" :options="VIEWS" label="Hostel view" />
+
+    <HostelBedsPanel v-if="view === 'beds'" :hostel="hostel" />
+
     <SectionCard
+      v-else
       title="Floors & rooms"
       :description="`${hostel.totals.floors ? `${pluralize(hostel.totals.floors, 'floor or wing', 'floors or wings')} · ` : ''}${pluralize(hostel.totals.rooms, 'room')} · ${pluralize(hostel.totals.places, 'place')}`"
     >
@@ -349,9 +366,10 @@ const onCopied = (h: Hostel) => router.push({ name: b.hostel.name, params: { id:
                 @click="editRoom(r)"
               >
                 <span class="truncate text-[13px] font-medium">{{ r.name }}</span>
-                <span class="text-xs text-muted-foreground tabular-nums">{{
-                  pluralize(r.capacity, 'place')
-                }}</span>
+                <span class="text-xs text-muted-foreground tabular-nums"
+                  >{{ pluralize(r.capacity, 'place')
+                  }}{{ r.taken ? ` · ${r.taken} taken` : '' }}</span
+                >
                 <span v-if="r.beds.length" class="truncate text-xs text-faint">{{
                   bedSummary(r.beds)
                 }}</span>

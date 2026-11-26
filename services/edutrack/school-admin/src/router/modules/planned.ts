@@ -35,6 +35,7 @@ const BUILT = new Set<string>([
   routesPath.students.admissions.name,
   routesPath.students.enrollment.name,
   routesPath.students.parents.name,
+  routesPath.boarding.boarders.name,
   routesPath.boarding.hostels.name,
   routesPath.boarding.setup.name,
   routesPath.communication.announcements.name,

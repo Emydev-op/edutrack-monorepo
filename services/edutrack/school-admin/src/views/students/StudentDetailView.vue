@@ -11,6 +11,7 @@ import PageHeader from '@edutrack/app-kit/components/common/PageHeader.vue';
 import TabNav from '@edutrack/app-kit/components/common/TabNav.vue';
 import { initials } from '@edutrack/app-kit/lib/format';
 
+import { useBoardingSettingsQuery } from '@/api/services/boarding';
 import { useStudentPhotoMutation, useStudentQuery } from '@/api/services/students';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
@@ -53,6 +54,8 @@ async function onPhotoPicked(event: Event) {
 watch(student, (s) => layout.setRecordLabel(s?.name ?? null), { immediate: true });
 
 const s = routesPath.students;
+// Boarding shows once the school has switched it on in Boarding set-up.
+const { data: boarding } = useBoardingSettingsQuery();
 const tabs = computed(() =>
   (
     [
@@ -60,6 +63,9 @@ const tabs = computed(() =>
       ['Academics', s.academics.name],
       ['Subjects', s.subjects.name],
       ['Fees', s.fees.name],
+      ...(boarding.value?.enabled || route.name === s.boarding.name
+        ? ([['Boarding', s.boarding.name]] as const)
+        : []),
       ['Parents', s.guardians.name],
       ['Documents', s.documents.name],
       ['Activity', s.activity.name],

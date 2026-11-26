@@ -40,6 +40,14 @@ export class StudentQueryDto extends PaginationQueryDto {
   gender?: string;
 
   @ApiPropertyOptional({
+    enum: ['Boarder', 'Day'],
+    description: 'Boarders or day students this session',
+  })
+  @IsOptional()
+  @IsIn(['Boarder', 'Day'], { message: 'Choose Boarder or Day.' })
+  boarding?: 'Boarder' | 'Day';
+
+  @ApiPropertyOptional({
     example: 'Main Campus',
     description: 'The header’s branch (its name); left out or "All branches" for every branch',
   })

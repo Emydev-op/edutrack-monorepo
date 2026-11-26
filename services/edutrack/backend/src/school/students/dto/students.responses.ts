@@ -38,6 +38,9 @@ export class StudentRowDto {
 
   @ApiProperty({ example: false })
   admittedToday!: boolean;
+
+  @ApiProperty({ example: false, description: 'Boards this session' })
+  boarder!: boolean;
 }
 
 export class StudentEnrollmentDto {

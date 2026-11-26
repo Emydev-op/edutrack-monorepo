@@ -430,6 +430,8 @@ model AdmissionApplication {
   guardianEmail      String?          @map("guardian_email") @db.Citext
   appliedOn          DateTime         @map("applied_on") @db.Date
   previousSchool     String?          @map("previous_school")
+  /// The family asked for a boarding place.
+  wantsBoarding      Boolean          @default(false) @map("wants_boarding")
   /// Entrance assessment or interview: when, and the result as the school records it ("68%", "Passed").
   assessmentOn       DateTime?        @map("assessment_on") @db.Date
   assessmentResult   String?          @map("assessment_result")
@@ -473,6 +475,8 @@ model Enrollment {
   leftOn     DateTime?         @map("left_on") @db.Date
   /// Set when promotion is applied.
   outcome    PromotionOutcome?
+  /// Boards this session (only where the campus and class take boarders).
+  boarding   Boolean           @default(false)
   createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt  DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -484,6 +488,8 @@ model Enrollment {
   arm                ClassArm?           @relation(fields: [schoolId, armId], references: [schoolId, id], onDelete: Restrict)
   promotionDecisions PromotionDecision[]
   armMoves           ArmMove[]
+
+  bedAllocation BedAllocation?
 
   @@unique([schoolId, id])
   @@unique([studentId, sessionId])

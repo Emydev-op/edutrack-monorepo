@@ -10,6 +10,7 @@ import { fail, plural } from '../academics/academic-format.js';
 import { outstandingBalances } from '../finance/finance-balances.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { SectionAccessService } from '../shared/section-access.service.js';
+import { carryBoarding } from '../boarding/boarding-use.js';
 import { carryChoices } from '../shared/subject-choices.js';
 import { asTx } from '../shared/tenant-tx.js';
 import {
@@ -642,7 +643,7 @@ export class PromotionService {
               nextArmId = arm.id;
               taken.set(arm.id, (taken.get(arm.id) ?? 0) + 1);
             }
-            await tx.enrollment.create({
+            const next = await tx.enrollment.create({
               data: {
                 schoolId,
                 studentId: e.studentId,
@@ -654,6 +655,14 @@ export class PromotionService {
                 enrolledOn: to.startsOn,
               },
             });
+            // Boarders stay boarders (and keep their bed when the hostel still fits).
+            await carryBoarding(
+              tx,
+              schoolId,
+              e.id,
+              { id: next.id, sessionId: to.id, branchId: e.branchId, levelId: target.id },
+              to.startsOn,
+            );
             carry.push({ studentId: e.studentId, levelId: target.id });
             created++;
           }

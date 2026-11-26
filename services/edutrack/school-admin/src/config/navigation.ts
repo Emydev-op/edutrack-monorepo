@@ -51,7 +51,11 @@ export const navigation: NavGroup[] = [
   },
   {
     label: 'Boarding',
-    items: [item('Hostels', r.boarding.hostels), item('Boarding set-up', r.boarding.setup)],
+    items: [
+      item('Boarders', r.boarding.boarders),
+      item('Hostels', r.boarding.hostels),
+      item('Boarding set-up', r.boarding.setup),
+    ],
   },
   {
     label: 'Staff',

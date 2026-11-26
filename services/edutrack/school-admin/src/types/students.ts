@@ -19,12 +19,16 @@ export interface StudentRow {
   /** Admitted in this session and not yet enrolled into an arm. */
   awaitingEnrollment: boolean;
   admittedToday: boolean;
+  /** Boards this session (only where the school has boarding). */
+  boarder: boolean;
 }
 
 export interface StudentQuery extends PageQuery {
   status?: string;
   className?: string;
   gender?: string;
+  /** Boarder or Day. */
+  boarding?: string;
   /** The header's branch; "All branches" (or none) for every branch. */
   branch?: string;
 }
@@ -156,6 +160,8 @@ export interface ApplicationInput {
   previousSchool?: string;
   note?: string;
   appliedOn?: string;
+  /** The family wants a boarding place. */
+  wantsBoarding?: boolean;
 }
 
 export interface ApplicationDetail {
@@ -190,6 +196,8 @@ export interface ApplicationDetail {
   next: ApplicationStage[];
   canEdit: boolean;
   canAdmit: boolean;
+  /** The family wants a boarding place. */
+  wantsBoarding: boolean;
   history: { at: string; title: string; detail: string; by: string }[];
 }
 
@@ -269,6 +277,8 @@ export interface AdmitPayload {
   documents: Record<string, string | null>;
   billing: 'full' | 'defer';
   siblingDiscount: boolean;
+  /** Boards this session (only where the campus and class take boarders). */
+  boarding?: boolean;
 }
 
 export interface AdmitResult {

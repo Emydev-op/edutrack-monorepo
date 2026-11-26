@@ -182,6 +182,7 @@ const offerStatus = computed(() => {
           { label: 'Branch', value: app.branch },
           { label: 'Class', value: app.level },
           { label: 'Type', value: app.type },
+          ...(app.wantsBoarding ? [{ label: 'Boarding', value: 'Wants a boarding place' }] : []),
           { label: 'Applied', value: app.applied },
         ]"
       />

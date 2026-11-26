@@ -22,6 +22,7 @@ import { useSelection } from '@edutrack/app-kit/composables/useSelection';
 import { downloadCsv } from '@edutrack/app-kit/lib/csv';
 import { formatNaira } from '@edutrack/app-kit/lib/format';
 
+import { useBoardingSettingsQuery, useMarkBoardingMutation } from '@/api/services/boarding';
 import {
   useAdmissionOptionsQuery,
   useAssignArmMutation,
@@ -44,6 +45,9 @@ const assignArm = useAssignArmMutation();
 const createLogins = useCreateStudentLoginsMutation();
 const slips = useLoginSlipsStore();
 const { data: options } = useAdmissionOptionsQuery();
+const { data: boardingSettings } = useBoardingSettingsQuery();
+const boardingOn = computed(() => !!boardingSettings.value?.enabled);
+const markBoarding = useMarkBoardingMutation();
 
 const page = useRouteQuery<string>('page', '1');
 const pageSize = useRouteQuery<string>('pageSize', '10');
@@ -52,20 +56,24 @@ const debounced = refDebounced(search, 300);
 const status = ref('');
 const className = ref('');
 const gender = ref('');
-watch([debounced, status, className, gender], () => (page.value = '1'));
+const boarding = ref('');
+watch([debounced, status, className, gender, boarding], () => (page.value = '1'));
 
 const { data, isPending } = useStudentsQuery(() => ({
   search: debounced.value,
   status: status.value || undefined,
   className: className.value || undefined,
   gender: gender.value || undefined,
+  boarding: (boardingOn.value && boarding.value) || undefined,
   branch: context.current.branch || undefined,
   page: Number(page.value),
   pageSize: Number(pageSize.value),
 }));
 const rows = computed(() => data.value?.data ?? []);
 const selection = useSelection(rows, (s) => s.id);
-const filtered = computed(() => [debounced, status, className, gender].some((f) => !!f.value));
+const filtered = computed(() =>
+  [debounced, status, className, gender, boarding].some((f) => !!f.value),
+);
 const classOptions = computed(() => Object.keys(options.value?.arms ?? {}));
 
 const studentLink = (s: StudentRow) => ({
@@ -127,6 +135,35 @@ function moveArm() {
       toast.success(
         messageOf(result, `${moved} student${moved === 1 ? '' : 's'} moved to ${level}${option}.`),
       );
+      selection.clear();
+    },
+  });
+}
+
+/** Marks the selected students as boarders or day students for this session. */
+function mark(toBoarding: boolean) {
+  const picked = selection.selectedRows();
+  const what = toBoarding ? 'boarders' : 'day students';
+  void confirm({
+    title: `Mark ${picked.length} student${picked.length === 1 ? '' : 's'} as ${what}?`,
+    description: toBoarding
+      ? 'Only students whose campus and class take boarders are changed. Place them in rooms from Boarding › Boarders.'
+      : 'Boarders among them leave boarding, and their beds are freed.',
+    details: [['Session', context.current.session]],
+    confirmLabel: `Mark as ${what}`,
+    tone: toBoarding ? 'primary' : 'destructive',
+    action: async () => {
+      const result = await markBoarding.mutateAsync({
+        studentIds: picked.map((s) => s.id),
+        boarding: toBoarding,
+      });
+      const missed = result.results.filter((r) => !r.done);
+      const text = `${result.changed} student${result.changed === 1 ? '' : 's'} marked as ${what}.`;
+      const description = missed.length
+        ? `Not changed: ${missed.map((r) => `${r.name}${r.reason ? ` (${r.reason})` : ''}`).join('; ')}.`
+        : undefined;
+      if (missed.length) toast.warning(text, { description, duration: 12_000 });
+      else toast.success(text);
       selection.clear();
     },
   });
@@ -258,6 +295,12 @@ const columns: Column[] = [
       <FilterMenu v-model="className" label="Class" :options="classOptions" />
       <FilterMenu v-model="gender" label="Gender" :options="['Female', 'Male']" />
       <FilterMenu
+        v-if="boardingOn"
+        v-model="boarding"
+        label="Boarding"
+        :options="['Boarder', 'Day']"
+      />
+      <FilterMenu
         v-model="status"
         label="Status"
         :options="['Active', 'Incomplete profile', 'Transferred', 'Withdrawn']"
@@ -274,6 +317,10 @@ const columns: Column[] = [
     </template>
     <template #bulk>
       <Button size="sm" variant="outline" @click="moveArm">Assign arm</Button>
+      <template v-if="boardingOn">
+        <Button size="sm" variant="outline" @click="mark(true)">Mark as boarders</Button>
+        <Button size="sm" variant="outline" @click="mark(false)">Mark as day students</Button>
+      </template>
       <Button
         size="sm"
         variant="outline"
@@ -294,7 +341,10 @@ const columns: Column[] = [
       >
     </template>
     <template #cell-name="{ row }">
-      <CellLink :to="studentLink(row)" :label="row.name" />
+      <span class="flex min-w-0 items-center gap-1.5">
+        <CellLink :to="studentLink(row)" :label="row.name" />
+        <StatusBadge v-if="boardingOn && row.boarder" label="Boarder" tone="brand" />
+      </span>
       <span class="text-xs text-faint"
         >{{ row.admissionNo }}{{ row.admittedToday ? ' · admitted today' : '' }}</span
       >

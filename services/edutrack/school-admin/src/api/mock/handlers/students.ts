@@ -82,6 +82,7 @@ function toRow(data: StudentsData, s: StudentRecord): StudentRow {
     status: s.status,
     awaitingEnrollment: !s.arm && s.status === 'Active',
     admittedToday: !!s.admittedToday,
+    boarder: false,
   };
 }
 

@@ -76,6 +76,7 @@ export const routesPath = {
     guardians: { name: 'student-guardians', path: 'parents' },
     documents: { name: 'student-documents', path: 'documents' },
     activity: { name: 'student-activity', path: 'activity' },
+    boarding: { name: 'student-boarding', path: 'boarding' },
     transfer: { name: 'student-transfer', path: '/students/:id/transfer' },
     admissions: { name: 'admissions', path: '/students/admissions' },
     admit: { name: 'admit-student', path: '/students/admissions/new' },
@@ -90,6 +91,7 @@ export const routesPath = {
     loginSlips: { name: 'student-login-slips', path: '/students/login-slips' },
   },
   boarding: {
+    boarders: { name: 'boarding-boarders', path: '/boarding/boarders' },
     setup: { name: 'boarding-setup', path: '/boarding/setup' },
     hostels: { name: 'boarding-hostels', path: '/boarding/hostels' },
     hostel: { name: 'boarding-hostel', path: '/boarding/hostels/:id' },

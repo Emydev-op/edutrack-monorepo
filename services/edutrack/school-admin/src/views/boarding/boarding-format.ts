@@ -3,6 +3,7 @@ import type { StatusTone } from '@edutrack/ui/lib/status';
 import type {
   BedStyle,
   BoardingCampus,
+  BoardingPlace,
   BoardingSettings,
   HostelGender,
   HostelStaffRole,
@@ -131,4 +132,28 @@ export function boardingLevels(c: BoardingCampus | undefined) {
     .flatMap((s) =>
       s.levelIds.length ? s.levels.filter((l) => s.levelIds.includes(l.id)) : s.levels,
     );
+}
+
+/**
+ * Whether a class level boards at a campus, from Boarding set-up. The campus and level are
+ * matched by id or by name (the admission wizard knows names only).
+ */
+export function levelBoards(
+  settings: Pick<BoardingSettings, 'enabled' | 'campuses'> | undefined,
+  campus: string,
+  level: string,
+): boolean {
+  if (!settings?.enabled) return false;
+  const c = settings.campuses.find((x) => x.branchId === campus || x.name === campus);
+  return boardingLevels(c).some((l) => l.id === level || l.name === level);
+}
+
+/** "Unity House · First floor · Room 4 · bed B". */
+export function placeLabel(p: Pick<BoardingPlace, 'hostel' | 'floor' | 'room' | 'bed'>): string {
+  return [p.hostel, p.floor, p.room, p.bed ? `bed ${p.bed}` : ''].filter(Boolean).join(' · ');
+}
+
+/** A hostel for the other gender: "Boys" for a girl, "Girls" for a boy. */
+export function otherGender(hostel: HostelGender, student: 'Female' | 'Male' | '' | undefined) {
+  return (hostel === 'Boys' && student === 'Female') || (hostel === 'Girls' && student === 'Male');
 }

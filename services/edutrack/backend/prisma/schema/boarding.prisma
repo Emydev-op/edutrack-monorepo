@@ -83,6 +83,8 @@ model HostelRoom {
   hostel Hostel       @relation(fields: [schoolId, hostelId], references: [schoolId, id], onDelete: Cascade)
   floor  HostelFloor? @relation(fields: [schoolId, floorId], references: [schoolId, id], onDelete: Restrict)
 
+  allocations BedAllocation[]
+
   @@unique([schoolId, id])
   @@unique([hostelId, name])
   @@index([schoolId, hostelId])
@@ -108,4 +110,26 @@ model HostelStaff {
   @@unique([hostelId, staffId])
   @@index([schoolId, staffId])
   @@map("hostel_staff")
+}
+
+/// A boarder's place for a session: their room and, when the room's beds are labelled, their bed.
+model BedAllocation {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  schoolId      String   @map("school_id") @db.Uuid
+  /// The boarder's enrolment for the session (one place per student per session).
+  enrollmentId  String   @map("enrollment_id") @db.Uuid
+  roomId        String   @map("room_id") @db.Uuid
+  bed           String?
+  allocatedOn   DateTime @map("allocated_on") @db.Date
+  allocatedById String?  @map("allocated_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school     School     @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  enrollment Enrollment @relation(fields: [schoolId, enrollmentId], references: [schoolId, id], onDelete: Cascade)
+  room       HostelRoom @relation(fields: [schoolId, roomId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([schoolId, enrollmentId])
+  @@index([schoolId, roomId])
+  @@map("bed_allocations")
 }

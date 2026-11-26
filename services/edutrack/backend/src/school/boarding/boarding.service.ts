@@ -7,6 +7,7 @@ import { TenantPrismaService } from '../../tenancy/tenant-prisma.service.js';
 import { staffName } from '../academics/academic-format.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { asTx } from '../shared/tenant-tx.js';
+import { boardingSession, roomUse } from './boarding-use.js';
 
 export const GENDER_LABEL: Record<HostelGender, 'Boys' | 'Girls' | 'Mixed'> = {
   BOYS: 'Boys',
@@ -178,6 +179,30 @@ export class BoardingService {
             [...section.levelIds].sort().join() === [...stored].sort().join()
           )
             continue;
+          // Classes that stop boarding can't still have boarders this session.
+          const stillBoard = s.boarding
+            ? stored.length
+              ? new Set(stored)
+              : new Set(section.levels.map((l) => l.id))
+            : new Set<string>();
+          const stopping = section.levels.filter((l) => !stillBoard.has(l.id)).map((l) => l.id);
+          const session = stopping.length ? await boardingSession(tx) : null;
+          const left = session
+            ? await tx.enrollment.count({
+                where: {
+                  sessionId: session.id,
+                  status: 'ACTIVE',
+                  boarding: true,
+                  branchId: c.branchId,
+                  levelId: { in: stopping },
+                },
+              })
+            : 0;
+          if (left)
+            throw conflict(
+              `${left} ${section.name} student${left === 1 ? ' is a boarder' : 's are boarders'} at ${campus.name}. Make them day students first.`,
+              'BOARDERS_REMAIN',
+            );
           await tx.branchSection.update({
             where: { branchId_sectionId: { branchId: c.branchId, sectionId: s.sectionId } },
             data: { boarding: !!s.boarding, boardingLevelIds: s.boarding ? stored : [] },
@@ -259,14 +284,18 @@ export class BoardingService {
   private view(
     h: Awaited<ReturnType<BoardingService['findHostel']>>,
     levelNames: Map<string, string>,
+    use: Map<string, { taken: number }>,
   ) {
     const places = h.rooms.reduce((a, r) => a + r.capacity, 0);
+    const takenIn = (roomId: string) => use.get(roomId)?.taken ?? 0;
+    const taken = h.rooms.reduce((a, r) => a + takenIn(r.id), 0);
     const room = (r: (typeof h.rooms)[number]) => ({
       id: r.id,
       name: r.name,
       floorId: r.floorId,
       capacity: r.capacity,
       beds: r.beds,
+      taken: takenIn(r.id),
     });
     const staff = (s: (typeof h.staff)[number]) => ({
       id: s.id,
@@ -296,8 +325,22 @@ export class BoardingService {
       })),
       rooms: h.rooms.map(room),
       staff: h.staff.map(staff),
-      totals: { floors: h.floors.length, rooms: h.rooms.length, places },
+      totals: {
+        floors: h.floors.length,
+        rooms: h.rooms.length,
+        places,
+        taken,
+        free: places - taken,
+      },
     };
+  }
+
+  /** Places taken this session in these rooms (empty before any session exists). */
+  private async use(roomIds?: string[]) {
+    const session = await boardingSession(this.db);
+    return session
+      ? roomUse(this.db, session.id, roomIds)
+      : new Map<string, { taken: number; beds: Set<string> }>();
   }
 
   private async levelNames() {
@@ -315,19 +358,22 @@ export class BoardingService {
       }),
       this.levelNames(),
     ]);
-    const list = rows.map((h) => this.view(h, names));
+    const use = await this.use(rows.flatMap((h) => h.rooms.map((r) => r.id)));
+    const list = rows.map((h) => this.view(h, names, use));
     return {
       hostels: list,
       totals: {
         hostels: list.length,
         rooms: list.reduce((a, h) => a + h.totals.rooms, 0),
         places: list.reduce((a, h) => a + h.totals.places, 0),
+        taken: list.reduce((a, h) => a + h.totals.taken, 0),
       },
     };
   }
 
   async hostel(id: string) {
-    return this.view(await this.findHostel(id), await this.levelNames());
+    const h = await this.findHostel(id);
+    return this.view(h, await this.levelNames(), await this.use(h.rooms.map((r) => r.id)));
   }
 
   /** Checks a hostel's details against the campus's boarding set-up. */
@@ -425,6 +471,13 @@ export class BoardingService {
   /** Removes a hostel (kept in history). Refused while students sleep there (Phase 1 part 2). */
   async removeHostel(id: string) {
     const h = await this.findHostel(id);
+    const use = await this.use(h.rooms.map((r) => r.id));
+    const taken = [...use.values()].reduce((a, u) => a + u.taken, 0);
+    if (taken)
+      throw conflict(
+        `${taken} boarder${taken === 1 ? '' : 's'} sleep${taken === 1 ? 's' : ''} in ${h.name}. Move them first.`,
+        'HOSTEL_OCCUPIED',
+      );
     await this.db.$transaction(async (tx) => {
       await tx.hostel.update({ where: { id: h.id }, data: { archivedAt: new Date() } });
       await tx.hostelStaff.deleteMany({ where: { hostelId: h.id } });
@@ -570,6 +623,20 @@ export class BoardingService {
     const r = h.rooms.find((x) => x.id === roomId);
     if (!r) throw notFound('room');
     const data = this.checkRoom(h, dto, r.id);
+    const u = (await this.use([r.id])).get(r.id);
+    if (u && data.capacity < u.taken)
+      throw invalid({
+        capacity: `${u.taken} boarders sleep in ${r.name}. Move some before lowering its places.`,
+      });
+    const lost = u ? [...u.beds].filter((b) => !data.beds.includes(b)) : [];
+    if (lost.length)
+      throw invalid({
+        beds: `Bed${lost.length === 1 ? '' : 's'} ${lost.join(', ')} ${lost.length === 1 ? 'is' : 'are'} taken. Keep ${lost.length === 1 ? 'it' : 'them'}, or move those boarders first.`,
+      });
+    if (u?.taken && !data.beds.length && r.beds.length)
+      throw invalid({
+        beds: 'Boarders have labelled beds in this room. Keep the labels, or move them first.',
+      });
     await this.db.hostelRoom.update({ where: { id: r.id }, data });
     return this.hostel(h.id);
   }
@@ -578,6 +645,12 @@ export class BoardingService {
     const h = await this.findHostel(hostelId);
     const r = h.rooms.find((x) => x.id === roomId);
     if (!r) throw notFound('room');
+    const u = (await this.use([r.id])).get(r.id);
+    if (u?.taken)
+      throw conflict(
+        `${u.taken} boarder${u.taken === 1 ? '' : 's'} sleep${u.taken === 1 ? 's' : ''} in ${r.name}. Move them first.`,
+        'ROOM_OCCUPIED',
+      );
     await this.db.hostelRoom.update({ where: { id: r.id }, data: { archivedAt: new Date() } });
     return this.hostel(h.id);
   }

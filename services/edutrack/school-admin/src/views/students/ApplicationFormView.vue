@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Button } from '@edutrack/ui/components/button';
+import { Checkbox } from '@edutrack/ui/components/checkbox';
 import { Input } from '@edutrack/ui/components/input';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { Spinner } from '@edutrack/ui/components/spinner';
@@ -18,6 +19,7 @@ import ChoiceCards from '@edutrack/app-kit/components/form/ChoiceCards.vue';
 import FieldShell from '@edutrack/app-kit/components/form/FieldShell.vue';
 import { useUnsavedChanges } from '@edutrack/app-kit/composables/useUnsavedChanges';
 
+import { useBoardingSettingsQuery } from '@/api/services/boarding';
 import {
   useAdmissionOptionsQuery,
   useApplicationQuery,
@@ -28,6 +30,7 @@ import { routesPath } from '@/router/routes-path';
 import { useLayoutStore } from '@/stores/layout';
 import type { AdmissionType, ApplicationInput, Gender } from '@/types';
 
+import { levelBoards } from '../boarding/boarding-format';
 import { todayIso } from './application-format';
 
 /**
@@ -67,6 +70,7 @@ const blank = () => ({
   previousSchool: '',
   note: '',
   appliedOn: today(),
+  wantsBoarding: false,
 });
 const f = reactive(blank());
 const initial = ref(JSON.stringify(f));
@@ -79,6 +83,13 @@ const branches = computed(() => options.value?.branches ?? []);
 const levelsFor = (branch: string) =>
   Object.keys(options.value?.armsByBranch?.[branch] ?? options.value?.arms ?? {});
 const levels = computed(() => levelsFor(f.branch));
+
+/* Boarding: asked only where the school has it. */
+const { data: boarding } = useBoardingSettingsQuery();
+const askBoarding = computed(() => !!boarding.value?.enabled || f.wantsBoarding);
+const classBoards = computed(
+  () => !f.branch || !f.level || levelBoards(boarding.value, f.branch, f.level),
+);
 
 watch(
   [options, detail],
@@ -104,6 +115,7 @@ watch(
             previousSchool: a.previousSchool,
             note: a.note,
             appliedOn: a.appliedOn,
+            wantsBoarding: a.wantsBoarding,
           }
         : { branch: branches.value.length === 1 ? branches.value[0]! : '' },
     );
@@ -168,6 +180,7 @@ async function submit() {
     previousSchool: f.previousSchool.trim(),
     note: f.note.trim(),
     appliedOn: f.appliedOn || undefined,
+    wantsBoarding: f.wantsBoarding,
   };
   try {
     const result = isNew.value
@@ -365,6 +378,15 @@ const selectClass = 'h-9 w-full rounded-md border bg-card px-2.5 text-sm';
               <option v-for="l in levels" :key="l">{{ l }}</option>
             </select>
           </FieldShell>
+        </div>
+        <div v-if="askBoarding" class="flex flex-col gap-1">
+          <label class="flex items-center gap-2 text-[13px]"
+            ><Checkbox v-model="f.wantsBoarding" />Wants a boarding place</label
+          >
+          <p v-if="f.wantsBoarding && !classBoards" class="text-xs text-warning-strong">
+            {{ f.level }} at {{ f.branch }} doesn’t take boarders. They can still apply as a day
+            student.
+          </p>
         </div>
       </div>
     </SectionCard>

@@ -126,6 +126,7 @@ export const studentRoutes: RouteRecordRaw[] = [
       { ...s.guardians, component: () => import('@/views/students/tabs/StudentGuardiansTab.vue') },
       { ...s.documents, component: () => import('@/views/students/tabs/StudentDocumentsTab.vue') },
       { ...s.activity, component: () => import('@/views/students/tabs/StudentActivityTab.vue') },
+      { ...s.boarding, component: () => import('@/views/students/tabs/StudentBoardingTab.vue') },
     ],
   },
 ];

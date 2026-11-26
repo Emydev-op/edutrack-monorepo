@@ -30,6 +30,7 @@ import { SchoolWide } from '../../common/plan/branch-scope.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { StaffImportDto } from '../staff/dto/staff.dto.js';
 import { BoardingService } from './boarding.service.js';
+import { BoardersService } from './boarders.service.js';
 import { HostelImportService } from './hostel-import.service.js';
 
 class SectionBoardingDto {
@@ -127,6 +128,44 @@ export class HostelStaffDto {
   entries!: StaffEntryDto[];
 }
 
+export class StudentBoardingDto {
+  @ApiProperty({ description: 'Boarder (true) or day student (false) this session' })
+  @IsBoolean()
+  boarding!: boolean;
+  @ApiPropertyOptional({ description: 'Place them in this room at the same time' })
+  @IsOptional()
+  @IsString()
+  roomId?: string | null;
+  @ApiPropertyOptional() @IsOptional() @IsString() bed?: string | null;
+  @ApiPropertyOptional({ description: 'Go ahead despite warnings (other gender, other classes)' })
+  @IsOptional()
+  @IsBoolean()
+  confirm?: boolean;
+}
+export class MarkBoardersDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  studentIds!: string[];
+  @ApiProperty() @IsBoolean() boarding!: boolean;
+}
+export class AllocateDto {
+  @ApiProperty() @IsString() studentId!: string;
+  @ApiProperty() @IsString() roomId!: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() bed?: string | null;
+  @ApiPropertyOptional({ description: 'Go ahead despite warnings (other gender, other classes)' })
+  @IsOptional()
+  @IsBoolean()
+  confirm?: boolean;
+}
+export class AutoAllocateDto {
+  @ApiPropertyOptional({ description: 'Keep classmates in the same rooms (else mix classes)' })
+  @IsOptional()
+  @IsBoolean()
+  keepClassmates?: boolean;
+}
+
 /** School Admin › Boarding (`/v1/boarding`): where boarders are taken, and the hostels. */
 @ApiTags('school · boarding')
 @Portals('SCHOOL_ADMIN')
@@ -135,7 +174,113 @@ export class BoardingController {
   constructor(
     private readonly boarding: BoardingService,
     private readonly imports: HostelImportService,
+    private readonly boarders: BoardersService,
   ) {}
+
+  /* ---------------- Boarders ---------------- */
+
+  @ResponseMessage('Boarders loaded.')
+  @Get('boarders')
+  @RequirePermission('students.view')
+  @ApiOperation({
+    summary: 'This session’s boarders and where each sleeps (or that they need a place)',
+  })
+  boarderList(
+    @Query('branchId') branchId?: string,
+    @Query('hostelId') hostelId?: string,
+    @Query('levelId') levelId?: string,
+    @Query('unplaced') unplaced?: string,
+    @Query('q') q?: string,
+  ) {
+    return this.boarders.boarders({
+      branchId,
+      hostelId,
+      levelId,
+      unplaced: unplaced === 'true',
+      q,
+    });
+  }
+
+  @ResponseMessage('Boarding loaded.')
+  @Get('students/:studentId')
+  @RequirePermission('students.view')
+  @ApiOperation({
+    summary: 'A student’s boarding this session: can they board, do they, and where',
+  })
+  studentBoarding(@Param('studentId') studentId: string) {
+    return this.boarders.student(studentId);
+  }
+
+  @ResponseMessage(
+    (r: { name: string; status: string }) =>
+      `${r.name} is now a ${r.status === 'Boarder' ? 'boarder' : 'day student'}.`,
+  )
+  @Put('students/:studentId')
+  @RequirePermission('students.edit')
+  @ApiOperation({
+    summary: 'Make a student a boarder or a day student this session (optionally placing them)',
+    description:
+      'Only where their campus and class take boarders. Becoming a day student frees their bed. ' +
+      '409 ALLOCATION_WARNING lists warnings (other gender, other classes) to confirm with `confirm`.',
+  })
+  setStudentBoarding(@Param('studentId') studentId: string, @Body() dto: StudentBoardingDto) {
+    return this.boarders.setStatus(studentId, dto);
+  }
+
+  @ResponseMessage(
+    (r: { changed: number }) => `${r.changed} student${r.changed === 1 ? '' : 's'} updated.`,
+  )
+  @Post('students/mark')
+  @HttpCode(200)
+  @RequirePermission('students.edit')
+  @ApiOperation({ summary: 'Mark several students as boarders or day students at once' })
+  markBoarders(@Body() dto: MarkBoardersDto) {
+    return this.boarders.markMany(dto.studentIds, dto.boarding);
+  }
+
+  @ResponseMessage('Place saved.')
+  @Put('allocations')
+  @RequirePermission('students.edit')
+  @ApiOperation({
+    summary: 'Give a boarder a room (and bed), or move them',
+    description:
+      '409 ROOM_FULL or BED_TAKEN are refusals. 409 ALLOCATION_WARNING (other gender, other ' +
+      'classes) can be overridden by sending `confirm: true`.',
+  })
+  allocate(@Body() dto: AllocateDto) {
+    return this.boarders.allocate(dto);
+  }
+
+  @ResponseMessage('Place removed.')
+  @Delete('allocations/:studentId')
+  @RequirePermission('students.edit')
+  @ApiOperation({ summary: 'Take a boarder out of their room (they stay a boarder)' })
+  unallocate(@Param('studentId') studentId: string) {
+    return this.boarders.unallocate(studentId);
+  }
+
+  @ResponseMessage('Rooms loaded.')
+  @Get('hostels/:id/occupancy')
+  @RequirePermission('students.view')
+  @ApiOperation({ summary: 'A hostel’s rooms with who sleeps in each this session' })
+  occupancy(@Param('id') id: string) {
+    return this.boarders.occupancy(id);
+  }
+
+  @ResponseMessage(
+    (r: { placed: number; waiting: number }) =>
+      `${r.placed} boarder${r.placed === 1 ? '' : 's'} placed.${r.waiting ? ` ${r.waiting} still waiting for space.` : ''}`,
+  )
+  @Post('hostels/:id/auto-allocate')
+  @HttpCode(200)
+  @RequirePermission('students.edit')
+  @ApiOperation({
+    summary:
+      'Fill free places with boarders who have none, matching the hostel’s gender and classes',
+  })
+  autoAllocate(@Param('id') id: string, @Body() dto: AutoAllocateDto) {
+    return this.boarders.autoAllocate(id, dto);
+  }
 
   @ResponseMessage('Boarding set-up loaded.')
   @Get('settings')
@@ -331,7 +476,7 @@ export class BoardingController {
 
 @Module({
   controllers: [BoardingController],
-  providers: [BoardingService, HostelImportService, SchoolAuditService],
-  exports: [BoardingService],
+  providers: [BoardingService, HostelImportService, BoardersService, SchoolAuditService],
+  exports: [BoardingService, BoardersService],
 })
 export class BoardingModule {}
