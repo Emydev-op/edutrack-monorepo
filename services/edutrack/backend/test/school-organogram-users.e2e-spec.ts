@@ -111,11 +111,11 @@ describe('School organogram, users and roles (e2e)', () => {
       const state = await RequestContext.forSchool(greenfieldId, () =>
         service.organogramStepState(),
       );
-      expect(state).toMatchObject({ positions: 12, vacant: 1, roles: 12, topHolder: true });
+      expect(state).toMatchObject({ positions: 12, vacant: 1, roles: 16, topHolder: true });
       const crestState = await RequestContext.forSchool(crestviewId, () =>
         service.organogramStepState(),
       );
-      expect(crestState).toMatchObject({ positions: 1, vacant: 0, roles: 10, topHolder: true });
+      expect(crestState).toMatchObject({ positions: 1, vacant: 0, roles: 14, topHolder: true });
     });
 
     let added: Position;

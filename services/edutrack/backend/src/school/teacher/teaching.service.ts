@@ -86,7 +86,9 @@ export class TeachingService {
     const [membership, posts] = await Promise.all([
       this.db.schoolMembership.findFirst({
         where: { id: auth.membershipId },
-        select: { roles: { select: { role: { select: { permissions: true, archivedAt: true } } } } },
+        select: {
+          roles: { select: { role: { select: { permissions: true, archivedAt: true } } } },
+        },
       }),
       this.db.hostelStaff.count({ where: { staffId: s.id, hostel: { archivedAt: null } } }),
     ]);
@@ -130,7 +132,8 @@ export class TeachingService {
       boarding: {
         houseStaff: posts > 0,
         view: granted.has('boarding.view') || posts > 0,
-        exeats: granted.has('boarding.exeats'),
+        // Staff posted to a hostel decide its exeats, as the boarding routes allow.
+        exeats: granted.has('boarding.exeats') || posts > 0,
         gate: granted.has('boarding.gate'),
         health: granted.has('boarding.health'),
         rollcall: granted.has('boarding.rollcall') || posts > 0,

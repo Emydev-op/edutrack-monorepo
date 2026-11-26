@@ -75,7 +75,7 @@ describe('Tenant isolation, resolution and permissions (e2e)', () => {
       );
       expect(codes).toEqual(['GFA-AJ', 'GFA-LK', 'GFA-MC']);
       expect(await inSchool(crestview, () => db.branch.count())).toBe(1);
-      expect(await inSchool(crestview, () => db.schoolRole.count())).toBe(10);
+      expect(await inSchool(crestview, () => db.schoolRole.count())).toBe(14);
     });
 
     it('cannot read another school’s row, even by id', async () => {
