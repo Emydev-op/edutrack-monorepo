@@ -97,6 +97,11 @@ const actions = (item: FeeItem): RowAction[] =>
             :class="row.type === 'Compulsory' ? 'bg-primary' : 'bg-faint'"
           />
           {{ row.name }}
+          <StatusBadge
+            v-if="row.appliesTo && row.appliesTo !== 'Everyone'"
+            :label="row.appliesTo"
+            tone="info"
+          />
         </span>
         <span v-if="row.description" class="text-xs text-muted-foreground">{{
           row.description

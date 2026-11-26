@@ -10,6 +10,8 @@ export interface NavItem {
   requires?: NavRequirement;
   /** The plan module the screen belongs to: hidden when the school's plan lacks it. */
   module?: string;
+  /** Only for house staff (the my-hostel query returns at least one hostel). */
+  houseStaff?: boolean;
 }
 export interface NavGroup {
   /** Groups without a label always show their items. */
@@ -68,6 +70,7 @@ export const navigation: NavGroup[] = [
     label: '',
     items: [
       item('Messages', r.messages.list),
+      { ...item('My hostel', r.boarding.myHostel), houseStaff: true },
       item('Announcements', r.announcements.list),
       item('Notifications', r.notifications.list),
       item('Profile', r.profile.view),
@@ -91,14 +94,24 @@ export function meets(me: Me | null | undefined, requires: NavRequirement | unde
   }
 }
 
-/** The sidebar for this teacher: My class only for class teachers, Reviews only for reviewers. */
-export const navigationFor = (me: Me | null | undefined, modules?: string[] | null): NavGroup[] =>
+/**
+ * The sidebar for this teacher: My class only for class teachers, Reviews only for reviewers,
+ * My hostel only for house staff.
+ */
+export const navigationFor = (
+  me: Me | null | undefined,
+  modules?: string[] | null,
+  houseStaff = false,
+): NavGroup[] =>
   navigation
     .filter((g) => meets(me, g.requires))
     .map((g) => ({
       ...g,
       items: g.items.filter(
-        (i) => meets(me, i.requires) && (!i.module || !modules || modules.includes(i.module)),
+        (i) =>
+          meets(me, i.requires) &&
+          (!i.houseStaff || houseStaff) &&
+          (!i.module || !modules || modules.includes(i.module)),
       ),
     }))
     .filter((g) => g.items.length);

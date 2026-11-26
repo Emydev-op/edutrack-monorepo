@@ -185,6 +185,14 @@ export interface StudentBoarding {
   status: BoardingStatus;
   place: (BoardingPlace & { since: string; houseStaff: HouseStaffMember[] }) | null;
   editable: boolean;
+  /** Returned after a boarding change: what happened to this term's boarding fees. */
+  fees?: BoardingFeeChange | null;
+}
+
+export interface BoardingFeeChange {
+  change: 'added' | 'removed' | 'kept' | 'none';
+  amount: number;
+  note: string | null;
 }
 
 export interface StudentBoardingPayload {

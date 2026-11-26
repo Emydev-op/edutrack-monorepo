@@ -64,6 +64,16 @@ enum FeeType {
   @@map("fee_type")
 }
 
+/// Who a fee item is billed to: everyone, or only boarders (all, boys or girls).
+enum FeeAudience {
+  EVERYONE
+  BOARDERS
+  BOY_BOARDERS
+  GIRL_BOARDERS
+
+  @@map("fee_audience")
+}
+
 enum ActiveStatus {
   ACTIVE
   INACTIVE
@@ -267,6 +277,7 @@ model FeeItem {
   category    FeeCategory
   charged     FeeCharged
   type        FeeType
+  appliesTo   FeeAudience   @default(EVERYONE) @map("applies_to")
   status      FeeItemStatus @default(ACTIVE)
   description String        @default("")
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)

@@ -19,7 +19,7 @@ import {
   useUnplaceMutation,
 } from '@/api/services/boarding';
 import { routesPath } from '@/router/routes-path';
-import type { StudentDetail } from '@/types';
+import type { StudentBoarding, StudentDetail } from '@/types';
 import { placeLabel } from '@/views/boarding/boarding-format';
 import PlaceBoarderDialog, { type PlaceTarget } from '@/views/boarding/PlaceBoarderDialog.vue';
 
@@ -55,6 +55,14 @@ const target = computed<PlaceTarget | null>(() =>
     : null,
 );
 
+/** What the change did to this term's boarding fees (kept fees are flagged for Finance). */
+function feesToast(result: StudentBoarding) {
+  const f = result.fees;
+  if (!f?.note) return;
+  if (f.change === 'kept') toast.warning(f.note, { duration: 10_000 });
+  else toast.info(f.note);
+}
+
 function makeBoarder() {
   const s = b.value!;
   void confirm({
@@ -64,6 +72,7 @@ function makeBoarder() {
     action: async () => {
       const result = await setBoarding.mutateAsync({ studentId: s.studentId, boarding: true });
       toast.success(messageOf(result, `${s.name} is now a boarder.`));
+      feesToast(result);
       placeOpen.value = true;
     },
   });
@@ -73,15 +82,18 @@ function makeDay() {
   const s = b.value!;
   void confirm({
     title: `Make ${s.name} a day student?`,
-    description: s.place
-      ? `Their bed in ${placeLabel(s.place)} is freed for another boarder.`
-      : 'They no longer need a place in a hostel.',
+    description: `${
+      s.place
+        ? `Their bed in ${placeLabel(s.place)} is freed for another boarder.`
+        : 'They no longer need a place in a hostel.'
+    } This term’s boarding fees come off the invoice only in the first two weeks of term.`,
     details: [['Session', s.session]],
     confirmLabel: 'Make day student',
     tone: 'destructive',
     action: async () => {
       const result = await setBoarding.mutateAsync({ studentId: s.studentId, boarding: false });
       toast.success(messageOf(result, `${s.name} is now a day student.`));
+      feesToast(result);
     },
   });
 }

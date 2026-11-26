@@ -147,8 +147,8 @@ function mark(toBoarding: boolean) {
   void confirm({
     title: `Mark ${picked.length} student${picked.length === 1 ? '' : 's'} as ${what}?`,
     description: toBoarding
-      ? 'Only students whose campus and class take boarders are changed. Place them in rooms from Boarding › Boarders.'
-      : 'Boarders among them leave boarding, and their beds are freed.',
+      ? 'Only students whose campus and class take boarders are changed. This term’s boarding fees are added to their invoices. Place them in rooms from Boarding › Boarders.'
+      : 'Boarders among them leave boarding, and their beds are freed. This term’s boarding fees come off the invoice only in the first two weeks of term.',
     details: [['Session', context.current.session]],
     confirmLabel: `Mark as ${what}`,
     tone: toBoarding ? 'primary' : 'destructive',

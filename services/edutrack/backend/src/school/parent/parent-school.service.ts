@@ -1,3 +1,4 @@
+import { boardingOf, type BoardingPlace } from '../boarding/boarding-use.js';
 import { Injectable } from '@nestjs/common';
 import { campusBrands, type CampusBrand } from '../shared/campus-brand.js';
 import type { AuthUserContext } from '../../auth/auth-context.js';
@@ -55,6 +56,8 @@ export interface ChildSummary {
   fees: { outstanding: number; pending: number; overdue: boolean };
   /** The child's campus: the portal is themed in it while this child is selected. */
   campus: CampusBrand | null;
+  /** A boarder this session (null: a day student): their hostel place, once given one. */
+  boarding: { placed: boolean; place: BoardingPlace | null } | null;
 }
 
 /**
@@ -91,6 +94,7 @@ export class ParentSchoolService {
       students.map((s) => s.branchId),
     );
     const current = ParentScopeService.current(terms, this.scope.today());
+    const boarders = current ? await boardingOf(this.db, ids, current.sessionId) : new Map();
     const out: ChildSummary[] = [];
     for (const l of links) {
       const s = students.find((x) => x.id === l.studentId)!;
@@ -116,6 +120,7 @@ export class ParentSchoolService {
         handsInThrough: place?.studentLogins ? 'student' : 'guardian',
         fees: fees.get(s.id) ?? { outstanding: 0, pending: 0, overdue: false },
         campus: campuses.get(s.branchId) ?? null,
+        boarding: l.access === 'full' ? (boarders.get(s.id) ?? null) : null,
       });
     }
     return out;

@@ -79,11 +79,19 @@ function clearStudent() {
   studentId.value = '';
   guardianId.value = '';
 }
-// A new student: preselect their only parent, else ask.
+// Linked with `?student=<id>&guardian=<id>` (e.g. from My hostel): preselect that parent once.
+let linkedGuardian = typeof route.query.guardian === 'string' ? route.query.guardian : '';
+// A new student: preselect the linked or only parent, else ask.
 watch(
   student,
   (s) => {
-    guardianId.value = s?.parents.length === 1 ? s.parents[0]!.guardianId : '';
+    const linked = linkedGuardian && s?.parents.find((p) => p.guardianId === linkedGuardian);
+    if (s) linkedGuardian = '';
+    guardianId.value = linked
+      ? linked.guardianId
+      : s?.parents.length === 1
+        ? s.parents[0]!.guardianId
+        : '';
   },
   { immediate: true },
 );
@@ -129,7 +137,7 @@ async function send() {
 <template>
   <PageHeader
     title="New message"
-    description="Write to a parent of a student you teach. They get an email and can reply in the Parent Portal."
+    description="Write to a parent of a student you teach or look after in your hostel. They get an email and can reply in the Parent Portal."
   />
   <InlineNotice
     v-if="error"

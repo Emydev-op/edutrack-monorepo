@@ -28,6 +28,7 @@ import {
   requireText,
   sum,
   type LineCategoryLabel,
+  billedTo,
 } from './finance-format.js';
 import { siblingPositions, totalOf, type InvoiceStatusLabel } from './finance-ledger.js';
 import { FinanceNotifyService, type FeeMessage } from './finance-notify.service.js';
@@ -213,6 +214,8 @@ export class InvoicesService {
     for (const item of v.fin.items) {
       if (item.status !== 'Active') continue;
       if (item.type === 'Optional' && !opted.has(item.id)) continue;
+      // Boarding fees go to boarders only (by gender when the item says so).
+      if (!billedTo(item, { gender: s.gender, boarding: place.boarding })) continue;
       if (!this.chargedIn(v, item, term, s)) continue;
       const amount = amounts[item.id];
       if (!amount) continue;

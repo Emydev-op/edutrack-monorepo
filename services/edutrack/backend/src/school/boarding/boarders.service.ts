@@ -9,6 +9,7 @@ import { armLabel, staffName } from '../academics/academic-format.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { asTx } from '../shared/tenant-tx.js';
 import { ON_ROLL } from '../students/student-view.js';
+import { BoardingFeesService, type BoardingFeeChange } from './boarding-fees.service.js';
 import { BoardingService, GENDER_LABEL } from './boarding.service.js';
 import { boardingSession, roomUse } from './boarding-use.js';
 
@@ -41,6 +42,7 @@ export class BoardersService {
     private readonly boarding: BoardingService,
     private readonly audit: SchoolAuditService,
     private readonly clock: Clock,
+    private readonly fees: BoardingFeesService,
   ) {}
 
   private get db() {
@@ -164,10 +166,13 @@ export class BoardersService {
       // Check the place before changing anything, so a refusal leaves them as they were.
       await this.checkPlace(e, dto.roomId, dto.bed ?? null, !!dto.confirm, session.id);
     }
+    let fees = null as BoardingFeeChange | null;
     await this.db.$transaction(async (tx) => {
       if (e.boarding !== dto.boarding) {
         await tx.enrollment.update({ where: { id: e.id }, data: { boarding: dto.boarding } });
         if (!dto.boarding) await tx.bedAllocation.deleteMany({ where: { enrollmentId: e.id } });
+        // This term's boarding fees follow the change (added; removed only early in the term).
+        fees = await this.fees.apply(tx, e, e.student.gender, dto.boarding);
         await this.audit.record(
           {
             action: 'student.boarding',
@@ -175,24 +180,53 @@ export class BoardersService {
             entity: 'Student',
             entityId: e.studentId,
             summary: dto.boarding ? `${name} is now a boarder` : `${name} is now a day student`,
-            detail: `${session.name}${!dto.boarding && e.bedAllocation ? ` · bed in ${e.bedAllocation.room.hostel.name} freed` : ''}`,
+            detail: [
+              session.name,
+              !dto.boarding &&
+                e.bedAllocation &&
+                `bed in ${e.bedAllocation.room.hostel.name} freed`,
+              fees?.note,
+            ]
+              .filter(Boolean)
+              .join(' · '),
           },
           asTx(tx),
         );
       }
     });
     if (dto.boarding && dto.roomId)
-      return this.allocate({ studentId, roomId: dto.roomId, bed: dto.bed ?? null, confirm: true });
-    return this.student(studentId);
+      return {
+        ...(await this.allocate({
+          studentId,
+          roomId: dto.roomId,
+          bed: dto.bed ?? null,
+          confirm: true,
+        })),
+        fees,
+      };
+    return { ...(await this.student(studentId)), fees };
   }
 
   /** Marks several students as boarders or day students at once (each checked on its own). */
   async markMany(studentIds: string[], boarding: boolean) {
-    const results: { studentId: string; name: string; done: boolean; reason: string | null }[] = [];
+    const results: {
+      studentId: string;
+      name: string;
+      done: boolean;
+      reason: string | null;
+      /** What happened to this term's boarding fees. */
+      fees: string | null;
+    }[] = [];
     for (const id of new Set(studentIds)) {
       try {
         const r = await this.setStatus(id, { boarding });
-        results.push({ studentId: id, name: r.name, done: true, reason: null });
+        results.push({
+          studentId: id,
+          name: r.name,
+          done: true,
+          reason: null,
+          fees: r.fees?.note ?? null,
+        });
       } catch (err) {
         const s = isUuid(id)
           ? await this.db.student.findFirst({
@@ -205,6 +239,7 @@ export class BoardersService {
           name: s ? `${s.firstName} ${s.surname}` : 'Unknown student',
           done: false,
           reason: err instanceof Error ? err.message : 'Not changed',
+          fees: null,
         });
       }
     }

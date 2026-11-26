@@ -15,3 +15,4 @@ export * from './reviews';
 export * from './lesson-notes';
 export * from './class-teacher';
 export * from './messages';
+export * from './boarding';

@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { useHomeQuery } from '@/api/services/parent';
 import AlertCard from '@/components/common/AlertCard.vue';
+import BoardingCard from '@/components/common/BoardingCard.vue';
 import ListRow from '@/components/common/ListRow.vue';
 import ListSection from '@/components/common/ListSection.vue';
 import PageTitle from '@/components/common/PageTitle.vue';
@@ -177,6 +178,8 @@ const alertTo = (to: string) =>
         :right="`${l.start}–${l.end}`"
       />
     </ListSection>
+
+    <BoardingCard v-if="child" :child="child" />
 
     <ListSection
       title="Announcements"

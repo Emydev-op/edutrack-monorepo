@@ -22,6 +22,7 @@ import { useStorage } from '@vueuse/core';
 import { computed, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 
+import { useMyHostelQuery } from '@/api/services/boarding';
 import { useConversationsQuery } from '@/api/services/messages';
 import { useMeQuery, useNavCountsQuery } from '@/api/services/shell';
 import { navigationFor, navKeyAliases, type NavItem } from '@/config/navigation';
@@ -35,8 +36,12 @@ const { data: me } = useMeQuery();
 const { data: counts } = useNavCountsQuery();
 // Unread messages from parents: the conversation list refreshes itself every 30 s.
 const { data: inbox } = useConversationsQuery();
+// My hostel shows only for house staff (at least one hostel).
+const { data: hostel } = useMyHostelQuery();
 // Screens outside the school's plan are hidden.
-const groups = computed(() => navigationFor(me.value, auth.school?.modules));
+const groups = computed(() =>
+  navigationFor(me.value, auth.school?.modules, Boolean(hostel.value?.hostels.length)),
+);
 
 const collapsed = useStorage<Record<string, boolean>>('edutrack.teacher-portal.nav-collapsed', {});
 

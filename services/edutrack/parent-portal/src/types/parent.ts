@@ -3,6 +3,23 @@ import type { CampusBrand } from '@edutrack/app-kit/composables/useCampusTheme';
 
 export type ChildAccess = 'full' | 'read-only';
 
+export type HouseStaffRole = 'House master / mistress' | 'Floor master / mistress';
+
+/** Where a boarder sleeps. Floor and bed are optional in a hostel. */
+export interface BoardingPlace {
+  hostel: string;
+  floor: string | null;
+  room: string;
+  bed: string | null;
+  houseStaff: { staffId: string; name: string; role: HouseStaffRole }[];
+}
+
+/** `placed: false` is a boarder still waiting for a room. */
+export interface Boarding {
+  placed: boolean;
+  place: BoardingPlace | null;
+}
+
 export interface FeeBadge {
   outstanding: number;
   pending: number;
@@ -27,6 +44,8 @@ export interface ChildSummary {
   readOnlyUntil: string | null;
   handsInThrough: 'student' | 'guardian';
   fees: FeeBadge;
+  /** Null for a day student (or a child who has left). */
+  boarding: Boarding | null;
   /** The child's campus: the portal is themed in it while this child is selected. */
   campus?: CampusBrand | null;
 }

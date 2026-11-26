@@ -72,6 +72,9 @@ export const routesPath = {
     lessonNotes: { name: 'review-notes', path: '/reviews/lesson-notes' },
     note: { name: 'review-note', path: '/reviews/lesson-notes/:noteId' },
   },
+  boarding: {
+    myHostel: { name: 'my-hostel', path: '/my-hostel' },
+  },
   messages: {
     list: { name: 'messages', path: '/messages' },
     new: { name: 'message-new', path: '/messages/new' },

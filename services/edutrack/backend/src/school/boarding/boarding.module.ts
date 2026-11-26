@@ -31,7 +31,12 @@ import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { StaffImportDto } from '../staff/dto/staff.dto.js';
 import { BoardingService } from './boarding.service.js';
 import { BoardersService } from './boarders.service.js';
+import { BoardingFeesService } from './boarding-fees.service.js';
+import { FinanceModule } from '../finance/finance.module.js';
 import { HostelImportService } from './hostel-import.service.js';
+import { MyHostelService } from './my-hostel.service.js';
+import type { AuthUserContext } from '../../auth/auth-context.js';
+import { CurrentUser } from '../../common/decorators/request.decorators.js';
 
 class SectionBoardingDto {
   @ApiProperty() @IsString() sectionId!: string;
@@ -474,9 +479,36 @@ export class BoardingController {
   }
 }
 
+/** Teacher Workspace › My hostel (`/v1/my-hostel`), for house staff. */
+@ApiTags('teacher · boarding')
+@Portals('TEACHER')
+@Controller('my-hostel')
+export class MyHostelController {
+  constructor(private readonly hostels: MyHostelService) {}
+
+  @ResponseMessage('Hostel loaded.')
+  @Get()
+  @ApiOperation({
+    summary:
+      'The hostels (or floors) the signed-in teacher looks after, with this session’s boarders',
+    description: 'Empty `hostels` for staff who aren’t house staff.',
+  })
+  view(@CurrentUser() auth: AuthUserContext) {
+    return this.hostels.view(auth);
+  }
+}
+
 @Module({
-  controllers: [BoardingController],
-  providers: [BoardingService, HostelImportService, BoardersService, SchoolAuditService],
+  imports: [FinanceModule],
+  controllers: [BoardingController, MyHostelController],
+  providers: [
+    BoardingService,
+    HostelImportService,
+    BoardersService,
+    BoardingFeesService,
+    MyHostelService,
+    SchoolAuditService,
+  ],
   exports: [BoardingService, BoardersService],
 })
 export class BoardingModule {}

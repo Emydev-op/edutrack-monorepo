@@ -4,6 +4,7 @@ import { routesPath } from '@/router/routes-path';
 import type {
   Discount,
   DiscountPayload,
+  FeeAppliesTo,
   FeeItem,
   FeeItemPayload,
   FeeStructureView,
@@ -73,6 +74,7 @@ export const structureStatus = (
 function itemView(ctx: FinCtx, i: FeeItemRec): FeeItem {
   return {
     ...i,
+    appliesTo: i.appliesTo ?? 'Everyone',
     invoiceLines: sum(
       ctx.fin.invoices.map((inv) => inv.lines.filter((l) => l.itemId === i.id).length),
     ),
@@ -239,6 +241,8 @@ mock.post('/v1/finance/fees/start', (req) => {
 
 /* ---------------- Fee items ---------------- */
 
+const APPLIES_TO: FeeAppliesTo[] = ['Everyone', 'Boarders', 'Boy boarders', 'Girl boarders'];
+
 function itemPayload(ctx: FinCtx, body: unknown, exceptId?: string): FeeItemPayload {
   const p = (body ?? {}) as Partial<FeeItemPayload>;
   const name = requireText(p.name, 'Name the fee.');
@@ -256,6 +260,7 @@ function itemPayload(ctx: FinCtx, body: unknown, exceptId?: string): FeeItemPayl
     charged: p.charged!,
     type: p.type!,
     description: (p.description ?? '').trim(),
+    ...(APPLIES_TO.includes(p.appliesTo as never) ? { appliesTo: p.appliesTo } : {}),
   };
 }
 

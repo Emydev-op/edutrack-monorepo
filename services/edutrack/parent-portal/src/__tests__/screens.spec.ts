@@ -31,6 +31,7 @@ const child = (id: string, name: string, className: string, extra = {}) => ({
   readOnlyUntil: null,
   handsInThrough: 'guardian',
   fees: { outstanding: 45000, pending: 0, overdue: true },
+  boarding: null,
   ...extra,
 });
 const result = {

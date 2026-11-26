@@ -7,6 +7,7 @@ import { accountRoutes } from './modules/account';
 import { assessmentRoutes } from './modules/assessments';
 import { assignmentRoutes } from './modules/assignments';
 import { authRoutes } from './modules/auth';
+import { boardingRoutes } from './modules/boarding';
 import { classTeacherRoutes } from './modules/class-teacher';
 import { dashboardRoutes } from './modules/dashboard';
 import { lessonNoteRoutes } from './modules/lesson-notes';
@@ -38,6 +39,7 @@ const router = createRouter({
         ...materialRoutes,
         ...lessonNoteRoutes,
         ...reviewRoutes,
+        ...boardingRoutes,
         ...messageRoutes,
         ...accountRoutes,
         {

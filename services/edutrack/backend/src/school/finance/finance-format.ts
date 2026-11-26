@@ -7,6 +7,7 @@ import type {
   DiscountBasis,
   DiscountKind,
   ExpenseStatus,
+  FeeAudience,
   FeeCategory,
   FeeCharged,
   FeeType,
@@ -152,6 +153,32 @@ export const FEE_TYPE = {
 } as const satisfies Record<FeeType, string>;
 export type FeeTypeLabel = (typeof FEE_TYPE)[FeeType];
 export const FEE_TYPE_DB = invert(FEE_TYPE);
+
+export const FEE_AUDIENCE = {
+  EVERYONE: 'Everyone',
+  BOARDERS: 'Boarders',
+  BOY_BOARDERS: 'Boy boarders',
+  GIRL_BOARDERS: 'Girl boarders',
+} as const satisfies Record<FeeAudience, string>;
+export type FeeAudienceLabel = (typeof FEE_AUDIENCE)[FeeAudience];
+export const FEE_AUDIENCE_DB = invert(FEE_AUDIENCE);
+
+/** Whether a fee item is billed to a student: everyone's fees, or boarders' (by gender). */
+export function billedTo(
+  item: { appliesTo: FeeAudienceLabel },
+  s: { gender: 'Female' | 'Male'; boarding: boolean },
+) {
+  switch (item.appliesTo) {
+    case 'Boarders':
+      return s.boarding;
+    case 'Boy boarders':
+      return s.boarding && s.gender === 'Male';
+    case 'Girl boarders':
+      return s.boarding && s.gender === 'Female';
+    default:
+      return true;
+  }
+}
 
 export const ACTIVE = { ACTIVE: 'Active', INACTIVE: 'Inactive' } as const satisfies Record<
   ActiveStatus,

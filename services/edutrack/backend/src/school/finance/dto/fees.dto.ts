@@ -63,6 +63,14 @@ export class FeeItemDto {
   @IsString()
   type?: string;
 
+  @ApiPropertyOptional({
+    enum: ['Everyone', 'Boarders', 'Boy boarders', 'Girl boarders'],
+    description: 'Who pays it (default Everyone). Boarding fees: Boarders, or by gender.',
+  })
+  @IsOptional()
+  @IsString()
+  appliesTo?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

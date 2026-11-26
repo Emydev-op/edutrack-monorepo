@@ -9,6 +9,7 @@ import type {
   DiscountBasis,
   ExpenseStatus,
   FeeCategory,
+  FeeAppliesTo,
   FeeCharged,
   FeeType,
   PaymentMethod,
@@ -44,6 +45,8 @@ export interface FeeItemRec {
   type: FeeType;
   status: 'Active' | 'Archived';
   description: string;
+  /** Unset = Everyone. */
+  appliesTo?: FeeAppliesTo;
 }
 
 export interface StructureRec {

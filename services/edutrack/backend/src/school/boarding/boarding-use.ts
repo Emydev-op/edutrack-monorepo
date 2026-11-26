@@ -87,3 +87,82 @@ export async function carryBoarding(
   });
   return { boarding: true, placed: true };
 }
+
+export interface BoardingPlace {
+  hostel: string;
+  floor: string | null;
+  room: string;
+  bed: string | null;
+  houseStaff: { staffId: string; name: string; role: string }[];
+}
+
+/**
+ * Where each of these students boards this session (null: a day student, or a boarder waiting for
+ * a place: `placed` false), with the house master or mistress and their floor's master.
+ */
+export async function boardingOf(db: TenantTx, studentIds: string[], sessionId: string) {
+  const rows = await db.enrollment.findMany({
+    where: { studentId: { in: studentIds }, sessionId, status: 'ACTIVE', boarding: true },
+    select: {
+      studentId: true,
+      bedAllocation: {
+        select: {
+          bed: true,
+          room: {
+            select: {
+              name: true,
+              floorId: true,
+              floor: { select: { name: true } },
+              hostel: {
+                select: {
+                  name: true,
+                  staff: {
+                    select: {
+                      staffId: true,
+                      role: true,
+                      floorId: true,
+                      staff: {
+                        select: { title: true, firstName: true, lastName: true, status: true },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  const out = new Map<string, { placed: boolean; place: BoardingPlace | null }>();
+  for (const r of rows) {
+    const a = r.bedAllocation;
+    out.set(r.studentId, {
+      placed: !!a,
+      place: a
+        ? {
+            hostel: a.room.hostel.name,
+            floor: a.room.floor?.name ?? null,
+            room: a.room.name,
+            bed: a.bed,
+            houseStaff: a.room.hostel.staff
+              .filter(
+                (s) =>
+                  s.staff.status === 'ACTIVE' &&
+                  (s.role === 'HOUSE_MASTER' ||
+                    (s.role === 'FLOOR_MASTER' && s.floorId === a.room.floorId)),
+              )
+              .map((s) => ({
+                staffId: s.staffId,
+                name: [s.staff.title, s.staff.firstName, s.staff.lastName]
+                  .filter(Boolean)
+                  .join(' '),
+                role:
+                  s.role === 'HOUSE_MASTER' ? 'House master / mistress' : 'Floor master / mistress',
+              })),
+          }
+        : null,
+    });
+  }
+  return out;
+}
