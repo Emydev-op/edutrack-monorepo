@@ -22,6 +22,8 @@ import {
   totalOf,
   type Scheme,
   type ScoreValue,
+  storedValue,
+  valueLabel,
 } from './scoring.js';
 
 export const STATUS_LABEL: Record<SheetStatus, string> = {
@@ -933,8 +935,9 @@ export class ResultsCoreService {
       const comp = scheme.components[index]!;
       const row = ctx.rows.find((r) => r.studentId === c.studentId);
       const scores = row?.scores ?? scheme.components.map(() => null);
-      const original = Number(c.originalScore);
-      const proposed = Number(c.proposedScore);
+      // A score, or ABS / EXM (absent / exempt) on either side.
+      const original = storedValue(c.originalState, c.originalScore);
+      const proposed = storedValue(c.proposedState, c.proposedScore);
       // An applied correction is already in the sheet: show the totals before and after it.
       const base =
         c.status === 'APPLIED' ? scores.map((v, i) => (i === index ? original : v)) : scores;
@@ -948,7 +951,7 @@ export class ResultsCoreService {
               {
                 id: `${c.id}-decided`,
                 title: `Approved and applied by ${decider}`,
-                detail: `${comp.name} ${original} → ${proposed}`,
+                detail: `${comp.name} ${valueLabel(original)} → ${valueLabel(proposed)}`,
                 when: stamp(c.decidedAt),
                 tone: 'success' as const,
               },
@@ -974,7 +977,7 @@ export class ResultsCoreService {
         {
           id: `${c.id}-published`,
           title: 'Original score published',
-          detail: `${comp.name} ${original} · total ${fmt(base)}`,
+          detail: `${comp.name} ${valueLabel(original)} · total ${fmt(base)}`,
           when: 'Term results',
           tone: 'neutral' as const,
         },

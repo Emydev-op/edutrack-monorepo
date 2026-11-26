@@ -221,3 +221,27 @@ export function cumulativeAverage(values: (number | null | undefined)[]): number
   const m = mean(values.filter((x): x is number => x !== null && x !== undefined));
   return m === null ? null : round1(m);
 }
+
+/** A stored score (state and number) as the value the screens use: 68, 'ABS' or 'EXM'. */
+export function storedValue(
+  state: 'SCORED' | 'ABSENT' | 'EXEMPT',
+  score: { toString(): string } | number | null,
+): ScoreValue {
+  if (state === 'ABSENT') return 'ABS';
+  if (state === 'EXEMPT') return 'EXM';
+  return score === null ? null : Number(score);
+}
+
+/** The other way round: what to store for a value. */
+export function toStored(v: Exclude<ScoreValue, null>): {
+  state: 'SCORED' | 'ABSENT' | 'EXEMPT';
+  score: number | null;
+} {
+  if (v === 'ABS') return { state: 'ABSENT', score: null };
+  if (v === 'EXM') return { state: 'EXEMPT', score: null };
+  return { state: 'SCORED', score: v };
+}
+
+/** "68", "ABS (absent)", "EXM (exempt)". */
+export const valueLabel = (v: ScoreValue) =>
+  v === 'ABS' ? 'ABS (absent)' : v === 'EXM' ? 'EXM (exempt)' : v === null ? 'no score' : String(v);

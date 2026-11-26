@@ -68,6 +68,10 @@ function reject(c: Correction) {
     },
   });
 }
+
+/** ABS and EXM are words on the sheet; say what they mean next to the big value. */
+const stateNote = (v: Correction['original']) =>
+  v === 'ABS' ? 'Absent · ' : v === 'EXM' ? 'Exempt · ' : '';
 </script>
 
 <template>
@@ -156,14 +160,18 @@ function reject(c: Correction) {
             <div class="rounded-md bg-muted px-3.5 py-3">
               <span class="text-xs text-faint">Original</span>
               <p class="text-2xl font-semibold tabular-nums">{{ selected.original }}</p>
-              <span class="text-xs text-muted-foreground">Total {{ selected.originalTotal }}</span>
+              <span class="text-xs text-muted-foreground"
+                >{{ stateNote(selected.original) }}Total {{ selected.originalTotal }}</span
+              >
             </div>
             <div class="rounded-md bg-brand-tint px-3.5 py-3">
               <span class="text-xs text-faint">Proposed</span>
               <p class="text-2xl font-semibold text-primary tabular-nums">
                 {{ selected.proposed }}
               </p>
-              <span class="text-xs text-muted-foreground">Total {{ selected.proposedTotal }}</span>
+              <span class="text-xs text-muted-foreground"
+                >{{ stateNote(selected.proposed) }}Total {{ selected.proposedTotal }}</span
+              >
             </div>
           </div>
           <dl class="grid grid-cols-[minmax(110px,auto)_1fr] gap-x-4 gap-y-2 text-[13px]">

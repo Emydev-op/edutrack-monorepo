@@ -207,8 +207,12 @@ model ScoreCorrection {
   sheetId            String           @map("sheet_id") @db.Uuid
   studentId          String           @map("student_id") @db.Uuid
   componentId        String           @map("component_id") @db.Uuid
-  originalScore      Decimal          @map("original_score") @db.Decimal(5, 2)
-  proposedScore      Decimal          @map("proposed_score") @db.Decimal(5, 2)
+  /// The published value: a score, or absent / exempt (no score).
+  originalState      ScoreState       @default(SCORED) @map("original_state")
+  originalScore      Decimal?         @map("original_score") @db.Decimal(5, 2)
+  /// The corrected value: a score (e.g. after a make-up test), or absent / exempt.
+  proposedState      ScoreState       @default(SCORED) @map("proposed_state")
+  proposedScore      Decimal?         @map("proposed_score") @db.Decimal(5, 2)
   reason             String
   evidenceFileId     String?          @map("evidence_file_id") @db.Uuid
   status             CorrectionStatus @default(UNDER_REVIEW)

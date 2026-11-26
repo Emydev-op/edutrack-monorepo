@@ -13,7 +13,7 @@ import { asTx } from '../shared/tenant-tx.js';
 import { TeacherScopeService } from '../teacher/teacher-scope.service.js';
 import { PublishingService } from './publishing.service.js';
 import { conflict, ResultsCoreService, SHEET_INCLUDE, stamp } from './results-core.service.js';
-import { isValidScore, scoreRow } from './scoring.js';
+import { isValidScore, scoreRow, storedValue, toStored, valueLabel } from './scoring.js';
 
 export interface CorrectionInput {
   sheetId?: string;
@@ -126,14 +126,19 @@ export class CorrectionsService {
     if (index < 0) fields.componentKey = 'Choose a component.';
     const comp = scheme.components[index];
     const original = row && comp ? row.scores[index] : undefined;
-    if (row && comp && typeof original !== 'number')
-      fields.componentKey = `${row.name} has ${original ?? 'no score'} for ${comp.name}. Ask the academic office about absent or exempt scores.`;
+    if (row && comp && (original === null || original === undefined))
+      fields.componentKey = `${row.name} has no score for ${comp.name}, so there’s nothing to correct.`;
+    // A score (e.g. after a make-up test for an absent student), or ABS / EXM.
     const proposed = body.proposed;
     if (comp) {
-      if (typeof proposed !== 'number' || proposed === null || !isValidScore(proposed, comp.max))
-        fields.proposed = `Enter a score from 0 to ${comp.max} (one decimal place at most).`;
+      const ok =
+        proposed === 'ABS' ||
+        proposed === 'EXM' ||
+        (typeof proposed === 'number' && isValidScore(proposed, comp.max));
+      if (!ok)
+        fields.proposed = `Enter a score from 0 to ${comp.max} (one decimal place at most), or ABS or EXM.`;
       else if (proposed === original)
-        fields.proposed = 'The new score must differ from the current one.';
+        fields.proposed = 'The new value must differ from the current one.';
     }
     const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
     if (reason.length < 15)
@@ -196,8 +201,10 @@ export class CorrectionsService {
           sheetId,
           studentId: row!.studentId,
           componentId: comp!.id,
-          originalScore: original as number,
-          proposedScore: proposed as number,
+          originalState: toStored(original as number | 'ABS' | 'EXM').state,
+          originalScore: toStored(original as number | 'ABS' | 'EXM').score,
+          proposedState: toStored(proposed as number | 'ABS' | 'EXM').state,
+          proposedScore: toStored(proposed as number | 'ABS' | 'EXM').score,
           reason,
           evidenceFileId: fileId,
           requestedById: auth.userId,
@@ -212,7 +219,7 @@ export class CorrectionsService {
           entity: 'ScoreCorrection',
           entityId: c.id,
           summary: `Correction requested by ${staffName(s)}`,
-          detail: `${row!.name} · ${ctx.arm.label} ${sheet.subject.name} · ${comp!.name} ${String(original)} → ${String(proposed)}`,
+          detail: `${row!.name} · ${ctx.arm.label} ${sheet.subject.name} · ${comp!.name} ${valueLabel(original as number)} → ${valueLabel(proposed as number)}`,
         },
         asTx(tx),
       );
@@ -246,10 +253,12 @@ export class CorrectionsService {
     if (!entry || !row || !comp)
       throw conflict('This student’s score is no longer on the sheet.', 'NOT_ON_SHEET');
     const index = ctx.scheme.components.indexOf(comp);
-    const values = row.scores.map((v, i) => (i === index ? Number(c.proposedScore) : v));
+    const from = storedValue(c.originalState, c.originalScore);
+    const to = storedValue(c.proposedState, c.proposedScore);
+    const values = row.scores.map((v, i) => (i === index ? to : v));
     const r = scoreRow(ctx.scheme, values);
     const now = this.core.now();
-    const summary = `${row.name} · ${comp.name} ${Number(c.originalScore)} → ${Number(c.proposedScore)}`;
+    const summary = `${row.name} · ${comp.name} ${valueLabel(from)} → ${valueLabel(to)}`;
     await this.db.$transaction(async (tx) => {
       await tx.resultScore.deleteMany({ where: { entryId: entry.id, componentId: comp.id } });
       await tx.resultScore.create({
@@ -257,8 +266,8 @@ export class CorrectionsService {
           schoolId: ResultsCoreService.schoolId(),
           entryId: entry.id,
           componentId: comp.id,
-          state: 'SCORED',
-          score: Number(c.proposedScore),
+          state: c.proposedState,
+          score: c.proposedState === 'SCORED' ? Number(c.proposedScore) : null,
         },
       });
       await tx.resultEntry.update({
@@ -296,7 +305,7 @@ export class CorrectionsService {
           entity: 'ScoreCorrection',
           entityId: c.id,
           summary: `Correction applied for ${row.name}`,
-          detail: `${sheet.subject.name} · ${Number(c.originalScore)} → ${Number(c.proposedScore)}`,
+          detail: `${sheet.subject.name} · ${valueLabel(from)} → ${valueLabel(to)}`,
         },
         asTx(tx),
       );
