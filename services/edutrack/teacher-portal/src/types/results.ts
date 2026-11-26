@@ -171,8 +171,8 @@ export interface Correction {
   /** "CA 2 (max 20)" */
   component: string;
   componentKey: SheetComponent['key'];
-  original: number;
-  proposed: number;
+  original: ScoreValue;
+  proposed: ScoreValue;
   /** "64.0 · B" */
   originalTotal: string;
   proposedTotal: string;
@@ -189,7 +189,7 @@ export interface CorrectionPayload {
   sheetId: string;
   studentId: string;
   componentKey: SheetComponent['key'];
-  proposed: number;
+  proposed: Exclude<ScoreValue, null>;
   reason: string;
   /** The evidence file: its details and its content as a data URL (PDF, PNG or JPG, ≤ 10 MB). */
   evidence?: { name: string; size: number; type: string; dataUrl?: string } | null;

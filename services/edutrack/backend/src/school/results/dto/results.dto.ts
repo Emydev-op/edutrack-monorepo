@@ -78,7 +78,9 @@ export class CorrectionRequestDto {
   @ApiProperty() @IsString() sheetId!: string;
   @ApiProperty() @IsString() studentId!: string;
   @ApiProperty({ example: 'EXAM' }) @IsString() componentKey!: string;
-  @ApiProperty({ example: 52 }) @Allow() proposed!: unknown;
+  @ApiProperty({ example: 52, description: 'A score, or "ABS" (absent) or "EXM" (exempt)' })
+  @Allow()
+  proposed!: unknown;
   @ApiProperty({ description: '15 characters or more' }) @IsString() reason!: string;
 
   @ApiPropertyOptional({ type: EvidenceDto, nullable: true })

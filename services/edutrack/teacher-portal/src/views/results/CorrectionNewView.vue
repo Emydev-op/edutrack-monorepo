@@ -66,21 +66,26 @@ const schema = toTypedSchema(
     componentKey: yup
       .string()
       .required('Choose the component.')
-      .test('numeric', 'This score is ABS or EXM. Ask the academic office.', function (key) {
-        const v = current(this.parent.studentId, key);
-        return v === undefined || typeof v === 'number';
-      }),
+      .test(
+        'entered',
+        'This student has no score here, so there’s nothing to correct.',
+        function (key) {
+          return current(this.parent.studentId, key) !== null;
+        },
+      ),
     proposed: yup
       .string()
-      .required('Enter the corrected score.')
+      .required('Enter the corrected score, or ABS or EXM.')
       .test('score', function (raw) {
         const comp = componentOf(this.parent.componentKey);
         if (!comp || !raw) return true;
         const p = parseScore(raw, comp.max);
-        if (p.error || typeof p.value !== 'number')
-          return this.createError({ message: `Enter a score from 0 to ${comp.max}.` });
+        if (p.error || p.value === null)
+          return this.createError({
+            message: `Enter a score from 0 to ${comp.max}, or ABS (absent) or EXM (exempt).`,
+          });
         if (p.value === current(this.parent.studentId, comp.key))
-          return this.createError({ message: 'The new score must differ from the current one.' });
+          return this.createError({ message: 'The new value must differ from the current one.' });
         return true;
       }),
     reason: yup
@@ -122,8 +127,17 @@ const row = computed(() => sheet.value?.rows.find((r) => r.studentId === values.
 const proposedValue = computed(() => {
   if (!comp.value || !values.proposed) return null;
   const p = parseScore(values.proposed, comp.value.max);
-  return typeof p.value === 'number' && !p.error ? p.value : null;
+  return p.value !== null && !p.error ? p.value : null;
 });
+/** "68", "ABS (absent)", "EXM (exempt)". */
+const label = (v: ScoreValue | undefined) =>
+  v === 'ABS'
+    ? 'ABS (absent)'
+    : v === 'EXM'
+      ? 'EXM (exempt)'
+      : v === null || v === undefined
+        ? '—'
+        : String(v);
 const fmt = (scores: ScoreValue[] | undefined) => {
   const s = sheet.value;
   if (!s || !scores) return '—';
@@ -168,7 +182,7 @@ const onSubmit = handleSubmit((v) => {
     details: [
       ['Student', student.name],
       ['Component', `${c.name} (max ${c.max})`],
-      ['Score', `${currentValue.value} → ${proposedValue.value}`],
+      ['Score', `${label(currentValue.value)} → ${label(proposedValue.value)}`],
       ['Total', `${totals.value?.before} → ${totals.value?.after}`],
       ['Evidence', file.value?.name ?? 'None'],
       ['Status', 'Under review until the academic office decides'],
@@ -193,6 +207,7 @@ const onSubmit = handleSubmit((v) => {
         });
       } catch (e) {
         const fields = fieldErrorsOf(e);
+        // The server words ABS/EXM checks on the same field.
         // Nested checks on the file (`evidence.name`, `evidence.type`…) belong under the picker too.
         const evidence =
           fields.evidence ?? Object.entries(fields).find(([k]) => k.startsWith('evidence.'))?.[1];
@@ -261,8 +276,10 @@ const onSubmit = handleSubmit((v) => {
             <span
               class="flex h-9 items-center rounded-md border bg-muted px-3 text-sm tabular-nums"
               aria-live="polite"
-              >{{ currentValue ?? '—'
-              }}<span v-if="comp" class="ml-1 text-faint">/ {{ comp.max }}</span></span
+              >{{ label(currentValue)
+              }}<span v-if="comp && typeof currentValue === 'number'" class="ml-1 text-faint"
+                >/ {{ comp.max }}</span
+              ></span
             >
           </div>
           <FormInput
@@ -270,8 +287,12 @@ const onSubmit = handleSubmit((v) => {
             label="Corrected score"
             required
             inputmode="decimal"
-            :placeholder="comp ? `0–${comp.max}` : '15'"
-            :hint="comp ? `0 to ${comp.max}, one decimal place at most` : undefined"
+            :placeholder="comp ? `0–${comp.max}, ABS or EXM` : '15'"
+            :hint="
+              comp
+                ? `0 to ${comp.max} (one decimal place at most). ABS: absent. EXM: exempt. For a make-up test, replace ABS with the score.`
+                : undefined
+            "
           />
           <div class="flex flex-col gap-1.5">
             <span class="text-sm font-medium">Total</span>

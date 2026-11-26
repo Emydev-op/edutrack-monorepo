@@ -745,8 +745,8 @@ export interface Correction {
   subject: string;
   subjectName: string;
   component: string;
-  original: number;
-  proposed: number;
+  original: ScoreValue;
+  proposed: ScoreValue;
   originalTotal: string;
   proposedTotal: string;
   reason: string;

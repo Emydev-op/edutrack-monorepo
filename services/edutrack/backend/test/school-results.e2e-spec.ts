@@ -662,6 +662,54 @@ describe('Results (e2e)', () => {
         decisionNote: 'The mark book shows 8.',
       });
     });
+
+    it('corrects to and from ABS and EXM (a make-up exam)', async () => {
+      const who = students[11]!.studentId;
+      const ask = (componentKey: string, proposed: unknown) =>
+        ade.post('/api/v1/corrections').send({
+          sheetId: mathsId,
+          studentId: who,
+          componentKey,
+          proposed,
+          reason: 'Recorded against the wrong student in the mark book.',
+        });
+      const apply = async (id: string) => {
+        const res = await admin.post(`${R}/corrections/${id}/approve`).send({});
+        expect(res.status).toBe(200);
+        return (await sheetOf(ade, mathsId)).rows.find((r: Row) => r.studentId === who) as Row;
+      };
+      const bad = await ask('EXAMINATION', 'ABSENT');
+      expect(bad.status).toBe(422);
+      expect(bad.body.error.fields.proposed).toMatch(/or ABS or EXM/);
+
+      // The student missed the exam: 45 becomes ABS.
+      const toAbs = await ask('EXAMINATION', 'ABS');
+      expect(toAbs.status).toBe(201);
+      expect(toAbs.body.data).toMatchObject({ original: 45, proposed: 'ABS' });
+      let row = await apply(toAbs.body.data.id);
+      expect(row.scores[2]).toBe('ABS');
+      expect(row).toMatchObject({ total: null, flag: 'Absent (Examination) · make-up needed' });
+
+      // They sat the make-up: ABS becomes a score.
+      const makeUp = await ask('EXAMINATION', 60);
+      expect(makeUp.body.data).toMatchObject({ original: 'ABS', proposed: 60 });
+      expect((await ask('EXAMINATION', 'EXM')).body.error.code).toBe('DUPLICATE');
+      row = await apply(makeUp.body.data.id);
+      expect(row.scores[2]).toBe(60);
+      // 9 + 9 + 60/100×60 = 54.
+      expect(row.total).toBe(54);
+
+      // Exempted from CA 1: 9 becomes EXM and the total re-weights.
+      const exm = await ask('CA1', 'EXM');
+      expect(exm.status).toBe(201);
+      row = await apply(exm.body.data.id);
+      expect(row.scores[0]).toBe('EXM');
+      expect(row.total).not.toBeNull();
+      const history = (await admin.get(`${R}/corrections`)).body.data.find(
+        (c: { id: string }) => c.id === exm.body.data.id,
+      );
+      expect(history).toMatchObject({ original: 9, proposed: 'EXM', status: 'Applied' });
+    });
   });
 
   describe('the third term’s cumulative report', () => {
