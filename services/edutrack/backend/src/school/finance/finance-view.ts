@@ -244,6 +244,7 @@ export class FinView {
       armId: e.armId,
       branchId: e.branchId,
       active: e.active,
+      boarding: e.boarding,
     };
   }
 

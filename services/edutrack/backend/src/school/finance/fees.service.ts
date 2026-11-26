@@ -30,6 +30,8 @@ import {
   type FeeChargedLabel,
   type FeeTypeLabel,
   type MethodLabel,
+  FEE_AUDIENCE_DB,
+  type FeeAudienceLabel,
 } from './finance-format.js';
 import type { FinanceNotice, FinView } from './finance-view.js';
 import type {
@@ -318,7 +320,17 @@ export class FeesService {
       throw finFail('Choose when it is charged.', 'VALIDATION');
     if (!['Compulsory', 'Optional'].includes(p.type ?? ''))
       throw finFail('Choose compulsory or optional.', 'VALIDATION');
+    // Left out (e.g. a school without boarding): keep what the item already has.
+    const appliesTo = (p.appliesTo ??
+      v.fin.items.find((i) => i.id === exceptId)?.appliesTo ??
+      'Everyone') as FeeAudienceLabel;
+    if (!(appliesTo in FEE_AUDIENCE_DB))
+      throw finFail(
+        'Choose who pays it: everyone, boarders, boy boarders or girl boarders.',
+        'VALIDATION',
+      );
     return {
+      appliesTo,
       name,
       category: p.category as FeeCategoryLabel,
       charged: p.charged as FeeChargedLabel,
@@ -333,6 +345,7 @@ export class FeesService {
       category: FEE_CATEGORY_DB[p.category],
       charged: FEE_CHARGED_DB[p.charged],
       type: FEE_TYPE_DB[p.type],
+      appliesTo: FEE_AUDIENCE_DB[p.appliesTo],
       description: p.description,
     };
   }

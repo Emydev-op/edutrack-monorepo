@@ -1,3 +1,4 @@
+import { boardingOf } from '../boarding/boarding-use.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { PortalAccessService } from '../../auth/portal-access.service.js';
@@ -232,6 +233,17 @@ export class MessagingService {
         add(a.staff, a.subject.name);
       }
     }
+    // Boarders: their house master or mistress (and their floor's master).
+    const houses = await boardingOf(this.db, studentIds, term.sessionId);
+    for (const [studentId, b] of houses) {
+      const row = out.get(studentId);
+      if (!row || !b.place) continue;
+      for (const h of b.place.houseStaff) {
+        const t = row.teachers.get(h.staffId) ?? { name: h.name, roles: [] };
+        if (!t.roles.includes(h.role)) t.roles.push(h.role);
+        row.teachers.set(h.staffId, t);
+      }
+    }
     return out;
   }
 
@@ -283,12 +295,35 @@ export class MessagingService {
       }),
     ]);
     const armIds = [...new Set([...assignments, ...classArms].map((x) => x.armId))];
-    if (!armIds.length) return [];
+    // House staff reach the parents of boarders in their hostel (or on their floor).
+    const posts = await this.db.hostelStaff.findMany({
+      where: { staffId },
+      select: { hostelId: true, floorId: true, role: true },
+    });
+    const houseRooms = posts.length
+      ? (
+          await this.db.hostelRoom.findMany({
+            where: {
+              archivedAt: null,
+              OR: posts.map((p) =>
+                p.role === 'FLOOR_MASTER' && p.floorId
+                  ? { hostelId: p.hostelId, floorId: p.floorId }
+                  : { hostelId: p.hostelId },
+              ),
+            },
+            select: { id: true },
+          })
+        ).map((r) => r.id)
+      : [];
+    if (!armIds.length && !houseRooms.length) return [];
     const enrolments = await this.db.enrollment.findMany({
       where: {
         sessionId: term.sessionId,
         status: 'ACTIVE',
-        armId: { in: armIds },
+        OR: [
+          ...(armIds.length ? [{ armId: { in: armIds } }] : []),
+          ...(houseRooms.length ? [{ bedAllocation: { roomId: { in: houseRooms } } }] : []),
+        ],
         student: { status: { in: ['ACTIVE', 'INCOMPLETE_PROFILE'] }, deletedAt: null },
       },
       select: {

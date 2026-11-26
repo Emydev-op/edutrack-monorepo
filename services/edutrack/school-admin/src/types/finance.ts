@@ -48,6 +48,8 @@ export type FeeCategory =
   | 'Other';
 export type FeeCharged = 'Every term' | 'Once a session' | 'New students only';
 export type FeeType = 'Compulsory' | 'Optional';
+/** Who an item is billed to; boarder items only go on boarders' invoices (by gender when set). */
+export type FeeAppliesTo = 'Everyone' | 'Boarders' | 'Boy boarders' | 'Girl boarders';
 
 export interface FeeItem {
   id: string;
@@ -57,6 +59,7 @@ export interface FeeItem {
   type: FeeType;
   status: 'Active' | 'Archived';
   description: string;
+  appliesTo: FeeAppliesTo;
   /** Invoice lines that carry this item. */
   invoiceLines: number;
 }
@@ -67,6 +70,8 @@ export interface FeeItemPayload {
   charged: FeeCharged;
   type: FeeType;
   description: string;
+  /** Omitted when the school has no boarding (stays Everyone). */
+  appliesTo?: FeeAppliesTo;
 }
 
 export type StructureStatus = 'Not created' | 'Draft' | 'Published';

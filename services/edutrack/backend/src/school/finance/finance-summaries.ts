@@ -10,6 +10,7 @@ import {
   money,
   ordinal,
   sum,
+  billedTo,
 } from './finance-format.js';
 import { siblingPositions } from './finance-ledger.js';
 import { FinView, type TimelineEntry } from './finance-view.js';
@@ -200,7 +201,12 @@ export async function draftAdmissionInvoice(
   const amounts = st?.amounts[place.level];
   if (!amounts) return null;
   const lines = v.fin.items
-    .filter((i) => chargedNow(i, term, true) && amounts[i.id])
+    .filter(
+      (i) =>
+        chargedNow(i, term, true) &&
+        amounts[i.id] &&
+        billedTo(i, { gender: s.gender, boarding: place.boarding }),
+    )
     .map((i) => ({ itemId: i.id, label: i.name, category: i.category, amount: amounts[i.id]! }));
   if (!lines.length) return null;
   const sib = v.fin.discounts.find((d) => d.basis === 'Sibling' && d.status === 'Active');

@@ -11,8 +11,9 @@ import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 import FieldShell from '@edutrack/app-kit/components/form/FieldShell.vue';
 import SideDrawer from '@edutrack/app-kit/components/overlays/SideDrawer.vue';
 
+import { useBoardingSettingsQuery } from '@/api/services/boarding';
 import { useSaveFeeItemMutation } from '@/api/services/finance';
-import type { FeeCategory, FeeCharged, FeeItem, FeeType } from '@/types';
+import type { FeeAppliesTo, FeeCategory, FeeCharged, FeeItem, FeeType } from '@/types';
 
 const CATEGORIES: FeeCategory[] = [
   'Tuition',
@@ -33,10 +34,14 @@ const CHARGED: { value: FeeCharged; hint: string }[] = [
   { value: 'Once a session', hint: 'First term only' },
   { value: 'New students only', hint: 'A new student’s first invoice' },
 ];
+const APPLIES_TO: FeeAppliesTo[] = ['Everyone', 'Boarders', 'Boy boarders', 'Girl boarders'];
 
 const props = defineProps<{ item: FeeItem | null; items: FeeItem[] }>();
 const open = defineModel<boolean>('open', { required: true });
 const save = useSaveFeeItemMutation();
+const boardingSettings = useBoardingSettingsQuery();
+/** "Who pays it" only matters when the school takes boarders. */
+const boardingOn = computed(() => !!boardingSettings.data.value?.enabled);
 
 const initial = () => ({
   name: props.item?.name ?? '',
@@ -44,6 +49,7 @@ const initial = () => ({
   charged: props.item?.charged ?? ('Every term' as FeeCharged),
   type: props.item?.type ?? ('Compulsory' as FeeType),
   description: props.item?.description ?? '',
+  appliesTo: props.item?.appliesTo ?? ('Everyone' as FeeAppliesTo),
 });
 const form = reactive(initial());
 const showErrors = ref(false);
@@ -72,12 +78,14 @@ async function submit() {
   showErrors.value = true;
   if (Object.keys(errors.value).length) return;
   serverError.value = '';
+  const { appliesTo, ...rest } = form;
   try {
     await save.mutateAsync({
       id: props.item?.id,
-      ...form,
+      ...rest,
       name: form.name.trim(),
       description: form.description.trim(),
+      ...(boardingOn.value ? { appliesTo } : {}),
     });
     open.value = false;
     toast.success(
@@ -151,6 +159,20 @@ async function submit() {
         class="h-9 rounded-md border bg-card px-2.5 text-sm"
       >
         <option v-for="c in CHARGED" :key="c.value">{{ c.value }}</option>
+      </select>
+    </FieldShell>
+    <FieldShell
+      v-if="boardingOn"
+      id="fi-applies"
+      label="Who pays it"
+      hint="Boarding fees: choose Boarders, or a gender if boys and girls pay different amounts."
+    >
+      <select
+        id="fi-applies"
+        v-model="form.appliesTo"
+        class="h-9 rounded-md border bg-card px-2.5 text-sm"
+      >
+        <option v-for="a in APPLIES_TO" :key="a">{{ a }}</option>
       </select>
     </FieldShell>
     <FieldShell id="fi-desc" label="Description" hint="Optional. Shown to finance staff only.">

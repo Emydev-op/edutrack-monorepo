@@ -39,7 +39,8 @@ function pick(id: string) {
         <span class="flex min-w-0 flex-1 flex-col">
           <span class="truncate text-[15px] font-semibold">{{ selected.name }}</span>
           <span class="truncate text-xs text-muted-foreground"
-            >{{ selected.className || 'No class yet' }} · {{ term }}</span
+            >{{ selected.className || 'No class yet' }}{{ selected.boarding ? ' · Boarder' : '' }} ·
+            {{ term }}</span
           >
         </span>
         <span class="text-xs font-medium whitespace-nowrap" :class="feeClass(selected)">{{

@@ -388,6 +388,12 @@ const canCopy = computed(
                 <th v-for="i in items" :key="i.id" class="min-w-[124px] px-2 py-2.5 font-medium">
                   <span class="flex flex-col">
                     <span class="text-foreground">{{ i.name }}</span>
+                    <StatusBadge
+                      v-if="i.appliesTo && i.appliesTo !== 'Everyone'"
+                      class="my-0.5 self-start"
+                      :label="i.appliesTo"
+                      tone="info"
+                    />
                     <span
                       >{{ i.type
                       }}{{

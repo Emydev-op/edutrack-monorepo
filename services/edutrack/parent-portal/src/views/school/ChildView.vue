@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 
 import { useChildQuery } from '@/api/services/parent';
+import BoardingCard from '@/components/common/BoardingCard.vue';
 import ListRow from '@/components/common/ListRow.vue';
 import ListSection from '@/components/common/ListSection.vue';
 import PageTitle from '@/components/common/PageTitle.vue';
@@ -36,6 +37,7 @@ const attendanceText = computed(() => {
       <ListRow title="Admitted" :right="d.enrolment.admittedOn" />
       <ListRow title="Status" :right="d.enrolment.status" />
     </ListSection>
+    <BoardingCard :child="d.child" />
     <ListSection :title="`This term · ${d.thisTerm.term}`">
       <ListRow
         title="Fees"

@@ -144,7 +144,15 @@ interface GradingData {
   }[];
 }
 interface FeesData {
-  items: { name: string; category: string; charged: string; type: string; description: string }[];
+  items: {
+    name: string;
+    category: string;
+    charged: string;
+    type: string;
+    /** Everyone or boarders only (older templates: everyone). */
+    appliesTo?: string;
+    description: string;
+  }[];
   amounts: { level: string; item: string; amountKobo: string }[];
 }
 interface RolesData {
@@ -330,6 +338,7 @@ export class GroupTemplatesService {
             category: i.category,
             charged: i.charged,
             type: i.type,
+            appliesTo: i.appliesTo,
             description: i.description,
           })),
           amounts: (structure?.amounts ?? [])
@@ -707,12 +716,14 @@ export class GroupTemplatesService {
               category: i.category as never,
               charged: i.charged as never,
               type: i.type as never,
+              appliesTo: (i.appliesTo ?? 'EVERYONE') as never,
               description: i.description,
             },
             update: {
               category: i.category as never,
               charged: i.charged as never,
               type: i.type as never,
+              appliesTo: (i.appliesTo ?? 'EVERYONE') as never,
               description: i.description,
               status: 'ACTIVE',
             },

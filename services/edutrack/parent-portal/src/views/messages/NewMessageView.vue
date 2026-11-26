@@ -29,7 +29,13 @@ const data = computed(() => contacts.data.value);
 
 const SCHOOL = 'school';
 /** "school", or "<studentId>:<staffId>" for a teacher of that child. */
-const to = ref(route.query.to === SCHOOL ? SCHOOL : '');
+const one = (v: unknown) => (typeof v === 'string' && v ? v : null);
+const staffQ = one(route.query.staff);
+const studentQ = one(route.query.student);
+/** `?to=school`, or `?staff=<id>&student=<id>` to start with that teacher (e.g. house staff). */
+const to = ref(
+  route.query.to === SCHOOL ? SCHOOL : staffQ && studentQ ? `${studentQ}:${staffQ}` : '',
+);
 const toError = ref('');
 const problem = ref('');
 const about = ref<string | undefined>('');

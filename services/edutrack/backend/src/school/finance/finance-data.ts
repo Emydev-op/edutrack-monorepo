@@ -9,6 +9,7 @@ import {
   EXPENSE_STATUS,
   FEE_CATEGORY,
   FEE_CHARGED,
+  FEE_AUDIENCE,
   FEE_TYPE,
   LATE_FEE,
   LINE_CATEGORY,
@@ -25,6 +26,7 @@ import {
   type ExpenseStatusLabel,
   type FeeCategoryLabel,
   type FeeChargedLabel,
+  type FeeAudienceLabel,
   type FeeTypeLabel,
   type LineCategoryLabel,
   type MatchLabel,
@@ -88,6 +90,7 @@ export interface FinStudent {
   payer: string | null;
   payerPhone: string;
   payerGuardianId: string | null;
+  gender: 'Female' | 'Male';
   /** Still on the roll (leavers keep their invoices). */
   active: boolean;
   planId: string | null;
@@ -96,7 +99,7 @@ export interface FinStudent {
   /** sessionId → where they were that session. */
   enrollments: Map<
     string,
-    { levelId: string; armId: string | null; branchId: string; active: boolean }
+    { levelId: string; armId: string | null; branchId: string; active: boolean; boarding: boolean }
   >;
 }
 
@@ -106,6 +109,8 @@ export interface FeeItemRec {
   category: FeeCategoryLabel;
   charged: FeeChargedLabel;
   type: FeeTypeLabel;
+  /** Everyone, or only boarders (all, boys or girls). */
+  appliesTo: FeeAudienceLabel;
   status: 'Active' | 'Archived';
   description: string;
 }
@@ -592,6 +597,7 @@ export async function loadFinance(db: TenantTx, schoolId: string, now: Date): Pr
       payer: payerLink ? guardianName(payerLink.guardian) : null,
       payerPhone: payerLink?.guardian.phone ?? '',
       payerGuardianId: payerLink?.guardian.id ?? null,
+      gender: s.gender === 'FEMALE' ? 'Female' : 'Male',
       active: ON_ROLL.has(s.status),
       planId: s.paymentPlanId,
       firstSessionId: ordered[ordered.length - 1]?.sessionId ?? null,
@@ -603,6 +609,7 @@ export async function loadFinance(db: TenantTx, schoolId: string, now: Date): Pr
             armId: e.armId,
             branchId: e.branchId,
             active: e.status === 'ACTIVE',
+            boarding: e.boarding,
           },
         ]),
       ),
@@ -659,6 +666,7 @@ export async function loadFinance(db: TenantTx, schoolId: string, now: Date): Pr
       category: FEE_CATEGORY[i.category],
       charged: FEE_CHARGED[i.charged],
       type: FEE_TYPE[i.type],
+      appliesTo: FEE_AUDIENCE[i.appliesTo],
       status: i.status === 'ACTIVE' ? 'Active' : 'Archived',
       description: i.description,
     })),
