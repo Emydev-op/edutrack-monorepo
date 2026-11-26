@@ -52,9 +52,29 @@ export interface BranchSummary {
   short: string;
 }
 
-export type StaffRole = 'Teacher' | 'HOD' | 'Academic Head';
+export type StaffRole =
+  | 'Teacher'
+  | 'HOD'
+  | 'Academic Head'
+  | 'Head of boarding'
+  | 'House staff'
+  | 'Nurse'
+  | 'Gate officer';
 
-/** `GET /v1/me`: the teacher and what their roles unlock (for the active term). */
+/** What a staff member may do in boarding (which boarding pages show). */
+export interface BoardingAccess {
+  /** Posted to a hostel as house master / mistress, floor master or assistant. */
+  houseStaff: boolean;
+  view: boolean;
+  exeats: boolean;
+  gate: boolean;
+  health: boolean;
+  rollcall: boolean;
+  /** Head of boarding / school admin: every hostel. */
+  manage: boolean;
+}
+
+/** `GET /v1/me`: the staff member and what their roles unlock (for the active term). */
 export interface Me {
   teacher: {
     id: string;
@@ -68,6 +88,10 @@ export interface Me {
     department: { id: string; name: string } | null;
   };
   roles: StaffRole[];
+  /** Teaching pages apply (classes, results, lesson notes…); false for boarding-only staff. */
+  teaches: boolean;
+  /** Which boarding pages show. */
+  boarding: BoardingAccess;
   isClassTeacher: boolean;
   classArm: { id: string; name: string; branchId: string; branchName: string } | null;
   /** Their campus's brand when they work at one campus; null at several (the school's). */

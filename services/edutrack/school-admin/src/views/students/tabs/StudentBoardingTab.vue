@@ -22,10 +22,12 @@ import { routesPath } from '@/router/routes-path';
 import type { StudentBoarding, StudentDetail } from '@/types';
 import { placeLabel } from '@/views/boarding/boarding-format';
 import PlaceBoarderDialog, { type PlaceTarget } from '@/views/boarding/PlaceBoarderDialog.vue';
+import StudentBoardingHouse from '@/views/boarding/StudentBoardingHouse.vue';
 
 /**
  * The student's boarding this session: Day student or Boarder, and for a boarder their hostel,
- * room and bed and who looks after them.
+ * room and bed and who looks after them, then their house life: pickup people, exeats, sick bay,
+ * incidents and property.
  */
 const props = defineProps<{ student: StudentDetail }>();
 
@@ -222,6 +224,8 @@ function takeOut() {
       </template>
       <Button v-else-if="b.eligible" @click="makeBoarder">Make boarder</Button>
     </div>
+
+    <StudentBoardingHouse v-if="b.boarding" :student="student" :class-name="b.className" />
 
     <PlaceBoarderDialog v-model:open="placeOpen" :student="target" />
   </template>

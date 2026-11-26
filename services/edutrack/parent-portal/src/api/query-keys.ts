@@ -14,6 +14,7 @@ export const queryKeys = {
   timetable: (id: string) => ['child', id, 'timetable'] as const,
   attendance: (id: string, term?: string) =>
     ['child', id, 'attendance', term ?? 'current'] as const,
+  boarding: (id: string) => ['child', id, 'boarding'] as const,
   announcements: ['announcements'] as const,
   notifications: (filter: string) => ['notifications', filter] as const,
   notificationsAll: ['notifications'] as const,

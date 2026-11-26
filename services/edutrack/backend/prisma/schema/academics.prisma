@@ -236,6 +236,8 @@ model Term {
   lessonNotes           LessonNote[]
   branchDates           BranchTermDates[]
 
+  propertyChecks PropertyCheck[]
+
   @@unique([schoolId, id])
   // Target for foreign keys that also pin the session (sheets, teaching assignments).
   @@unique([schoolId, sessionId, id])

@@ -12,6 +12,9 @@ export const SCHOOL_PERMISSION_MODULES = {
   inventory: ['view', 'request', 'issue', 'adjust'],
   comms: ['view', 'class', 'school'],
   settings: ['profile', 'branches', 'users', 'roles'],
+  /** view: boarders and hostels · manage: set-up, places · exeats: approve leave · gate: sign
+   *  out and in · health: sick bay · rollcall: hostel roll calls. */
+  boarding: ['view', 'manage', 'exeats', 'gate', 'health', 'rollcall'],
 } as const;
 
 type Modules = typeof SCHOOL_PERMISSION_MODULES;
@@ -73,6 +76,7 @@ export const PREDEFINED_SCHOOL_ROLES: readonly PredefinedRole[] = [
       inventory: ['view'],
       comms: ['view', 'class', 'school'],
       settings: ['profile', 'branches', 'users', 'roles'],
+      boarding: ['view', 'manage', 'exeats', 'gate', 'health', 'rollcall'],
     },
   },
   {
@@ -86,6 +90,7 @@ export const PREDEFINED_SCHOOL_ROLES: readonly PredefinedRole[] = [
       results: ['view', 'approve', 'publish', 'correct'],
       finance: ['view', 'refund'],
       comms: ['view', 'class', 'school'],
+      boarding: ['view', 'exeats'],
     },
   },
   {
@@ -161,7 +166,44 @@ export const PREDEFINED_SCHOOL_ROLES: readonly PredefinedRole[] = [
       finance: ['view'],
       inventory: ['view', 'request'],
       comms: ['view', 'class', 'school'],
+      boarding: ['view', 'manage', 'exeats'],
     },
+  },
+  {
+    key: 'head_of_boarding',
+    name: 'Head of Boarding',
+    scope: 'SCHOOL',
+    description: 'Run the boarding house: hostels, places, exeats, roll calls, sick bay',
+    permissions: {
+      students: ['view'],
+      comms: ['view', 'class'],
+      boarding: ['view', 'manage', 'exeats', 'gate', 'health', 'rollcall'],
+    },
+  },
+  {
+    key: 'house_staff',
+    name: 'House Staff',
+    scope: 'SCHOOL',
+    description: 'House master or mistress, matron: their hostel, roll calls, exeats',
+    permissions: {
+      students: ['view'],
+      comms: ['view', 'class'],
+      boarding: ['view', 'exeats', 'rollcall'],
+    },
+  },
+  {
+    key: 'gate_officer',
+    name: 'Gate Officer',
+    scope: 'SCHOOL',
+    description: 'Sign boarders out and in at the gate, and log visitors',
+    permissions: { boarding: ['view', 'gate'] },
+  },
+  {
+    key: 'nurse',
+    name: 'Nurse',
+    scope: 'SCHOOL',
+    description: 'Sick bay visits and boarders’ health',
+    permissions: { students: ['view'], boarding: ['view', 'health'] },
   },
 ];
 
@@ -170,13 +212,32 @@ export const TEACHER_PORTAL_ROLE_KEYS: ReadonlySet<string> = new Set([
   'teacher',
   'hod',
   'academic_head',
+  // Boarding staff work in the same staff workspace (boarding pages only unless they teach).
+  'house_staff',
+  'gate_officer',
+  'nurse',
+  'head_of_boarding',
+]);
+
+/** Boarding roles a staff member can hold in the staff workspace. */
+export const BOARDING_ROLE_KEYS: ReadonlySet<string> = new Set([
+  'head_of_boarding',
+  'house_staff',
+  'gate_officer',
+  'nurse',
 ]);
 
 /**
  * Roles that alone do NOT open School Admin: a classroom teacher or HOD works in the Teacher
  * Workspace. Any other role (predefined or custom) opens School Admin.
  */
-export const TEACHING_ONLY_ROLE_KEYS: ReadonlySet<string> = new Set(['teacher', 'hod']);
+export const TEACHING_ONLY_ROLE_KEYS: ReadonlySet<string> = new Set([
+  'teacher',
+  'hod',
+  'house_staff',
+  'gate_officer',
+  'nurse',
+]);
 
 /** Order used to pick the role name shown under the user's name (most senior first). */
 export const ROLE_DISPLAY_ORDER = [
@@ -188,6 +249,10 @@ export const ROLE_DISPLAY_ORDER = [
   'bursar',
   'accountant',
   'inventory_officer',
+  'head_of_boarding',
   'hod',
   'teacher',
+  'house_staff',
+  'nurse',
+  'gate_officer',
 ];

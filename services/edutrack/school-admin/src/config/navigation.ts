@@ -52,8 +52,14 @@ export const navigation: NavGroup[] = [
   {
     label: 'Boarding',
     items: [
+      item('Overview', r.boarding.home),
       item('Boarders', r.boarding.boarders),
       item('Hostels', r.boarding.hostels),
+      item('Exeats', r.boarding.exeats),
+      item('Gate', r.boarding.gate),
+      item('Roll calls', r.boarding.rollCalls),
+      item('Sick bay', r.boarding.sickBay),
+      item('House', r.boarding.house),
       item('Boarding set-up', r.boarding.setup),
     ],
   },

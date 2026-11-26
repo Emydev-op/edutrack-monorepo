@@ -351,6 +351,16 @@ model Student {
 
   conversations Conversation[]
 
+  pickupPeople PickupPerson[]
+  exeats       Exeat[]
+  gateVisits   GateVisitor[]
+
+  rollCallMarks RollCallMark[]
+  sickBayVisits SickBayVisit[]
+
+  hostelIncidents HostelIncident[]
+  propertyChecks  PropertyCheck[]
+
   @@unique([schoolId, id])
   @@unique([schoolId, admissionNo])
   @@index([schoolId, status])

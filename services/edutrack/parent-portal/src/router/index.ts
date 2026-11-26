@@ -99,6 +99,11 @@ const portalRoutes: RouteRecordRaw[] = [
     meta: { title: 'Attendance', tab: 'more', perChild: true },
   },
   {
+    ...routesPath.boarding,
+    component: () => import('@/views/school/BoardingView.vue'),
+    meta: { title: 'Boarding', tab: 'more', perChild: true },
+  },
+  {
     ...routesPath.announcements,
     component: () => import('@/views/school/AnnouncementsView.vue'),
     meta: { title: 'Announcements', tab: 'more' },

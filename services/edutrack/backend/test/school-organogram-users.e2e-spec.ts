@@ -236,6 +236,10 @@ describe('School organogram, users and roles (e2e)', () => {
         'Accountant',
         'Inventory Officer',
         'Branch Admin',
+        'Head of Boarding',
+        'House Staff',
+        'Gate Officer',
+        'Nurse',
         'Admissions Officer',
         'Exams Officer',
       ]);

@@ -73,7 +73,18 @@ export const routesPath = {
     note: { name: 'review-note', path: '/reviews/lesson-notes/:noteId' },
   },
   boarding: {
+    /** Notifications link here: the path must stay `/boarding`. */
+    overview: { name: 'boarding', path: '/boarding' },
     myHostel: { name: 'my-hostel', path: '/my-hostel' },
+    rollCalls: { name: 'roll-calls', path: '/roll-call' },
+    /** `?slot=Night&date=YYYY-MM-DD` */
+    rollCall: { name: 'roll-call', path: '/roll-call/:hostelId' },
+    exeats: { name: 'exeats', path: '/exeats' },
+    /** Emails link here, so the path must stay `/exeats/:id`. */
+    exeat: { name: 'exeat', path: '/exeats/:id' },
+    gate: { name: 'gate', path: '/gate' },
+    sickBay: { name: 'sick-bay', path: '/sick-bay' },
+    incidents: { name: 'incidents', path: '/incidents' },
   },
   messages: {
     list: { name: 'messages', path: '/messages' },

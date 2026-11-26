@@ -217,6 +217,7 @@ const ALL_PERMISSIONS = {
   inventory: ['view', 'request', 'issue', 'adjust'],
   comms: ['view', 'class', 'school'],
   settings: ['profile', 'branches', 'users', 'roles'],
+  boarding: ['view', 'manage', 'exeats', 'gate', 'health', 'rollcall'],
 };
 
 const role = (
@@ -251,6 +252,7 @@ const predefinedRoles = (): RoleRow[] => [
       inventory: ['view'],
       comms: ['view', 'class', 'school'],
       settings: ['profile', 'branches', 'users', 'roles'],
+      boarding: ['view', 'manage', 'exeats', 'gate', 'health', 'rollcall'],
     },
   ),
   role(
@@ -265,6 +267,7 @@ const predefinedRoles = (): RoleRow[] => [
       results: ['view', 'approve', 'publish', 'correct'],
       finance: ['view', 'refund'],
       comms: ['view', 'class', 'school'],
+      boarding: ['view', 'exeats'],
     },
   ),
   role(
@@ -318,6 +321,39 @@ const predefinedRoles = (): RoleRow[] => [
     finance: ['view'],
     inventory: ['view', 'request'],
     comms: ['view', 'class', 'school'],
+    boarding: ['view', 'manage', 'exeats'],
+  }),
+  role(
+    'head_of_boarding',
+    'Head of Boarding',
+    'Predefined',
+    'School',
+    'Run the boarding house: hostels, places, exeats, roll calls, sick bay',
+    {
+      students: ['view'],
+      comms: ['view', 'class'],
+      boarding: ['view', 'manage', 'exeats', 'gate', 'health', 'rollcall'],
+    },
+  ),
+  role(
+    'house_staff',
+    'House Staff',
+    'Predefined',
+    'School',
+    'House master or mistress, matron: their hostel, roll calls, exeats',
+    { students: ['view'], comms: ['view', 'class'], boarding: ['view', 'exeats', 'rollcall'] },
+  ),
+  role(
+    'gate_officer',
+    'Gate Officer',
+    'Predefined',
+    'School',
+    'Sign boarders out and in at the gate, and log visitors',
+    { boarding: ['view', 'gate'] },
+  ),
+  role('nurse', 'Nurse', 'Predefined', 'School', 'Sick bay visits and boarders’ health', {
+    students: ['view'],
+    boarding: ['view', 'health'],
   }),
 ];
 

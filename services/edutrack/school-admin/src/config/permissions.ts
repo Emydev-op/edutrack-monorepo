@@ -44,6 +44,12 @@ export const PERMISSION_MODULES = [
     description: 'Profile, branches, users and roles',
     actions: ['profile', 'branches', 'users', 'roles'],
   },
+  {
+    key: 'boarding',
+    label: 'Boarding',
+    description: 'Hostels, exeats, the gate, roll calls and the sick bay',
+    actions: ['view', 'manage', 'exeats', 'gate', 'health', 'rollcall'],
+  },
 ] as const;
 
 export const ACTION_LABELS: Record<string, string> = {
@@ -74,6 +80,22 @@ export const ACTION_LABELS: Record<string, string> = {
   users: 'Users',
   roles: 'Roles',
 };
+
+/** Labels that read differently in one module (Boarding's "View" is "View boarding"). */
+export const MODULE_ACTION_LABELS: Record<string, Record<string, string>> = {
+  boarding: {
+    view: 'View boarding',
+    manage: 'Manage hostels and places',
+    exeats: 'Approve exeats',
+    gate: 'Gate sign-out/in',
+    health: 'Sick bay',
+    rollcall: 'Roll calls',
+  },
+};
+
+/** What a permission is called in the role editor: "Enter scores", "Approve exeats". */
+export const actionLabel = (module: string, action: string) =>
+  MODULE_ACTION_LABELS[module]?.[action] ?? ACTION_LABELS[action] ?? action;
 
 export const ROLE_SCOPES: RoleScope[] = [
   'School',

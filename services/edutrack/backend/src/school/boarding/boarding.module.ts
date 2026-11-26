@@ -35,6 +35,17 @@ import { BoardingFeesService } from './boarding-fees.service.js';
 import { FinanceModule } from '../finance/finance.module.js';
 import { HostelImportService } from './hostel-import.service.js';
 import { MyHostelService } from './my-hostel.service.js';
+import { BoardingAlertsService } from './boarding-alerts.service.js';
+import { ExeatsService } from './exeats.service.js';
+import { RollCallsService } from './roll-calls.service.js';
+import { SickBayService } from './sick-bay.service.js';
+import { HouseLifeService } from './house-life.service.js';
+import {
+  AdminExeatsController,
+  ParentExeatsController,
+  StaffExeatsController,
+} from './exeats.controller.js';
+import { AuthModule } from '../../auth/auth.module.js';
 import type { AuthUserContext } from '../../auth/auth-context.js';
 import { CurrentUser } from '../../common/decorators/request.decorators.js';
 
@@ -186,7 +197,7 @@ export class BoardingController {
 
   @ResponseMessage('Boarders loaded.')
   @Get('boarders')
-  @RequirePermission('students.view')
+  @RequirePermission('boarding.view')
   @ApiOperation({
     summary: 'This session’s boarders and where each sleeps (or that they need a place)',
   })
@@ -208,7 +219,7 @@ export class BoardingController {
 
   @ResponseMessage('Boarding loaded.')
   @Get('students/:studentId')
-  @RequirePermission('students.view')
+  @RequirePermission('boarding.view')
   @ApiOperation({
     summary: 'A student’s boarding this session: can they board, do they, and where',
   })
@@ -221,7 +232,7 @@ export class BoardingController {
       `${r.name} is now a ${r.status === 'Boarder' ? 'boarder' : 'day student'}.`,
   )
   @Put('students/:studentId')
-  @RequirePermission('students.edit')
+  @RequirePermission('boarding.manage')
   @ApiOperation({
     summary: 'Make a student a boarder or a day student this session (optionally placing them)',
     description:
@@ -237,7 +248,7 @@ export class BoardingController {
   )
   @Post('students/mark')
   @HttpCode(200)
-  @RequirePermission('students.edit')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'Mark several students as boarders or day students at once' })
   markBoarders(@Body() dto: MarkBoardersDto) {
     return this.boarders.markMany(dto.studentIds, dto.boarding);
@@ -245,7 +256,7 @@ export class BoardingController {
 
   @ResponseMessage('Place saved.')
   @Put('allocations')
-  @RequirePermission('students.edit')
+  @RequirePermission('boarding.manage')
   @ApiOperation({
     summary: 'Give a boarder a room (and bed), or move them',
     description:
@@ -258,7 +269,7 @@ export class BoardingController {
 
   @ResponseMessage('Place removed.')
   @Delete('allocations/:studentId')
-  @RequirePermission('students.edit')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'Take a boarder out of their room (they stay a boarder)' })
   unallocate(@Param('studentId') studentId: string) {
     return this.boarders.unallocate(studentId);
@@ -266,7 +277,7 @@ export class BoardingController {
 
   @ResponseMessage('Rooms loaded.')
   @Get('hostels/:id/occupancy')
-  @RequirePermission('students.view')
+  @RequirePermission('boarding.view')
   @ApiOperation({ summary: 'A hostel’s rooms with who sleeps in each this session' })
   occupancy(@Param('id') id: string) {
     return this.boarders.occupancy(id);
@@ -278,7 +289,7 @@ export class BoardingController {
   )
   @Post('hostels/:id/auto-allocate')
   @HttpCode(200)
-  @RequirePermission('students.edit')
+  @RequirePermission('boarding.manage')
   @ApiOperation({
     summary:
       'Fill free places with boarders who have none, matching the hostel’s gender and classes',
@@ -289,7 +300,7 @@ export class BoardingController {
 
   @ResponseMessage('Boarding set-up loaded.')
   @Get('settings')
-  @RequirePermission('students.view')
+  @RequirePermission('boarding.view')
   @ApiOperation({
     summary: 'Each campus’s sections and class levels, and which take boarders',
     description: '`enabled` is true when any section at any campus takes boarders.',
@@ -301,7 +312,7 @@ export class BoardingController {
   @ResponseMessage('Boarding set-up saved.')
   @Put('settings')
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({
     summary:
       'Turn boarding on or off for each section at each campus (optionally only some levels)',
@@ -314,7 +325,7 @@ export class BoardingController {
 
   @RawResponse()
   @Get('rooms/import/template')
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'The hostel rooms template (.xlsx): one row per room' })
   async template() {
     return new StreamableFile(await this.imports.template(), {
@@ -327,7 +338,7 @@ export class BoardingController {
   @Post('rooms/import')
   @HttpCode(200)
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'Check a rooms file; hostels and floors not there yet will be added' })
   previewImport(@Body() dto: StaffImportDto) {
     return this.imports.preview(dto);
@@ -340,7 +351,7 @@ export class BoardingController {
   @Post('rooms/import/:id/commit')
   @HttpCode(200)
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'Import the checked file' })
   commitImport(@Param('id') id: string) {
     return this.imports.commit(id);
@@ -350,7 +361,7 @@ export class BoardingController {
 
   @ResponseMessage('Hostels loaded.')
   @Get('hostels')
-  @RequirePermission('students.view')
+  @RequirePermission('boarding.view')
   @ApiOperation({
     summary: 'Every hostel with its campus, who it houses, floors, rooms, places and staff',
   })
@@ -361,7 +372,7 @@ export class BoardingController {
   @ResponseMessage((r: { name: string }) => `${r.name} added.`)
   @Post('hostels')
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'Add a hostel at a campus that takes boarders' })
   createHostel(@Body() dto: HostelDto) {
     return this.boarding.createHostel(dto);
@@ -369,7 +380,7 @@ export class BoardingController {
 
   @ResponseMessage('Hostel loaded.')
   @Get('hostels/:id')
-  @RequirePermission('students.view')
+  @RequirePermission('boarding.view')
   @ApiOperation({ summary: 'One hostel with its floors, rooms and house staff' })
   hostel(@Param('id') id: string) {
     return this.boarding.hostel(id);
@@ -378,7 +389,7 @@ export class BoardingController {
   @ResponseMessage((r: { name: string }) => `${r.name} saved.`)
   @Put('hostels/:id')
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'Change a hostel’s name, boys/girls/mixed, classes or note' })
   updateHostel(@Param('id') id: string, @Body() dto: HostelDto) {
     return this.boarding.updateHostel(id, dto);
@@ -387,7 +398,7 @@ export class BoardingController {
   @ResponseMessage((r: { name: string }) => `${r.name} removed.`)
   @Delete('hostels/:id')
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'Remove a hostel (kept in history)' })
   removeHostel(@Param('id') id: string) {
     return this.boarding.removeHostel(id);
@@ -396,7 +407,7 @@ export class BoardingController {
   @ResponseMessage((r: { name: string }) => `${r.name} added.`)
   @Post('hostels/:id/copy')
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'A new hostel with the same floors and rooms (no staff)' })
   copyHostel(@Param('id') id: string, @Body() dto: CopyHostelDto) {
     return this.boarding.copyHostel(id, dto);
@@ -405,7 +416,7 @@ export class BoardingController {
   @ResponseMessage('Floor added.')
   @Post('hostels/:id/floors')
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'Add a floor, wing or block' })
   addFloor(@Param('id') id: string, @Body() dto: FloorDto) {
     return this.boarding.addFloor(id, dto.name);
@@ -414,7 +425,7 @@ export class BoardingController {
   @ResponseMessage('Floor renamed.')
   @Put('hostels/:id/floors/:floorId')
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'Rename a floor or wing' })
   renameFloor(@Param('id') id: string, @Param('floorId') floorId: string, @Body() dto: FloorDto) {
     return this.boarding.renameFloor(id, floorId, dto.name);
@@ -423,7 +434,7 @@ export class BoardingController {
   @ResponseMessage('Floor removed.')
   @Delete('hostels/:id/floors/:floorId')
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'Remove a floor; its rooms stay in the hostel' })
   removeFloor(@Param('id') id: string, @Param('floorId') floorId: string) {
     return this.boarding.removeFloor(id, floorId);
@@ -432,7 +443,7 @@ export class BoardingController {
   @ResponseMessage('Room added.')
   @Post('hostels/:id/rooms')
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'Add a room with its places and optional bed labels' })
   addRoom(@Param('id') id: string, @Body() dto: RoomDto) {
     return this.boarding.addRoom(id, dto);
@@ -441,7 +452,7 @@ export class BoardingController {
   @ResponseMessage((r: { totals: { rooms: number } }) => `Rooms added. ${r.totals.rooms} in all.`)
   @Post('hostels/:id/rooms/generate')
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({
     summary: 'Add several rooms at once, e.g. Room 1–10 with 4 places each and beds A–D',
   })
@@ -452,7 +463,7 @@ export class BoardingController {
   @ResponseMessage('Room saved.')
   @Put('hostels/:id/rooms/:roomId')
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'Change a room’s name, floor, places or bed labels' })
   updateRoom(@Param('id') id: string, @Param('roomId') roomId: string, @Body() dto: RoomDto) {
     return this.boarding.updateRoom(id, roomId, dto);
@@ -461,7 +472,7 @@ export class BoardingController {
   @ResponseMessage('Room removed.')
   @Delete('hostels/:id/rooms/:roomId')
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({ summary: 'Remove a room' })
   removeRoom(@Param('id') id: string, @Param('roomId') roomId: string) {
     return this.boarding.removeRoom(id, roomId);
@@ -470,7 +481,7 @@ export class BoardingController {
   @ResponseMessage('House staff saved.')
   @Put('hostels/:id/staff')
   @SchoolWide()
-  @RequirePermission('settings.branches')
+  @RequirePermission('boarding.manage')
   @ApiOperation({
     summary: 'Set the hostel’s house staff: house master or mistress, floor masters, assistants',
   })
@@ -499,16 +510,27 @@ export class MyHostelController {
 }
 
 @Module({
-  imports: [FinanceModule],
-  controllers: [BoardingController, MyHostelController],
+  imports: [FinanceModule, AuthModule],
+  controllers: [
+    BoardingController,
+    AdminExeatsController,
+    MyHostelController,
+    StaffExeatsController,
+    ParentExeatsController,
+  ],
   providers: [
     BoardingService,
     HostelImportService,
     BoardersService,
     BoardingFeesService,
     MyHostelService,
+    ExeatsService,
+    RollCallsService,
+    SickBayService,
+    HouseLifeService,
+    BoardingAlertsService,
     SchoolAuditService,
   ],
-  exports: [BoardingService, BoardersService],
+  exports: [BoardingService, BoardersService, BoardingAlertsService],
 })
 export class BoardingModule {}

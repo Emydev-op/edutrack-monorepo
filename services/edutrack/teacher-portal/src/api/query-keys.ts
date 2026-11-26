@@ -32,7 +32,7 @@ export const queryKeys = {
   reviews: area('reviews'),
   lessonNotes: area('lesson-notes'),
   classTeacher: area('class-teacher'),
-  /** My hostel (house staff): rooms and boarders. */
+  /** Boarding: my hostel, overview, roll calls, exeats, gate, sick bay, incidents, property. */
   boarding: area('boarding'),
   /** Conversations with parents. */
   messages: area('messages'),

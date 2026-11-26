@@ -111,7 +111,7 @@ export const queryKeys = {
     vendors: (params: object) => ['finance', 'vendors', params] as const,
     vendor: (id: string) => ['finance', 'vendor', id] as const,
   },
-  /** Boarding: settings, hostels, beds and boarders. Owned by boarding.ts. */
+  /** Boarding: settings, hostels, beds and boarders (boarding.ts), and house life (boarding-house.ts). */
   boarding: {
     all: ['boarding'] as const,
     settings: ['boarding', 'settings'] as const,
@@ -120,6 +120,20 @@ export const queryKeys = {
     occupancy: (id: string) => ['boarding', 'occupancy', id] as const,
     boarders: (params: object) => ['boarding', 'boarders', params] as const,
     student: (id: string) => ['boarding', 'student', id] as const,
+    /* House management (boarding-house.ts). */
+    dashboard: ['boarding', 'dashboard'] as const,
+    exeats: (params: object) => ['boarding', 'exeats', params] as const,
+    exeat: (id: string) => ['boarding', 'exeat', id] as const,
+    gate: (branchId: string) => ['boarding', 'gate', branchId] as const,
+    pickups: (studentId: string) => ['boarding', 'pickups', studentId] as const,
+    rollCalls: (date: string) => ['boarding', 'roll-calls', date] as const,
+    rollCallSheet: (hostelId: string, params: object) =>
+      ['boarding', 'roll-call', hostelId, params] as const,
+    sickBay: (params: object) => ['boarding', 'sick-bay', params] as const,
+    visitingDays: ['boarding', 'visiting-days'] as const,
+    incidents: (params: object) => ['boarding', 'incidents', params] as const,
+    checklist: ['boarding', 'checklist'] as const,
+    property: (studentId: string) => ['boarding', 'property', studentId] as const,
   },
   /** Communication: announcements, delivery logs, templates, events, inbox. Owned by communication.ts. */
   comms: {

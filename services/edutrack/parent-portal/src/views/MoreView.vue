@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import {
+  BedDoubleIcon,
   BellIcon,
   CalendarCheckIcon,
   CalendarDaysIcon,
@@ -15,6 +16,7 @@ import { RouterLink } from 'vue-router';
 
 import { useMessagesQuery } from '@/api/services/messages';
 import PageTitle from '@/components/common/PageTitle.vue';
+import { useCurrentChild } from '@/composables/useCurrentChild';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
 import { useUiStore } from '@/stores/ui';
@@ -24,11 +26,13 @@ const ui = useUiStore();
 const auth = useAuthStore();
 const messages = useMessagesQuery();
 const unreadMessages = computed(() => messages.data.value?.unread ?? 0);
+const { child } = useCurrentChild();
 const LINKS = [
   { label: 'Messages', route: routesPath.messages.list.name, icon: MessageSquareIcon },
   { label: 'My children', route: routesPath.children.name, icon: UsersIcon },
   { label: 'Timetable', route: routesPath.timetable.name, icon: CalendarDaysIcon },
   { label: 'Attendance', route: routesPath.attendance.name, icon: CalendarCheckIcon },
+  { label: 'Boarding', route: routesPath.boarding.name, icon: BedDoubleIcon, boarders: true },
   {
     label: 'Materials',
     route: routesPath.materials.name,
@@ -39,9 +43,10 @@ const LINKS = [
   { label: 'Notifications', route: routesPath.notifications.name, icon: BellIcon },
   { label: 'Profile & preferences', route: routesPath.profile.name, icon: UserIcon },
 ];
-// Links outside the school's plan are hidden.
+// Links outside the school's plan are hidden; Boarding shows only for a boarder.
 const links = computed(() =>
   LINKS.filter((l) => {
+    if ((l as { boarders?: boolean }).boarders && !child.value?.boarding) return false;
     const m = (l as { module?: string }).module;
     return !m || !auth.school?.modules || auth.school.modules.includes(m);
   }),
