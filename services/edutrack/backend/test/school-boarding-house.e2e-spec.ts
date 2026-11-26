@@ -130,14 +130,12 @@ describe('Boarding house management (e2e)', () => {
   });
 
   it('lets a parent approve a pickup person and ask for an exeat, which the house master approves', async () => {
-    const added = await funke
-      .post(`${P}/${emmanuel}/pickups`)
-      .send({
-        name: 'Mr. Tunde Bakare',
-        relationship: 'Uncle',
-        phone: '0803 555 0101',
-        note: 'Blue Corolla',
-      });
+    const added = await funke.post(`${P}/${emmanuel}/pickups`).send({
+      name: 'Mr. Tunde Bakare',
+      relationship: 'Uncle',
+      phone: '0803 555 0101',
+      note: 'Blue Corolla',
+    });
     expect(added.status).toBe(201);
     pickupId = added.body.data[0].id;
 
@@ -292,13 +290,11 @@ describe('Boarding house management (e2e)', () => {
     // House staff can't send everyone home; the Head of boarding (or admin) can.
     expect(
       (
-        await okafor
-          .post(`${S}/exeats/term-break`)
-          .send({
-            branchId: e.branchId,
-            leaveAt: lagos(now + HOUR),
-            returnBy: lagos(now + 240 * HOUR),
-          })
+        await okafor.post(`${S}/exeats/term-break`).send({
+          branchId: e.branchId,
+          leaveAt: lagos(now + HOUR),
+          returnBy: lagos(now + 240 * HOUR),
+        })
       ).status,
     ).toBe(403);
     const sent = await admin.post(`${B}/exeats/term-break`).send({
