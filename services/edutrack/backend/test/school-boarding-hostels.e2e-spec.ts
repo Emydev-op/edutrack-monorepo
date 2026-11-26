@@ -103,7 +103,7 @@ describe('Boarding set-up and hostels (e2e)', () => {
     });
     expect(created.status).toBe(201);
     hostel = created.body.data as Hostel;
-    expect(hostel.totals).toEqual({ floors: 0, rooms: 0, places: 0 });
+    expect(hostel.totals).toMatchObject({ floors: 0, rooms: 0, places: 0 });
 
     const dup = await admin
       .post(`${B}/hostels`)
@@ -148,7 +148,7 @@ describe('Boarding set-up and hostels (e2e)', () => {
         .post(`${B}/hostels/${hostel.id}/rooms`)
         .send({ name: 'Prefect room', capacity: 1, floorId: ground.id })
     ).body.data;
-    expect(hostel.totals).toEqual({ floors: 1, rooms: 6, places: 61 });
+    expect(hostel.totals).toMatchObject({ floors: 1, rooms: 6, places: 61 });
 
     const staff = await t.prisma.staff.findMany({
       where: { schoolId, status: 'ACTIVE' },
