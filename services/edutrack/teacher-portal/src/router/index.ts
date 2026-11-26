@@ -1,8 +1,8 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 
 import DashboardLayout from '@/components/layout/DashboardLayout.vue';
 
-import { accessGuard } from './guards';
+import { accessGuard, teachingOnly } from './guards';
 import { accountRoutes } from './modules/account';
 import { assessmentRoutes } from './modules/assessments';
 import { assignmentRoutes } from './modules/assignments';
@@ -19,6 +19,10 @@ import { teachingRoutes } from './modules/teaching';
 import { routesPath } from './routes-path';
 import './types';
 
+/** Teaching pages are hidden from boarding-only staff (pages with their own rule keep it). */
+const teaching = (routes: RouteRecordRaw[]): RouteRecordRaw[] =>
+  routes.map((route) => ({ ...route, meta: { ...teachingOnly, ...route.meta } }));
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   scrollBehavior: (_to, _from, saved) => saved ?? { top: 0 },
@@ -31,14 +35,16 @@ const router = createRouter({
       children: [
         { path: '', redirect: { name: routesPath.dashboard.name } },
         ...dashboardRoutes,
-        ...teachingRoutes,
-        ...classTeacherRoutes,
-        ...assignmentRoutes,
-        ...assessmentRoutes,
-        ...resultRoutes,
-        ...materialRoutes,
-        ...lessonNoteRoutes,
-        ...reviewRoutes,
+        ...teaching([
+          ...teachingRoutes,
+          ...classTeacherRoutes,
+          ...assignmentRoutes,
+          ...assessmentRoutes,
+          ...resultRoutes,
+          ...materialRoutes,
+          ...lessonNoteRoutes,
+          ...reviewRoutes,
+        ]),
         ...boardingRoutes,
         ...messageRoutes,
         ...accountRoutes,

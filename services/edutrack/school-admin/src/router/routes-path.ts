@@ -91,6 +91,13 @@ export const routesPath = {
     loginSlips: { name: 'student-login-slips', path: '/students/login-slips' },
   },
   boarding: {
+    home: { name: 'boarding-home', path: '/boarding' },
+    exeats: { name: 'boarding-exeats', path: '/boarding/exeats' },
+    gate: { name: 'boarding-gate', path: '/boarding/gate' },
+    rollCalls: { name: 'boarding-roll-calls', path: '/boarding/roll-calls' },
+    rollCall: { name: 'boarding-roll-call', path: '/boarding/roll-calls/:hostelId' },
+    sickBay: { name: 'boarding-sick-bay', path: '/boarding/sick-bay' },
+    house: { name: 'boarding-house', path: '/boarding/house' },
     boarders: { name: 'boarding-boarders', path: '/boarding/boarders' },
     setup: { name: 'boarding-setup', path: '/boarding/setup' },
     hostels: { name: 'boarding-hostels', path: '/boarding/hostels' },

@@ -25,7 +25,7 @@ import {
   useUpdateRoleMutation,
 } from '@/api/services/school';
 import ChipGroup from '@/components/school/ChipGroup.vue';
-import { ACTION_LABELS, PERMISSION_MODULES, ROLE_SCOPES } from '@/config/permissions';
+import { actionLabel, PERMISSION_MODULES, ROLE_SCOPES } from '@/config/permissions';
 import { routesPath } from '@/router/routes-path';
 import { useLayoutStore } from '@/stores/layout';
 import type { Role, RoleScope } from '@/types';
@@ -101,10 +101,10 @@ const err = (k: string) => (showErrors.value ? errors.value[k] : undefined);
 
 const permissionsOf = (key: string) =>
   computed({
-    get: () => (form.permissions[key] ?? []).map((a) => ACTION_LABELS[a] ?? a),
+    get: () => (form.permissions[key] ?? []).map((a) => actionLabel(key, a)),
     set: (labels: string[]) => {
       const mod = PERMISSION_MODULES.find((m) => m.key === key)!;
-      form.permissions[key] = mod.actions.filter((a) => labels.includes(ACTION_LABELS[a] ?? a));
+      form.permissions[key] = mod.actions.filter((a) => labels.includes(actionLabel(key, a)));
     },
   });
 const modules = PERMISSION_MODULES.map((m) => ({ ...m, model: permissionsOf(m.key) }));
@@ -323,7 +323,7 @@ const saving = computed(() => create.isPending.value || update.isPending.value);
             v-model="m.model.value"
             :label="`${m.label} permissions`"
             class="[&>span:first-child]:sr-only"
-            :options="m.actions.map((a) => ACTION_LABELS[a] ?? a)"
+            :options="m.actions.map((a) => actionLabel(m.key, a))"
             :disabled="readOnly"
           />
         </div>

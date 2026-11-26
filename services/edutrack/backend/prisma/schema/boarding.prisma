@@ -20,24 +20,28 @@ enum HostelStaffRole {
 }
 
 model Hostel {
-  id         String       @id @default(uuid(7)) @db.Uuid
-  schoolId   String       @map("school_id") @db.Uuid
-  branchId   String       @map("branch_id") @db.Uuid
-  name       String
-  gender     HostelGender
+  id            String       @id @default(uuid(7)) @db.Uuid
+  schoolId      String       @map("school_id") @db.Uuid
+  branchId      String       @map("branch_id") @db.Uuid
+  name          String
+  gender        HostelGender
   /// Class levels it takes; empty = every level that boards at its campus.
-  levelIds   String[]     @default([]) @map("level_ids") @db.Uuid
-  note       String       @default("")
-  sortOrder  Int          @default(0) @map("sort_order")
-  archivedAt DateTime?    @map("archived_at") @db.Timestamptz(3)
-  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt  DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  levelIds      String[]     @default([]) @map("level_ids") @db.Uuid
+  note          String       @default("")
+  /// The hostel's roll calls each day, in order ("Morning", "Night", "Prep"…).
+  rollCallSlots String[]     @default(["Morning", "Night"]) @map("roll_call_slots")
+  sortOrder     Int          @default(0) @map("sort_order")
+  archivedAt    DateTime?    @map("archived_at") @db.Timestamptz(3)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   school School        @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   branch Branch        @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
   floors HostelFloor[]
   rooms  HostelRoom[]
   staff  HostelStaff[]
+
+  takenRollCalls RollCall[]
 
   @@unique([schoolId, id])
   @@index([schoolId, branchId])
@@ -132,4 +136,316 @@ model BedAllocation {
   @@unique([schoolId, enrollmentId])
   @@index([schoolId, roomId])
   @@map("bed_allocations")
+}
+
+/// Someone the family has approved to collect a boarder from school.
+model PickupPerson {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  schoolId      String    @map("school_id") @db.Uuid
+  studentId     String    @map("student_id") @db.Uuid
+  name          String
+  relationship  String
+  phone         String
+  /// e.g. "Driver, Toyota Corolla LND 123 XY", or an ID they will show.
+  note          String    @default("")
+  /// Added by a parent (in the Parent Portal) or by the school.
+  addedByUserId String?   @map("added_by_user_id") @db.Uuid
+  removedAt     DateTime? @map("removed_at") @db.Timestamptz(3)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student Student @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  exeats  Exeat[]
+
+  @@unique([schoolId, id])
+  @@index([schoolId, studentId])
+  @@map("pickup_people")
+}
+
+enum ExeatKind {
+  WEEKEND
+  MEDICAL
+  FAMILY
+  EMERGENCY
+  /// Mid-term break or end of term: every boarder goes home.
+  TERM_BREAK
+  OTHER
+
+  @@map("exeat_kind")
+}
+
+/// Requested (by a parent) → Approved or Declined → Out (signed out at the gate) → Returned.
+enum ExeatStatus {
+  REQUESTED
+  APPROVED
+  DECLINED
+  CANCELLED
+  OUT
+  RETURNED
+
+  @@map("exeat_status")
+}
+
+/// Permission for a boarder to leave school, and their sign-out and return at the gate.
+model Exeat {
+  id                String      @id @default(uuid(7)) @db.Uuid
+  schoolId          String      @map("school_id") @db.Uuid
+  studentId         String      @map("student_id") @db.Uuid
+  branchId          String      @map("branch_id") @db.Uuid
+  kind              ExeatKind
+  reason            String      @default("")
+  leaveAt           DateTime    @map("leave_at") @db.Timestamptz(3)
+  returnBy          DateTime    @map("return_by") @db.Timestamptz(3)
+  /// Who collects them: an approved pickup person, or (null) a parent or guardian.
+  pickupPersonId    String?     @map("pickup_person_id") @db.Uuid
+  status            ExeatStatus
+  /// The parent's or staff member's account that asked or created it.
+  requestedByUserId String?     @map("requested_by_user_id") @db.Uuid
+  requestedByParent Boolean     @default(false) @map("requested_by_parent")
+  decidedByUserId   String?     @map("decided_by_user_id") @db.Uuid
+  decidedAt         DateTime?   @map("decided_at") @db.Timestamptz(3)
+  decisionNote      String      @default("") @map("decision_note")
+  signedOutAt       DateTime?   @map("signed_out_at") @db.Timestamptz(3)
+  signedOutByUserId String?     @map("signed_out_by_user_id") @db.Uuid
+  /// Who actually collected them at the gate.
+  collectedBy       String?     @map("collected_by")
+  signedInAt        DateTime?   @map("signed_in_at") @db.Timestamptz(3)
+  signedInByUserId  String?     @map("signed_in_by_user_id") @db.Uuid
+  /// Exeats made together (a term break) share a batch.
+  batchId           String?     @map("batch_id") @db.Uuid
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school       School        @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student      Student       @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  branch       Branch        @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+  pickupPerson PickupPerson? @relation(fields: [schoolId, pickupPersonId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([schoolId, id])
+  @@index([schoolId, status, leaveAt])
+  @@index([schoolId, studentId, leaveAt])
+  @@map("exeats")
+}
+
+/// A visitor logged in and out at the gate.
+model GateVisitor {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  schoolId       String    @map("school_id") @db.Uuid
+  branchId       String    @map("branch_id") @db.Uuid
+  name           String
+  phone          String    @default("")
+  purpose        String
+  /// The boarder they came to see, if any.
+  studentId      String?   @map("student_id") @db.Uuid
+  inAt           DateTime  @map("in_at") @db.Timestamptz(3)
+  outAt          DateTime? @map("out_at") @db.Timestamptz(3)
+  loggedByUserId String?   @map("logged_by_user_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  branch  Branch   @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+  student Student? @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+
+  @@index([schoolId, branchId, inAt])
+  @@map("gate_visitors")
+}
+
+enum RollMark {
+  PRESENT
+  ABSENT
+  /// Out on an approved exeat.
+  EXEAT
+  /// Admitted to the sick bay.
+  SICK_BAY
+  EXCUSED
+
+  @@map("roll_mark")
+}
+
+/// A hostel roll call (morning, night, prep…) for a day, for the whole hostel or one floor.
+model RollCall {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  schoolId      String   @map("school_id") @db.Uuid
+  hostelId      String   @map("hostel_id") @db.Uuid
+  /// The floor it covers, or "all" for the whole hostel.
+  scope         String   @default("all")
+  date          DateTime @db.Date
+  /// "Morning", "Night", "Prep"…
+  slot          String
+  takenByUserId String?  @map("taken_by_user_id") @db.Uuid
+  takenAt       DateTime @map("taken_at") @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School         @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  hostel Hostel         @relation(fields: [schoolId, hostelId], references: [schoolId, id], onDelete: Cascade)
+  marks  RollCallMark[]
+
+  @@unique([schoolId, id])
+  @@unique([hostelId, scope, date, slot])
+  @@index([schoolId, date])
+  @@map("roll_calls")
+}
+
+model RollCallMark {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  schoolId   String   @map("school_id") @db.Uuid
+  rollCallId String   @map("roll_call_id") @db.Uuid
+  studentId  String   @map("student_id") @db.Uuid
+  mark       RollMark
+  note       String   @default("")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school   School   @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  rollCall RollCall @relation(fields: [schoolId, rollCallId], references: [schoolId, id], onDelete: Cascade)
+  student  Student  @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([rollCallId, studentId])
+  @@index([schoolId, studentId])
+  @@map("roll_call_marks")
+}
+
+enum SickBayOutcome {
+  /// Treated and back to class or the hostel.
+  RETURNED
+  /// Kept in the sick bay (until discharged).
+  ADMITTED
+  SENT_HOME
+  REFERRED
+
+  @@map("sick_bay_outcome")
+}
+
+/// A visit to the school sick bay or clinic.
+model SickBayVisit {
+  id               String         @id @default(uuid(7)) @db.Uuid
+  schoolId         String         @map("school_id") @db.Uuid
+  studentId        String         @map("student_id") @db.Uuid
+  branchId         String         @map("branch_id") @db.Uuid
+  seenAt           DateTime       @map("seen_at") @db.Timestamptz(3)
+  complaint        String
+  assessment       String         @default("")
+  treatment        String         @default("")
+  /// Medicines given, with doses.
+  medication       String         @default("")
+  outcome          SickBayOutcome
+  /// When an admitted student left the sick bay.
+  dischargedAt     DateTime?      @map("discharged_at") @db.Timestamptz(3)
+  notes            String         @default("")
+  recordedByUserId String?        @map("recorded_by_user_id") @db.Uuid
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student Student @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  branch  Branch  @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([schoolId, id])
+  @@index([schoolId, studentId, seenAt])
+  @@index([schoolId, outcome, dischargedAt])
+  @@map("sick_bay_visits")
+}
+
+/// A day parents may visit boarders on campus.
+model VisitingDay {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  schoolId  String   @map("school_id") @db.Uuid
+  /// The campus (null: every campus with boarders).
+  branchId  String?  @map("branch_id") @db.Uuid
+  date      DateTime @db.Date
+  /// "10:00"–"16:00", Lagos time.
+  startsAt  String   @map("starts_at")
+  endsAt    String   @map("ends_at")
+  note      String   @default("")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  branch Branch? @relation(fields: [schoolId, branchId], references: [schoolId, id], onDelete: Restrict)
+
+  @@index([schoolId, date])
+  @@map("visiting_days")
+}
+
+enum IncidentStatus {
+  OPEN
+  CLOSED
+
+  @@map("incident_status")
+}
+
+/// Something that happened in a boarding house: an offence, damage, a concern.
+model HostelIncident {
+  id               String         @id @default(uuid(7)) @db.Uuid
+  schoolId         String         @map("school_id") @db.Uuid
+  studentId        String         @map("student_id") @db.Uuid
+  hostelId         String?        @map("hostel_id") @db.Uuid
+  occurredAt       DateTime       @map("occurred_at") @db.Timestamptz(3)
+  /// "Lateness", "Fighting", "Bullying", "Property damage", "Contraband", "Other"…
+  category         String
+  description      String
+  /// What was done (a warning, a duty, a call to the parent…).
+  action           String         @default("")
+  status           IncidentStatus @default(OPEN)
+  /// Shown to the parents in the Parent Portal (and they were told).
+  sharedWithParent Boolean        @default(false) @map("shared_with_parent")
+  reportedByUserId String?        @map("reported_by_user_id") @db.Uuid
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student Student @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+
+  @@index([schoolId, studentId, occurredAt])
+  @@index([schoolId, hostelId, occurredAt])
+  @@map("hostel_incidents")
+}
+
+/// What boarders bring (mattress, bucket, cutlery…), checked at resumption and departure.
+model BoardingChecklistItem {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  schoolId   String    @map("school_id") @db.Uuid
+  name       String
+  sortOrder  Int       @default(0) @map("sort_order")
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+
+  @@unique([schoolId, name])
+  @@map("boarding_checklist_items")
+}
+
+enum PropertyCheckKind {
+  CHECK_IN
+  CHECK_OUT
+
+  @@map("property_check_kind")
+}
+
+/// A boarder's property check at resumption (check-in) or the end of term (check-out).
+model PropertyCheck {
+  id              String            @id @default(uuid(7)) @db.Uuid
+  schoolId        String            @map("school_id") @db.Uuid
+  studentId       String            @map("student_id") @db.Uuid
+  termId          String            @map("term_id") @db.Uuid
+  kind            PropertyCheckKind
+  /// [{ item, present, quantity, note }]
+  items           Json
+  note            String            @default("")
+  checkedByUserId String?           @map("checked_by_user_id") @db.Uuid
+  checkedAt       DateTime          @map("checked_at") @db.Timestamptz(3)
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  school  School  @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  student Student @relation(fields: [schoolId, studentId], references: [schoolId, id], onDelete: Restrict)
+  term    Term    @relation(fields: [schoolId, termId], references: [schoolId, id], onDelete: Restrict)
+
+  @@unique([studentId, termId, kind])
+  @@map("property_checks")
 }

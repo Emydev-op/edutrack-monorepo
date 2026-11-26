@@ -1,8 +1,24 @@
 import { routesPath as r } from '@/router/routes-path';
 import type { Me } from '@/types';
 
-/** Who sees a group or item: class teachers, any reviewer, or reviewers of sheets / notes. */
-export type NavRequirement = 'classTeacher' | 'reviewer' | 'sheetReviewer' | 'noteReviewer';
+/**
+ * Who sees a group, item or page: class teachers, reviewers, teaching staff, or boarding staff
+ * with the matching `me.boarding` flag.
+ */
+export type NavRequirement =
+  | 'classTeacher'
+  | 'reviewer'
+  | 'sheetReviewer'
+  | 'noteReviewer'
+  /** Teaching staff: false for boarding-only staff (house staff, matrons, nurses, gate). */
+  | 'teaches'
+  /** Any boarding access (`boarding.view`). */
+  | 'boarding'
+  | 'houseStaff'
+  | 'rollcall'
+  | 'exeats'
+  | 'gate'
+  | 'health';
 
 export interface NavItem {
   label: string;
@@ -27,11 +43,12 @@ const item = (
   module?: string,
 ): NavItem => ({ label, route: route.name, requires, module });
 
-/** The Teacher Workspace sidebar, per the spec (§3). */
+/** The workspace sidebar, per the spec (§3), plus Boarding for boarding staff. */
 export const navigation: NavGroup[] = [
-  { label: '', items: [item('Dashboard', r.dashboard)] },
+  { label: '', requires: 'teaches', items: [item('Dashboard', r.dashboard)] },
   {
     label: 'Teaching',
+    requires: 'teaches',
     items: [
       item('My classes', r.teaching.classes),
       item('My subjects', r.teaching.subjects),
@@ -50,6 +67,7 @@ export const navigation: NavGroup[] = [
   },
   {
     label: 'Work',
+    requires: 'teaches',
     items: [
       item('Assignments', r.assignments.list, undefined, 'homework'),
       item('Assessments', r.assessments.list),
@@ -67,10 +85,21 @@ export const navigation: NavGroup[] = [
     ],
   },
   {
+    label: 'Boarding',
+    items: [
+      item('Overview', r.boarding.overview, 'boarding'),
+      { ...item('My hostel', r.boarding.myHostel), houseStaff: true },
+      item('Roll call', r.boarding.rollCalls, 'rollcall'),
+      item('Exeats', r.boarding.exeats, 'exeats'),
+      item('Gate', r.boarding.gate, 'gate'),
+      item('Sick bay', r.boarding.sickBay, 'health'),
+      item('Incidents', r.boarding.incidents, 'rollcall'),
+    ],
+  },
+  {
     label: '',
     items: [
       item('Messages', r.messages.list),
-      { ...item('My hostel', r.boarding.myHostel), houseStaff: true },
       item('Announcements', r.announcements.list),
       item('Notifications', r.notifications.list),
       item('Profile', r.profile.view),
@@ -78,10 +107,14 @@ export const navigation: NavGroup[] = [
   },
 ];
 
-/** Whether the signed-in teacher meets a requirement. */
+/** Teaching applies unless `/v1/me` says otherwise (older responses and the mock teach). */
+export const teaches = (me: Me | null | undefined) => me?.teaches !== false;
+
+/** Whether the signed-in staff member meets a requirement. */
 export function meets(me: Me | null | undefined, requires: NavRequirement | undefined) {
   if (!requires) return true;
   if (!me) return false;
+  const b = me.boarding;
   switch (requires) {
     case 'classTeacher':
       return me.isClassTeacher;
@@ -91,12 +124,28 @@ export function meets(me: Me | null | undefined, requires: NavRequirement | unde
       return me.reviews.resultSheets;
     case 'noteReviewer':
       return me.reviews.lessonNotes;
+    case 'teaches':
+      return teaches(me);
+    case 'boarding':
+      return Boolean(b?.view || b?.houseStaff);
+    case 'houseStaff':
+      return Boolean(b?.houseStaff);
+    case 'rollcall':
+      return Boolean(b?.rollcall);
+    // House staff decide their own hostel’s exeats without the Exeats permission.
+    case 'exeats':
+      return Boolean(b?.exeats || b?.houseStaff);
+    case 'gate':
+      return Boolean(b?.gate);
+    case 'health':
+      return Boolean(b?.health);
   }
 }
 
 /**
- * The sidebar for this teacher: My class only for class teachers, Reviews only for reviewers,
- * My hostel only for house staff.
+ * The sidebar for this staff member: teaching groups only for teaching staff, My class only for
+ * class teachers, Reviews only for reviewers, and the Boarding items their boarding flags allow
+ * (My hostel also shows when the my-hostel query finds a hostel).
  */
 export const navigationFor = (
   me: Me | null | undefined,
@@ -110,7 +159,7 @@ export const navigationFor = (
       items: g.items.filter(
         (i) =>
           meets(me, i.requires) &&
-          (!i.houseStaff || houseStaff) &&
+          (!i.houseStaff || houseStaff || Boolean(me?.boarding?.houseStaff)) &&
           (!i.module || !modules || modules.includes(i.module)),
       ),
     }))

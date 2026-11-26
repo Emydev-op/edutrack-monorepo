@@ -4,6 +4,7 @@ import { StatusBadge } from '@edutrack/ui/components/status-badge';
 import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
 
+import ListRow from '@/components/common/ListRow.vue';
 import { routesPath } from '@/router/routes-path';
 import type { ChildSummary } from '@/types';
 
@@ -55,6 +56,7 @@ const canMessage = computed(() => props.child.access === 'full');
           >
         </Button>
       </div>
+      <ListRow title="Exeats, pickups and more" :to="{ name: routesPath.boarding.name }" />
     </div>
   </section>
 </template>

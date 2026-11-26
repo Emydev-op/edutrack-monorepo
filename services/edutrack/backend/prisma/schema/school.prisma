@@ -239,6 +239,19 @@ model School {
 
   bedAllocations BedAllocation[]
 
+  pickupPeople PickupPerson[]
+  exeats       Exeat[]
+  gateVisitors GateVisitor[]
+
+  rollCalls     RollCall[]
+  rollCallMarks RollCallMark[]
+  sickBayVisits SickBayVisit[]
+
+  visitingDays           VisitingDay[]
+  hostelIncidents        HostelIncident[]
+  boardingChecklistItems BoardingChecklistItem[]
+  propertyChecks         PropertyCheck[]
+
   @@index([status])
   @@index([state])
   @@index([createdAt])
@@ -325,6 +338,13 @@ model Branch {
   termDates             BranchTermDates[]
 
   hostels Hostel[]
+
+  exeats       Exeat[]
+  gateVisitors GateVisitor[]
+
+  sickBayVisits SickBayVisit[]
+
+  visitingDays VisitingDay[]
 
   @@unique([schoolId, id])
   @@unique([schoolId, code])

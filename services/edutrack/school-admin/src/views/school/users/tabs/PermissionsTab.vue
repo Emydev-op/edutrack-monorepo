@@ -5,7 +5,7 @@ import { computed } from 'vue';
 import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 
 import { useRolesQuery } from '@/api/services/school';
-import { ACTION_LABELS, PERMISSION_MODULES } from '@/config/permissions';
+import { actionLabel, PERMISSION_MODULES } from '@/config/permissions';
 
 /** The roles most schools compare, in the design's order. */
 const COLUMNS = [
@@ -56,7 +56,7 @@ const grid = computed(() => ({
         </div>
         <div v-for="a in m.actions" :key="a" role="row" class="contents text-[13px]">
           <span role="rowheader" class="border-t border-divider px-4 py-1.5">{{
-            ACTION_LABELS[a]
+            actionLabel(m.key, a)
           }}</span>
           <span
             v-for="r in shown"

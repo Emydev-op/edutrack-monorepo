@@ -2,7 +2,15 @@
 import { Button } from '@edutrack/ui/components/button';
 import { Skeleton } from '@edutrack/ui/components/skeleton';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
-import { HeartPulseIcon, MessageSquareIcon, PhoneIcon, PrinterIcon } from '@lucide/vue';
+import {
+  ClipboardCheckIcon,
+  DoorOpenIcon,
+  HeartPulseIcon,
+  MessageSquareIcon,
+  PhoneIcon,
+  PrinterIcon,
+  TriangleAlertIcon,
+} from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 
@@ -13,6 +21,11 @@ import SearchInput from '@edutrack/app-kit/components/common/SearchInput.vue';
 import SectionCard from '@edutrack/app-kit/components/common/SectionCard.vue';
 
 import { useMyHostelQuery } from '@/api/services/boarding';
+import { useMeQuery } from '@/api/services/shell';
+import GiveExeatDrawer from '@/components/boarding/GiveExeatDrawer.vue';
+import IncidentDrawer from '@/components/boarding/IncidentDrawer.vue';
+import PropertyDrawer from '@/components/boarding/PropertyDrawer.vue';
+import { meets } from '@/config/navigation';
 import { getApiErrorMessage } from '@/lib/api-errors';
 import { routesPath as r } from '@/router/routes-path';
 import type { HostelBoarder, HostelRoom, MyHostelEntry } from '@/types';
@@ -65,6 +78,27 @@ const messageLink = (b: HostelBoarder) => ({
 });
 
 const print = () => window.print();
+
+/* Quick actions per boarder: give an exeat, record an incident, check their property. */
+const { data: me } = useMeQuery();
+const canExeat = computed(() => meets(me.value, 'exeats'));
+const canIncident = computed(() => meets(me.value, 'rollcall'));
+const target = ref<HostelBoarder | null>(null);
+const drawer = ref<'exeat' | 'incident' | 'property' | null>(null);
+const openFor = (b: HostelBoarder, which: 'exeat' | 'incident' | 'property') => {
+  target.value = b;
+  drawer.value = which;
+};
+const drawerOpen = (which: 'exeat' | 'incident' | 'property') =>
+  computed({
+    get: () => drawer.value === which,
+    set: (open: boolean) => {
+      if (!open && drawer.value === which) drawer.value = null;
+    },
+  });
+const exeatOpen = drawerOpen('exeat');
+const incidentOpen = drawerOpen('incident');
+const propertyOpen = drawerOpen('property');
 </script>
 
 <template>
@@ -192,6 +226,27 @@ const print = () => window.print();
                   >
                 </div>
               </div>
+              <div class="flex flex-wrap gap-1.5 print:hidden">
+                <Button
+                  v-if="canExeat"
+                  variant="outline"
+                  size="sm"
+                  class="h-9"
+                  @click="openFor(b, 'exeat')"
+                  ><DoorOpenIcon class="size-3.5" /> Exeat</Button
+                >
+                <Button
+                  v-if="canIncident"
+                  variant="outline"
+                  size="sm"
+                  class="h-9"
+                  @click="openFor(b, 'incident')"
+                  ><TriangleAlertIcon class="size-3.5" /> Incident</Button
+                >
+                <Button variant="outline" size="sm" class="h-9" @click="openFor(b, 'property')"
+                  ><ClipboardCheckIcon class="size-3.5" /> Property check</Button
+                >
+              </div>
               <p
                 v-if="b.medicalNotes.trim()"
                 class="flex items-start gap-1.5 rounded-md bg-error-subtle px-2.5 py-1.5 text-xs text-error-strong"
@@ -204,5 +259,15 @@ const print = () => window.print();
         </SectionCard>
       </div>
     </section>
+  </template>
+
+  <template v-if="target">
+    <GiveExeatDrawer v-model:open="exeatOpen" :preset-id="target.studentId" />
+    <IncidentDrawer v-model:open="incidentOpen" :preset-id="target.studentId" />
+    <PropertyDrawer
+      v-model:open="propertyOpen"
+      :student-id="target.studentId"
+      :student-name="target.name"
+    />
   </template>
 </template>

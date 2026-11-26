@@ -25,7 +25,7 @@ import { RouterLink, useRoute } from 'vue-router';
 import { useMyHostelQuery } from '@/api/services/boarding';
 import { useConversationsQuery } from '@/api/services/messages';
 import { useMeQuery, useNavCountsQuery } from '@/api/services/shell';
-import { navigationFor, navKeyAliases, type NavItem } from '@/config/navigation';
+import { navigationFor, navKeyAliases, teaches, type NavItem } from '@/config/navigation';
 import { routesPath } from '@/router/routes-path';
 import { useSchoolBrand } from '@/lib/school-brand';
 import { useAuthStore } from '@/stores/auth';
@@ -38,6 +38,7 @@ const { data: counts } = useNavCountsQuery();
 const { data: inbox } = useConversationsQuery();
 // My hostel shows only for house staff (at least one hostel).
 const { data: hostel } = useMyHostelQuery();
+// Teaching groups hide for boarding-only staff; Boarding items follow `me.boarding`.
 // Screens outside the school's plan are hidden.
 const groups = computed(() =>
   navigationFor(me.value, auth.school?.modules, Boolean(hostel.value?.hostels.length)),
@@ -87,7 +88,9 @@ watch(
       >
       <div class="flex min-w-0 flex-col">
         <span class="truncate text-sm font-semibold">{{ auth.school?.name }}</span>
-        <span class="text-xs text-faint">Teacher Workspace</span>
+        <span class="text-xs text-faint">{{
+          teaches(me) ? 'Teacher Workspace' : 'Staff Workspace'
+        }}</span>
       </div>
     </SidebarHeader>
 

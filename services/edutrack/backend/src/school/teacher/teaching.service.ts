@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { campusBrand } from '../shared/campus-brand.js';
 import type { AuthUserContext } from '../../auth/auth-context.js';
+import { flattenPermissions } from '../../auth/permissions/school-permissions.js';
 import { AssignmentsHomeworkService } from '../homework/assignments-homework.service.js';
 import { MaterialsHomeworkService } from '../homework/materials-homework.service.js';
 import { Clock } from '../../common/clock/clock.js';
@@ -81,6 +82,32 @@ export class TeachingService {
       ...(s.allBranches ? branches.map((b) => b.id) : s.branches.map((b) => b.branchId)),
       ...assignments.map((a) => a.arm.branchId),
     ]);
+    // Boarding staff use this workspace too: what they may do, and whether they also teach.
+    const [membership, posts] = await Promise.all([
+      this.db.schoolMembership.findFirst({
+        where: { id: auth.membershipId },
+        select: {
+          roles: { select: { role: { select: { permissions: true, archivedAt: true } } } },
+        },
+      }),
+      this.db.hostelStaff.count({ where: { staffId: s.id, hostel: { archivedAt: null } } }),
+    ]);
+    const granted = new Set(
+      flattenPermissions(
+        (membership?.roles ?? []).filter((r) => !r.role.archivedAt).map((r) => r.role.permissions),
+      ),
+    );
+    const teaches =
+      s.kind === 'TEACHING' ||
+      ['teacher', 'hod', 'academic_head'].some((k) => s.roleKeys.includes(k)) ||
+      assignments.length > 0 ||
+      !!arm;
+    const boardingRoles = [
+      ...(s.roleKeys.includes('head_of_boarding') ? ['Head of boarding'] : []),
+      ...(s.roleKeys.includes('house_staff') || posts ? ['House staff'] : []),
+      ...(s.roleKeys.includes('nurse') ? ['Nurse'] : []),
+      ...(s.roleKeys.includes('gate_officer') ? ['Gate officer'] : []),
+    ];
     return {
       teacher: {
         id: s.id,
@@ -94,10 +121,24 @@ export class TeachingService {
         department: s.department ? { id: s.department.id, name: s.department.name } : null,
       },
       roles: [
-        'Teacher' as const,
+        ...(teaches ? (['Teacher'] as const) : []),
         ...(hod ? (['HOD'] as const) : []),
         ...(isAcademicHead ? (['Academic Head'] as const) : []),
+        ...boardingRoles,
       ],
+      /** Teaching pages (classes, results, lesson notes…) apply; false for boarding-only staff. */
+      teaches,
+      /** What they may do in boarding (pages shown in the workspace). */
+      boarding: {
+        houseStaff: posts > 0,
+        view: granted.has('boarding.view') || posts > 0,
+        // Staff posted to a hostel decide its exeats, as the boarding routes allow.
+        exeats: granted.has('boarding.exeats') || posts > 0,
+        gate: granted.has('boarding.gate'),
+        health: granted.has('boarding.health'),
+        rollcall: granted.has('boarding.rollcall') || posts > 0,
+        manage: granted.has('boarding.manage'),
+      },
       isClassTeacher: !!arm,
       classArm: arm
         ? { id: arm.id, name: arm.label, branchId: arm.branchId, branchName: arm.branch }

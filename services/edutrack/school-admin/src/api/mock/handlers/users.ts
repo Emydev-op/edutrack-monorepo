@@ -1,6 +1,6 @@
 import { mock, MockHttpError } from '@edutrack/web-core/mock';
 
-import { ACTION_LABELS, PERMISSION_MODULES, ROLE_SCOPES } from '@/config/permissions';
+import { actionLabel, PERMISSION_MODULES, ROLE_SCOPES } from '@/config/permissions';
 import type { AccessPayload, InvitePayload, RolePayload } from '@/types';
 
 import { staffInvited } from '../comms-events';
@@ -31,7 +31,7 @@ mock.get('/v1/users/:id', (req) => {
       ),
     ];
     return actions.length
-      ? ([m.label, actions.map((a) => ACTION_LABELS[a] ?? a).join(', ')] as [string, string])
+      ? ([m.label, actions.map((a) => actionLabel(m.key, a)).join(', ')] as [string, string])
       : null;
   }).filter((x): x is [string, string] => !!x);
   return {

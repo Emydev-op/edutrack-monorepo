@@ -27,6 +27,8 @@ export const routesPath = {
   timetable: { name: 'timetable', path: '/timetable' },
   materials: { name: 'materials', path: '/materials' },
   attendance: { name: 'attendance', path: '/attendance' },
+  // Boarding notifications link here: keep the path `/boarding`.
+  boarding: { name: 'boarding', path: '/boarding' },
   announcements: { name: 'announcements', path: '/announcements' },
   messages: {
     list: { name: 'messages', path: '/messages' },
