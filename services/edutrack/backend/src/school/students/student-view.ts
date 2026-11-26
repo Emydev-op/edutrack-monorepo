@@ -113,6 +113,8 @@ export interface StudentRowView {
   status: StudentStatusLabel;
   awaitingEnrollment: boolean;
   admittedToday: boolean;
+  /** Boards this session (false for day students and anyone not enrolled this session). */
+  boarder: boolean;
 }
 
 export function toRow(
@@ -132,6 +134,7 @@ export function toRow(
     guardianName: primary ? guardianName(primary) : null,
     balance: ctx.balance,
     status: STATUS_LABEL[s.status],
+    boarder: !!e && e.sessionId === ctx.sessionId && e.status === 'ACTIVE' && e.boarding,
     awaitingEnrollment:
       s.status === 'ACTIVE' &&
       !!e &&

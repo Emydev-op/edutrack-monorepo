@@ -58,6 +58,8 @@ export interface HostelRoom {
   floorId: string | null;
   capacity: number;
   beds: string[];
+  /** Places taken by boarders this session. */
+  taken: number;
 }
 
 export interface Hostel {
@@ -73,13 +75,14 @@ export interface Hostel {
   floors: HostelFloor[];
   rooms: HostelRoom[];
   staff: HostelStaff[];
-  totals: { floors: number; rooms: number; places: number };
+  totals: { floors: number; rooms: number; places: number; taken: number; free: number };
 }
 
 export interface HostelTotals {
   hostels: number;
   rooms: number;
   places: number;
+  taken: number;
 }
 
 export interface HostelList {
@@ -146,4 +149,119 @@ export interface RoomImportResult {
   hostels: number;
   skipped: number;
   problems: string[];
+}
+
+/* ---------------- Boarders and beds ---------------- */
+
+export type BoardingStatus = 'Boarder' | 'Day';
+
+export interface HouseStaffMember {
+  staffId: string;
+  name: string;
+  role: string;
+}
+
+/** Where a boarder sleeps this session. */
+export interface BoardingPlace {
+  hostelId: string;
+  hostel: string;
+  floor: string | null;
+  roomId: string;
+  room: string;
+  bed: string | null;
+}
+
+/** A student's boarding this session (the student record's Boarding tab). */
+export interface StudentBoarding {
+  studentId: string;
+  name: string;
+  session: string;
+  campus: string;
+  className: string;
+  /** Their campus and class take boarders; `reason` says why not. */
+  eligible: boolean;
+  reason: string | null;
+  boarding: boolean;
+  status: BoardingStatus;
+  place: (BoardingPlace & { since: string; houseStaff: HouseStaffMember[] }) | null;
+  editable: boolean;
+}
+
+export interface StudentBoardingPayload {
+  boarding: boolean;
+  roomId?: string;
+  bed?: string | null;
+  confirm?: boolean;
+}
+
+export interface MarkBoardingResult {
+  results: { studentId: string; name: string; done: boolean; reason: string | null }[];
+  changed: number;
+}
+
+export interface AllocationPayload {
+  studentId: string;
+  roomId: string;
+  bed?: string | null;
+  /** Goes ahead despite warnings (another gender's hostel, other classes). */
+  confirm?: boolean;
+}
+
+export interface BoarderRow {
+  studentId: string;
+  name: string;
+  admissionNo: string;
+  gender: 'Female' | 'Male';
+  campus: string;
+  branchId: string;
+  levelId: string;
+  className: string;
+  place: BoardingPlace | null;
+}
+
+export interface BoarderQuery {
+  branchId?: string;
+  hostelId?: string;
+  levelId?: string;
+  /** Only boarders without a room. */
+  unplaced?: boolean;
+  q?: string;
+}
+
+export interface BoarderList {
+  session: string;
+  boarders: BoarderRow[];
+  totals: { boarders: number; placed: number; unplaced: number };
+}
+
+export interface RoomOccupant {
+  studentId: string;
+  name: string;
+  gender: 'Female' | 'Male';
+  className: string;
+  bed: string | null;
+}
+
+export interface OccupancyRoom {
+  id: string;
+  name: string;
+  floorId: string | null;
+  capacity: number;
+  beds: string[];
+  taken: number;
+  free: number;
+  occupants: RoomOccupant[];
+}
+
+export interface HostelOccupancy {
+  session: string;
+  hostel: { id: string; name: string; campus: string; gender: HostelGender };
+  floors: { id: string; name: string }[];
+  rooms: OccupancyRoom[];
+  totals: { places: number; taken: number; free: number };
+}
+
+export interface AutoAllocateResult extends HostelOccupancy {
+  placed: number;
+  waiting: number;
 }

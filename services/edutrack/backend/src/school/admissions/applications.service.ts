@@ -59,6 +59,7 @@ export interface ApplicationInput {
   previousSchool?: string | null;
   note?: string | null;
   appliedOn?: string | null;
+  wantsBoarding?: boolean;
 }
 
 export interface StageInput {
@@ -132,6 +133,7 @@ export class ApplicationsService {
       guardianPhone: a.guardianPhone ? displayPhone(a.guardianPhone) : '',
       guardianEmail: a.guardianEmail ?? '',
       previousSchool: a.previousSchool ?? '',
+      wantsBoarding: a.wantsBoarding,
       note: a.note ?? '',
       appliedOn: iso(a.appliedOn)!,
       applied: formatDay(a.appliedOn, { calendar: true }),
@@ -212,6 +214,7 @@ export class ApplicationsService {
       guardianPhone: phone,
       guardianEmail: email,
       previousSchool: dto.previousSchool?.trim() || null,
+      wantsBoarding: !!dto.wantsBoarding,
       note: dto.note?.trim() || null,
       appliedOn: appliedOn!,
       label: `${arm!.levelName} · ${branch!.name}`,

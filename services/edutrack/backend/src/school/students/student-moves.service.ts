@@ -1,3 +1,4 @@
+import { boardsAt } from '../boarding/boarding-use.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { RequestContext } from '../../common/context/request-context.js';
@@ -266,9 +267,14 @@ export class StudentMovesService {
     await this.db.$transaction(async (tx) => {
       await tx.student.update({ where: { id: s.id }, data: { branchId: branch.id } });
       if (enrollment) {
+        // A boarder's bed stays with the old campus; they board at the new one only if it takes
+        // boarders in their class (and then wait for a place there).
+        const stillBoards =
+          enrollment.boarding && (await boardsAt(tx, branch.id, enrollment.levelId));
+        await tx.bedAllocation.deleteMany({ where: { enrollmentId: enrollment.id } });
         await tx.enrollment.update({
           where: { id: enrollment.id },
-          data: { branchId: branch.id, armId: arm?.id ?? null },
+          data: { branchId: branch.id, armId: arm?.id ?? null, boarding: stillBoards },
         });
         // Their days in the old arm stay with it (registers, attendance rates).
         if (enrollment.armId && enrollment.armId !== arm?.id)

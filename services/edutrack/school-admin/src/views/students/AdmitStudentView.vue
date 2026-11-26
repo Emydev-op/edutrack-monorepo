@@ -22,6 +22,7 @@ import FieldShell from '@edutrack/app-kit/components/form/FieldShell.vue';
 import { useUnsavedChanges } from '@edutrack/app-kit/composables/useUnsavedChanges';
 import { formatNaira } from '@edutrack/app-kit/lib/format';
 
+import { useBoardingSettingsQuery } from '@/api/services/boarding';
 import {
   useAdmissionMatchesQuery,
   useAdmissionOptionsQuery,
@@ -36,6 +37,8 @@ import SubjectPicker from '@/components/students/SubjectPicker.vue';
 import { choiceProblems, keepOffered, namesOf } from '@/lib/subject-choices';
 import { routesPath } from '@/router/routes-path';
 import type { AdmitResult, FileRef, Gender } from '@/types';
+
+import { levelBoards } from '../boarding/boarding-format';
 
 const STEPS = [
   'Student',
@@ -81,6 +84,8 @@ const blank = () => ({
   electives: [] as string[],
   billing: 'full' as 'full' | 'defer',
   siblingDiscount: true,
+  /** Boarder rather than day student (asked only where the campus and class board). */
+  boarding: false,
 });
 const d = reactive(blank());
 const docs = reactive<Record<string, FileRef | null>>({ birth: null, photo: null, report: null });
@@ -108,6 +113,7 @@ watch(
       branch: app.branch || d.branch,
       level: app.level || d.level,
       arm: '',
+      boarding: app.wantsBoarding,
       // The family on the application is added as a new guardian unless the office links an
       // existing one instead.
       ...(app.guardianName
@@ -203,6 +209,11 @@ const guardianLabel = computed(() =>
       : '',
 );
 const className = computed(() => (d.arm ? `${d.level}${d.arm}` : d.level));
+
+/** Day student or Boarder is asked where the chosen campus and class take boarders. */
+const { data: boardingSettings } = useBoardingSettingsQuery();
+const canBoard = computed(() => levelBoards(boardingSettings.value, d.branch, d.level));
+const admittedBoarder = ref(false);
 
 /** What the chosen class level offers at the branch: compulsory, religious and elective groups. */
 const {
@@ -327,7 +338,9 @@ async function submit() {
       documents: Object.fromEntries(Object.entries(docs).map(([k, f]) => [k, f?.name ?? null])),
       billing: d.billing,
       siblingDiscount: showSibling.value && d.siblingDiscount,
+      ...(canBoard.value ? { boarding: d.boarding } : {}),
     });
+    admittedBoarder.value = canBoard.value && d.boarding;
     draft.value = null;
     // A passport photo picked as an image becomes the student's photo (shown on report cards).
     const photo = docs.photo?.dataUrl;
@@ -349,6 +362,9 @@ async function submit() {
     if (subjectError) {
       errors.value = { subjects: subjectError };
       step.value = 3;
+    } else if (fields.boarding) {
+      errors.value = { boarding: fields.boarding };
+      step.value = 2;
     }
   }
 }
@@ -396,6 +412,14 @@ const review = computed(() => [
       ['Session', `${options.value?.session} · ${options.value?.term}`],
       ['Branch', d.branch],
       ['Class', className.value],
+      ...(canBoard.value
+        ? [
+            [
+              'Boarding',
+              d.boarding ? 'Boarder · place them in a hostel after admitting' : 'Day student',
+            ],
+          ]
+        : []),
       ['Admission type', d.admissionType],
       ['Admission date', d.admissionDate],
     ],
@@ -464,6 +488,12 @@ const chip = (on: boolean, full = false) =>
           ><RouterLink
             :to="{ name: routesPath.students.detail.name, params: { id: result.studentId } }"
             >View student profile</RouterLink
+          ></Button
+        >
+        <Button v-if="admittedBoarder" as-child variant="outline"
+          ><RouterLink
+            :to="{ name: routesPath.students.boarding.name, params: { id: result.studentId } }"
+            >Place in a hostel</RouterLink
           ></Button
         >
         <Button variant="outline" @click="restart">Admit another student</Button>
@@ -733,6 +763,31 @@ const chip = (on: boolean, full = false) =>
               </button>
             </div>
             <p v-if="errors.arm" role="alert" class="text-xs text-destructive">{{ errors.arm }}</p>
+          </div>
+          <div v-if="canBoard" class="flex flex-col gap-1.5">
+            <span class="text-[13px] font-medium">Boarding</span>
+            <div role="radiogroup" aria-label="Boarding" class="flex gap-2">
+              <button
+                v-for="o in [
+                  { value: false, label: 'Day student' },
+                  { value: true, label: 'Boarder' },
+                ]"
+                :key="o.label"
+                type="button"
+                role="radio"
+                :aria-checked="d.boarding === o.value"
+                :class="chip(d.boarding === o.value)"
+                @click="d.boarding = o.value"
+              >
+                {{ o.label }}
+              </button>
+            </div>
+            <p v-if="errors.boarding" role="alert" class="text-xs text-destructive">
+              {{ errors.boarding }}
+            </p>
+            <p v-else-if="d.boarding" class="text-xs text-muted-foreground">
+              Place them in a hostel room after admitting, from their record or Boarding › Boarders.
+            </p>
           </div>
           <div class="grid gap-4 sm:grid-cols-2">
             <div class="flex flex-col gap-1.5">

@@ -3,6 +3,7 @@ import { NIGERIAN_STATES } from '@edutrack/shared';
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../../common/clock/clock.js';
 import { choiceOptions, pickRule, requireChoices, saveChoices } from '../shared/subject-choices.js';
+import { boardsAt } from '../boarding/boarding-use.js';
 import { RequestContext } from '../../common/context/request-context.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import { displayPhone, formatDay } from '../../platform/shared/format.js';
@@ -413,6 +414,13 @@ export class AdmissionsService {
         )
       : null;
 
+    if (dto.boarding && !(await boardsAt(this.db, branch.id, arm.levelId)))
+      throw unprocessable(
+        `${branch.name} doesn’t take boarders in ${arm.levelName}.`,
+        'VALIDATION',
+        'boarding',
+      );
+
     const name = `${dto.firstName} ${dto.surname}`;
     const result = await this.db.$transaction(async (tx) => {
       await this.records.lockArms(tx, [arm.id]);
@@ -485,6 +493,7 @@ export class AdmissionsService {
           levelId: arm.levelId,
           armId: arm.id,
           enrolledOn: admittedOn,
+          boarding: !!dto.boarding,
         },
       });
 

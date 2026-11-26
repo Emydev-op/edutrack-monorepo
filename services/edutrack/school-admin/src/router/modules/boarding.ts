@@ -8,6 +8,11 @@ const HOSTELS = { label: 'Hostels', to: b.hostels.name };
 
 export const boardingRoutes: RouteRecordRaw[] = [
   {
+    ...b.boarders,
+    component: () => import('@/views/boarding/BoardersView.vue'),
+    meta: { title: 'Boarders', breadcrumb: [BOARDING, { label: 'Boarders' }] },
+  },
+  {
     ...b.setup,
     component: () => import('@/views/boarding/BoardingSetupView.vue'),
     meta: { title: 'Boarding set-up', breadcrumb: [BOARDING, { label: 'Boarding set-up' }] },

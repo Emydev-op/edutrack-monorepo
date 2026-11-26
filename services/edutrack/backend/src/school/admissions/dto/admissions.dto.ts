@@ -193,6 +193,13 @@ export class AdmitDto {
   @IsIn(['full', 'defer'])
   billing?: 'full' | 'defer';
 
+  @ApiPropertyOptional({
+    description: 'Admit as a boarder (only where the campus and class take boarders)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  boarding?: boolean;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
@@ -311,6 +318,10 @@ export class ApplicationDto {
   @IsOptional()
   @IsString()
   appliedOn?: string | null;
+  @ApiPropertyOptional({ description: 'The family wants a boarding place' })
+  @IsOptional()
+  @IsBoolean()
+  wantsBoarding?: boolean;
 }
 
 /** POST /v1/admissions/applications/:id/stage. */

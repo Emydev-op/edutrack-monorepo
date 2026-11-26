@@ -1,20 +1,28 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import type {
+  AllocationPayload,
+  AutoAllocateResult,
+  BoarderList,
+  BoarderQuery,
   BoardingSettings,
   BoardingSettingsPayload,
   GenerateRoomsPayload,
   Hostel,
   HostelList,
+  HostelOccupancy,
   HostelPayload,
   HostelStaffEntry,
+  MarkBoardingResult,
   RoomImportBatch,
   RoomImportResult,
   RoomPayload,
+  StudentBoarding,
+  StudentBoardingPayload,
 } from '@/types';
 
-import { deleteRequest, getRequest, postRequest, putRequest } from '../helpers';
+import { cleanParams, deleteRequest, getRequest, postRequest, putRequest } from '../helpers';
 import { queryKeys } from '../query-keys';
 
 const B = '/v1/boarding';
@@ -144,3 +152,86 @@ export const useCommitRoomImportMutation = () =>
   useBoardingMutation((id: string) =>
     postRequest<RoomImportResult>(`${B}/rooms/import/${id}/commit`),
   );
+
+/* ---------------- Boarders and beds ---------------- */
+
+/**
+ * A change to who boards or where they sleep: refreshes the boarding area and the students
+ * (their Boarder badge and record).
+ */
+function useBoardersMutation<V, R>(fn: (vars: V) => Promise<R>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (result) => {
+      const s = result as Partial<StudentBoarding> | undefined;
+      if (s && typeof s === 'object' && typeof s.studentId === 'string' && 'eligible' in s)
+        qc.setQueryData(queryKeys.boarding.student(s.studentId), s);
+      return Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.boarding.all }),
+        qc.invalidateQueries({ queryKey: queryKeys.students.all }),
+      ]);
+    },
+  });
+}
+
+/** A student's boarding this session; 409 NOT_ENROLLED when they aren't in a class yet. */
+export const useStudentBoardingQuery = (studentId: MaybeRefOrGetter<string>) =>
+  useQuery({
+    queryKey: computed(() => queryKeys.boarding.student(toValue(studentId))),
+    queryFn: () => getRequest<StudentBoarding>(`${B}/students/${toValue(studentId)}`),
+    enabled: computed(() => !!toValue(studentId)),
+    retry: false,
+  });
+
+export const useSetStudentBoardingMutation = () =>
+  useBoardersMutation(({ studentId, ...p }: StudentBoardingPayload & { studentId: string }) =>
+    putRequest<StudentBoarding>(`${B}/students/${studentId}`, p),
+  );
+
+export const useMarkBoardingMutation = () =>
+  useBoardersMutation((p: { studentIds: string[]; boarding: boolean }) =>
+    postRequest<MarkBoardingResult>(`${B}/students/mark`, p),
+  );
+
+export const useBoardersQuery = (params: MaybeRefOrGetter<BoarderQuery>) =>
+  useQuery({
+    queryKey: computed(() => queryKeys.boarding.boarders(cleanParams(toValue(params)))),
+    queryFn: () =>
+      getRequest<BoarderList>(`${B}/boarders`, { params: cleanParams(toValue(params)) }),
+    placeholderData: keepPreviousData,
+  });
+
+/** A hostel's rooms this session with who sleeps in each. */
+export const useHostelOccupancyQuery = (hostelId: MaybeRefOrGetter<string>) =>
+  useQuery({
+    queryKey: computed(() => queryKeys.boarding.occupancy(toValue(hostelId))),
+    queryFn: () => getRequest<HostelOccupancy>(`${B}/hostels/${toValue(hostelId)}/occupancy`),
+    enabled: computed(() => !!toValue(hostelId)),
+  });
+
+/** Places a boarder in a room (and bed). 409 ALLOCATION_WARNING asks to resend with `confirm`. */
+export const useAllocateMutation = () =>
+  useBoardersMutation((p: AllocationPayload) => putRequest<StudentBoarding>(`${B}/allocations`, p));
+
+/** Takes a boarder out of their room; they stay a boarder, waiting for a place. */
+export const useUnplaceMutation = () =>
+  useBoardersMutation((studentId: string) =>
+    deleteRequest<StudentBoarding>(`${B}/allocations/${studentId}`),
+  );
+
+export const useAutoAllocateMutation = () => {
+  const qc = useQueryClient();
+  return useBoardersMutation(
+    async ({ hostelId, keepClassmates }: { hostelId: string; keepClassmates: boolean }) => {
+      const result = await postRequest<AutoAllocateResult>(
+        `${B}/hostels/${hostelId}/auto-allocate`,
+        {
+          keepClassmates,
+        },
+      );
+      qc.setQueryData(queryKeys.boarding.occupancy(hostelId), result);
+      return result;
+    },
+  );
+};

@@ -173,6 +173,7 @@ export class StudentsService {
           (!query.status || r.status === query.status) &&
           (!query.className || r.className.startsWith(query.className)) &&
           (!query.gender || r.gender === query.gender) &&
+          (!query.boarding || (query.boarding === 'Boarder' ? r.boarder : !r.boarder)) &&
           (!search ||
             `${r.name} ${r.admissionNo} ${r.guardianName ?? ''}`.toLowerCase().includes(search)),
       );

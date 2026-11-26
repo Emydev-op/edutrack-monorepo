@@ -111,12 +111,15 @@ export const queryKeys = {
     vendors: (params: object) => ['finance', 'vendors', params] as const,
     vendor: (id: string) => ['finance', 'vendor', id] as const,
   },
-  /** Boarding: settings and hostels. Owned by boarding.ts. */
+  /** Boarding: settings, hostels, beds and boarders. Owned by boarding.ts. */
   boarding: {
     all: ['boarding'] as const,
     settings: ['boarding', 'settings'] as const,
     hostels: ['boarding', 'hostels'] as const,
     hostel: (id: string) => ['boarding', 'hostel', id] as const,
+    occupancy: (id: string) => ['boarding', 'occupancy', id] as const,
+    boarders: (params: object) => ['boarding', 'boarders', params] as const,
+    student: (id: string) => ['boarding', 'student', id] as const,
   },
   /** Communication: announcements, delivery logs, templates, events, inbox. Owned by communication.ts. */
   comms: {
