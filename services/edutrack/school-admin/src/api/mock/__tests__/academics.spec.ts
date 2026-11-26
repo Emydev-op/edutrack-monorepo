@@ -237,7 +237,7 @@ describe('Academics · established school (Greenfield)', () => {
 
       const corr = await api.get<Correction[]>('/v1/academics/results/corrections');
       expect(corr.data[0]).toMatchObject({ status: 'Under review', student: 'Chinedu Obiora' });
-      expect(corr.data[0]!.proposed).toBeGreaterThan(corr.data[0]!.original);
+      expect(corr.data[0]!.proposed as number).toBeGreaterThan(corr.data[0]!.original as number);
       const applied = await api.post<Correction>(
         `/v1/academics/results/corrections/${corr.data[0]!.id}/approve`,
         { note: '' },
