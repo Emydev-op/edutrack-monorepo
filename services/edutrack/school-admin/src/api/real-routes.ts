@@ -149,6 +149,9 @@ export const REAL_ROUTES: readonly string[] = [
   // Finance: fees, invoices and student accounts, payments and refunds, bank and cash accounts,
   // statements, expenses and vendors, the overview, reports and options.
   '* /v1/finance/**',
+  // Boarding: which sections board at each campus, hostels with floors, rooms and house staff, and
+  // the rooms bulk upload.
+  '* /v1/boarding/**',
   // Dashboard (fee figures and the fee card from Finance), the header's search, and Reports
   // (Communication's report waits for that module).
   'GET /v1/dashboard',

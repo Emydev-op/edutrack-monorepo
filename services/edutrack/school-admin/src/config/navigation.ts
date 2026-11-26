@@ -50,6 +50,10 @@ export const navigation: NavGroup[] = [
     ],
   },
   {
+    label: 'Boarding',
+    items: [item('Hostels', r.boarding.hostels), item('Boarding set-up', r.boarding.setup)],
+  },
+  {
     label: 'Staff',
     items: [item('Staff Directory', r.staff.directory), item('Teachers', r.staff.teachers)],
   },
@@ -95,3 +99,6 @@ export const navKeyAliases: Record<string, string> = {
   [r.students.import.name]: r.students.list.name,
   [r.students.admit.name]: r.students.admissions.name,
 };
+
+/** The sidebar group shown only once a school has switched boarding on (Boarding set-up). */
+export const BOARDING_NAV_GROUP = 'Boarding';

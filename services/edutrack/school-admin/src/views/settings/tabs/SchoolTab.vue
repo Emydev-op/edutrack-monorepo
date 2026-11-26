@@ -14,15 +14,19 @@ import KeyValueCard from '@edutrack/app-kit/components/common/KeyValueCard.vue';
 import SectionCard from '@edutrack/app-kit/components/common/SectionCard.vue';
 import FieldShell from '@edutrack/app-kit/components/form/FieldShell.vue';
 
+import { useBoardingSettingsQuery } from '@/api/services/boarding';
 import { useSaveNumberingMutation, useSchoolSettingsQuery } from '@/api/services/settings';
 import { formatNumber, patternProblem } from '@/lib/numbering';
 import { routesPath } from '@/router/routes-path';
 import type { NumberingKind } from '@/types';
+import { boardingSummary } from '@/views/boarding/boarding-format';
 
 import { supportLink, useSettingsDirtyGuard } from '../settings-shared';
 
 const { data, isPending, isError, refetch } = useSchoolSettingsQuery();
 const save = useSaveNumberingMutation();
+// Boarding is switched on here first; the sidebar's Boarding group appears once it is.
+const { data: boarding } = useBoardingSettingsQuery();
 
 const form = reactive<Record<NumberingKind, string>>({ admission: '', staff: '' });
 const saved = computed(() =>
@@ -197,6 +201,31 @@ const HINTS: Record<NumberingKind, string> = {
           >
         </template>
       </KeyValueCard>
+
+      <section class="flex flex-col gap-2 rounded-lg border bg-card px-4.5 py-4">
+        <header class="flex items-center justify-between gap-2">
+          <h2 class="text-[15px] font-semibold">Boarding</h2>
+          <StatusBadge
+            :label="boarding?.enabled ? 'On' : 'Off'"
+            :tone="boarding?.enabled ? 'success' : 'neutral'"
+          />
+        </header>
+        <p class="text-[13px] text-muted-foreground">
+          {{
+            boarding?.enabled
+              ? boardingSummary(boarding)
+              : 'For schools with boarders: choose which sections take boarders at each campus, then set up hostels and rooms.'
+          }}
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" as-child>
+            <RouterLink :to="{ name: routesPath.boarding.setup.name }">Boarding set-up</RouterLink>
+          </Button>
+          <Button v-if="boarding?.enabled" variant="outline" size="sm" as-child>
+            <RouterLink :to="{ name: routesPath.boarding.hostels.name }">Hostels</RouterLink>
+          </Button>
+        </div>
+      </section>
 
       <section class="flex flex-col gap-2 rounded-lg border bg-card px-4.5 py-4">
         <header class="flex items-center justify-between gap-2">

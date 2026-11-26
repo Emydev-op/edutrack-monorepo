@@ -22,11 +22,12 @@ import { computed } from 'vue';
 import { LockKeyholeIcon } from '@lucide/vue';
 import { RouterLink, useRoute } from 'vue-router';
 
+import { useBoardingSettingsQuery } from '@/api/services/boarding';
 import { useGroupOverviewQuery } from '@/api/services/group';
 import { useMessagesQuery } from '@/api/services/messages';
 import { useSetupQuery } from '@/api/services/setup';
 import { useNavCountsQuery } from '@/api/services/shell';
-import { navigation, navKeyAliases, type NavItem } from '@/config/navigation';
+import { BOARDING_NAV_GROUP, navigation, navKeyAliases, type NavItem } from '@/config/navigation';
 import { usePlanModules } from '@/config/plan-modules';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
@@ -40,11 +41,16 @@ const { data: setup } = useSetupQuery();
 // Once setup is finished the Setup Center leaves the sidebar; it stays reachable from the dashboard.
 // Group staff (a proprietor's people) get the Group overview at the top.
 const { data: groupOverview } = useGroupOverviewQuery();
+// Boarding shows once the school has switched it on; until then Boarding set-up is reached from
+// Settings.
+const { data: boarding } = useBoardingSettingsQuery();
 const groups = computed(() => {
-  const list = navigation.map((g) => ({
-    ...g,
-    items: g.items.filter((i) => !(i.route === routesPath.setup.name && setup.value?.finished)),
-  }));
+  const list = navigation
+    .filter((g) => g.label !== BOARDING_NAV_GROUP || boarding.value?.enabled)
+    .map((g) => ({
+      ...g,
+      items: g.items.filter((i) => !(i.route === routesPath.setup.name && setup.value?.finished)),
+    }));
   if (groupOverview.value)
     list[0] = {
       ...list[0]!,
