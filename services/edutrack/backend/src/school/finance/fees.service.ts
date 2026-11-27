@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { RequestContext } from '../../common/context/request-context.js';
 import { fmtDate } from '../academics/academic-format.js';
 import type { TenantTx } from '../shared/tenant-tx.js';
 import type { DiscountRec, FeeItemRec, PlanRec, TermRef } from './finance-data.js';
+import { BoardingFeesService } from '../boarding/boarding-fees.service.js';
 import { FinanceCore } from './finance-core.service.js';
 import {
   ALL_METHODS,
@@ -49,6 +51,8 @@ type StructureStatus = 'Not created' | 'Draft' | 'Published';
 type Amounts = Record<string, Record<string, number | null>>;
 
 export interface StructureLevel {
+  /** Boarding items apply here (the campus takes boarders in this class). */
+  boards: boolean;
   id: string;
   name: string;
   section: string;
@@ -79,7 +83,30 @@ export const dueDateFor = (t: TermRef) => t.due ?? addDays(t.start, 14);
  */
 @Injectable()
 export class FeesService {
-  constructor(private readonly core: FinanceCore) {}
+  constructor(
+    private readonly core: FinanceCore,
+    private readonly boardingFees: BoardingFeesService,
+  ) {}
+
+  /** After a published structure changes: boarders billed before their class had boarding fees. */
+  private async catchUpBoarders(
+    tx: TenantTx,
+    structureId: string,
+    termId: string,
+    branchId: string,
+    term: string,
+  ) {
+    const changed = await this.boardingFees.catchUp(tx, termId, branchId);
+    if (changed)
+      await this.core.log(tx, [
+        {
+          entity: 'FeeStructure',
+          entityId: structureId,
+          action: 'fee-structure.boarders-billed',
+          title: `Boarding fees added to ${plural(changed, 'boarder’s invoice', 'boarders’ invoices')} · ${term}`,
+        },
+      ]);
+  }
 
   /* ---------------- Shared ---------------- */
 
@@ -167,7 +194,12 @@ export class FeesService {
 
   private branchFrom(v: FinView, id?: string | null) {
     const list = v.activeBranches();
-    const b = list.find((x) => x.id === id || x.name === id) ?? list[0];
+    // None asked for: the header's working branch, else the first.
+    const working = RequestContext.working().branch;
+    const b =
+      list.find((x) => x.id === id || x.name === id) ??
+      list.find((x) => x.name === working) ??
+      list[0];
     if (!b) throw finConflict('Add a branch first.', 'NO_BRANCH');
     return b.id;
   }
@@ -470,7 +502,33 @@ export class FeesService {
 
   /* ---------------- Structures ---------------- */
 
-  private structureView(v: FinView, term: TermRef, branchId: string) {
+  /** Class levels that take boarders at a branch (Boarding › Set-up). */
+  private async boardingLevelIds(db: TenantTx, branchId: string): Promise<Set<string>> {
+    const sections = await db.branchSection.findMany({
+      where: { branchId, boarding: true },
+      select: { sectionId: true, boardingLevelIds: true },
+    });
+    if (!sections.length) return new Set();
+    const levels = await db.classLevel.findMany({
+      where: { sectionId: { in: sections.map((x) => x.sectionId) } },
+      select: { id: true, sectionId: true },
+    });
+    return new Set(
+      levels
+        .filter((l) => {
+          const x = sections.find((y) => y.sectionId === l.sectionId)!;
+          return !x.boardingLevelIds.length || x.boardingLevelIds.includes(l.id);
+        })
+        .map((l) => l.id),
+    );
+  }
+
+  private structureView(
+    v: FinView,
+    term: TermRef,
+    branchId: string,
+    boards: Set<string> = new Set(),
+  ) {
     const st = this.structureFor(v, term.id, branchId);
     const items = v.fin.items
       .filter((i) => i.status === 'Active')
@@ -490,10 +548,12 @@ export class FeesService {
       const compulsory = this.compulsoryTotal(v, amounts, term);
       students += n;
       projected += n * compulsory;
+      const takesBoarders = boards.has(l.id);
       const row: StructureLevel = {
         id: l.name,
         name: l.name,
         section: l.section,
+        boards: takesBoarders,
         students: n,
         amounts,
         compulsoryTotal: compulsory,
@@ -502,7 +562,12 @@ export class FeesService {
         ),
         missing: items
           .filter(
-            (i) => i.type === 'Compulsory' && i.charged === 'Every term' && amounts[i.id] == null,
+            (i) =>
+              i.type === 'Compulsory' &&
+              i.charged === 'Every term' &&
+              amounts[i.id] == null &&
+              // Boarding fees aren't missing in a class that takes no boarders.
+              (i.appliesTo === 'Everyone' || takesBoarders),
           )
           .map((i) => i.name),
       };
@@ -563,12 +628,23 @@ export class FeesService {
 
   private async structureResult(termId: string, branchId: string) {
     const v = await this.core.load();
-    return this.structureView(v, v.termOf(termId), branchId);
+    return this.structureView(
+      v,
+      v.termOf(termId),
+      branchId,
+      await this.boardingLevelIds(this.core.db as unknown as TenantTx, branchId),
+    );
   }
 
   async structure(q: FeesQuery) {
     const v = await this.core.load();
-    return this.structureView(v, v.termOf(q.term, q.session), this.branchFrom(v, q.branch));
+    const branchId = this.branchFrom(v, q.branch);
+    return this.structureView(
+      v,
+      v.termOf(q.term, q.session),
+      branchId,
+      await this.boardingLevelIds(this.core.db as unknown as TenantTx, branchId),
+    );
   }
 
   private cleanAmounts(v: FinView, branchId: string, raw: Amounts | undefined): Amounts {
@@ -617,6 +693,8 @@ export class FeesService {
           })
         ).id;
       await this.writeAmounts(tx, v, structureId, branchId, amounts);
+      if (existing?.status === 'Published')
+        await this.catchUpBoarders(tx, structureId, term.id, branchId, term.name);
       await this.core.log(tx, [
         {
           entity: 'FeeStructure',
@@ -642,7 +720,7 @@ export class FeesService {
       if (!st) throw finFail('Enter amounts before publishing.', 'STRUCTURE_EMPTY');
       if (!v.fin.items.some((i) => i.status === 'Active' && i.type === 'Compulsory'))
         throw finFail('Add at least one compulsory fee, such as Tuition.', 'NO_COMPULSORY_FEE');
-      const view = this.structureView(v, term, branchId);
+      const view = this.structureView(v, term, branchId, await this.boardingLevelIds(tx, branchId));
       const gaps = view.sections
         .flatMap((s) => s.levels)
         .filter((l) => l.students > 0 && (l.missing.length || l.compulsoryTotal === 0));
@@ -671,6 +749,7 @@ export class FeesService {
           tone: 'success',
         },
       ]);
+      await this.catchUpBoarders(tx, st.id, term.id, branchId, term.name);
       return { termId: term.id, branchId };
     });
     return this.structureResult(key.termId, key.branchId);

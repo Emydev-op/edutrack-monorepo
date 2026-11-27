@@ -7,7 +7,7 @@ import { refDebounced } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 
-import { useSchoolsQuery } from '@/api/services/schools';
+import { useSchoolNamesQuery } from '@/api/services/schools';
 import {
   useIssuesQuery,
   useSupportAgentsQuery,
@@ -69,7 +69,8 @@ watch([debouncedSearch, priority, category, school, assignee, created], () => (p
 const { data: summary } = useSupportSummaryQuery();
 const { data: agents } = useSupportAgentsQuery();
 const agentNames = computed(() => (agents.value ?? []).map((a) => a.name));
-const { data: schools } = useSchoolsQuery({ pageSize: 100 });
+const { data: schoolList } = useSchoolNamesQuery();
+const schools = computed(() => ({ data: schoolList.value ?? [] }));
 const schoolNames = computed(() => (schools.value?.data ?? []).map((s) => s.name));
 const schoolIdByName = computed(
   () => new Map((schools.value?.data ?? []).map((s) => [s.name, s.id])),

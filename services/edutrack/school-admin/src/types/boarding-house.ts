@@ -205,6 +205,8 @@ export interface RollCallHostel {
   id: string;
   name: string;
   campus: string;
+  /** Boarders placed in the hostel now (a slot's `total` counts only a taken roll call). */
+  boarders?: number;
   slots: RollCallSlotSummary[];
 }
 

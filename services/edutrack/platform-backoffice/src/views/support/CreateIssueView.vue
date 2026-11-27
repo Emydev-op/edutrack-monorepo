@@ -8,7 +8,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { messageOf } from '@edutrack/web-core/http';
 import { toast } from 'vue-sonner';
 
-import { useSchoolsQuery } from '@/api/services/schools';
+import { useSchoolNamesQuery, useSchoolQuery } from '@/api/services/schools';
 import { useCreateIssueMutation, useSupportAgentsQuery } from '@/api/services/support';
 import PageHeader from '@edutrack/app-kit/components/common/PageHeader.vue';
 import FormInput from '@edutrack/app-kit/components/form/FormInput.vue';
@@ -23,7 +23,8 @@ const MAX_ATTACHMENT = 10 * 1024 * 1024;
 
 const route = useRoute();
 const router = useRouter();
-const { data: schools } = useSchoolsQuery({ pageSize: 100 });
+const { data: schoolList } = useSchoolNamesQuery();
+const schools = computed(() => ({ data: schoolList.value ?? [] }));
 const create = useCreateIssueMutation();
 const { data: agents } = useSupportAgentsQuery();
 const ownerOptions = computed(() => [
@@ -51,14 +52,11 @@ const { handleSubmit, setFieldValue, values, meta } = useForm({
 const schoolOptions = computed(() =>
   (schools.value?.data ?? []).map((s) => ({ value: s.id, label: s.name })),
 );
-watch(
-  () => values.schoolId,
-  (id) => {
-    const school = schools.value?.data.find((s) => s.id === id);
-    if (school && !values.requester)
-      setFieldValue('requester', `${school.admin.replace(/ \(.*\)$/, '')} · School Admin`);
-  },
-);
+const { data: pickedSchool } = useSchoolQuery(() => values.schoolId ?? '');
+watch(pickedSchool, (school) => {
+  if (school && school.id === values.schoolId && !values.requester)
+    setFieldValue('requester', `${school.admin.replace(/ \(.*\)$/, '')} · School Admin`);
+});
 watch(
   schoolOptions,
   (options) => !values.schoolId && options[0] && setFieldValue('schoolId', options[0].value),

@@ -59,12 +59,14 @@ export const useUserSecurityQuery = (id: MaybeRefOrGetter<string>) =>
   useQuery({
     queryKey: computed(() => queryKeys.users.section(toValue(id), 'security')),
     queryFn: () => getRequest<UserSecurity>(`/v1/platform/users/${toValue(id)}/security`),
+    enabled: computed(() => !!toValue(id)),
   });
 
 export const useUserOpenIssuesQuery = (id: MaybeRefOrGetter<string>) =>
   useQuery({
     queryKey: computed(() => queryKeys.users.section(toValue(id), 'open-issues')),
     queryFn: () => getRequest<{ count: number }>(`/v1/platform/users/${toValue(id)}/open-issues`),
+    enabled: computed(() => !!toValue(id)),
   });
 
 export function useInviteUserMutation() {

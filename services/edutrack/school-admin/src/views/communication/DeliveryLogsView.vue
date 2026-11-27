@@ -26,11 +26,13 @@ import {
   useRetryAllFailedMutation,
   useTemplatesQuery,
 } from '@/api/services/communication';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 
 import { commsTone, deliveryTone, fmtCount } from './comms-tones';
 
 const confirm = useConfirm();
+const can = useCan();
 const tab = useRouteQuery<string>('tab', 'log');
 const channel = useRouteQuery<string>('channel', '');
 const status = useRouteQuery<string>('status', '');
@@ -161,7 +163,7 @@ const filtered = computed(
       :loading="settingsPending"
       min-width="900px"
     >
-      <template #toolbar>
+      <template v-if="can('comms.school')" #toolbar>
         <Button as-child variant="outline" size="sm">
           <RouterLink :to="{ name: routesPath.settings.name, query: { tab: 'notifications' } }"
             >Change channels</RouterLink
@@ -259,7 +261,7 @@ const filtered = computed(
           :options="options?.events.map((e) => e.label) ?? []"
         />
       </template>
-      <template #toolbar>
+      <template v-if="can('comms.school')" #toolbar>
         <Button
           variant="outline"
           size="sm"

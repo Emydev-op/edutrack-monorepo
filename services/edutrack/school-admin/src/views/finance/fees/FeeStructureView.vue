@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useCan } from '@/composables/useCan';
 import { Button } from '@edutrack/ui/components/button';
 import {
   DropdownMenu,
@@ -40,6 +41,7 @@ import { financeTone, fmtDay } from '../finance-tones';
 const route = useRoute();
 const router = useRouter();
 const confirm = useConfirm();
+const can = useCan();
 
 const params = computed(() => ({
   term: (route.query.term as string | undefined) ?? undefined,
@@ -90,12 +92,16 @@ const optionalTotal = (l: StructureLevel) =>
   items.value
     .filter((i) => i.type === 'Optional')
     .reduce((n, i) => n + num(cells.value[key(l.name, i.id)]), 0);
+/** A boarding item in a class that takes no boarders (nothing to enter). */
+const noBoarders = (l: StructureLevel, i: { appliesTo?: string }) =>
+  l.boards === false && !!i.appliesTo && i.appliesTo !== 'Everyone';
 const missing = (l: StructureLevel) =>
   items.value
     .filter(
       (i) =>
         i.type === 'Compulsory' &&
         i.charged === 'Every term' &&
+        !noBoarders(l, i) &&
         (cells.value[key(l.name, i.id)] ?? '').trim() === '',
     )
     .map((i) => i.name);
@@ -257,7 +263,7 @@ const canCopy = computed(
         "
       >
         <template #actions>
-          <DropdownMenu v-if="canCopy">
+          <DropdownMenu v-if="canCopy && can('finance.invoice')">
             <DropdownMenuTrigger as-child>
               <Button variant="outline"
                 ><CopyIcon class="size-4" /> Copy from <ChevronDownIcon class="size-4"
@@ -289,13 +295,17 @@ const canCopy = computed(
               </template>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" :disabled="!dirty || save.isPending.value" @click="saveDraft()"
+          <Button
+            v-if="can('finance.invoice')"
+            variant="outline"
+            :disabled="!dirty || save.isPending.value"
+            @click="saveDraft()"
             ><Spinner v-if="save.isPending.value" />{{
               view.status === 'Published' ? 'Save changes' : 'Save draft'
             }}</Button
           >
           <Button
-            v-if="view.status !== 'Published'"
+            v-if="view.status !== 'Published' && can('finance.invoice')"
             :disabled="publish.isPending.value"
             @click="publishNow"
             >Publish</Button
@@ -424,6 +434,12 @@ const canCopy = computed(
                   <span v-if="!i.chargedThisTerm" class="text-xs text-faint"
                     >Charged in first term</span
                   >
+                  <span
+                    v-else-if="noBoarders(l, i) && !(cells[key(l.name, i.id)] ?? '').trim()"
+                    class="text-xs text-faint"
+                    title="This class takes no boarders at this campus (Boarding › Set-up)."
+                    >No boarders</span
+                  >
                   <input
                     v-else
                     v-model="cells[key(l.name, i.id)]"
@@ -439,6 +455,7 @@ const canCopy = computed(
                           l.students > 0 &&
                           i.type === 'Compulsory' &&
                           i.charged === 'Every term' &&
+                          !noBoarders(l, i) &&
                           !(cells[key(l.name, i.id)] ?? '').trim() &&
                           'border-warning bg-highlight-subtle',
                       )

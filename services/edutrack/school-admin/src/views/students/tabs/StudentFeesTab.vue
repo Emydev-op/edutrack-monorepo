@@ -8,11 +8,13 @@ import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 import KeyValueCard from '@edutrack/app-kit/components/common/KeyValueCard.vue';
 import { formatNaira } from '@edutrack/app-kit/lib/format';
 
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { StudentDetail } from '@/types';
 
 defineProps<{ student: StudentDetail }>();
 const f = routesPath.finance;
+const can = useCan();
 </script>
 
 <template>
@@ -22,7 +24,7 @@ const f = routesPath.finance;
         >Statement & account</RouterLink
       ></Button
     >
-    <Button as-child size="sm"
+    <Button v-if="can('finance.payment')" as-child size="sm"
       ><RouterLink :to="{ name: f.paymentNew.name, query: { student: student.financeKey } }"
         >Record payment</RouterLink
       ></Button

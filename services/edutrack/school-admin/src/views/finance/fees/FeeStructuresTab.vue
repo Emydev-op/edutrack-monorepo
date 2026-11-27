@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useCan } from '@/composables/useCan';
 import { Button } from '@edutrack/ui/components/button';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
 import { computed } from 'vue';
@@ -77,6 +78,7 @@ function copyNext() {
     },
   });
 }
+const can = useCan();
 </script>
 
 <template>
@@ -104,11 +106,18 @@ function copyNext() {
       :row-label="(r) => `${r.term} · ${r.branch}`"
       min-width="900px"
       empty-text="No terms to plan for. Create an academic session first."
-      :actions="(r) => [{ label: r.status === 'Not created' ? 'Create' : 'Open', to: open(r) }]"
+      :actions="
+        (r) => [
+          {
+            label: r.status === 'Not created' && can('finance.invoice') ? 'Create' : 'Open',
+            to: open(r),
+          },
+        ]
+      "
     >
       <template #toolbar>
         <Button
-          v-if="copyTarget"
+          v-if="copyTarget && can('finance.invoice')"
           variant="outline"
           size="sm"
           :disabled="copy.isPending.value"

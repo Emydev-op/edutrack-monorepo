@@ -17,6 +17,7 @@ import {
   useRemovePickupMutation,
   useSickBayQuery,
 } from '@/api/services/boarding-house';
+import { useCan } from '@/composables/useCan';
 import type { Exeat, PickupPerson, PropertyCheck, PropertyKind, StudentDetail } from '@/types';
 
 import ExeatDetailSheet from './ExeatDetailSheet.vue';
@@ -36,6 +37,7 @@ const props = defineProps<{ student: StudentDetail; className: string }>();
 const id = computed(() => props.student.id);
 const confirm = useConfirm();
 const exeatActions = useExeatActions();
+const can = useCan();
 
 const picked = computed<PickedStudent>(() => ({
   id: props.student.id,
@@ -117,7 +119,7 @@ const checks = computed(() => [
       title="Pickup people"
       description="Besides parents, who may collect them on exeat."
     >
-      <template #actions>
+      <template v-if="can('boarding.exeats')" #actions>
         <Button
           variant="outline"
           size="sm"
@@ -144,7 +146,12 @@ const checks = computed(() => [
             <span class="text-xs tabular-nums">{{ p.phone }}</span>
             <span v-if="p.note" class="text-xs text-faint">{{ p.note }}</span>
           </span>
-          <Button variant="ghost" size="icon" :aria-label="`Remove ${p.name}`" @click="remove(p)"
+          <Button
+            v-if="can('boarding.exeats')"
+            variant="ghost"
+            size="icon"
+            :aria-label="`Remove ${p.name}`"
+            @click="remove(p)"
             ><Trash2Icon
           /></Button>
         </li>
@@ -153,7 +160,7 @@ const checks = computed(() => [
 
     <!-- Exeats -->
     <SectionCard title="Exeats" description="Leave this session.">
-      <template #actions>
+      <template v-if="can('boarding.exeats')" #actions>
         <Button variant="outline" size="sm" @click="giveOpen = true"><PlusIcon />Give exeat</Button>
       </template>
       <Skeleton v-if="exeatsPending" class="h-14" />
@@ -178,7 +185,7 @@ const checks = computed(() => [
           <span class="flex flex-col items-end gap-1.5">
             <StatusBadge :label="exeatBadge(e).label" :tone="exeatBadge(e).tone" />
             <Button
-              v-if="e.status === 'Requested'"
+              v-if="e.status === 'Requested' && can('boarding.exeats')"
               size="sm"
               variant="outline"
               class="h-7"
@@ -219,7 +226,7 @@ const checks = computed(() => [
 
     <!-- Incidents -->
     <SectionCard title="Incidents" description="Recorded by house staff.">
-      <template #actions>
+      <template v-if="can('boarding.rollcall')" #actions>
         <Button variant="outline" size="sm" @click="incidentOpen = true"><PlusIcon />Record</Button>
       </template>
       <Skeleton v-if="incidentsPending" class="h-14" />
@@ -259,6 +266,7 @@ const checks = computed(() => [
           <div class="flex items-center justify-between gap-2">
             <h3 class="text-[13px] font-semibold">{{ c.kind }}</h3>
             <Button
+              v-if="can('boarding.rollcall')"
               variant="outline"
               size="sm"
               :disabled="c.kind === 'Check-out' && !property?.checkIn"

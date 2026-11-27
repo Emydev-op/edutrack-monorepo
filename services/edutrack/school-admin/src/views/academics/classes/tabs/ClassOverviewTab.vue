@@ -7,6 +7,7 @@ import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 import KeyValueCard from '@edutrack/app-kit/components/common/KeyValueCard.vue';
 
 import { useClassesQuery } from '@/api/services/academics';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import type { ClassDetail } from '@/types';
@@ -17,6 +18,7 @@ const props = defineProps<{ detail: ClassDetail }>();
 const context = useContextStore();
 const { data: classes } = useClassesQuery();
 const editing = ref(false);
+const can = useCan();
 
 const arm = computed(() => props.detail.arm);
 const level = computed(() => classes.value?.levels.find((l) => l.id === arm.value.levelId) ?? null);
@@ -42,7 +44,7 @@ const a = routesPath.academics;
     :title="`${arm.name} has no class teacher`"
     description="Report card comments and promotion proposals need a class teacher."
   >
-    <template #action>
+    <template v-if="can('academics.configure')" #action>
       <Button variant="outline" size="sm" @click="editing = true">Assign</Button>
     </template>
   </InlineNotice>
@@ -52,7 +54,7 @@ const a = routesPath.academics;
     :title="`${unassigned.length} subject${unassigned.length > 1 ? 's have' : ' has'} no teacher`"
     :description="`${unassigned.map((s) => s.name).join(', ')}. They block the timetable for those lessons.`"
   >
-    <template #action>
+    <template v-if="can('academics.configure')" #action>
       <Button as-child variant="outline" size="sm"
         ><RouterLink :to="{ name: a.assignments.name }">Assign</RouterLink></Button
       >
@@ -76,7 +78,12 @@ const a = routesPath.academics;
           { label: 'Places', value: `${arm.students} of ${arm.capacity} used` },
         ]"
       />
-      <Button variant="outline" size="sm" class="self-start" @click="editing = true"
+      <Button
+        v-if="can('academics.configure')"
+        variant="outline"
+        size="sm"
+        class="self-start"
+        @click="editing = true"
         >Edit arm</Button
       >
     </div>

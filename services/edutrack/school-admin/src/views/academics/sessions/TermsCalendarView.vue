@@ -18,6 +18,7 @@ import { useUnsavedChanges } from '@edutrack/app-kit/composables/useUnsavedChang
 
 import { useCalendarQuery, useSaveTermsMutation, useSessionsQuery } from '@/api/services/academics';
 import SetupStepBar from '@/components/academics/SetupStepBar.vue';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { TermEvent, TermEventType, TermStatus } from '@/types';
 
@@ -52,9 +53,12 @@ const fromSetup = computed(() => route.query.from === 'setup');
 const { data, isPending } = useSessionsQuery();
 const { data: calendar } = useCalendarQuery();
 const save = useSaveTermsMutation(id);
+const can = useCan();
 
 const session = computed(() => data.value?.sessions.find((s) => s.id === id.value) ?? null);
 const readOnly = computed(() => ['Closed', 'Archived'].includes(session.value?.status ?? ''));
+/** Closed, or the user can't change the calendar: no edit controls. */
+const locked = computed(() => readOnly.value || !can('academics.configure'));
 
 const terms = ref<TermRow[]>([]);
 const original = ref('');
@@ -284,7 +288,7 @@ async function submit() {
       :description="`${fmtRange(session.start, session.end)} · term dates, breaks, exams and key events.`"
       :status="session.status"
     >
-      <template v-if="!readOnly" #actions>
+      <template v-if="!locked" #actions>
         <Button variant="outline" :disabled="!terms.length" @click="fillEvenly"
           >Fill dates evenly</Button
         >
@@ -343,14 +347,14 @@ async function submit() {
         <div class="flex items-center justify-between gap-2">
           <StatusBadge :label="t.status" />
           <Button
-            v-if="!readOnly && t.status === 'Upcoming' && terms.length > 1"
+            v-if="!locked && t.status === 'Upcoming' && terms.length > 1"
             variant="ghost"
             size="sm"
             @click="removeTerm(i)"
             ><Trash2Icon class="size-3.5" />Remove term</Button
           >
         </div>
-        <fieldset :disabled="readOnly" class="grid gap-3 sm:grid-cols-3">
+        <fieldset :disabled="locked" class="grid gap-3 sm:grid-cols-3">
           <FieldShell :id="`t-name-${t.key}`" label="Name" required :error="tErr(t, 'name')">
             <Input :id="`t-name-${t.key}`" v-model="t.name" />
           </FieldShell>
@@ -365,7 +369,7 @@ async function submit() {
         <div class="flex flex-col gap-2">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <span class="text-[13px] font-semibold">Breaks and events</span>
-            <span v-if="!readOnly" class="flex gap-2">
+            <span v-if="!locked" class="flex gap-2">
               <Button variant="outline" size="sm" @click="suggest(t)"
                 ><SparklesIcon class="size-3.5" />Suggest events</Button
               >
@@ -381,7 +385,7 @@ async function submit() {
           <fieldset
             v-for="ev in t.events"
             :key="ev.key"
-            :disabled="readOnly"
+            :disabled="locked"
             class="grid items-start gap-2 rounded-md border p-2.5 sm:grid-cols-[150px_minmax(0,1fr)_140px_140px_36px]"
           >
             <select
@@ -421,7 +425,7 @@ async function submit() {
       </div>
     </SectionCard>
 
-    <div v-if="!readOnly" class="flex flex-wrap justify-between gap-2">
+    <div v-if="!locked" class="flex flex-wrap justify-between gap-2">
       <Button variant="outline" :disabled="terms.length >= 4" @click="addTerm"
         ><PlusIcon class="size-3.5" />Add term</Button
       >

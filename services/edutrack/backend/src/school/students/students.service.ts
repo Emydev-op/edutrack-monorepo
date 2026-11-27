@@ -155,9 +155,15 @@ export class StudentsService {
   async list(query: StudentQueryDto) {
     // The header's branch switcher: only that campus's students.
     const branchName = query.branch && query.branch !== 'All branches' ? query.branch : null;
+    // A branch-scoped admin only ever lists their own branches' students.
+    const scope = RequestContext.get()?.branchScope;
     const [students, session, balances] = await Promise.all([
       this.db.student.findMany({
-        where: { deletedAt: null, ...(branchName && { branch: { name: branchName } }) },
+        where: {
+          deletedAt: null,
+          ...(branchName && { branch: { name: branchName } }),
+          ...(scope && { branchId: { in: scope.ids } }),
+        },
         include: studentInclude,
         orderBy: [{ surname: 'asc' }, { firstName: 'asc' }, { admissionNo: 'asc' }],
       }),

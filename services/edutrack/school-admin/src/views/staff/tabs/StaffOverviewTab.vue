@@ -7,11 +7,13 @@ import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 import KeyValueCard from '@edutrack/app-kit/components/common/KeyValueCard.vue';
 import MeterRow from '@edutrack/app-kit/components/common/MeterRow.vue';
 
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { StaffDetail } from '@/types';
 
 const props = defineProps<{ staff: StaffDetail }>();
 const s = computed(() => props.staff);
+const can = useCan();
 
 const since = computed(() =>
   /^\d{4}-\d{2}-\d{2}$/.test(s.value.since)
@@ -73,7 +75,7 @@ const meterColor = computed(() =>
     title="Not assigned to any class"
     description="They won’t see students or score sheets in the Teacher Workspace."
   >
-    <template #action>
+    <template v-if="can('academics.configure')" #action>
       <Button as-child variant="outline" size="sm"
         ><RouterLink :to="{ name: routesPath.academics.assignments.name }"
           >Assign</RouterLink

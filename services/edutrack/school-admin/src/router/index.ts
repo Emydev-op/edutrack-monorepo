@@ -22,6 +22,20 @@ import { studentRoutes } from './modules/students';
 import { routesPath } from './routes-path';
 import './types';
 
+/** Every built screen under the app layout. */
+const builtRoutes = [
+  ...academicsRoutes,
+  ...schoolRoutes,
+  ...studentRoutes,
+  ...boardingRoutes,
+  ...staffRoutes,
+  ...financeRoutes,
+  ...communicationRoutes,
+  ...reportRoutes,
+  ...settingsRoutes,
+  ...supportRoutes,
+];
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   scrollBehavior: (_to, _from, saved) => saved ?? { top: 0 },
@@ -96,17 +110,9 @@ const router = createRouter({
             ],
           },
         },
-        ...academicsRoutes,
-        ...schoolRoutes,
-        ...studentRoutes,
-        ...boardingRoutes,
-        ...staffRoutes,
-        ...financeRoutes,
-        ...communicationRoutes,
-        ...reportRoutes,
-        ...settingsRoutes,
-        ...supportRoutes,
-        ...plannedRoutes,
+        ...builtRoutes,
+        // A placeholder never replaces a built screen of the same name.
+        ...plannedRoutes.filter((r) => !builtRoutes.some((b) => b.name === r.name)),
       ],
     },
     {

@@ -22,6 +22,7 @@ import {
   useStartSessionMutation,
 } from '@/api/services/academics';
 import SetupStepBar from '@/components/academics/SetupStepBar.vue';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { AcademicSession, ChecklistStatus, SessionStatus, TermStatus } from '@/types';
 
@@ -32,6 +33,7 @@ const confirm = useConfirm();
 const { data, isPending } = useSessionsQuery();
 const start = useStartSessionMutation();
 const closeTerm = useCloseTermMutation();
+const can = useCan();
 
 const SESSION_TONE: Record<SessionStatus, StatusTone> = {
   Upcoming: 'info',
@@ -128,12 +130,12 @@ function closeCurrentTerm() {
     description="Each session is a separate record. Past sessions stay available read-only."
   >
     <template #actions>
-      <Button v-if="current" as-child variant="outline"
+      <Button v-if="current && can('academics.configure')" as-child variant="outline"
         ><RouterLink :to="{ name: r.terms.name, params: { id: current.id } }"
           >Edit terms & calendar</RouterLink
         ></Button
       >
-      <Button as-child
+      <Button v-if="can('academics.configure')" as-child
         ><RouterLink :to="{ name: r.sessionNew.name }">New session</RouterLink></Button
       >
     </template>
@@ -149,7 +151,7 @@ function closeCurrentTerm() {
       title="No academic session yet"
       description="Create your first session and its dates. Terms, classes, fees and results all belong to a session."
     >
-      <Button as-child
+      <Button v-if="can('academics.configure')" as-child
         ><RouterLink :to="{ name: r.sessionNew.name, query: { from: 'setup' } }"
           >Create first session</RouterLink
         ></Button
@@ -204,20 +206,20 @@ function closeCurrentTerm() {
         /></template>
         <template #cell-action="{ row }">
           <Button
-            v-if="row.status === 'Upcoming'"
+            v-if="row.status === 'Upcoming' && can('academics.configure')"
             size="sm"
             variant="outline"
             @click="startSession(row)"
             >Start session</Button
           >
           <RouterLink
-            v-else-if="row.status === 'Closing'"
+            v-else-if="row.status === 'Closing' && can('academics.configure')"
             class="font-medium text-primary hover:underline"
             :to="{ name: r.sessionClose.name, params: { id: row.id } }"
             >Continue closing</RouterLink
           >
           <RouterLink
-            v-else-if="row.status === 'Active'"
+            v-else-if="row.status === 'Active' && can('academics.configure')"
             class="font-medium text-primary hover:underline"
             :to="{ name: r.terms.name, params: { id: row.id } }"
             >Edit terms</RouterLink
@@ -243,6 +245,7 @@ function closeCurrentTerm() {
         <div class="flex items-center justify-between gap-2">
           <h2 class="text-base font-semibold">Terms · {{ current.name }}</h2>
           <RouterLink
+            v-if="can('academics.configure')"
             class="text-[13px] font-medium text-primary hover:underline"
             :to="{ name: r.terms.name, params: { id: current.id } }"
             >Edit dates and events</RouterLink
@@ -302,7 +305,10 @@ function closeCurrentTerm() {
           <span v-if="checklist.reason" class="text-xs text-muted-foreground">{{
             checklist.reason
           }}</span>
-          <Button :disabled="!checklist.canClose" @click="closeCurrentTerm"
+          <Button
+            v-if="can('academics.configure')"
+            :disabled="!checklist.canClose"
+            @click="closeCurrentTerm"
             >Close {{ closingTerm.name }}</Button
           >
         </div>

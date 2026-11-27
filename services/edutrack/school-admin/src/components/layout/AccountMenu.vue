@@ -27,6 +27,9 @@ const logout = useLogoutMutation();
 const signingOut = ref(false);
 
 /** "Primary admin", or "Nursery, Primary" for several; nothing for whole-school admins. */
+/** "Principal · School Admin", or one of them when they're the same ("Owner", not "Owner · Owner"). */
+const joinRole = (position?: string | null, role?: string | null) =>
+  [...new Set([position, role].map((x) => x?.trim()).filter(Boolean))].join(' · ');
 const sectionsLabel = computed(() => {
   const list = auth.user?.sections;
   if (!list?.length) return '';
@@ -84,9 +87,9 @@ function signOut() {
       <InitialsAvatar :initials="auth.initials" />
       <span class="flex min-w-0 flex-col max-lg:hidden">
         <span class="truncate text-[13px] leading-tight font-medium">{{ auth.fullName }}</span>
-        <span class="truncate text-xs text-faint"
-          >{{ auth.user?.position }} · {{ sectionsLabel || auth.user?.roleName }}</span
-        >
+        <span class="truncate text-xs text-faint">{{
+          joinRole(auth.user?.position, sectionsLabel || auth.user?.roleName)
+        }}</span>
       </span>
       <ChevronDownIcon class="size-3.5 text-muted-foreground max-lg:hidden" />
     </DropdownMenuTrigger>
@@ -95,9 +98,9 @@ function signOut() {
         <InitialsAvatar :initials="auth.initials" solid />
         <div class="flex min-w-0 flex-col">
           <span class="text-[13px] font-semibold">{{ auth.fullName }}</span>
-          <span class="text-xs text-muted-foreground"
-            >{{ auth.user?.position }} · {{ auth.user?.roleName }}</span
-          >
+          <span class="text-xs text-muted-foreground">{{
+            joinRole(auth.user?.position, auth.user?.roleName)
+          }}</span>
           <span v-if="sectionsLabel" class="text-xs text-muted-foreground">{{
             sectionsLabel
           }}</span>

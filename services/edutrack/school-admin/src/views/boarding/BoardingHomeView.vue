@@ -12,6 +12,7 @@ import { formatCount } from '@edutrack/app-kit/lib/format';
 
 import { useBoardingSettingsQuery } from '@/api/services/boarding';
 import { useBoardingDashboardQuery } from '@/api/services/boarding-house';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 
 import { dayLabel } from './house-format';
@@ -20,6 +21,7 @@ import { dayLabel } from './house-format';
 const { data: settings } = useBoardingSettingsQuery();
 const { data: d, isPending, isError, refetch } = useBoardingDashboardQuery();
 const b = routesPath.boarding;
+const can = useCan();
 const n = (v: number | undefined) => formatCount(v ?? 0);
 
 const rollCallHint = computed(() => {
@@ -36,7 +38,7 @@ const rollCallHint = computed(() => {
     :description="`${d?.session ? `${d.session} · ` : ''}The boarding house today.`"
   >
     <template #actions>
-      <Button as-child variant="outline"
+      <Button v-if="can('boarding.gate')" as-child variant="outline"
         ><RouterLink :to="{ name: b.gate.name }">Open the gate desk</RouterLink></Button
       >
       <Button as-child><RouterLink :to="{ name: b.rollCalls.name }">Roll calls</RouterLink></Button>
@@ -49,7 +51,7 @@ const rollCallHint = computed(() => {
     title="Boarding isn’t switched on"
     description="Choose which sections take boarders at each campus first."
   >
-    <template #action>
+    <template v-if="can('boarding.manage')" #action>
       <Button as-child variant="outline" size="sm"
         ><RouterLink :to="{ name: b.setup.name }">Go to Boarding set-up</RouterLink></Button
       >

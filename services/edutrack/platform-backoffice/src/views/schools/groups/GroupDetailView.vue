@@ -116,13 +116,16 @@ const removeStaff = (s: { id: string; name: string }) =>
           <div class="flex gap-2">
             <select
               v-model="pick"
-              class="h-9 flex-1 rounded-md border bg-card px-2.5 text-sm"
+              class="h-9 min-w-0 flex-1 rounded-md border bg-card px-2.5 text-sm"
               aria-label="School to add"
             >
               <option value="">Choose a school</option>
               <option v-for="s in candidates" :key="s.id" :value="s.id">{{ s.name }}</option>
             </select>
-            <Button :disabled="!pick || schoolMut.isPending.value" @click="addSchool"
+            <Button
+              class="shrink-0"
+              :disabled="!pick || schoolMut.isPending.value"
+              @click="addSchool"
               >Add school</Button
             >
           </div>

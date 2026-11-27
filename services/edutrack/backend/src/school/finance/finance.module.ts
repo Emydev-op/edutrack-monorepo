@@ -4,6 +4,7 @@ import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { SectionAccessService } from '../shared/section-access.service.js';
 import { SetupStateService } from '../shared/setup-state.service.js';
 import { MemberPermissions } from '../students/member-permissions.js';
+import { BoardingFeesService } from '../boarding/boarding-fees.service.js';
 import { AccountsController } from './accounts.controller.js';
 import { AccountsService } from './accounts.service.js';
 import { ExpensesController } from './expenses.controller.js';
@@ -40,6 +41,7 @@ import { PaymentsService } from './payments.service.js';
   providers: [
     FinanceCore,
     FinanceNotifyService,
+    BoardingFeesService,
     FeesService,
     InvoicesService,
     PaymentsService,

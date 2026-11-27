@@ -17,6 +17,7 @@ import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 import { formatNaira } from '@edutrack/app-kit/lib/format';
 
 import { useToggleVendorMutation, useVendorQuery, useVendorsQuery } from '@/api/services/finance';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 
 import ExpenseDrawer from '../expenses/ExpenseDrawer.vue';
@@ -28,6 +29,7 @@ const id = computed(() => String(route.params.id));
 const { data: v, isPending, error } = useVendorQuery(id);
 const { data: list } = useVendorsQuery({});
 const toggle = useToggleVendorMutation();
+const can = useCan();
 const confirm = useConfirm();
 
 const editOpen = ref(false);
@@ -98,7 +100,7 @@ function doToggle() {
   <p v-else-if="isPending || !v" class="text-sm text-muted-foreground">Loading…</p>
   <template v-else>
     <PageHeader :title="v.name" :description="v.category" :status="v.status">
-      <template #actions>
+      <template v-if="can('finance.expenses')" #actions>
         <Button variant="outline" @click="doToggle">{{
           v.status === 'Active' ? 'Deactivate' : 'Reactivate'
         }}</Button>

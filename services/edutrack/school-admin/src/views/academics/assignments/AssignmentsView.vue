@@ -24,6 +24,7 @@ import {
   useDeleteAssignmentMutation,
 } from '@/api/services/academics';
 import SetupStepBar from '@/components/academics/SetupStepBar.vue';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import type { Assignment, AssignmentInput } from '@/types';
@@ -35,6 +36,7 @@ const confirm = useConfirm();
 const { data: view, isPending } = useAssignmentsQuery(() => context.current.branch);
 const copy = useCopyAssignmentsMutation();
 const remove = useDeleteAssignmentMutation();
+const can = useCan();
 
 const search = useRouteQuery<string>('q', '');
 const teacherFilter = useRouteQuery<string>('teacher', '');
@@ -219,7 +221,7 @@ const empty = computed(() => {
     title="Teacher Assignments"
     :description="`Assignments · ${context.current.session} · ${context.current.term} · ${context.current.branch}`"
   >
-    <template #actions>
+    <template v-if="can('academics.configure')" #actions>
       <Button
         v-if="view?.canCopyPrevious"
         variant="outline"
@@ -255,7 +257,7 @@ const empty = computed(() => {
     />
 
     <EmptyState v-if="empty" :title="empty.title" :description="empty.text">
-      <Button as-child
+      <Button v-if="can('academics.configure')" as-child
         ><RouterLink :to="empty.to">{{ empty.cta }}</RouterLink></Button
       >
     </EmptyState>
@@ -267,7 +269,7 @@ const empty = computed(() => {
         title="Subjects without a teacher"
         :description="gapSummary"
       >
-        <template #action>
+        <template v-if="can('academics.configure')" #action>
           <Button
             variant="outline"
             size="sm"
@@ -284,7 +286,7 @@ const empty = computed(() => {
         :title="`${view.armsWithoutClassTeacher.length === 1 ? 'Class' : `${view.armsWithoutClassTeacher.length} classes`} without a class teacher`"
         :description="`${view.armsWithoutClassTeacher.map((a) => a.name).join(', ')} · report card comments and promotion proposals need a class teacher.`"
       >
-        <template #action>
+        <template v-if="can('academics.configure')" #action>
           <Button as-child variant="outline" size="sm"
             ><RouterLink
               :to="{
@@ -309,7 +311,7 @@ const empty = computed(() => {
           :rows="rows"
           :row-key="(a) => a.id"
           :row-label="(a) => `${a.teacher} · ${a.subjectName} · ${a.arm}`"
-          :actions="actions"
+          :actions="can('academics.configure') ? actions : undefined"
           :empty-text="
             view.assignments.length
               ? 'No assignments match your search.'

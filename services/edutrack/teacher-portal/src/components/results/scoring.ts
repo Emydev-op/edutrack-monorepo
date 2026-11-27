@@ -7,8 +7,8 @@
  * - **ABS** (absent): the row has no total, is left out of the class average and is flagged for a
  *   make-up.
  * - **EXM** (exempt): the component drops out and the other weights re-spread to 100%.
- * - Totals are rounded to one decimal place; grade bands are inclusive of the decimals above
- *   their max (69.5 is still a B).
+ * - Totals round as the section's grading says (whole number, or one decimal place when the
+ *   sheet doesn't say); grade bands are inclusive of the decimals above their max (69.5 is a B).
  */
 import type { ScoreValue, SheetComponent, SheetGradeBand, SheetStats } from '@/types';
 
@@ -56,11 +56,23 @@ export function isValidScore(v: unknown, max: number): v is ScoreValue {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
+/** The section's rounding of totals (School Admin › Grading). */
+export type Rounding = 'WHOLE_NUMBER' | 'ONE_DECIMAL';
+const roundFor = (rounding: Rounding, n: number) =>
+  rounding === 'WHOLE_NUMBER' ? Math.round(n) : round1(n);
+/** A total as it shows: "77" (whole numbers) or "77.2". */
+export const formatTotal = (t: number, rounding: Rounding = 'ONE_DECIMAL') =>
+  rounding === 'WHOLE_NUMBER' ? String(t) : t.toFixed(1);
+
 /**
  * The weighted total out of 100, or null when any component is missing or absent (or every
  * component is exempt). Exempt components drop out and the rest re-weight.
  */
-export function totalOf(components: SheetComponent[], values: ScoreValue[]): number | null {
+export function totalOf(
+  components: SheetComponent[],
+  values: ScoreValue[],
+  rounding: Rounding = 'ONE_DECIMAL',
+): number | null {
   let total = 0;
   let counted = 0;
   for (const [i, c] of components.entries()) {
@@ -70,7 +82,7 @@ export function totalOf(components: SheetComponent[], values: ScoreValue[]): num
     total += (v / c.max) * c.weight;
     counted += c.weight;
   }
-  return counted ? round1((total / counted) * 100) : null;
+  return counted ? roundFor(rounding, (total / counted) * 100) : null;
 }
 
 export const gradeOf = (scale: SheetGradeBand[], total: number) =>
@@ -104,8 +116,9 @@ export function scoreRow(
   components: SheetComponent[],
   scale: SheetGradeBand[],
   scores: ScoreValue[],
+  rounding: Rounding = 'ONE_DECIMAL',
 ): ScoredRow {
-  const total = totalOf(components, scores);
+  const total = totalOf(components, scores, rounding);
   const band = total === null ? null : gradeOf(scale, total);
   return {
     scores,
@@ -122,14 +135,17 @@ export function statsOf(
   scale: SheetGradeBand[],
   rows: { scores: ScoreValue[] }[],
   passMark: number,
+  rounding: Rounding = 'ONE_DECIMAL',
 ): SheetStats {
-  const scored = rows.map((r) => scoreRow(components, scale, r.scores));
+  const scored = rows.map((r) => scoreRow(components, scale, r.scores, rounding));
   const totals = scored.map((r) => r.total).filter((x): x is number => x !== null);
   const missing = rows.filter((r) =>
     components.some((_, i) => r.scores[i] === null || r.scores[i] === undefined),
   ).length;
   return {
-    average: totals.length ? round1(totals.reduce((a, b) => a + b, 0) / totals.length) : null,
+    average: totals.length
+      ? roundFor(rounding, totals.reduce((a, b) => a + b, 0) / totals.length)
+      : null,
     highest: totals.length ? Math.max(...totals) : null,
     lowest: totals.length ? Math.min(...totals) : null,
     passed: totals.filter((t) => t >= passMark).length,

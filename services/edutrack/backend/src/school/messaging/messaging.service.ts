@@ -181,7 +181,11 @@ export class MessagingService {
     const armIds = [...new Set(enrolments.map((e) => e.armId!))];
     const [assignments, classTeachers, choices] = await Promise.all([
       this.db.teachingAssignment.findMany({
-        where: { termId: term.id, armId: { in: armIds }, staff: { status: 'ACTIVE' } },
+        where: {
+          termId: term.id,
+          armId: { in: armIds },
+          staff: { status: 'ACTIVE', membership: { status: 'ACTIVE' } },
+        },
         select: {
           armId: true,
           subjectId: true,
@@ -196,7 +200,7 @@ export class MessagingService {
           armId: { in: armIds },
           startsOn: { lte: term.endsOn },
           OR: [{ endsOn: null }, { endsOn: { gte: this.clock.now() } }],
-          staff: { status: 'ACTIVE' },
+          staff: { status: 'ACTIVE', membership: { status: 'ACTIVE' } },
         },
         orderBy: { startsOn: 'desc' },
         select: {

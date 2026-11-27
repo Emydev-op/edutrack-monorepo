@@ -22,6 +22,7 @@ import { useUnsavedChanges } from '@edutrack/app-kit/composables/useUnsavedChang
 
 import { useCreateSessionMutation, useSessionsQuery } from '@/api/services/academics';
 import SetupStepBar from '@/components/academics/SetupStepBar.vue';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { CopyArea, SessionStructure } from '@/types';
 
@@ -45,6 +46,7 @@ const router = useRouter();
 const confirm = useConfirm();
 const { data, isPending } = useSessionsQuery();
 const create = useCreateSessionMutation();
+const can = useCan();
 const fromSetup = computed(() => route.query.from === 'setup');
 
 const first = computed(
@@ -395,7 +397,12 @@ function submit() {
             ></Button
           >
           <Button v-if="step < STEPS.length - 1" @click="next">Continue</Button>
-          <Button v-else :disabled="create.isPending.value" @click="submit">Create session</Button>
+          <Button
+            v-else-if="can('academics.configure')"
+            :disabled="create.isPending.value"
+            @click="submit"
+            >Create session</Button
+          >
         </div>
       </div>
     </SectionCard>

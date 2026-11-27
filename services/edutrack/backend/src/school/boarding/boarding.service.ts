@@ -1,5 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { RequestContext } from '../../common/context/request-context.js';
+import { requireScopedBranch, scopedBranchIds } from './boarding-actor.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import type { HostelGender, HostelStaffRole } from '../../generated/prisma/enums.js';
 import { isUuid } from '../../platform/shared/params.js';
@@ -352,7 +353,11 @@ export class BoardingService {
   async hostels(branchId?: string | null) {
     const [rows, names] = await Promise.all([
       this.db.hostel.findMany({
-        where: { archivedAt: null, ...(branchId && { branchId }) },
+        where: {
+          archivedAt: null,
+          ...(branchId && { branchId }),
+          ...(scopedBranchIds() && { AND: [{ branchId: { in: scopedBranchIds()! } }] }),
+        },
         orderBy: [{ branch: { name: 'asc' } }, { sortOrder: 'asc' }, { name: 'asc' }],
         include: this.hostelInclude,
       }),
@@ -373,6 +378,7 @@ export class BoardingService {
 
   async hostel(id: string) {
     const h = await this.findHostel(id);
+    requireScopedBranch(h.branchId);
     return this.view(h, await this.levelNames(), await this.use(h.rooms.map((r) => r.id)));
   }
 

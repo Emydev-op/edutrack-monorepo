@@ -19,6 +19,7 @@ import {
   useStartFeesMutation,
 } from '@/api/services/finance';
 import SetupStepBar from '@/components/academics/SetupStepBar.vue';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 
 import BillingSettingsTab from './BillingSettingsTab.vue';
@@ -42,6 +43,7 @@ const { data, isPending, isError, refetch } = useFeesQuery({});
 const { data: options } = useFinanceOptionsQuery();
 const { data: accounts } = useAccountsQuery();
 const start = useStartFeesMutation();
+const can = useCan();
 
 const tab = computed<Tab>(() => {
   const t = route.query.tab;
@@ -122,7 +124,7 @@ function begin(mode: 'suggested' | 'tuition') {
             >Invoices</RouterLink
           ></Button
         >
-        <Button as-child
+        <Button v-if="can('finance.invoice')" as-child
           ><RouterLink :to="{ name: routesPath.finance.feeStructure.name }"
             >Edit amounts</RouterLink
           ></Button
@@ -202,7 +204,7 @@ function begin(mode: 'suggested' | 'tuition') {
             <span class="text-muted-foreground">{{ s.type }} · {{ s.charged }}</span>
           </li>
         </ul>
-        <div class="mt-4 flex flex-wrap gap-2">
+        <div v-if="can('finance.invoice')" class="mt-4 flex flex-wrap gap-2">
           <Button
             :disabled="!!data.prerequisites.length || start.isPending.value"
             @click="begin('suggested')"

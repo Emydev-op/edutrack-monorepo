@@ -9,11 +9,13 @@ import EmptyState from '@edutrack/app-kit/components/common/EmptyState.vue';
 import KeyValueCard from '@edutrack/app-kit/components/common/KeyValueCard.vue';
 
 import { useInviteStaffMutation } from '@/api/services/staff';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { StaffDetail } from '@/types';
 
 const props = defineProps<{ staff: StaffDetail }>();
 const invite = useInviteStaffMutation();
+const can = useCan();
 const u = computed(() => props.staff.user);
 const active = computed(() => props.staff.status === 'Active');
 
@@ -50,7 +52,7 @@ async function sendInvite() {
         },
       ]"
     >
-      <template v-if="u.status === 'Invited' && active" #action>
+      <template v-if="u.status === 'Invited' && active && can('settings.users')" #action>
         <Button variant="outline" size="sm" :disabled="invite.isPending.value" @click="sendInvite"
           >Resend</Button
         >
@@ -71,7 +73,7 @@ async function sendInvite() {
       ]"
       footer="Position is the job title. Roles decide what they can do in Edutrack."
     >
-      <template #action>
+      <template v-if="can('settings.users')" #action>
         <RouterLink
           :to="{ name: routesPath.school.user.name, params: { id: u.id } }"
           class="text-[13px] text-primary hover:underline"
@@ -90,14 +92,16 @@ async function sendInvite() {
         : `Add an email for ${staff.name} before inviting them. Drivers, cleaners and security don’t need an account.`
     "
   >
-    <Button v-if="!active" disabled>Reactivate to invite</Button>
-    <Button v-else-if="staff.email" :disabled="invite.isPending.value" @click="sendInvite"
-      >Invite to Edutrack</Button
-    >
-    <Button v-else as-child variant="outline"
-      ><RouterLink :to="{ name: routesPath.staff.edit.name, params: { id: staff.id } }"
-        >Add an email</RouterLink
-      ></Button
-    >
+    <template v-if="can('settings.users')">
+      <Button v-if="!active" disabled>Reactivate to invite</Button>
+      <Button v-else-if="staff.email" :disabled="invite.isPending.value" @click="sendInvite"
+        >Invite to Edutrack</Button
+      >
+      <Button v-else as-child variant="outline"
+        ><RouterLink :to="{ name: routesPath.staff.edit.name, params: { id: staff.id } }"
+          >Add an email</RouterLink
+        ></Button
+      >
+    </template>
   </EmptyState>
 </template>

@@ -19,6 +19,7 @@ import {
   useHostelOccupancyQuery,
   useUnplaceMutation,
 } from '@/api/services/boarding';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { Hostel, OccupancyRoom, RoomOccupant } from '@/types';
 
@@ -31,6 +32,7 @@ import PlaceBoarderDialog, { type PlaceTarget } from './PlaceBoarderDialog.vue';
 const props = defineProps<{ hostel: Hostel }>();
 
 const confirm = useConfirm();
+const can = useCan();
 const { data, isPending, isError, error, refetch } = useHostelOccupancyQuery(() => props.hostel.id);
 const autoAllocate = useAutoAllocateMutation();
 const unplace = useUnplaceMutation();
@@ -111,13 +113,17 @@ const occupantActions = (r: OccupancyRoom, o: RoomOccupant): RowAction[] => [
     label: 'View student',
     to: { name: routesPath.students.boarding.name, params: { id: o.studentId } },
   },
-  { label: 'Move', icon: ArrowRightLeftIcon, onSelect: () => move(r, o) },
-  {
-    label: 'Take out of room',
-    icon: LogOutIcon,
-    destructive: true,
-    onSelect: () => takeOut(r, o),
-  },
+  ...(can('boarding.manage')
+    ? [
+        { label: 'Move', icon: ArrowRightLeftIcon, onSelect: () => move(r, o) },
+        {
+          label: 'Take out of room',
+          icon: LogOutIcon,
+          destructive: true,
+          onSelect: () => takeOut(r, o),
+        },
+      ]
+    : []),
 ];
 
 function runAutoAllocate() {
@@ -182,6 +188,7 @@ function runAutoAllocate() {
           ></Button
         >
         <Button
+          v-if="can('boarding.manage')"
           size="sm"
           :disabled="!data.totals.free || autoAllocate.isPending.value"
           @click="runAutoAllocate"

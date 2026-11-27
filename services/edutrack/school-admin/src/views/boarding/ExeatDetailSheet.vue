@@ -7,6 +7,7 @@ import { RouterLink } from 'vue-router';
 import SideDrawer from '@edutrack/app-kit/components/overlays/SideDrawer.vue';
 
 import { useExeatQuery } from '@/api/services/boarding-house';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { Exeat } from '@/types';
 
@@ -20,6 +21,7 @@ const open = defineModel<boolean>('open', { required: true });
 const { data: fresh } = useExeatQuery(() => (open.value ? (props.exeat?.id ?? '') : ''));
 const e = computed(() => (fresh.value?.id === props.exeat?.id ? fresh.value : props.exeat));
 const actions = useExeatActions();
+const can = useCan();
 
 const badge = computed(() => (e.value ? exeatBadge(e.value) : null));
 const rows = computed<[string, string][]>(() => {
@@ -106,7 +108,14 @@ const history = computed<[string, string][]>(() => {
       </Button>
     </template>
 
-    <template v-if="e && ['Requested', 'Approved', 'Out'].includes(e.status)" #footer>
+    <template
+      v-if="
+        e &&
+        ((['Requested', 'Approved'].includes(e.status) && can('boarding.exeats')) ||
+          (e.status === 'Out' && can('boarding.gate')))
+      "
+      #footer
+    >
       <template v-if="e.status === 'Requested'">
         <Button variant="ghost" class="text-destructive" @click="actions.cancel(e)">Cancel</Button>
         <Button variant="outline" @click="actions.decline(e)">Decline</Button>

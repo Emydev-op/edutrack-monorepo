@@ -73,7 +73,7 @@ const r = routesPath;
       <div class="flex flex-col">
         <dt class="text-xs text-faint">Average</dt>
         <dd class="font-semibold tabular-nums">
-          {{ res.sheet.average === null ? '—' : res.sheet.average.toFixed(1) }}
+          {{ res.sheet.average === null ? '—' : res.sheet.average }}
         </dd>
       </div>
       <div class="flex min-w-0 flex-col">

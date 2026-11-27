@@ -155,6 +155,83 @@ describe('Boarding fees, parents and house staff (e2e)', () => {
     await dayOfTerm(30);
   });
 
+  it('gives mid-term boarding fees two weeks to be paid, not the invoice’s old due date', async () => {
+    await t.prisma.invoiceLine.deleteMany({ where: { feeItemId: itemId } });
+    await admin.put(`${B}/students/${emmanuel}`).send({ boarding: false });
+    const term = await t.prisma.term.findFirstOrThrow({ where: { schoolId, status: 'ACTIVE' } });
+    const inv = await t.prisma.invoice.findFirst({
+      where: {
+        studentId: emmanuel,
+        termId: term.id,
+        kind: 'TERM_FEES',
+        status: { notIn: ['DRAFT', 'CANCELLED'] },
+      },
+    });
+    if (!inv) return;
+    const now = new Date(t.clock.now());
+    const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    // Due in three days (not overdue yet): the new charge gets two weeks instead.
+    await t.prisma.invoice.update({
+      where: { id: inv.id },
+      data: { dueOn: new Date(today + 3 * DAY), paymentPlanId: null },
+    });
+    const on = await admin.put(`${B}/students/${emmanuel}`).send({ boarding: true });
+    expect(on.body.data.fees.change).toBe('added');
+    expect(on.body.data.fees.note).toMatch(/Now due/);
+    const after = await t.prisma.invoice.findUniqueOrThrow({ where: { id: inv.id } });
+    expect(after.dueOn.getTime()).toBe(today + 14 * DAY);
+    await admin.put(`${B}/students/${emmanuel}`).send({ boarding: false });
+    await t.prisma.invoiceLine.deleteMany({ where: { feeItemId: itemId } });
+  });
+
+  it('bills boarders who joined before their class had a boarding amount, once one is set', async () => {
+    const term = await t.prisma.term.findFirstOrThrow({ where: { schoolId, status: 'ACTIVE' } });
+    const e = await t.prisma.enrollment.findFirstOrThrow({
+      where: { studentId: emmanuel, sessionId: term.sessionId },
+      include: { level: true },
+    });
+    const structure = await t.prisma.feeStructure.findFirst({
+      where: { termId: term.id, branchId: e.branchId, status: 'PUBLISHED' },
+    });
+    const inv = await t.prisma.invoice.findFirst({
+      where: {
+        studentId: emmanuel,
+        termId: term.id,
+        kind: 'TERM_FEES',
+        status: { not: 'CANCELLED' },
+      },
+    });
+    if (!structure || !inv) return;
+    // No amount yet: becoming a boarder adds nothing.
+    await t.prisma.feeStructureAmount.deleteMany({ where: { feeItemId: itemId } });
+    const on = await admin.put(`${B}/students/${emmanuel}`).send({ boarding: true });
+    expect(on.body.data.fees.change).toBe('none');
+    expect(await boardingLines()).toHaveLength(0);
+    // Finance sets the amount on the published fees: his invoice picks it up.
+    const bursar = authed(t, (await signIn(t, 'kunle.bakare@greenfield.edu.ng')).token);
+    const view = (
+      await bursar.get(`/api/v1/finance/fees/structure?term=${term.id}&branch=${e.branchId}`)
+    ).body.data as {
+      sections: { levels: { name: string; amounts: Record<string, number | null> }[] }[];
+    };
+    const amounts = Object.fromEntries(
+      view.sections
+        .flatMap((x) => x.levels)
+        .map((l) => [
+          l.name,
+          { ...l.amounts, ...(l.name === e.level.name && { [itemId]: 250_000 }) },
+        ]),
+    );
+    const saved = await bursar
+      .put('/api/v1/finance/fees/structure')
+      .send({ termId: term.id, branchId: e.branchId, amounts });
+    expect(saved.status).toBe(200);
+    const lines = await boardingLines();
+    expect(lines).toHaveLength(1);
+    expect(lines[0]!.amountKobo).toBe(25_000_000n);
+    await admin.put(`${B}/students/${emmanuel}`).send({ boarding: false });
+  });
+
   it('shows the parent the boarding place and house master, who they can message', async () => {
     await admin.put(`${B}/students/${emmanuel}`).send({ boarding: true });
     const hostel = (await admin.get(`${B}/hostels`)).body.data.hostels.find(
@@ -182,7 +259,8 @@ describe('Boarding fees, parents and house staff (e2e)', () => {
     const contacts = (await funke.get('/api/v1/parent/messages/contacts')).body.data;
     const mine = contacts.children.find((c: { studentId: string }) => c.studentId === emmanuel);
     const okafor = mine.teachers.find((x: { staffId: string }) => x.staffId === okaforStaffId);
-    expect(okafor.roles).toContain('House master / mistress');
+    // "House master" or "House mistress" by the staff member's gender.
+    expect(okafor.roles.some((r: string) => /^House (master|mistress)/.test(r))).toBe(true);
   });
 
   it('shows the house master their boarders with parent contacts', async () => {

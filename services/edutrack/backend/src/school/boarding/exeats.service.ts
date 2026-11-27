@@ -14,7 +14,12 @@ import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { asTx } from '../shared/tenant-tx.js';
 import { toE164 } from '../staff/staff-view.js';
 import { ON_ROLL } from '../students/student-view.js';
-import { boardingActor, requireBoarding, type BoardingActor } from './boarding-actor.js';
+import {
+  boardingActor,
+  inActorBranches,
+  requireBoarding,
+  type BoardingActor,
+} from './boarding-actor.js';
 import { BoardingAlertsService } from './boarding-alerts.service.js';
 import { boardingSession } from './boarding-use.js';
 
@@ -163,6 +168,9 @@ export class ExeatsService {
   /** Staff see their own hostels' boarders; the Head of boarding sees everyone. */
   private inScope(actor: BoardingActor, place: Place | undefined) {
     if (actor.allHostels) return true;
+    // A branch-scoped admin also sees their branches' boarders who have no bed yet.
+    if (actor.branchIds && place && !place.hostelId)
+      return actor.branchIds.includes(place.branchId);
     return !!place?.hostelId && actor.hostelIds.has(place.hostelId);
   }
 
@@ -313,6 +321,7 @@ export class ExeatsService {
     requireBoarding(actor, 'view');
     const e = await this.find(id);
     const place = (await this.places([e.studentId])).get(e.studentId);
+    if (actor.branchIds && place && !actor.branchIds.includes(place.branchId)) throw notFound();
     if (!this.inScope(actor, place) && !actor.can('gate')) throw notFound();
     return this.one(id);
   }
@@ -702,7 +711,9 @@ export class ExeatsService {
     requireBoarding(actor, 'gate', 'Only gate staff can use the gate.');
     const now = this.clock.now();
     const endOfToday = new Date(now.getTime() + 24 * 3_600_000);
-    const where = branchId ? { branchId } : {};
+    const where = { ...inActorBranches(actor), ...(branchId && { branchId }) };
+    if (branchId && actor.branchIds && !actor.branchIds.includes(branchId))
+      throw AppException.forbidden('That campus isn’t one of yours.', 'BRANCH_SCOPE');
     const [leaving, out, visitors] = await Promise.all([
       this.db.exeat.findMany({
         where: { ...where, status: 'APPROVED', leaveAt: { lte: endOfToday } },

@@ -25,6 +25,7 @@ import {
   usePublishResultsMutation,
   useResultsQuery,
 } from '@/api/services/academics';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import type { ClassDetail, ResultsMatrix, SheetStatus } from '@/types';
@@ -63,6 +64,7 @@ const { data, isPending } = useResultsQuery(() => ({
 }));
 const { data: corrections } = useCorrectionsQuery();
 const publish = usePublishResultsMutation();
+const can = useCan();
 const justPublished = ref('');
 
 const pendingCorrections = computed(
@@ -222,7 +224,7 @@ async function startPublish(row: Row) {
       :title="`${data.section} has no assessment scheme`"
       description="Scores can't be weighted or graded until the scheme is set."
     >
-      <template #action>
+      <template v-if="can('academics.configure')" #action>
         <Button as-child variant="outline" size="sm"
           ><RouterLink :to="{ name: routesPath.academics.assessments.name }"
             >Set up the scheme</RouterLink
@@ -317,7 +319,12 @@ async function startPublish(row: Row) {
                 Report cards
               </button>
             </template>
-            <Button v-else-if="row.ready" size="sm" @click="startPublish(row)">Publish</Button>
+            <Button
+              v-else-if="row.ready && can('results.publish')"
+              size="sm"
+              @click="startPublish(row)"
+              >Publish</Button
+            >
             <span v-else class="text-muted-foreground"
               >{{ approved(row) }} of {{ offered(row).length }} approved</span
             >

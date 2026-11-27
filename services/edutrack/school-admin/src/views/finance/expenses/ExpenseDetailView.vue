@@ -28,6 +28,7 @@ import {
   useRejectExpenseMutation,
   useSubmitExpenseMutation,
 } from '@/api/services/finance';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 
 import { fmtDay, todayIso } from '../finance-tones';
@@ -42,6 +43,7 @@ const submit = useSubmitExpenseMutation();
 const approve = useApproveExpenseMutation();
 const reject = useRejectExpenseMutation();
 const pay = usePayExpenseMutation();
+const can = useCan();
 
 const editOpen = ref(false);
 const payOpen = ref(false);
@@ -166,20 +168,25 @@ async function doPay() {
       :status="e.status"
     >
       <template #actions>
-        <template v-if="e.status === 'Draft'">
+        <template v-if="e.status === 'Draft' && can('finance.expenses')">
           <Button variant="outline" @click="editOpen = true">Edit</Button>
           <Button :disabled="submit.isPending.value" @click="doSubmit">Submit for approval</Button>
         </template>
-        <Button v-else-if="e.status === 'Rejected'" @click="editOpen = true"
+        <Button
+          v-else-if="e.status === 'Rejected' && can('finance.expenses')"
+          @click="editOpen = true"
           >Edit and resubmit</Button
         >
         <template v-else-if="e.status === 'Submitted'">
           <Button variant="outline" @click="doReject">Reject</Button>
-          <Button @click="doApprove">Approve as {{ e.waitingOn }}</Button>
+          <!-- The Bursar's approval needs finance.expenses; the Principal's goes by role. -->
+          <Button v-if="e.waitingOn !== 'Bursar' || can('finance.expenses')" @click="doApprove"
+            >Approve as {{ e.waitingOn }}</Button
+          >
         </template>
         <template v-else-if="e.status === 'Approved'">
           <Button variant="outline" @click="doReject">Reject</Button>
-          <Button @click="openPay">Mark as paid</Button>
+          <Button v-if="can('finance.expenses')" @click="openPay">Mark as paid</Button>
         </template>
       </template>
     </PageHeader>

@@ -5,10 +5,12 @@ import { RouterLink } from 'vue-router';
 
 import DataTable, { type Column } from '@edutrack/app-kit/components/common/DataTable.vue';
 
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { ClassDetail } from '@/types';
 
 const props = defineProps<{ detail: ClassDetail }>();
+const can = useCan();
 const periods = computed(() => props.detail.subjects.reduce((n, s) => n + s.periods, 0));
 const columns: Column[] = [
   { key: 'name', label: 'Subject', width: 'minmax(200px,1.5fr)' },
@@ -43,11 +45,12 @@ const columns: Column[] = [
     <template #cell-teacher="{ row }">
       <span v-if="row.teacher">{{ row.teacher }}</span>
       <RouterLink
-        v-else
+        v-else-if="can('academics.configure')"
         :to="{ name: routesPath.academics.assignments.name }"
         class="text-error-strong underline-offset-2 hover:underline"
         >Unassigned · assign</RouterLink
       >
+      <span v-else class="text-error-strong">Unassigned</span>
     </template>
   </DataTable>
 </template>

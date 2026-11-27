@@ -13,6 +13,7 @@ import { initials } from '@edutrack/app-kit/lib/format';
 
 import { useBoardingSettingsQuery } from '@/api/services/boarding';
 import { useStudentPhotoMutation, useStudentQuery } from '@/api/services/students';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import { useLayoutStore } from '@/stores/layout';
@@ -54,6 +55,7 @@ async function onPhotoPicked(event: Event) {
 watch(student, (s) => layout.setRecordLabel(s?.name ?? null), { immediate: true });
 
 const s = routesPath.students;
+const can = useCan();
 // Boarding shows once the school has switched it on in Boarding set-up.
 const { data: boarding } = useBoardingSettingsQuery();
 const tabs = computed(() =>
@@ -109,7 +111,7 @@ const enrolled = computed(
       ]"
     >
       <template #actions>
-        <template v-if="enrolled">
+        <template v-if="enrolled && can('students.edit')">
           <input
             ref="photoInput"
             type="file"
@@ -131,17 +133,20 @@ const enrolled = computed(
             >Remove photo</Button
           >
         </template>
-        <Button as-child variant="outline"
+        <Button v-if="can('comms.class')" as-child variant="outline"
           ><RouterLink :to="{ name: routesPath.communication.announcements.name }"
             >Message guardian</RouterLink
           ></Button
         >
-        <Button v-if="enrolled" as-child variant="outline"
+        <Button
+          v-if="enrolled && can('students.edit') && can('students.archive')"
+          as-child
+          variant="outline"
           ><RouterLink :to="{ name: s.transfer.name, params: { id: student.id } }"
             >Transfer / withdraw</RouterLink
           ></Button
         >
-        <Button as-child
+        <Button v-if="can('finance.payment')" as-child
           ><RouterLink :to="{ name: routesPath.finance.payments.name }"
             >Record payment</RouterLink
           ></Button

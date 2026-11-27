@@ -25,6 +25,7 @@ import {
   useWithdrawGuardianInviteMutation,
 } from '@/api/services/portal-accounts';
 import { useGuardiansQuery, useMergeGuardiansMutation } from '@/api/services/students';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { GuardianDuplicate, GuardianRow } from '@/types';
 
@@ -35,6 +36,7 @@ import { tone } from './student-tones';
 const route = useRoute();
 const router = useRouter();
 const confirm = useConfirm();
+const can = useCan();
 const merge = useMergeGuardiansMutation();
 const inviteOne = useInviteGuardianMutation();
 const inviteMany = useInviteGuardiansMutation();
@@ -103,7 +105,7 @@ const actions = (g: GuardianRow): RowAction[] => [
     icon: EyeIcon,
     to: { name: routesPath.students.parent.name, params: { id: g.id } },
   },
-  ...(g.portal === 'Active'
+  ...(g.portal === 'Active' || !can('settings.users')
     ? []
     : [
         {
@@ -112,7 +114,7 @@ const actions = (g: GuardianRow): RowAction[] => [
           onSelect: () => void sendInvite(g),
         },
       ]),
-  ...(g.portal === 'Invited'
+  ...(g.portal === 'Invited' && can('settings.users')
     ? [{ label: 'Withdraw invitation', icon: MailXIcon, onSelect: () => withdrawInvite(g) }]
     : []),
 ];
@@ -159,8 +161,10 @@ const columns: Column[] = [
     "
   >
     <template #actions>
-      <Button variant="outline" @click="invitingAll = true">Invite guardians</Button>
-      <Button @click="adding = true">Add guardian</Button>
+      <Button v-if="can('settings.users')" variant="outline" @click="invitingAll = true"
+        >Invite guardians</Button
+      >
+      <Button v-if="can('students.edit')" @click="adding = true">Add guardian</Button>
     </template>
   </PageHeader>
 
@@ -171,7 +175,7 @@ const columns: Column[] = [
     title="Possible duplicate guardians"
     :description="`${d.reason} Merging keeps all children and payment history.`"
   >
-    <template #action
+    <template v-if="can('students.edit')" #action
       ><Button variant="outline" size="sm" @click="mergePair(d)">Review and merge</Button></template
     >
   </InlineNotice>
@@ -196,7 +200,7 @@ const columns: Column[] = [
     :row-key="(g) => g.id"
     :row-label="(g) => g.name"
     :actions="actions"
-    :selection="selection"
+    :selection="can('settings.users') ? selection : undefined"
     :loading="isPending"
     :meta="data?.meta"
     min-width="960px"

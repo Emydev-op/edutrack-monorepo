@@ -33,6 +33,7 @@ import {
   useSectionsQuery,
 } from '@/api/services/academics';
 import SetupStepBar from '@/components/academics/SetupStepBar.vue';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import type { ClassArm, ClassLevel } from '@/types';
@@ -51,6 +52,7 @@ const { data: sectionsView } = useSectionsQuery();
 const applyDefaults = useApplyDefaultLevelsMutation();
 const move = useMoveLevelMutation();
 const removeLevel = useDeleteLevelMutation();
+const can = useCan();
 
 const sectionsReady = computed(() => !!sectionsView.value?.confirmed);
 /** "All branches" (or a branch without classes) shows every branch. */
@@ -236,7 +238,9 @@ const columns = computed<Column[]>(() => [
 const armLink = (a: { id: string }) => ({ name: r.classDetail.name, params: { id: a.id } });
 const armActions = (a: ClassArm): RowAction[] => [
   { label: 'Open class', icon: UsersIcon, to: armLink(a) },
-  { label: 'Edit arm', icon: PencilIcon, onSelect: () => editArm(a) },
+  ...(can('academics.configure')
+    ? [{ label: 'Edit arm', icon: PencilIcon, onSelect: () => editArm(a) }]
+    : []),
 ];
 </script>
 
@@ -250,6 +254,7 @@ const armActions = (a: ClassArm): RowAction[] => [
         ><RouterLink :to="{ name: r.sections.name }">Academic sections</RouterLink></Button
       >
       <AddMenu
+        v-if="can('academics.configure')"
         label="Add class level"
         manual-label="Add a class level"
         bulk-title="Bulk upload classes and arms"
@@ -259,7 +264,13 @@ const armActions = (a: ClassArm): RowAction[] => [
       >
         <template #default="{ close }"><ImportClassesPanel @done="close" /></template>
       </AddMenu>
-      <Button variant="outline" :disabled="!levels.length" @click="pickLevelForArm">Add arm</Button>
+      <Button
+        v-if="can('academics.configure')"
+        variant="outline"
+        :disabled="!levels.length"
+        @click="pickLevelForArm"
+        >Add arm</Button
+      >
     </template>
   </PageHeader>
 
@@ -318,7 +329,7 @@ const armActions = (a: ClassArm): RowAction[] => [
           title="Your sections don’t match the standard ones"
           description="Defaults only cover Nursery, Primary, Junior and Senior Secondary. Start blank and add your own levels."
         />
-        <div class="flex justify-end gap-2">
+        <div v-if="can('academics.configure')" class="flex justify-end gap-2">
           <Button variant="outline" @click="addLevel()">Start blank</Button>
           <Button :disabled="applyDefaults.isPending.value" @click="useDefaults"
             >Use Nigerian defaults</Button
@@ -343,7 +354,7 @@ const armActions = (a: ClassArm): RowAction[] => [
         "
         :description="`${noTeacher.length > 1 ? `${noTeacher.map((a) => a.name).join(', ')}. ` : ''}Report card comments and promotion proposals need a class teacher.`"
       >
-        <template #action>
+        <template v-if="can('academics.configure')" #action>
           <Button variant="outline" size="sm" @click="editArm(noTeacher[0]!)">Assign</Button>
         </template>
       </InlineNotice>
@@ -394,10 +405,15 @@ const armActions = (a: ClassArm): RowAction[] => [
                   l.next ? `Promotes to ${l.next}` : 'Final class: students graduate after this'
                 }}</span>
               </div>
-              <RowActions :actions="levelActions(l)" :label="`${l.name} actions`" />
+              <RowActions
+                v-if="can('academics.configure')"
+                :actions="levelActions(l)"
+                :label="`${l.name} actions`"
+              />
             </li>
           </ul>
           <Button
+            v-if="can('academics.configure')"
             variant="ghost"
             size="sm"
             class="mt-2 self-start"

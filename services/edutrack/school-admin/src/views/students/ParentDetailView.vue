@@ -18,6 +18,7 @@ import {
   useWithdrawGuardianInviteMutation,
 } from '@/api/services/portal-accounts';
 import { useGuardianQuery } from '@/api/services/students';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useLayoutStore } from '@/stores/layout';
 
@@ -30,6 +31,7 @@ const { data: g, isPending, isError } = useGuardianQuery(id);
 watch(g, (x) => layout.setRecordLabel(x?.name ?? null), { immediate: true });
 
 const confirm = useConfirm();
+const can = useCan();
 const invite = useInviteGuardianMutation();
 const withdraw = useWithdrawGuardianInviteMutation();
 
@@ -80,17 +82,20 @@ function withdrawInvite() {
       :description="`Guardian of ${g.children.length} child${g.children.length === 1 ? '' : 'ren'}${g.portalSince ? ` · portal account since ${g.portalSince}` : ''}`"
     >
       <template #actions>
-        <Button v-if="g.portal === 'Invited'" variant="ghost" @click="withdrawInvite"
+        <Button
+          v-if="g.portal === 'Invited' && can('settings.users')"
+          variant="ghost"
+          @click="withdrawInvite"
           >Withdraw invitation</Button
         >
         <Button
-          v-if="g.portal !== 'Active'"
+          v-if="g.portal !== 'Active' && can('settings.users')"
           variant="outline"
           :disabled="invite.isPending.value"
           @click="sendInvite"
           >{{ g.portal === 'Invited' ? 'Resend invitation' : 'Invite to parent portal' }}</Button
         >
-        <Button as-child variant="outline"
+        <Button v-if="can('comms.class')" as-child variant="outline"
           ><RouterLink :to="{ name: routesPath.communication.announcements.name }"
             >Send message</RouterLink
           ></Button

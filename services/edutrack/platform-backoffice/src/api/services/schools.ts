@@ -33,6 +33,14 @@ function useInvalidateSchools() {
     ]);
 }
 
+/** Every school's id and name, A–Z (filters and pickers). */
+export const useSchoolNamesQuery = () =>
+  useQuery({
+    queryKey: [...queryKeys.schools.all, 'names'] as const,
+    queryFn: () => getRequest<{ id: string; name: string }[]>('/v1/platform/schools/names'),
+    staleTime: 60_000,
+  });
+
 export function useSchoolsQuery(params: MaybeRefOrGetter<SchoolQuery>) {
   return useQuery({
     queryKey: computed(() => queryKeys.schools.list(cleanParams(toValue(params)))),
@@ -48,6 +56,7 @@ export function useSchoolQuery(id: MaybeRefOrGetter<string>) {
   return useQuery({
     queryKey: computed(() => queryKeys.schools.detail(toValue(id))),
     queryFn: () => getRequest<School>(`/v1/platform/schools/${toValue(id)}`),
+    enabled: computed(() => !!toValue(id)),
   });
 }
 

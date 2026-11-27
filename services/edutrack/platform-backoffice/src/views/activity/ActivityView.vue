@@ -6,7 +6,7 @@ import { computed, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 
 import { useActivityQuery, useAuditActorsQuery } from '@/api/services/activity';
-import { useSchoolsQuery } from '@/api/services/schools';
+import { useSchoolNamesQuery } from '@/api/services/schools';
 import DataTable, { type Column } from '@edutrack/app-kit/components/common/DataTable.vue';
 import DateRangeFilter, {
   type DateRangeValue,
@@ -30,7 +30,8 @@ const schoolName = ref('');
 const date = ref<DateRangeValue>({});
 watch([debouncedSearch, actor, entity, schoolName, date], () => (page.value = '1'));
 
-const { data: schools } = useSchoolsQuery({ pageSize: 100 });
+const { data: schoolList } = useSchoolNamesQuery();
+const schools = computed(() => ({ data: schoolList.value ?? [] }));
 const schoolNames = computed(() => (schools.value?.data ?? []).map((s) => s.name));
 const { data: actors } = useAuditActorsQuery();
 const { data, isPending } = useActivityQuery(() => ({

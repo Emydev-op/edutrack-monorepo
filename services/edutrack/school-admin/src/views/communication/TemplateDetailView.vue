@@ -23,6 +23,7 @@ import {
   useTemplateQuery,
 } from '@/api/services/communication';
 import { smsLength, smsSafe } from '@/lib/sms';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { Channel, ChannelTemplate, TemplateDetail } from '@/types';
 
@@ -30,6 +31,7 @@ import { fmtStamp } from './comms-tones';
 
 const route = useRoute();
 const confirm = useConfirm();
+const can = useCan();
 const event = computed(() => String(route.params.id));
 const { data: t, isPending, error } = useTemplateQuery(event);
 const save = useSaveTemplateMutation();
@@ -144,7 +146,7 @@ function discard() {
       :title="`${t.label} template`"
       :description="`${t.description}${t.customised ? ` · edited by ${t.updatedBy}, ${fmtStamp(t.updatedAt)}` : ' · default wording'}`"
     >
-      <template #actions>
+      <template v-if="can('comms.school')" #actions>
         <Button
           v-if="t.customised"
           variant="outline"

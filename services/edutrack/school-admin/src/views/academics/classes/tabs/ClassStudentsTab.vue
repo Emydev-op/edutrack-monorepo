@@ -9,11 +9,13 @@ import EmptyState from '@edutrack/app-kit/components/common/EmptyState.vue';
 import SearchInput from '@edutrack/app-kit/components/common/SearchInput.vue';
 import { formatNaira } from '@edutrack/app-kit/lib/format';
 
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { ClassDetail } from '@/types';
 
 const props = defineProps<{ detail: ClassDetail }>();
 const search = ref('');
+const can = useCan();
 const rows = computed(() => {
   const q = search.value.trim().toLowerCase();
   return props.detail.students.filter(
@@ -39,7 +41,7 @@ const columns: Column[] = [
         : 'Place admitted students in this arm from Enrollment.'
     "
   >
-    <Button as-child variant="outline"
+    <Button v-if="can('students.edit')" as-child variant="outline"
       ><RouterLink :to="{ name: routesPath.students.enrollment.name }"
         >Go to Enrollment</RouterLink
       ></Button

@@ -3,6 +3,7 @@ import { Button } from '@edutrack/ui/components/button';
 import { Copy, Send } from '@lucide/vue';
 import { toast } from 'vue-sonner';
 
+import { useCan } from '@/composables/useCan';
 import type { PayToDetails } from '@/types';
 
 /**
@@ -17,6 +18,7 @@ const props = defineProps<{
   sending?: boolean;
 }>();
 const emit = defineEmits<{ send: [] }>();
+const can = useCan();
 
 async function copy(text: string, what: string) {
   try {
@@ -72,7 +74,7 @@ async function copy(text: string, what: string) {
         <Copy class="size-3.5" /> Copy message
       </Button>
       <Button
-        v-if="props.payer"
+        v-if="props.payer && can('finance.invoice')"
         variant="outline"
         size="sm"
         :disabled="props.sending"

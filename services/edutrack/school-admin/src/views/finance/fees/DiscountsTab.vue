@@ -9,12 +9,14 @@ import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 import { formatNaira } from '@edutrack/app-kit/lib/format';
 
 import { useDiscountsQuery } from '@/api/services/finance';
+import { useCan } from '@/composables/useCan';
 import type { Discount } from '@/types';
 
 import { financeTone } from '../finance-tones';
 import DiscountDrawer, { type DiscountPreset } from './DiscountDrawer.vue';
 
 const { data, isPending, isError } = useDiscountsQuery();
+const can = useCan();
 const rows = computed(() => data.value ?? []);
 const hasSibling = computed(() =>
   rows.value.some((d) => d.basis === 'Sibling' && d.status === 'Active'),
@@ -91,11 +93,17 @@ const valueOf = (d: Discount) => (d.kind === 'Percentage' ? `${d.value}%` : form
       :loading="isPending"
       :row-key="(d) => d.id"
       :row-label="(d) => d.name"
-      :actions="(d) => [{ label: 'Edit', onSelect: () => edit(d) }]"
+      :actions="
+        can('finance.invoice') ? (d) => [{ label: 'Edit', onSelect: () => edit(d) }] : undefined
+      "
       min-width="820px"
-      empty-text="No discounts. Add a sibling rule, staff-child discount or scholarship."
+      :empty-text="
+        can('finance.invoice')
+          ? 'No discounts. Add a sibling rule, staff-child discount or scholarship.'
+          : 'No discounts.'
+      "
     >
-      <template #toolbar>
+      <template v-if="can('finance.invoice')" #toolbar>
         <template v-for="[label, p] in PRESETS" :key="label">
           <Button
             v-if="p.basis !== 'Sibling' || !hasSibling"

@@ -12,7 +12,7 @@ import MetricCard from '@edutrack/app-kit/components/common/MetricCard.vue';
 import MetricGrid from '@edutrack/app-kit/components/common/MetricGrid.vue';
 import PageHeader from '@edutrack/app-kit/components/common/PageHeader.vue';
 import SectionCard from '@edutrack/app-kit/components/common/SectionCard.vue';
-import { formatCount, formatNairaMillions } from '@edutrack/app-kit/lib/format';
+import { formatCount, formatNaira, formatNairaMillions } from '@edutrack/app-kit/lib/format';
 
 import { useDashboardFinanceQuery, useDashboardQuery } from '@/api/services/dashboard';
 import { useSetupQuery } from '@/api/services/setup';
@@ -67,12 +67,20 @@ const progress = computed(() => {
   return { percent: Math.round((done / s.steps.length) * 100), left };
 });
 
+/** ₦28.4M, ₦450K or ₦8,000: small weeks don't round down to "₦0.0M". */
+const compactNaira = (n: number) =>
+  n >= 1_000_000
+    ? formatNairaMillions(n / 1_000_000)
+    : n >= 10_000
+      ? `₦${Math.round(n / 1_000)}K`
+      : formatNaira(n);
+
 const weekly = computed(() => {
   const weeks = finance.data.value?.weekly ?? [];
   return weeks.map((w, i) => ({
     label: w.label,
     value: w.value,
-    display: formatNairaMillions(w.value / 1_000_000),
+    display: compactNaira(w.value),
     // The current week is still in progress, so it's drawn in amber.
     color: i === weeks.length - 1 ? 'var(--highlight)' : undefined,
   }));

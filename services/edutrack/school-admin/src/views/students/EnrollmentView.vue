@@ -16,10 +16,12 @@ import SectionCard from '@edutrack/app-kit/components/common/SectionCard.vue';
 import FieldShell from '@edutrack/app-kit/components/form/FieldShell.vue';
 
 import { useEnrollmentOptionsQuery, useEnrollMutation } from '@/api/services/students';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 
 const { data, isPending } = useEnrollmentOptionsQuery();
 const enroll = useEnrollMutation();
+const can = useCan();
 
 const section = ref('');
 const level = ref('');
@@ -106,7 +108,7 @@ const select = 'h-9 rounded-md border bg-card px-2.5 text-sm';
     title="Everyone admitted is enrolled"
     :description="`No admitted students are waiting for a class arm in ${data.session}. New admissions appear here until they’re placed.`"
   >
-    <Button as-child variant="outline"
+    <Button v-if="can('students.create')" as-child variant="outline"
       ><RouterLink :to="{ name: routesPath.students.admit.name }"
         >Admit a student</RouterLink
       ></Button
@@ -201,7 +203,7 @@ const select = 'h-9 rounded-md border bg-card px-2.5 text-sm';
       />
     </section>
 
-    <div class="flex justify-end gap-2 lg:col-span-2">
+    <div v-if="can('students.edit')" class="flex justify-end gap-2 lg:col-span-2">
       <template v-if="reviewing">
         <Button variant="outline" @click="reviewing = false">Back</Button>
         <Button :disabled="over || !picked.size || enroll.isPending.value" @click="confirm">

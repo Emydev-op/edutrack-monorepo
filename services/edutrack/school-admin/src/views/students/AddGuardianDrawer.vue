@@ -4,6 +4,7 @@ import { Checkbox } from '@edutrack/ui/components/checkbox';
 import { Input } from '@edutrack/ui/components/input';
 import { Spinner } from '@edutrack/ui/components/spinner';
 import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
+import { refDebounced } from '@vueuse/core';
 import { computed, reactive, ref, watch } from 'vue';
 import { toast } from 'vue-sonner';
 
@@ -15,7 +16,15 @@ import { useAddGuardianMutation, useStudentsQuery } from '@/api/services/student
 
 const props = defineProps<{ studentId?: string }>();
 const open = defineModel<boolean>('open', { required: true });
-const { data: students } = useStudentsQuery({ pageSize: 500 });
+// The child picker searches (the list is capped at 50 a page), so it works for any size of school.
+const childSearch = ref('');
+const childTerm = refDebounced(childSearch, 250);
+const { data: students, isFetching: searching } = useStudentsQuery(() => ({
+  pageSize: 50,
+  search: childTerm.value.trim() || undefined,
+}));
+/** Labels of the children chosen so far (they may not be in the current search results). */
+const chosen = reactive(new Map<string, string>());
 const add = useAddGuardianMutation();
 
 const blank = () => ({
@@ -34,6 +43,8 @@ const pick = ref('');
 watch(open, (o) => {
   if (!o) return;
   Object.assign(form, blank());
+  chosen.clear();
+  childSearch.value = '';
   showErrors.value = false;
   serverError.value = '';
 });
@@ -43,14 +54,17 @@ const enrolled = computed(() =>
 );
 const label = (id: string) => {
   const s = enrolled.value.find((x) => x.id === id);
-  return s ? `${s.name} · ${s.className || 'awaiting arm'}` : id;
+  return s ? `${s.name} · ${s.className || 'awaiting arm'}` : (chosen.get(id) ?? 'This student');
 };
 const options = computed(() =>
   enrolled.value.filter((s) => !form.studentIds.includes(s.id)).map((s) => label(s.id)),
 );
 watch(pick, (v) => {
   const s = enrolled.value.find((x) => label(x.id) === v);
-  if (s) form.studentIds.push(s.id);
+  if (s) {
+    chosen.set(s.id, label(s.id));
+    form.studentIds.push(s.id);
+  }
   pick.value = '';
 });
 
@@ -142,11 +156,32 @@ async function save() {
           {{ err('children') }}
         </p>
       </div>
-      <FieldShell id="gd-child" label="Add a child">
-        <select id="gd-child" v-model="pick" class="h-9 rounded-md border bg-card px-2.5 text-sm">
-          <option value="">Choose a student…</option>
-          <option v-for="o in options" :key="o">{{ o }}</option>
-        </select>
+      <FieldShell id="gd-child-search" label="Add a child">
+        <div class="flex flex-col gap-1.5">
+          <Input
+            id="gd-child-search"
+            v-model="childSearch"
+            placeholder="Search by name or admission number"
+            autocomplete="off"
+          />
+          <select
+            id="gd-child"
+            v-model="pick"
+            aria-label="Matching students"
+            class="h-9 rounded-md border bg-card px-2.5 text-sm"
+          >
+            <option value="">
+              {{
+                searching
+                  ? 'Searching…'
+                  : options.length
+                    ? `Choose a student (${options.length})…`
+                    : 'No matching students'
+              }}
+            </option>
+            <option v-for="o in options" :key="o">{{ o }}</option>
+          </select>
+        </div>
       </FieldShell>
       <label class="flex items-center gap-2 text-[13px]"
         ><Checkbox v-model="form.paysFees" />Responsible for fees</label

@@ -21,6 +21,7 @@ import {
   useSaveEventSettingsMutation,
   useSaveQuietHoursMutation,
 } from '@/api/services/communication';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { Channel, CommsSettings, EventSettingsPayload } from '@/types';
 
@@ -29,6 +30,7 @@ import { commsTone, fmtCount, fmtStamp } from './comms-tones';
 
 const CHANNELS: Channel[] = ['In-app', 'Email', 'SMS'];
 
+const can = useCan();
 const { data: s, isPending, error } = useCommsSettingsQuery();
 const saveEvents = useSaveEventSettingsMutation();
 const saveQuiet = useSaveQuietHoursMutation();
@@ -176,6 +178,7 @@ const timeClass = 'h-9 w-full rounded-md border bg-card px-2.5 text-sm';
                 placeholder="e.g. GREENFIELD"
               />
               <Button
+                v-if="can('comms.school')"
                 variant="outline"
                 :disabled="!sender.trim() || requestSender.isPending.value"
                 @click="submitSender"
@@ -295,7 +298,7 @@ const timeClass = 'h-9 w-full rounded-md border bg-card px-2.5 text-sm';
           </tbody>
         </table>
       </div>
-      <div class="mt-3 flex flex-wrap gap-2">
+      <div v-if="can('comms.school')" class="mt-3 flex flex-wrap gap-2">
         <Button
           :disabled="!matrixDirty || saveEvents.isPending.value || !!Object.keys(rowErrors).length"
           @click="submitMatrix"
@@ -337,6 +340,7 @@ const timeClass = 'h-9 w-full rounded-md border bg-card px-2.5 text-sm';
             </FieldShell>
           </div>
           <Button
+            v-if="can('comms.school')"
             class="self-start"
             :disabled="
               !quietDirty || !!quietError || !quiet.start || !quiet.end || saveQuiet.isPending.value

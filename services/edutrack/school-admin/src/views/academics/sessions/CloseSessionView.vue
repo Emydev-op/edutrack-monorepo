@@ -13,6 +13,7 @@ import SectionCard from '@edutrack/app-kit/components/common/SectionCard.vue';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 
 import { useCloseSessionMutation, useSessionCloseQuery } from '@/api/services/academics';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { ChecklistStatus } from '@/types';
 
@@ -32,6 +33,7 @@ const confirm = useConfirm();
 const id = computed(() => String(route.params.id));
 const { data, isPending, error } = useSessionCloseQuery(id);
 const close = useCloseSessionMutation();
+const can = useCan();
 
 const session = computed(() => data.value?.session);
 const checklist = computed(() => data.value?.checklist);
@@ -93,7 +95,7 @@ function submit() {
       :description="`${session.name} is now read-only${session.closedOn ? ` · closed ${session.closedOn}` : ''}. Next, check the current session’s setup or create the next one.`"
     >
       <template #action>
-        <Button as-child size="sm"
+        <Button v-if="can('academics.configure')" as-child size="sm"
           ><RouterLink :to="{ name: routesPath.academics.sessionNew.name }"
             >Create next session</RouterLink
           ></Button
@@ -131,6 +133,7 @@ function submit() {
           checklist.reason
         }}</span>
         <Button
+          v-if="closed || can('academics.configure')"
           :variant="closed ? 'outline' : 'destructive'"
           :disabled="closed || !checklist.canClose || close.isPending.value"
           @click="submit"

@@ -1,16 +1,18 @@
 <script setup lang="ts">
+import { useCan } from '@/composables/useCan';
 import { RouterLink } from 'vue-router';
 
 import SectionCard from '@edutrack/app-kit/components/common/SectionCard.vue';
 
 import { QUICK_ACTIONS } from '../quick-actions';
+const can = useCan();
 </script>
 
 <template>
   <SectionCard title="Quick actions">
     <div class="grid grid-cols-2 gap-2">
       <RouterLink
-        v-for="q in QUICK_ACTIONS"
+        v-for="q in QUICK_ACTIONS.filter((x) => can(x.permission))"
         :key="q.label"
         :to="q.to"
         class="group flex items-center gap-2.5 rounded-md border bg-card px-2.5 py-2 text-[13px] font-medium transition hover:-translate-y-px hover:border-primary hover:shadow-[0_4px_14px_color-mix(in_oklab,var(--primary)_12%,transparent)]"

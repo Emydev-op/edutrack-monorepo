@@ -91,6 +91,42 @@ describe('Branch-scoped School Admin users (e2e)', () => {
     expect(JSON.stringify(whole.body.data)).toContain(mainStudent);
   });
 
+  it('keeps a list on their branch when no working branch is sent at all', async () => {
+    // No `branch` query and no working-context headers (a script or another client).
+    const bare = await lekki.get('/api/v1/students?pageSize=50');
+    expect(bare.status).toBe(200);
+    expect(JSON.stringify(bare.body.data)).not.toContain(mainStudent);
+    const whole = await admin.get('/api/v1/students?pageSize=50');
+    expect(whole.body.meta.total).toBeGreaterThan(bare.body.meta.total);
+  });
+
+  it('keeps boarding on their branch: hostels, boarders and hostel records', async () => {
+    const school = await t.prisma.school.findUniqueOrThrow({ where: { slug: 'greenfield' } });
+    const main = await t.prisma.branch.findFirstOrThrow({
+      where: { schoolId: school.id, code: 'GFA-MC' },
+    });
+    const hostel = await t.prisma.hostel.create({
+      data: { schoolId: school.id, branchId: main.id, name: 'Scope Test House', gender: 'MIXED' },
+    });
+    try {
+      const mine = await lekki.get('/api/v1/boarding/hostels');
+      expect(mine.status).toBe(200);
+      expect(JSON.stringify(mine.body.data)).not.toContain(hostel.id);
+      const asked = await lekki.get(`/api/v1/boarding/hostels?branchId=${main.id}`);
+      expect(JSON.stringify(asked.body.data)).not.toContain(hostel.id);
+      expect((await lekki.get(`/api/v1/boarding/hostels/${hostel.id}`)).status).toBe(403);
+      expect((await lekki.get(`/api/v1/boarding/hostels/${hostel.id}/occupancy`)).status).toBe(403);
+      const boarders = await lekki.get(`/api/v1/boarding/boarders?branchId=${main.id}`);
+      expect(boarders.status).toBe(200);
+      expect(JSON.stringify(boarders.body.data)).not.toContain(mainStudent);
+      // The whole-school admin sees it.
+      const all = await admin.get('/api/v1/boarding/hostels');
+      expect(JSON.stringify(all.body.data)).toContain(hostel.id);
+    } finally {
+      await t.prisma.hostel.delete({ where: { id: hostel.id } });
+    }
+  });
+
   it('refuses records at other branches', async () => {
     const student = await lekki.get(`/api/v1/students/${mainStudent}`);
     expect(student.status).toBe(403);

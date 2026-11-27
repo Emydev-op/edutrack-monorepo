@@ -10,7 +10,7 @@ import { armLabel } from '../academics/academic-format.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { asTx } from '../shared/tenant-tx.js';
 import { ON_ROLL } from '../students/student-view.js';
-import { boardingActor, requireBoarding } from './boarding-actor.js';
+import { boardingActor, inActorBranches, requireBoarding } from './boarding-actor.js';
 import { BoardingAlertsService } from './boarding-alerts.service.js';
 import { boardingSession } from './boarding-use.js';
 import { whenLabel } from './exeats.service.js';
@@ -128,6 +128,7 @@ export class SickBayService {
     const where = {
       ...(q.studentId && isUuid(q.studentId) && { studentId: q.studentId }),
       ...(q.branchId && { branchId: q.branchId }),
+      ...(actor.branchIds && { AND: [inActorBranches(actor)] }),
     };
     const [admitted, recent] = await Promise.all([
       this.db.sickBayVisit.findMany({
@@ -173,6 +174,8 @@ export class SickBayService {
         })
       : null;
     if (!student) errors.studentId = 'Choose a student at the school.';
+    else if (actor.branchIds && !actor.branchIds.includes(student.branchId))
+      errors.studentId = 'Choose a student at one of your campuses.';
     const complaint = (dto.complaint ?? '').trim();
     if (!complaint) errors.complaint = 'Say what brought them in.';
     const outcome = OUTCOME_OF[dto.outcome];

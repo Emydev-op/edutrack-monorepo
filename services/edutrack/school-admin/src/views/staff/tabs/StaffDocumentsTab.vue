@@ -14,6 +14,7 @@ import {
   useVerifyStaffDocumentMutation,
 } from '@/api/services/staff';
 import FileUpload from '@/components/school/FileUpload.vue';
+import { useCan } from '@/composables/useCan';
 import type { FileRef, StaffDetail } from '@/types';
 
 import { staffTone } from '../staff-tones';
@@ -31,6 +32,7 @@ const props = defineProps<{ staff: StaffDetail }>();
 const id = computed(() => props.staff.id);
 const upload = useUploadStaffDocumentMutation(id);
 const verify = useVerifyStaffDocumentMutation(id);
+const can = useCan();
 
 const kind = ref(KINDS[0]!);
 const file = ref<FileRef | null>(null);
@@ -95,7 +97,7 @@ async function onVerify(docId: string, label: string) {
     /></template>
     <template #cell-action="{ row }">
       <Button
-        v-if="row.status === 'Pending'"
+        v-if="row.status === 'Pending' && can('settings.users')"
         variant="outline"
         size="sm"
         :disabled="verify.isPending.value"
@@ -106,7 +108,7 @@ async function onVerify(docId: string, label: string) {
   </DataTable>
 
   <SectionCard
-    v-if="staff.status === 'Active'"
+    v-if="staff.status === 'Active' && can('settings.users')"
     title="Upload a document"
     description="A new upload replaces the file for the same document type."
   >

@@ -12,6 +12,7 @@ import PageHeader from '@edutrack/app-kit/components/common/PageHeader.vue';
 import { useUnsavedChanges } from '@edutrack/app-kit/composables/useUnsavedChanges';
 
 import { useHeadRemarksQuery, useSaveHeadRemarksMutation } from '@/api/services/academics';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useLayoutStore } from '@/stores/layout';
 
@@ -25,6 +26,7 @@ const layout = useLayoutStore();
 const armId = computed(() => String(route.params.armId));
 const { data, isPending, error } = useHeadRemarksQuery(armId);
 const save = useSaveHeadRemarksMutation();
+const can = useCan();
 const MAX = 400;
 
 const drafts = ref<Record<string, string>>({});
@@ -82,7 +84,7 @@ async function saveAll() {
           ></Button
         >
         <Button
-          v-if="data.editable"
+          v-if="data.editable && can('results.publish')"
           :disabled="!changed.length || save.isPending.value"
           @click="saveAll"
           >{{
@@ -126,7 +128,7 @@ async function saveAll() {
         <div class="flex flex-col gap-1">
           <Textarea
             v-model="drafts[s.studentId]"
-            :disabled="!data.editable"
+            :disabled="!data.editable || !can('results.publish')"
             :maxlength="MAX"
             rows="2"
             :aria-label="`${data.label}’s comment for ${s.name}`"

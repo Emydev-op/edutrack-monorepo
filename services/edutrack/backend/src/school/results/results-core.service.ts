@@ -121,6 +121,12 @@ export interface SheetCtx {
   rows: RowView[];
   /** Staff ids of everyone who may enter scores: the lead and co-teachers. */
   teacherIds: string[];
+  /**
+   * An elective's students with no choice recorded for it (none in its elective group, or none at
+   * all when it isn't in a group): they stay on every option's sheet until their choice is
+   * recorded, rather than being left off silently.
+   */
+  undecided: string[];
 }
 
 const GENDER: Record<string, string> = { MALE: 'Male', FEMALE: 'Female' };
@@ -375,12 +381,28 @@ export class ResultsCoreService {
       }),
       this.classTeachers(t.sessionId, armIds),
     ]);
-    const electives = sheets.some((s) => s.curriculumEntry.offering !== 'COMPULSORY')
-      ? await this.db.studentSubject.findMany({
-          where: { sessionId: t.sessionId, studentId: { in: roll.map((e) => e.studentId) } },
-          select: { studentId: true, subjectId: true },
-        })
-      : [];
+    const hasElectives = sheets.some((s) => s.curriculumEntry.offering !== 'COMPULSORY');
+    const [electives, groupSubjects] = hasElectives
+      ? await Promise.all([
+          this.db.studentSubject.findMany({
+            where: { sessionId: t.sessionId, studentId: { in: roll.map((e) => e.studentId) } },
+            select: { studentId: true, subjectId: true, groupId: true },
+          }),
+          this.db.electiveGroupSubject.findMany({
+            where: { group: { sessionId: t.sessionId } },
+            select: { groupId: true, subjectId: true },
+          }),
+        ])
+      : [[], []];
+    /** The subjects of each elective group, and the groups each subject is in. */
+    const groupOf = new Map<string, Set<string>>();
+    const subjectsIn = new Map<string, Set<string>>();
+    for (const g of groupSubjects) {
+      if (!groupOf.has(g.subjectId)) groupOf.set(g.subjectId, new Set());
+      groupOf.get(g.subjectId)!.add(g.groupId);
+      if (!subjectsIn.has(g.groupId)) subjectsIn.set(g.groupId, new Set());
+      subjectsIn.get(g.groupId)!.add(g.subjectId);
+    }
     const armById = new Map(arms.map((a) => [a.id, a]));
     const out: SheetCtx[] = [];
     for (const sheet of sheets) {
@@ -388,16 +410,23 @@ export class ResultsCoreService {
       const scheme = [...schemes.values()].find((x) => x.id === sheet.schemeId);
       if (!arm || !scheme) continue;
       let onRoll = roll.filter((e) => e.armId === sheet.armId);
+      const undecided: string[] = [];
       if (sheet.curriculumEntry.offering !== 'COMPULSORY') {
-        const classChoices = electives.filter((c) =>
-          onRoll.some((e) => e.studentId === c.studentId),
+        // A student is on an elective's sheet when they chose it, or when they haven't chosen
+        // in its group yet (any subject at all, for an elective outside a group).
+        const groups = groupOf.get(sheet.subjectId);
+        const options = new Set<string>(
+          [...(groups ?? [])].flatMap((g) => [...(subjectsIn.get(g) ?? [])]),
         );
-        if (classChoices.length) {
-          const takes = new Set(
-            classChoices.filter((c) => c.subjectId === sheet.subjectId).map((c) => c.studentId),
-          );
-          onRoll = onRoll.filter((e) => takes.has(e.studentId));
-        }
+        onRoll = onRoll.filter((e) => {
+          const mine = electives.filter((c) => c.studentId === e.studentId);
+          if (mine.some((c) => c.subjectId === sheet.subjectId)) return true;
+          const decided = groups
+            ? mine.some((c) => (c.groupId && groups.has(c.groupId)) || options.has(c.subjectId))
+            : mine.length > 0;
+          if (!decided) undecided.push(e.studentId);
+          return !decided;
+        });
       }
       const mine = entries.filter((e) => e.sheetId === sheet.id);
       const students: StudentRef[] = onRoll.map((e) => ResultsCoreService.studentRef(e.student));
@@ -424,6 +453,7 @@ export class ResultsCoreService {
                 .filter((a) => a.armId === sheet.armId && a.subjectId === sheet.subjectId)
                 .sort((a, b) => Number(b.lead) - Number(a.lead))
                 .map((a) => a.staffId),
+        undecided,
       });
     }
     return out;
@@ -823,6 +853,8 @@ export class ResultsCoreService {
       scale: scheme.scale,
       scaleName: scheme.scaleName,
       passMark: scheme.passMark,
+      /** How totals round (the section's grading): the portal's live totals match the server's. */
+      rounding: scheme.rounding,
       rows: ctx.rows,
       stats: statsOf(scheme, ctx.rows),
       lock,
@@ -925,7 +957,8 @@ export class ResultsCoreService {
     const { scheme } = ctx;
     const fmt = (vals: ScoreValue[]) => {
       const t = totalOf(scheme, vals);
-      return t === null ? '—' : `${t.toFixed(1)} · ${gradeOf(scheme.scale, t)?.grade ?? '—'}`;
+      const shown = scheme.rounding === 'WHOLE_NUMBER' ? String(t) : t?.toFixed(1);
+      return t === null ? '—' : `${shown} · ${gradeOf(scheme.scale, t)?.grade ?? '—'}`;
     };
     return list.map((c) => {
       const index = Math.max(

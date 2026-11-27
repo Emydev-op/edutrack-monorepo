@@ -25,6 +25,7 @@ import {
   useSaveClassSubjectChoicesMutation,
 } from '@/api/services/students';
 import GroupPicksPopover from '@/components/students/GroupPicksPopover.vue';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import { choiceProblems, groupKey, picksIn } from '@/lib/subject-choices';
@@ -32,6 +33,7 @@ import type { ClassChoiceRow, SubjectChoice, SubjectGroup } from '@/types';
 
 const context = useContextStore();
 const confirm = useConfirm();
+const can = useCan();
 const armQuery = useRouteQuery<string>('armId', '');
 const sessionQuery = useRouteQuery<string>('session', '');
 const { data: classes, isPending: classesPending } = useClassesQuery();
@@ -170,7 +172,7 @@ async function saveAll() {
     title="Subject choices"
     description="Each student’s religious subject and electives for the session, a whole class at a time."
   >
-    <template v-if="view" #actions>
+    <template v-if="view && can('students.edit')" #actions>
       <Button :disabled="!changedIds.length || save.isPending.value" @click="saveAll">
         <Spinner v-if="save.isPending.value" />
         {{

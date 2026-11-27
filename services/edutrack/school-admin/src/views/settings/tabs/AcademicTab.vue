@@ -12,12 +12,14 @@ import ToggleList from '@edutrack/app-kit/components/common/ToggleList.vue';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 
 import { useAcademicSettingsQuery, useSaveAcademicSettingsMutation } from '@/api/services/settings';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { AcademicPolicy } from '@/types';
 
 const { data, isPending, isError, refetch } = useAcademicSettingsQuery();
 const save = useSaveAcademicSettingsMutation();
 const confirm = useConfirm();
+const can = useCan();
 
 const ITEMS: { key: keyof AcademicPolicy; label: string; description: string }[] = [
   {
@@ -44,7 +46,7 @@ const items = computed(() =>
   ITEMS.map((i) => ({
     ...i,
     enabled: !!data.value?.[i.key],
-    disabled: save.isPending.value,
+    disabled: save.isPending.value || !can('academics.configure'),
   })),
 );
 

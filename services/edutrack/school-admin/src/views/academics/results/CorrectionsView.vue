@@ -17,6 +17,7 @@ import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 import { useRouteQuery } from '@edutrack/app-kit/composables/useRouteQuery';
 
 import { useCorrectionActionMutation, useCorrectionsQuery } from '@/api/services/academics';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
 import type { Correction } from '@/types';
@@ -25,6 +26,7 @@ const confirm = useConfirm();
 const auth = useAuthStore();
 const { data: list, isPending } = useCorrectionsQuery();
 const act = useCorrectionActionMutation();
+const can = useCan();
 const selectedId = useRouteQuery<string>('id', '');
 
 const selected = computed(
@@ -194,7 +196,7 @@ const stateNote = (v: Correction['original']) =>
             </template>
           </dl>
           <div
-            v-if="selected.status === 'Under review'"
+            v-if="selected.status === 'Under review' && can('results.correct')"
             class="flex justify-end gap-2 border-t border-divider pt-3"
           >
             <Button variant="outline" @click="reject(selected)">Reject</Button>

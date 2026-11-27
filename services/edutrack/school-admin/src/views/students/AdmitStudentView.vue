@@ -10,6 +10,7 @@ import { cn } from '@edutrack/ui/lib/utils';
 import { getApiErrorFields, getApiErrorMessage } from '@edutrack/web-core/http';
 import { CircleCheckIcon } from '@lucide/vue';
 import { refDebounced, useStorage } from '@vueuse/core';
+import type { GuardianRow } from '@/types/students';
 import { computed, reactive, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { toast } from 'vue-sonner';
@@ -54,7 +55,15 @@ const NG_PHONE = /^(\+234|0)[789][01]\d{8}$/;
 
 const route = useRoute();
 const { data: options, isPending } = useAdmissionOptionsQuery();
-const { data: guardians } = useGuardiansQuery({ pageSize: 200 });
+// Guardians are searched (the list is capped at 50 a page), so linking works in any size of school.
+const guardianSearch = ref('');
+const guardianTerm = refDebounced(guardianSearch, 250);
+const { data: guardians, isFetching: searchingGuardians } = useGuardiansQuery(() => ({
+  pageSize: 50,
+  search: guardianTerm.value.trim() || undefined,
+}));
+/** Every guardian seen in a search, so the chosen one stays known after the search changes. */
+const seenGuardians = reactive(new Map<string, GuardianRow>());
 const admit = useAdmitMutation();
 
 const blank = () => ({
@@ -182,15 +191,34 @@ const branchArms = computed(
 );
 const arms = computed(() => branchArms.value[d.level] ?? []);
 const levels = computed(() => Object.keys(branchArms.value));
-const linkedGuardian = computed(() => guardians.value?.data.find((g) => g.id === d.guardianId));
+const linkedGuardian = computed(() => seenGuardians.get(d.guardianId));
 /** A guardian already on record with the new guardian's phone or email, offered for linking. */
 const lastTen = (phone: string) => phone.replace(/\D/g, '').slice(-10);
+const onRecordLookup = refDebounced(
+  computed(() => {
+    if (d.guardianMode !== 'new') return '';
+    const phone = lastTen(d.guardianPhone);
+    return phone.length === 10 ? phone : d.guardianEmail.trim().toLowerCase();
+  }),
+  400,
+);
+const { data: onRecordHits } = useGuardiansQuery(() => ({
+  pageSize: 5,
+  search: onRecordLookup.value || undefined,
+}));
+watch(
+  () => [guardians.value?.data, onRecordHits.value?.data],
+  (lists) => {
+    for (const list of lists) for (const g of list ?? []) seenGuardians.set(g.id, g);
+  },
+  { immediate: true },
+);
 const guardianOnRecord = computed(() => {
   if (d.guardianMode !== 'new') return null;
   const phone = lastTen(d.guardianPhone);
   const email = d.guardianEmail.trim().toLowerCase();
   return (
-    guardians.value?.data.find(
+    onRecordHits.value?.data.find(
       (g) =>
         (phone.length === 10 && lastTen(g.phone) === phone) ||
         (!!email && g.email.toLowerCase() === email),
@@ -658,17 +686,36 @@ const chip = (on: boolean, full = false) =>
               </span>
             </div>
             <FieldShell id="ad-guardian" label="Guardian" required :error="errors.guardianId">
-              <select
-                id="ad-guardian"
-                v-model="d.guardianId"
-                class="h-9 rounded-md border bg-card px-2.5 text-sm"
-                :aria-invalid="!!errors.guardianId"
-              >
-                <option value="">Choose…</option>
-                <option v-for="g in guardians?.data ?? []" :key="g.id" :value="g.id">
-                  {{ g.name }} · {{ g.phone }}
-                </option>
-              </select>
+              <div class="flex flex-col gap-1.5">
+                <Input
+                  id="ad-guardian-search"
+                  v-model="guardianSearch"
+                  aria-label="Search guardians"
+                  placeholder="Search by name, phone or email"
+                  autocomplete="off"
+                />
+                <select
+                  id="ad-guardian"
+                  v-model="d.guardianId"
+                  class="h-9 rounded-md border bg-card px-2.5 text-sm"
+                  :aria-invalid="!!errors.guardianId"
+                >
+                  <option value="">
+                    {{ searchingGuardians ? 'Searching…' : 'Choose…' }}
+                  </option>
+                  <option
+                    v-if="
+                      linkedGuardian && !guardians?.data.some((g) => g.id === linkedGuardian!.id)
+                    "
+                    :value="linkedGuardian.id"
+                  >
+                    {{ linkedGuardian.name }} · {{ linkedGuardian.phone }}
+                  </option>
+                  <option v-for="g in guardians?.data ?? []" :key="g.id" :value="g.id">
+                    {{ g.name }} · {{ g.phone }}
+                  </option>
+                </select>
+              </div>
             </FieldShell>
           </template>
           <div v-else-if="d.guardianMode === 'new'" class="grid gap-4 sm:grid-cols-3">

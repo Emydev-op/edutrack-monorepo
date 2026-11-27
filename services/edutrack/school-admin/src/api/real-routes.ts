@@ -37,6 +37,7 @@ export const REAL_ROUTES: readonly string[] = [
   'GET /v1/academics/calendar',
   '* /v1/academics/calendar/events',
   '* /v1/academics/calendar/events/:id',
+  'PUT /v1/academics/calendar/branch-terms',
   'GET /v1/academics/classes',
   'POST /v1/academics/classes/defaults',
   'POST /v1/academics/classes/levels',
@@ -85,6 +86,10 @@ export const REAL_ROUTES: readonly string[] = [
   'POST /v1/academics/results/publish/:armId',
   'GET /v1/academics/results/report-card/:studentId',
   'POST /v1/academics/results/report-card/:studentId/:action',
+  'PUT /v1/academics/results/report-card/:studentId/head-remark',
+  'GET /v1/academics/results/report-card/:studentId/pdf',
+  'GET /v1/academics/results/head-remarks/:armId',
+  'PUT /v1/academics/results/head-remarks/:armId',
   'GET /v1/academics/results/corrections',
   'POST /v1/academics/results/corrections/:id/:action',
   'GET /v1/academics/promotion',
@@ -95,6 +100,7 @@ export const REAL_ROUTES: readonly string[] = [
   'POST /v1/students/assign-arm',
   'GET /v1/students/:id',
   'POST /v1/students/:id/transfer',
+  'PUT /v1/students/:id/photo',
   // Subject choices: a student's subjects, and a class arm's choices at once.
   '* /v1/students/:id/subjects',
   '* /v1/subject-choices/:armId',
@@ -113,6 +119,7 @@ export const REAL_ROUTES: readonly string[] = [
   'POST /v1/admissions',
   // Admission applications: create, edit and move through the pipeline.
   '* /v1/admissions/applications/**',
+  'GET /v1/imports/template',
   'POST /v1/imports',
   'POST /v1/imports/:id/commit',
   // Students, Phase 2: guardians, Parent Portal invitations and Student Portal logins.

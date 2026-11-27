@@ -18,6 +18,7 @@ import {
   useResultSheetQuery,
   useSheetActionMutation,
 } from '@/api/services/academics';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import { useLayoutStore } from '@/stores/layout';
@@ -34,13 +35,14 @@ const subject = computed(() => String(route.params.subject));
 const { data: sheet, isPending, error } = useResultSheetQuery(armId, subject);
 const act = useSheetActionMutation();
 const reopen = useReopenEntryMutation();
+const can = useCan();
 
 watch(sheet, (s) => layout.setRecordLabel(s ? `${s.arm} · ${s.subjectName}` : null), {
   immediate: true,
 });
 
 const passMark = computed(() => sheet.value?.passMark ?? 40);
-const canDecide = computed(() => !!sheet.value?.canDecide);
+const canDecide = computed(() => !!sheet.value?.canDecide && can('results.approve'));
 const teacher = computed(() => sheet.value?.teacher ?? 'the teacher');
 
 const descriptive = computed(() => sheet.value?.mode === 'descriptive');
@@ -202,7 +204,7 @@ function returnSheet() {
       "
       :description="`${sheet.status === 'Returned' && sheet.returnNote ? `${sheet.returnedBy === 'the academic office' ? 'Your comment' : 'Comment'}: “${sheet.returnNote}”. ` : ''}You can view the draft, but it can only be approved after ${teacher} ${sheet.status === 'Returned' ? 'resubmits' : 'submits'} it in the Teacher Workspace${sheet.hod && sheet.returnedBy !== 'the academic office' ? ` and ${sheet.hod} forwards it` : ''}.`"
     >
-      <template #action>
+      <template v-if="can('results.approve')" #action>
         <Button
           variant="outline"
           size="sm"

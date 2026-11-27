@@ -40,6 +40,7 @@ import {
   useSendPaymentDetailsMutation,
 } from '@/api/services/finance';
 import PayToCard from '@/components/finance/PayToCard.vue';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
 import type { InvoiceDetail, InvoiceLine } from '@/types';
@@ -63,8 +64,11 @@ const cancel = useCancelInvoiceMutation();
 const remindOne = useRemindInvoiceMutation();
 const issue = useIssueInvoicesMutation();
 const sendDetails = useSendPaymentDetailsMutation();
+const can = useCan();
 
 const live = computed(() => !!inv.value && inv.value.status !== 'Cancelled');
+/** Live and the user may change invoices (finance.invoice). */
+const editable = computed(() => live.value && can('finance.invoice'));
 const fail = (e: unknown) => toast.error((e as Error).message);
 
 /* ---------------- Lines ---------------- */
@@ -282,16 +286,18 @@ const print = () => window.print();
             ><PrinterIcon class="size-4" /> Print / PDF</Button
           >
           <Button
-            v-if="live && inv.balance > 0 && inv.status !== 'Draft'"
+            v-if="editable && inv.balance > 0 && inv.status !== 'Draft'"
             variant="outline"
             :disabled="remindOne.isPending.value"
             @click="remind"
             >Send reminder</Button
           >
-          <Button v-if="live && inv.canCancel.ok" variant="outline" @click="cancelInvoice"
+          <Button v-if="editable && inv.canCancel.ok" variant="outline" @click="cancelInvoice"
             >Cancel invoice</Button
           >
-          <Button v-if="live && inv.balance > 0 && inv.status !== 'Draft'" as-child
+          <Button
+            v-if="live && inv.balance > 0 && inv.status !== 'Draft' && can('finance.payment')"
+            as-child
             ><RouterLink
               :to="{ name: r.paymentNew.name, query: { student: inv.studentKey, invoice: inv.id } }"
               >Record payment</RouterLink
@@ -312,7 +318,7 @@ const print = () => window.print();
         title="Draft"
         description="Parents can’t see this invoice and it doesn’t count as billed until you issue it."
       >
-        <template #action
+        <template v-if="can('finance.invoice')" #action
           ><Button size="sm" :disabled="issue.isPending.value" @click="issueDraft"
             >Issue invoice</Button
           ></template
@@ -336,7 +342,7 @@ const print = () => window.print();
         title="No guardian to notify"
         :description="`${inv.student} has no guardian linked, so nobody received this invoice.`"
       >
-        <template v-if="inv.studentId" #action>
+        <template v-if="inv.studentId && can('students.edit')" #action>
           <Button as-child variant="outline" size="sm"
             ><RouterLink
               :to="{ name: routesPath.students.guardians.name, params: { id: inv.studentId } }"
@@ -349,7 +355,7 @@ const print = () => window.print();
       <div class="grid items-start gap-4 lg:grid-cols-[1fr_340px] [&>*]:min-w-0">
         <div class="flex flex-col gap-4">
           <SectionCard title="Items" flush>
-            <template v-if="live" #actions>
+            <template v-if="editable" #actions>
               <div class="flex flex-wrap gap-2">
                 <DropdownMenu v-if="inv.optionalAvailable.length">
                   <DropdownMenuTrigger as-child>
@@ -384,7 +390,7 @@ const print = () => window.print();
                 </div>
                 <span class="tabular-nums">{{ formatNaira(l.amount) }}</span>
                 <button
-                  v-if="live && l.removable"
+                  v-if="editable && l.removable"
                   type="button"
                   class="text-muted-foreground hover:text-destructive"
                   :aria-label="`Remove ${l.label}`"
@@ -413,7 +419,7 @@ const print = () => window.print();
                 </div>
                 <span class="tabular-nums text-success-strong">−{{ formatNaira(d.amount) }}</span>
                 <button
-                  v-if="live"
+                  v-if="editable"
                   type="button"
                   class="text-muted-foreground hover:text-destructive"
                   :aria-label="`Remove ${d.label}`"
@@ -424,7 +430,7 @@ const print = () => window.print();
               </li>
             </ul>
             <div
-              v-if="live && inv.discountsAvailable.length"
+              v-if="editable && inv.discountsAvailable.length"
               class="border-t border-divider px-4 py-2.5"
             >
               <DropdownMenu>
@@ -532,7 +538,7 @@ const print = () => window.print();
                 aria-label="Payment plan"
                 class="h-9 rounded-md border bg-card px-2.5 text-sm"
                 :value="inv.plan?.id ?? ''"
-                :disabled="changePlan.isPending.value"
+                :disabled="changePlan.isPending.value || !can('finance.invoice')"
                 @change="pickPlan(($event.target as HTMLSelectElement).value)"
               >
                 <option v-if="!inv.plan" value="" disabled>Choose a plan…</option>
@@ -565,7 +571,7 @@ const print = () => window.print();
             :title="`${formatNaira(inv.credit)} credit on account`"
             description="Money paid earlier that isn’t on any invoice."
           >
-            <template #action>
+            <template v-if="can('finance.invoice')" #action>
               <Button
                 size="sm"
                 variant="outline"

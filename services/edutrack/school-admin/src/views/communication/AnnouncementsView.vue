@@ -23,6 +23,7 @@ import {
   useAnnouncementsQuery,
   useDeleteAnnouncementMutation,
 } from '@/api/services/communication';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { AnnouncementRow, AnnouncementStatus } from '@/types';
 
@@ -30,6 +31,7 @@ import { commsTone, fmtCount } from './comms-tones';
 
 const router = useRouter();
 const confirm = useConfirm();
+const can = useCan();
 const status = useRouteQuery<string>('status', '');
 const page = useRouteQuery<string>('page', '1');
 const pageSize = useRouteQuery<string>('pageSize', '20');
@@ -125,6 +127,7 @@ function del(row: AnnouncementRow) {
 
 function actions(row: AnnouncementRow): RowAction[] {
   const list: RowAction[] = [{ label: 'View', to: detail(row.id) }];
+  if (!can('comms.class')) return list;
   if (row.status === 'Draft' || row.status === 'Scheduled')
     list.push({
       label: 'Edit',
@@ -149,7 +152,7 @@ const filtered = computed(() => !!status.value || !!debounced.value);
     description="Written by people for an audience. Automatic messages (invoice issued, result published) are in Delivery Logs."
   >
     <template #actions>
-      <Button as-child>
+      <Button v-if="can('comms.class')" as-child>
         <RouterLink :to="{ name: routesPath.communication.announcementNew.name }"
           >New announcement</RouterLink
         >

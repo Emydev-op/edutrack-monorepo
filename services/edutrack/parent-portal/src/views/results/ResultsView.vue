@@ -38,6 +38,14 @@ const scoresLine = (s: ReportCardSubject) => {
   return [parts.join(' · '), s.position].filter(Boolean).join(' · ');
 };
 const STARS = ['', 'Needs improvement', 'Fair', 'Good', 'Very good', 'Excellent'];
+/** School days without a mark (no register was taken those days). */
+const unmarked = (a: {
+  present: number;
+  late: number;
+  absent: number;
+  excused: number;
+  schoolDays: number;
+}) => Math.max(0, a.schoolDays - a.present - a.late - a.absent - a.excused);
 </script>
 
 <template>
@@ -149,6 +157,17 @@ const STARS = ['', 'Needs improvement', 'Fair', 'Good', 'Very good', 'Excellent'
       />
       <ListRow title="Late" :right="String(card.attendance.late)" />
       <ListRow title="Absent" :right="String(card.attendance.absent)" />
+      <ListRow
+        v-if="card.attendance.excused"
+        title="Excused"
+        :right="String(card.attendance.excused)"
+      />
+      <!-- School days with no register taken for the class, so every day is accounted for. -->
+      <ListRow
+        v-if="unmarked(card.attendance)"
+        title="No register taken"
+        :right="String(unmarked(card.attendance))"
+      />
     </ListSection>
 
     <ListSection v-if="card?.conduct?.some((c) => c.rating)" title="Conduct">

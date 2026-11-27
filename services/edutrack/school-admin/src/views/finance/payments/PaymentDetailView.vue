@@ -27,6 +27,7 @@ import {
   useVerifyPaymentMutation,
 } from '@/api/services/finance';
 import { downloadFile } from '@/api/helpers';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
 
@@ -42,6 +43,7 @@ const { data: p, isPending, error } = usePaymentQuery(id);
 const verify = useVerifyPaymentMutation();
 const reject = useRejectPaymentMutation();
 const requestRefund = useRequestRefundMutation();
+const can = useCan();
 
 const pending = computed(() => p.value?.status === 'Pending verification');
 
@@ -216,14 +218,16 @@ const detailRows = computed(() => {
             >{{ downloading ? 'Preparing PDF…' : 'Download receipt' }}</Button
           >
           <Button variant="outline" @click="printReceipt">Print receipt</Button>
-          <template v-if="pending">
+          <template v-if="pending && can('finance.payment')">
             <Button variant="outline" :disabled="reject.isPending.value" @click="askReject"
               >Reject</Button
             >
             <Button :disabled="verify.isPending.value" @click="askVerify">Verify</Button>
           </template>
           <Button
-            v-else-if="p.studentCredit > 0 && p.status === 'Confirmed'"
+            v-else-if="
+              !pending && p.studentCredit > 0 && p.status === 'Confirmed' && can('finance.payment')
+            "
             variant="outline"
             @click="openRefund"
             >Request refund</Button

@@ -4,7 +4,7 @@ import { StatusBadge } from '@edutrack/ui/components/status-badge';
 import { cn } from '@edutrack/ui/lib/utils';
 import { EyeIcon, ReceiptIcon, SendIcon, WalletIcon } from '@lucide/vue';
 import { refDebounced } from '@vueuse/core';
-import { computed, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { toast } from 'vue-sonner';
 
@@ -32,6 +32,7 @@ import {
   useSendRemindersMutation,
   type RemindResult,
 } from '@/api/services/finance';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import type { InvoiceRow, InvoiceStatus } from '@/types';
@@ -45,6 +46,7 @@ const remindPreview = useRemindPreviewMutation();
 const sendReminders = useSendRemindersMutation();
 const lateFees = useApplyLateFeesMutation();
 const issue = useIssueInvoicesMutation();
+const can = useCan();
 const { data: settings } = useFinanceSettingsQuery();
 
 const page = useRouteQuery<string>('page', '1');
@@ -52,7 +54,8 @@ const pageSize = useRouteQuery<string>('pageSize', '20');
 const term = useRouteQuery<string>('term', '');
 const status = useRouteQuery<string>('status', '');
 const level = useRouteQuery<string>('level', '');
-const search = ref('');
+// Kept in the URL, so links such as "?search=INV-2026-00042" open filtered.
+const search = useRouteQuery<string>('search', '');
 const debounced = refDebounced(search, 300);
 watch(debounced, () => (page.value = '1'));
 
@@ -116,12 +119,18 @@ const actions = (i: InvoiceRow): RowAction[] => [
   { label: 'Student account', icon: WalletIcon, to: accountLink(i) },
   ...(i.balance > 0 && i.status !== 'Draft'
     ? [
-        {
-          label: 'Record payment',
-          icon: ReceiptIcon,
-          to: { name: r.paymentNew.name, query: { student: i.studentKey, invoice: i.id } },
-        },
-        { label: 'Send reminder', icon: SendIcon, onSelect: () => remind([i.id]) },
+        ...(can('finance.payment')
+          ? [
+              {
+                label: 'Record payment',
+                icon: ReceiptIcon,
+                to: { name: r.paymentNew.name, query: { student: i.studentKey, invoice: i.id } },
+              },
+            ]
+          : []),
+        ...(can('finance.invoice')
+          ? [{ label: 'Send reminder', icon: SendIcon, onSelect: () => remind([i.id]) }]
+          : []),
       ]
     : []),
 ];
@@ -250,7 +259,7 @@ const columns: Column[] = [
 
 <template>
   <PageHeader title="Invoices" :description="`${termLabel} · ${context.current.branch}`">
-    <template #actions>
+    <template v-if="can('finance.invoice')" #actions>
       <Button variant="outline" :disabled="remindPreview.isPending.value" @click="remind()">
         Send overdue reminders
       </Button>
@@ -362,10 +371,15 @@ const columns: Column[] = [
       >
     </template>
     <template #bulk>
-      <Button size="sm" variant="outline" @click="issueSelected">Issue drafts</Button>
-      <Button size="sm" variant="outline" @click="remind(selection.selectedRows().map((i) => i.id))"
-        >Send reminder</Button
-      >
+      <template v-if="can('finance.invoice')">
+        <Button size="sm" variant="outline" @click="issueSelected">Issue drafts</Button>
+        <Button
+          size="sm"
+          variant="outline"
+          @click="remind(selection.selectedRows().map((i) => i.id))"
+          >Send reminder</Button
+        >
+      </template>
       <Button
         size="sm"
         variant="outline"

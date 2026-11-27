@@ -50,6 +50,16 @@ export class SchoolsController {
     return this.schools.list(query);
   }
 
+  @ResponseMessage('Schools loaded.')
+  @Get('names')
+  @PlatformOnly('Schools.View')
+  @ApiOperation({
+    summary: 'Every school’s id and name, A–Z (for filters and pickers; not paged)',
+  })
+  names() {
+    return this.schools.names();
+  }
+
   @ResponseMessage(
     (s: Named) => `${s.name} provisioned. Administrator invitations are on their way.`,
   )
