@@ -3,7 +3,8 @@ import type { CampusBrand } from '@edutrack/app-kit/composables/useCampusTheme';
 
 export type ChildAccess = 'full' | 'read-only';
 
-export type HouseStaffRole = 'House master / mistress' | 'Floor master / mistress';
+/** "House master", "House mistress", "Floor master"… ("master / mistress" when gender isn't recorded). */
+export type HouseStaffRole = string;
 
 /** Where a boarder sleeps. Floor and bed are optional in a hostel. */
 export interface BoardingPlace {

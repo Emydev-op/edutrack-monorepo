@@ -28,6 +28,7 @@ import {
   useTimetableQuery,
 } from '@/api/services/academics';
 import SetupStepBar from '@/components/academics/SetupStepBar.vue';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import { DAYS, type Day, type TimetableStatus } from '@/types';
@@ -93,6 +94,7 @@ const save = useSaveTimetableMutation();
 const suggest = useSuggestTimetableMutation();
 const copy = useCopyTimetableMutation();
 const act = useTimetableActionMutation();
+const can = useCan();
 
 const status = computed<TimetableStatus>(() => view.value?.status ?? 'Draft');
 const locked = computed(() => status.value === 'Published');
@@ -180,7 +182,7 @@ async function persist(next: Record<string, string>) {
 }
 
 function clickCell(day: Day, pid: string) {
-  if (!view.value) return;
+  if (!view.value || !can('academics.timetable')) return;
   if (locked.value)
     return void toast('Published timetables are locked. Start a revision to change it.');
   const slot = `${day}-${pid}`;
@@ -344,7 +346,7 @@ const busyNow = computed(
         : 'Periods and lessons for each class, per term.'
     "
   >
-    <template v-if="view && !locked" #actions>
+    <template v-if="view && !locked && can('academics.timetable')" #actions>
       <Button
         v-if="!Object.keys(grid).length && previousTerm"
         variant="outline"
@@ -378,7 +380,7 @@ const busyNow = computed(
     title="No session yet"
     description="Create the academic session and its terms before building timetables."
   >
-    <Button as-child
+    <Button v-if="can('academics.configure')" as-child
       ><RouterLink :to="{ name: r.sessions.name }">Go to Sessions & Terms</RouterLink></Button
     >
   </EmptyState>
@@ -387,7 +389,7 @@ const busyNow = computed(
     title="No classes yet"
     description="Add class levels and arms, then assign teachers, before building timetables."
   >
-    <Button as-child
+    <Button v-if="can('academics.configure')" as-child
       ><RouterLink :to="{ name: r.classes.name }">Go to Classes & Arms</RouterLink></Button
     >
   </EmptyState>
@@ -464,7 +466,7 @@ const busyNow = computed(
         :title="`Published · version ${view.version}`"
         description="Published timetables are locked. Start a revision to change it; this version stays in effect until the revision is published."
       >
-        <template #action>
+        <template v-if="can('academics.timetable')" #action>
           <Button size="sm" variant="outline" :disabled="busyNow" @click="revise"
             >Start revision</Button
           >
@@ -476,7 +478,7 @@ const busyNow = computed(
         :title="`${noTeacher.map((p) => p.name).join(', ')} ${noTeacher.length > 1 ? 'have' : 'has'} no teacher`"
         description="You can place these lessons, but the timetable can’t be reviewed until a teacher is assigned."
       >
-        <template #action>
+        <template v-if="can('academics.configure')" #action>
           <Button as-child size="sm" variant="outline"
             ><RouterLink :to="{ name: r.assignments.name }">Assign teachers</RouterLink></Button
           >
@@ -601,7 +603,7 @@ const busyNow = computed(
                   : 'Every lesson has a period.'
               }}
             </span>
-            <div class="flex gap-2">
+            <div v-if="can('academics.timetable')" class="flex gap-2">
               <Button
                 v-if="status === 'Draft'"
                 :disabled="busyNow || !!remaining || !!noTeacher.length"
@@ -632,7 +634,7 @@ const busyNow = computed(
               <li v-for="p in palette" :key="p.code">
                 <button
                   type="button"
-                  :disabled="locked"
+                  :disabled="locked || !can('academics.timetable')"
                   :aria-pressed="pick === p.code"
                   :class="
                     cn(

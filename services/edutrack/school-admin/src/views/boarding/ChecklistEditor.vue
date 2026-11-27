@@ -12,6 +12,7 @@ import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 import SectionCard from '@edutrack/app-kit/components/common/SectionCard.vue';
 
 import { useChecklistQuery, useSaveChecklistMutation } from '@/api/services/boarding-house';
+import { useCan } from '@/composables/useCan';
 
 /**
  * The property checklist boarders are checked in and out against each term: mattress,
@@ -19,6 +20,7 @@ import { useChecklistQuery, useSaveChecklistMutation } from '@/api/services/boar
  */
 const { data, isPending, isError, refetch } = useChecklistQuery();
 const save = useSaveChecklistMutation();
+const can = useCan();
 
 const items = ref<string[]>([]);
 const savedText = ref('');
@@ -84,8 +86,10 @@ async function submit() {
             maxlength="60"
             :aria-label="`Item ${i + 1}`"
             placeholder="e.g. Mosquito net"
+            :readonly="!can('boarding.manage')"
           />
           <Button
+            v-if="can('boarding.manage')"
             type="button"
             variant="ghost"
             size="icon"
@@ -95,7 +99,7 @@ async function submit() {
           /></Button>
         </li>
       </ol>
-      <div class="flex flex-wrap justify-between gap-2">
+      <div v-if="can('boarding.manage')" class="flex flex-wrap justify-between gap-2">
         <Button
           type="button"
           variant="outline"

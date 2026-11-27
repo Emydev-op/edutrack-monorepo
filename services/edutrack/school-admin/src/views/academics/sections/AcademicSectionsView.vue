@@ -19,6 +19,7 @@ import { useUnsavedChanges } from '@edutrack/app-kit/composables/useUnsavedChang
 
 import { useSaveSectionsMutation, useSectionsQuery } from '@/api/services/academics';
 import SetupStepBar from '@/components/academics/SetupStepBar.vue';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { AcademicSection } from '@/types';
 
@@ -48,6 +49,7 @@ const router = useRouter();
 const confirm = useConfirm();
 const { data, isPending } = useSectionsQuery();
 const save = useSaveSectionsMutation();
+const can = useCan();
 
 const rows = ref<Row[]>([]);
 const original = ref('');
@@ -182,7 +184,12 @@ const fromSetup = computed(() => route.query.from === 'setup');
           >Classes & Arms</RouterLink
         ></Button
       >
-      <Button :disabled="!dirty || save.isPending.value" @click="submit">Save sections</Button>
+      <Button
+        v-if="can('academics.configure')"
+        :disabled="!dirty || save.isPending.value"
+        @click="submit"
+        >Save sections</Button
+      >
     </template>
   </PageHeader>
 
@@ -236,7 +243,7 @@ const fromSetup = computed(() => route.query.from === 'setup');
                 :dot="false"
               />
             </span>
-            <span class="flex gap-1">
+            <span v-if="can('academics.configure')" class="flex gap-1">
               <Button
                 variant="ghost"
                 size="icon"
@@ -316,7 +323,10 @@ const fromSetup = computed(() => route.query.from === 'setup');
           </p>
         </div>
 
-        <div class="flex flex-wrap gap-2 border-t border-divider pt-3">
+        <div
+          v-if="can('academics.configure')"
+          class="flex flex-wrap gap-2 border-t border-divider pt-3"
+        >
           <Button
             v-for="[n, c, d] in missingStandard"
             :key="c"
@@ -336,7 +346,12 @@ const fromSetup = computed(() => route.query.from === 'setup');
       <Button v-if="fromSetup" as-child variant="ghost"
         ><RouterLink :to="{ name: routesPath.setup.name }">Back to Setup Center</RouterLink></Button
       >
-      <Button :disabled="!dirty || save.isPending.value" @click="submit">Save sections</Button>
+      <Button
+        v-if="can('academics.configure')"
+        :disabled="!dirty || save.isPending.value"
+        @click="submit"
+        >Save sections</Button
+      >
     </div>
   </template>
 </template>

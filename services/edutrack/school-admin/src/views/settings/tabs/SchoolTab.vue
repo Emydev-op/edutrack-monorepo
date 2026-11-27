@@ -16,6 +16,7 @@ import FieldShell from '@edutrack/app-kit/components/form/FieldShell.vue';
 
 import { useBoardingSettingsQuery } from '@/api/services/boarding';
 import { useSaveNumberingMutation, useSchoolSettingsQuery } from '@/api/services/settings';
+import { useCan } from '@/composables/useCan';
 import { formatNumber, patternProblem } from '@/lib/numbering';
 import { routesPath } from '@/router/routes-path';
 import type { NumberingKind } from '@/types';
@@ -25,6 +26,7 @@ import { supportLink, useSettingsDirtyGuard } from '../settings-shared';
 
 const { data, isPending, isError, refetch } = useSchoolSettingsQuery();
 const save = useSaveNumberingMutation();
+const can = useCan();
 // Boarding is switched on here first; the sidebar's Boarding group appears once it is.
 const { data: boarding } = useBoardingSettingsQuery();
 
@@ -151,7 +153,7 @@ const HINTS: Record<NumberingKind, string> = {
           title="Not saved"
           :description="serverError"
         />
-        <div class="flex flex-wrap gap-2">
+        <div v-if="can('settings.profile')" class="flex flex-wrap gap-2">
           <Button
             type="submit"
             :disabled="!dirty || save.isPending.value || !!Object.keys(errors).length"
@@ -218,7 +220,7 @@ const HINTS: Record<NumberingKind, string> = {
           }}
         </p>
         <div class="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" as-child>
+          <Button v-if="can('boarding.manage')" variant="outline" size="sm" as-child>
             <RouterLink :to="{ name: routesPath.boarding.setup.name }">Boarding set-up</RouterLink>
           </Button>
           <Button v-if="boarding?.enabled" variant="outline" size="sm" as-child>

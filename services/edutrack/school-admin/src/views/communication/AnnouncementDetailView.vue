@@ -18,6 +18,7 @@ import {
   useAnnouncementQuery,
   useDeleteAnnouncementMutation,
 } from '@/api/services/communication';
+import { useCan } from '@/composables/useCan';
 import { smsLength, smsSafe } from '@/lib/sms';
 import { routesPath } from '@/router/routes-path';
 
@@ -27,6 +28,7 @@ import { fmtCount, fmtStamp } from './comms-tones';
 const route = useRoute();
 const router = useRouter();
 const confirm = useConfirm();
+const can = useCan();
 const id = computed(() => String(route.params.id));
 const { data: a, isPending, error } = useAnnouncementQuery(id);
 const action = useAnnouncementActionMutation();
@@ -120,7 +122,7 @@ function del() {
       :description="a.audienceLabel"
       :status="a.status"
     >
-      <template #actions>
+      <template v-if="can('comms.class')" #actions>
         <Button v-if="a.canDelete" variant="outline" @click="del">Delete</Button>
         <Button v-if="a.canWithdraw" variant="outline" @click="withdraw">Withdraw</Button>
         <Button

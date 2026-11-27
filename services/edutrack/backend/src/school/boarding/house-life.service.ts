@@ -10,7 +10,12 @@ import { TenantPrismaService } from '../../tenancy/tenant-prisma.service.js';
 import { armLabel } from '../academics/academic-format.js';
 import { SchoolAuditService } from '../shared/school-audit.service.js';
 import { asTx } from '../shared/tenant-tx.js';
-import { boardingActor, requireBoarding, type BoardingActor } from './boarding-actor.js';
+import {
+  boardingActor,
+  inActorBranches,
+  requireBoarding,
+  type BoardingActor,
+} from './boarding-actor.js';
 import { BoardingAlertsService } from './boarding-alerts.service.js';
 import { boardingSession } from './boarding-use.js';
 import { whenLabel } from './exeats.service.js';
@@ -487,6 +492,7 @@ export class HouseLifeService {
     const today = lagosToday(now);
     const hostelFilter = actor.allHostels ? {} : { id: { in: [...actor.hostelIds] } };
     const roomFilter = { room: { hostel: { archivedAt: null, ...hostelFilter } } };
+    const mine = inActorBranches(actor);
     const [
       boarders,
       placed,
@@ -506,7 +512,10 @@ export class HouseLifeService {
               sessionId: session.id,
               status: 'ACTIVE',
               boarding: true,
-              ...(!actor.allHostels && { bedAllocation: roomFilter }),
+              // A branch-scoped admin counts their branches' boarders, placed or not.
+              ...(actor.branchIds
+                ? inActorBranches(actor)
+                : !actor.allHostels && { bedAllocation: roomFilter }),
             },
           })
         : 0,
@@ -523,14 +532,18 @@ export class HouseLifeService {
           rooms: { where: { archivedAt: null }, select: { capacity: true } },
         },
       }),
-      this.db.exeat.count({ where: { status: 'OUT' } }),
-      this.db.exeat.count({ where: { status: 'OUT', returnBy: { lt: now } } }),
-      this.db.exeat.count({ where: { status: 'REQUESTED' } }),
+      this.db.exeat.count({ where: { ...mine, status: 'OUT' } }),
+      this.db.exeat.count({ where: { ...mine, status: 'OUT', returnBy: { lt: now } } }),
+      this.db.exeat.count({ where: { ...mine, status: 'REQUESTED' } }),
       this.db.exeat.count({
-        where: { status: 'APPROVED', leaveAt: { lte: new Date(today.getTime() + 2 * 86_400_000) } },
+        where: {
+          ...mine,
+          status: 'APPROVED',
+          leaveAt: { lte: new Date(today.getTime() + 2 * 86_400_000) },
+        },
       }),
-      this.db.sickBayVisit.count({ where: { outcome: 'ADMITTED', dischargedAt: null } }),
-      this.db.gateVisitor.count({ where: { outAt: null } }),
+      this.db.sickBayVisit.count({ where: { ...mine, outcome: 'ADMITTED', dischargedAt: null } }),
+      this.db.gateVisitor.count({ where: { ...mine, outAt: null } }),
       this.db.hostelIncident.count({
         where: {
           status: 'OPEN',
@@ -599,6 +612,7 @@ export class HouseLifeService {
             ],
           }),
         },
+        ...inActorBranches(actor),
         ...((q.boarders || !wide) && { boarding: true }),
         ...(!wide && { bedAllocation: { room: { hostelId: { in: [...actor.hostelIds] } } } }),
       },

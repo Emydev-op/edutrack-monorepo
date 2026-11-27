@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useCan } from '@/composables/useCan';
 import { Button } from '@edutrack/ui/components/button';
 import { computed, ref } from 'vue';
 import { RouterLink, RouterView, useRoute } from 'vue-router';
@@ -39,15 +40,20 @@ const summary = computed(() => {
   const list = (users.value ?? []).filter((u) => u.status !== 'Revoked');
   return `${list.filter((u) => u.status === 'Active').length} active staff users · ${list.filter((u) => u.status === 'Invited').length} invited · parent and student accounts are managed from their records`;
 });
+const can = useCan();
 </script>
 
 <template>
   <PageHeader title="Users & Roles" :description="users ? summary : undefined">
     <template #actions>
-      <Button v-if="route.name === s.roles.name" as-child
+      <Button v-if="route.name === s.roles.name && can('settings.roles')" as-child
         ><RouterLink :to="{ name: s.roleNew.name }">Create role</RouterLink></Button
       >
-      <Button v-else @click="inviting = true">Invite user</Button>
+      <Button
+        v-else-if="route.name !== s.roles.name && can('settings.users')"
+        @click="inviting = true"
+        >Invite user</Button
+      >
     </template>
   </PageHeader>
   <TabNav :tabs="tabs" label="Users and roles" />

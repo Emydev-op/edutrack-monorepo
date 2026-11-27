@@ -27,6 +27,7 @@ import {
   useSectionsQuery,
   useSessionsQuery,
 } from '@/api/services/academics';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import type { AcadEventType, CalendarEvent } from '@/types';
@@ -52,6 +53,7 @@ const { data: sections } = useSectionsQuery();
 const { data: sessions } = useSessionsQuery();
 const saveEvent = useSaveEventMutation();
 const deleteEvent = useDeleteEventMutation();
+const can = useCan();
 
 const today = todayIso();
 const month = ref(''); // "YYYY-MM"
@@ -195,7 +197,7 @@ function openNew(date?: string) {
 }
 function openEvent(e: CalendarEvent) {
   showErrors.value = false;
-  if (e.source !== 'custom') {
+  if (e.source !== 'custom' || !can('academics.configure')) {
     viewing.value = e;
     editingId.value = null;
   } else {
@@ -281,7 +283,7 @@ const chip = (t: AcadEventType) =>
       <Button variant="outline" :disabled="!canNext" @click="month = shift(1)"
         >{{ monthLabel(shift(1)).split(' ')[0] }}<ChevronRightIcon class="size-4"
       /></Button>
-      <Button @click="openNew()">Add event</Button>
+      <Button v-if="can('academics.configure')" @click="openNew()">Add event</Button>
     </template>
   </PageHeader>
 
@@ -292,7 +294,7 @@ const chip = (t: AcadEventType) =>
     title="No session yet"
     description="The calendar follows your academic session. Create a session and its terms first."
   >
-    <Button as-child
+    <Button v-if="can('academics.configure')" as-child
       ><RouterLink :to="{ name: routesPath.academics.sessionNew.name }"
         >Create session</RouterLink
       ></Button
@@ -332,6 +334,7 @@ const chip = (t: AcadEventType) =>
                 )
               "
               :aria-label="`Add an event on ${fmtDate(c.iso)}`"
+              :disabled="!can('academics.configure')"
               @click="openNew(c.iso)"
             >
               {{ c.day }}
@@ -409,7 +412,7 @@ const chip = (t: AcadEventType) =>
                 :aria-label="`${t.name} ends at ${data.branch}`"
               />
             </div>
-            <div class="flex gap-2">
+            <div v-if="can('academics.configure')" class="flex gap-2">
               <Button
                 size="sm"
                 variant="outline"
@@ -526,7 +529,9 @@ const chip = (t: AcadEventType) =>
     </template>
     <template #footer>
       <template v-if="viewing">
-        <Button v-if="viewing.source === 'term' && currentSessionId" as-child
+        <Button
+          v-if="viewing.source === 'term' && currentSessionId && can('academics.configure')"
+          as-child
           ><RouterLink
             :to="{ name: routesPath.academics.terms.name, params: { id: currentSessionId } }"
             >Edit in Sessions & Terms</RouterLink

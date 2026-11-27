@@ -26,6 +26,7 @@ import {
   useHostelsQuery,
   useUnplaceMutation,
 } from '@/api/services/boarding';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { BoarderRow } from '@/types';
 
@@ -37,6 +38,7 @@ import PlaceBoarderDialog, { type PlaceTarget } from './PlaceBoarderDialog.vue';
  * placed and moved one at a time here, or many at once with a hostel's Auto-allocate.
  */
 const confirm = useConfirm();
+const can = useCan();
 const { data: settings } = useBoardingSettingsQuery();
 const { data: hostelList } = useHostelsQuery();
 const unplace = useUnplaceMutation();
@@ -134,11 +136,13 @@ const studentLink = (r: BoarderRow) => ({
   params: { id: r.studentId },
 });
 const actions = (r: BoarderRow): RowAction[] => [
-  r.place
-    ? { label: 'Move', icon: ArrowRightLeftIcon, onSelect: () => openPlace(r) }
-    : { label: 'Place', icon: BedDoubleIcon, onSelect: () => openPlace(r) },
+  ...(!can('boarding.manage')
+    ? []
+    : r.place
+      ? [{ label: 'Move', icon: ArrowRightLeftIcon, onSelect: () => openPlace(r) }]
+      : [{ label: 'Place', icon: BedDoubleIcon, onSelect: () => openPlace(r) }]),
   { label: 'View student', icon: EyeIcon, to: studentLink(r) },
-  ...(r.place
+  ...(r.place && can('boarding.manage')
     ? [
         {
           label: 'Take out of room',
@@ -167,7 +171,7 @@ const columns: Column[] = [
       <Button as-child variant="outline"
         ><RouterLink :to="{ name: routesPath.boarding.hostels.name }">Hostels</RouterLink></Button
       >
-      <Button as-child variant="outline"
+      <Button v-if="can('boarding.manage')" as-child variant="outline"
         ><RouterLink :to="{ name: routesPath.students.list.name }"
           >Make students boarders</RouterLink
         ></Button
@@ -181,7 +185,7 @@ const columns: Column[] = [
     title="Boarding isn’t switched on"
     description="Choose which sections take boarders at each campus first."
   >
-    <template #action>
+    <template v-if="can('boarding.manage')" #action>
       <Button as-child variant="outline" size="sm"
         ><RouterLink :to="{ name: routesPath.boarding.setup.name }"
           >Go to Boarding set-up</RouterLink
@@ -264,13 +268,14 @@ const columns: Column[] = [
     <template #cell-place="{ row }">
       <span v-if="row.place">{{ placeLabel(row.place) }}</span>
       <button
-        v-else
+        v-else-if="can('boarding.manage')"
         type="button"
         class="text-left font-medium text-warning-strong hover:underline"
         @click="openPlace(row)"
       >
         Needs a place
       </button>
+      <span v-else class="font-medium text-warning-strong">Needs a place</span>
     </template>
   </DataTable>
 

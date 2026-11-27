@@ -17,6 +17,7 @@ import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 import { useRouteQuery } from '@edutrack/app-kit/composables/useRouteQuery';
 
 import { useDischargeMutation, useSickBayQuery } from '@/api/services/boarding-house';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { SickBayVisit } from '@/types';
 
@@ -25,6 +26,7 @@ import SickVisitDialog from './SickVisitDialog.vue';
 
 /** The sick bay: who is in it now (discharge them) and recent visits. */
 const confirm = useConfirm();
+const can = useCan();
 const days = useRouteQuery<string>('days', '14');
 const { data, isPending, isError, refetch } = useSickBayQuery(() => ({ days: Number(days.value) }));
 const discharge = useDischargeMutation();
@@ -66,7 +68,7 @@ const columns: Column[] = [
 
 <template>
   <PageHeader title="Sick bay" description="Visits to the school nurse, and who is admitted now.">
-    <template #actions>
+    <template v-if="can('boarding.health')" #actions>
       <Button @click="recordOpen = true"><PlusIcon />Record visit</Button>
     </template>
   </PageHeader>
@@ -112,7 +114,9 @@ const columns: Column[] = [
             >Medical notes: {{ v.student.medicalNotes }}</span
           >
         </span>
-        <Button size="sm" variant="outline" @click="dischargeVisit(v)">Discharge</Button>
+        <Button v-if="can('boarding.health')" size="sm" variant="outline" @click="dischargeVisit(v)"
+          >Discharge</Button
+        >
       </li>
     </ul>
   </SectionCard>

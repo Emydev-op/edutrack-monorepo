@@ -16,6 +16,7 @@ import {
   usePlansQuery,
   usePlanToggleMutation,
 } from '@/api/services/finance';
+import { useCan } from '@/composables/useCan';
 import type { PaymentPlan } from '@/types';
 
 import { financeTone } from '../finance-tones';
@@ -26,6 +27,7 @@ const { data, isPending, isError } = usePlansQuery();
 const { data: options } = useFinanceOptionsQuery();
 const makeDefault = usePlanDefaultMutation();
 const toggle = usePlanToggleMutation();
+const can = useCan();
 const rows = computed(() => data.value ?? []);
 const term = computed(
   () => options.value?.terms.find((t) => t.id === options.value?.currentTermId) ?? null,
@@ -93,11 +95,11 @@ const actions = (p: PaymentPlan): RowAction[] => [
       :loading="isPending"
       :row-key="(p) => p.id"
       :row-label="(p) => p.name"
-      :actions="actions"
+      :actions="can('finance.invoice') ? actions : undefined"
       min-width="820px"
       empty-text="No plans: parents pay the full amount by the due date."
     >
-      <template #toolbar>
+      <template v-if="can('finance.invoice')" #toolbar>
         <Button size="sm" @click="edit(null)"><PlusIcon class="size-4" /> New plan</Button>
       </template>
       <template #cell-name="{ row }">

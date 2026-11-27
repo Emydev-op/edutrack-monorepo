@@ -29,6 +29,7 @@ import {
   useSampleStatementMutation,
   useUploadStatementMutation,
 } from '@/api/services/finance';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { LedgerRow } from '@/types';
 
@@ -62,6 +63,7 @@ const { data: list } = useAccountsQuery();
 const { data: options } = useFinanceOptionsQuery();
 const sample = useSampleStatementMutation();
 const upload = useUploadStatementMutation();
+const can = useCan();
 
 const isBank = computed(() => data.value?.kind === 'Bank');
 const uploadOpen = ref(route.query.upload === '1');
@@ -178,7 +180,7 @@ const rowKey = (row: LedgerRow) => row.id;
           : undefined
       "
     >
-      <template #actions>
+      <template v-if="can('finance.payment')" #actions>
         <Button variant="outline" @click="drawer = true"><PencilIcon class="size-4" /> Edit</Button>
         <Button v-if="data.status === 'Active'" variant="outline" @click="moving = true"
           ><ArrowLeftRightIcon class="size-4" /> Move money</Button
@@ -190,7 +192,7 @@ const rowKey = (row: LedgerRow) => row.id;
     </PageHeader>
 
     <SectionCard
-      v-if="uploadOpen && isBank"
+      v-if="uploadOpen && isBank && can('finance.payment')"
       title="Upload a bank statement"
       description="Export the statement as CSV from internet banking. EduTrack matches each credit to a transfer waiting for verification, by amount and the reference or admission number in the narration."
     >

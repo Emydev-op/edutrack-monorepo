@@ -13,6 +13,7 @@ import SearchInput from '@edutrack/app-kit/components/common/SearchInput.vue';
 import { useRouteQuery } from '@edutrack/app-kit/composables/useRouteQuery';
 
 import { useApplicationsQuery } from '@/api/services/students';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import type { ApplicationStage } from '@/types';
@@ -21,6 +22,7 @@ import { fmtDate, offerExpired } from './application-format';
 import { APPLICATION_STAGES, tone } from './student-tones';
 
 const context = useContextStore();
+const can = useCan();
 const { data, isPending } = useApplicationsQuery();
 const search = ref('');
 const stage = useRouteQuery<ApplicationStage | ''>('stage', '');
@@ -66,7 +68,7 @@ const emptyText = computed(() =>
     title="Admissions"
     :description="`${context.current.session} · ${context.current.branch} · Application → Review → Offer → Admission`"
   >
-    <template #actions>
+    <template v-if="can('students.create')" #actions>
       <Button as-child variant="outline"
         ><RouterLink :to="{ name: routesPath.students.import.name }"
           >Import students</RouterLink
@@ -141,7 +143,10 @@ const emptyText = computed(() =>
         class="text-[13px] font-medium text-primary hover:underline"
         >View student</RouterLink
       >
-      <Button v-else-if="row.stage === 'Offer accepted'" as-child size="sm"
+      <Button
+        v-else-if="row.stage === 'Offer accepted' && can('students.create')"
+        as-child
+        size="sm"
         ><RouterLink :to="{ name: routesPath.students.admit.name, query: { application: row.id } }"
           >Admit</RouterLink
         ></Button

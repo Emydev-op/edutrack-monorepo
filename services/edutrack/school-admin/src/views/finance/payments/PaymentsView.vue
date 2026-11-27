@@ -33,6 +33,7 @@ import {
   useVerifyPaymentMutation,
   useVerifyPaymentsMutation,
 } from '@/api/services/finance';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import type { PaymentMethod, PaymentRow, PaymentSource, PaymentStatus, RefundRow } from '@/types';
@@ -48,6 +49,7 @@ const context = useContextStore();
 const verify = useVerifyPaymentMutation();
 const verifyMany = useVerifyPaymentsMutation();
 const reject = useRejectPaymentMutation();
+const can = useCan();
 
 const tab = useRouteQuery<Tab>('tab', 'all');
 const page = useRouteQuery<string>('page', '1');
@@ -192,7 +194,7 @@ async function verifySelected() {
 
 const allActions = (p: PaymentRow): RowAction[] => [
   { label: 'View receipt', icon: EyeIcon, to: receiptLink(p) },
-  ...(p.status === 'Pending verification'
+  ...(p.status === 'Pending verification' && can('finance.payment')
     ? [
         { label: 'Verify', icon: CheckIcon, onSelect: () => askVerify(p) },
         { label: 'Reject', icon: XIcon, onSelect: () => askReject(p) },
@@ -237,7 +239,7 @@ const refundLink = (r: RefundRow) => ({ name: f.refundDetail.name, params: { id:
     title="Payments"
     description="Payments are never deleted; mistakes are corrected with a refund or by rejecting an unverified transfer."
   >
-    <template #actions>
+    <template v-if="can('finance.payment')" #actions>
       <Button as-child
         ><RouterLink :to="{ name: f.paymentNew.name }">Record payment</RouterLink></Button
       >
@@ -274,7 +276,7 @@ const refundLink = (r: RefundRow) => ({ name: f.refundDetail.name, params: { id:
       title="Parents tap “I’ve made a payment” in the Parent Portal"
       description="Their claim, and any transfer staff record without checking the statement, waits here. Nothing changes a balance until you verify it against the bank statement."
     >
-      <template #action>
+      <template v-if="can('finance.payment')" #action>
         <Button as-child variant="outline" size="sm"
           ><RouterLink :to="{ name: f.accounts.name }">Match a bank statement</RouterLink></Button
         >
@@ -285,7 +287,7 @@ const refundLink = (r: RefundRow) => ({ name: f.refundDetail.name, params: { id:
       :rows="rows"
       :row-key="(p) => p.id"
       :row-label="(p) => p.no"
-      :selection="selection"
+      :selection="can('finance.payment') ? selection : undefined"
       :loading="isPending"
       :meta="data?.meta"
       min-width="1000px"
@@ -341,7 +343,7 @@ const refundLink = (r: RefundRow) => ({ name: f.refundDetail.name, params: { id:
         ><span class="font-medium tabular-nums">{{ formatNaira(row.amount) }}</span></template
       >
       <template #cell-decide="{ row }">
-        <span class="flex justify-end gap-1.5">
+        <span v-if="can('finance.payment')" class="flex justify-end gap-1.5">
           <Button size="sm" variant="outline" @click="askReject(row)">Reject</Button>
           <Button size="sm" @click="askVerify(row)">Verify</Button>
         </span>

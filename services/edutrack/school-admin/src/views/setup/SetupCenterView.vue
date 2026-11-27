@@ -19,6 +19,7 @@ import {
   useFinishSetupMutation,
   useSetupQuery,
 } from '@/api/services/setup';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
 import type { SetupGroup, SetupStep } from '@/types';
@@ -28,6 +29,7 @@ const auth = useAuthStore();
 const { data: setup, isPending, isError, refetch } = useSetupQuery();
 const complete = useCompleteSetupStepMutation();
 const finish = useFinishSetupMutation();
+const can = useCan();
 
 const GROUPS: SetupGroup[] = ['Foundation', 'Academic structure', 'People', 'Operations'];
 
@@ -109,7 +111,7 @@ async function finishSetup() {
 <template>
   <PageHeader title="Setup Center" :description="setup?.intro">
     <template #actions>
-      <Button as-child variant="outline"
+      <Button v-if="can('students.create')" as-child variant="outline"
         ><RouterLink :to="{ name: routesPath.students.import.name }"
           >Import data</RouterLink
         ></Button
@@ -204,7 +206,7 @@ async function finishSetup() {
         </span>
       </div>
       <Button
-        v-if="!setup.finished"
+        v-if="!setup.finished && can('settings.profile')"
         size="lg"
         :disabled="stats.requiredLeft > 0 || finish.isPending.value"
         @click="finishSetup"

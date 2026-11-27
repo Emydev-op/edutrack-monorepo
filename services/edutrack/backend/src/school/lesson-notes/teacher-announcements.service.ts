@@ -19,8 +19,8 @@ type StaffAudience = keyof typeof AUDIENCE;
 /**
  * The Teacher Workspace's announcements feed: what School Admin › Communication sent to
  * everyone, to teachers or to all staff, school-wide or on a campus the teacher works on, while
- * it is live (not withdrawn, not past its last day). Announcements for parents, students or
- * chosen classes go to families and don't show here.
+ * it is live (not withdrawn, not past its last day), and anything sent to the teacher by name.
+ * Announcements for parents, students or chosen classes go to families and don't show here.
  */
 @Injectable()
 export class TeacherAnnouncementsService {
@@ -44,12 +44,20 @@ export class TeacherAnnouncementsService {
     return {
       status: 'SENT',
       withdrawnAt: null,
-      audienceKind: { in: Object.keys(AUDIENCE) as StaffAudience[] },
       AND: [
         { OR: [{ expiresOn: null }, { expiresOn: { gte: today } }] },
-        s.allBranches
-          ? {}
-          : { OR: [{ audienceBranchId: null }, { audienceBranchId: { in: branchIds } }] },
+        {
+          OR: [
+            {
+              audienceKind: { in: Object.keys(AUDIENCE) as StaffAudience[] },
+              ...(!s.allBranches && {
+                OR: [{ audienceBranchId: null }, { audienceBranchId: { in: branchIds } }],
+              }),
+            },
+            // Sent to them by name.
+            { audienceKind: 'PEOPLE', audiencePeople: { has: `st:${s.id}` } },
+          ],
+        },
       ],
     };
   }
@@ -91,7 +99,8 @@ export class TeacherAnnouncementsService {
         id: a.id,
         title: a.title,
         summary: a.body.split('\n')[0]!.slice(0, 180),
-        audience: AUDIENCE[a.audienceKind as StaffAudience],
+        audience:
+          a.audienceKind === 'PEOPLE' ? 'Sent to you' : AUDIENCE[a.audienceKind as StaffAudience],
         campuses: a.audienceBranch?.name ?? 'All campuses',
         author: m
           ? [m.user.title, m.user.firstName, m.user.lastName].filter(Boolean).join(' ')

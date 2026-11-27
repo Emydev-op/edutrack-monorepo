@@ -70,6 +70,14 @@ export class SchoolsService {
     return this.view(await this.load(id));
   }
 
+  /** Every school's id and name, A–Z: the back office's school filters and pickers. */
+  async names() {
+    return this.prisma.school.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async list(query: SchoolListQuery) {
     const search = query.search?.trim();
     const contains = (value: string) => ({ contains: value, mode: 'insensitive' as const });

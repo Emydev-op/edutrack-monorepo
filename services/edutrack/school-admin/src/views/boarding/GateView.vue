@@ -15,6 +15,7 @@ import { pluralize } from '@edutrack/app-kit/lib/format';
 
 import { useBoardingSettingsQuery } from '@/api/services/boarding';
 import { useGateQuery, useVisitorOutMutation } from '@/api/services/boarding-house';
+import { useCan } from '@/composables/useCan';
 import type { Exeat, GateVisitor } from '@/types';
 
 import {
@@ -49,6 +50,7 @@ const campusName = computed(
 
 const { data, isPending, isError, isFetching, refetch, dataUpdatedAt } = useGateQuery(campusId);
 const actions = useExeatActions();
+const can = useCan();
 const visitorOut = useVisitorOutMutation();
 
 const out = computed(() =>
@@ -90,7 +92,9 @@ async function logOut(v: GateVisitor) {
       <Button variant="outline" :disabled="isFetching" @click="refetch()"
         ><RefreshCwIcon :class="isFetching && 'animate-spin'" />Refresh</Button
       >
-      <Button @click="visitorOpen = true"><UserPlusIcon />Log visitor</Button>
+      <Button v-if="can('boarding.gate')" @click="visitorOpen = true"
+        ><UserPlusIcon />Log visitor</Button
+      >
     </template>
   </PageHeader>
 

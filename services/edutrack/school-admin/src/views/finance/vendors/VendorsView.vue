@@ -17,6 +17,7 @@ import { useRouteQuery } from '@edutrack/app-kit/composables/useRouteQuery';
 import { formatNaira } from '@edutrack/app-kit/lib/format';
 
 import { useVendorsQuery } from '@/api/services/finance';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { VendorRow } from '@/types';
 
@@ -24,6 +25,7 @@ import { compactNaira, financeTone, fmtDay } from '../finance-tones';
 import VendorDrawer from './VendorDrawer.vue';
 
 const route = useRoute();
+const can = useCan();
 const router = useRouter();
 const status = useRouteQuery<string>('status', '');
 const category = useRouteQuery<string>('category', '');
@@ -63,7 +65,7 @@ const filtered = computed(() => !!status.value || !!category.value || !!debounce
 
 <template>
   <PageHeader title="Vendors" description="Suppliers and service providers">
-    <template #actions>
+    <template v-if="can('finance.expenses')" #actions>
       <Button @click="drawerOpen = true">Add vendor</Button>
     </template>
   </PageHeader>
@@ -92,7 +94,11 @@ const filtered = computed(() => !!status.value || !!category.value || !!debounce
     :loading="isPending"
     min-width="1040px"
     :empty-text="
-      filtered ? 'No vendors match. Clear the search or filters.' : 'No vendors yet. Add one.'
+      filtered
+        ? 'No vendors match. Clear the search or filters.'
+        : can('finance.expenses')
+          ? 'No vendors yet. Add one.'
+          : 'No vendors yet.'
     "
   >
     <template #search

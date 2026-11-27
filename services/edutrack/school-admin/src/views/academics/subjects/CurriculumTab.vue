@@ -15,6 +15,7 @@ import { useUnsavedChanges } from '@edutrack/app-kit/composables/useUnsavedChang
 import { pluralize } from '@edutrack/app-kit/lib/format';
 
 import { useSaveCurriculumMutation } from '@/api/services/academics';
+import { useCan } from '@/composables/useCan';
 import { useContextStore } from '@/stores/context';
 import type { CurriculumArms, CurriculumPeriods, CurriculumView, Offering, Subject } from '@/types';
 
@@ -23,6 +24,7 @@ defineEmits<{ add: [] }>();
 const confirm = useConfirm();
 const context = useContextStore();
 const save = useSaveCurriculumMutation();
+const can = useCan();
 
 /** What this tab edits: offerings, lessons per week that differ by level, and arm-only subjects. */
 interface Draft {
@@ -50,7 +52,9 @@ const section = ref(
 const info = computed(() => props.view.levels.find((l) => l.section === section.value));
 const levels = computed(() => info.value?.levels ?? []);
 /** Sections this admin doesn't manage are shown but can't be changed. */
-const readonly = computed(() => !!info.value && !info.value.canEdit);
+const otherSection = computed(() => !!info.value && !info.value.canEdit);
+/** Also read-only for users who can't configure academics. */
+const readonly = computed(() => otherSection.value || !can('academics.configure'));
 /** Shared subjects, plus the ones that belong to this section. */
 const subjects = computed(() =>
   props.view.subjects.filter(
@@ -309,7 +313,7 @@ const reset = () => (local.value = fromView(props.view));
       />
     </div>
     <p
-      v-if="readonly"
+      v-if="otherSection"
       class="border-b border-divider bg-muted px-4 py-2.5 text-[13px] text-muted-foreground"
     >
       You manage other sections, so {{ section }} is read-only.
@@ -483,7 +487,10 @@ const reset = () => (local.value = fromView(props.view));
         </tbody>
       </table>
     </div>
-    <div class="flex items-center justify-end gap-2 border-t border-divider px-4 py-3">
+    <div
+      v-if="can('academics.configure')"
+      class="flex items-center justify-end gap-2 border-t border-divider px-4 py-3"
+    >
       <span v-if="dirty" class="mr-auto text-xs text-warning-strong">Unsaved changes</span>
       <Button variant="ghost" :disabled="!dirty" @click="reset">Discard</Button>
       <Button

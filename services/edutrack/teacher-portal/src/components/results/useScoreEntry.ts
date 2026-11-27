@@ -100,7 +100,7 @@ export function useScoreEntry(
         parseScore(t, components.value[i]?.max ?? 0),
       );
       const values = cells.map((c) => (c.error ? null : c.value));
-      const scored = scoreRow(components.value, scale.value, values);
+      const scored = scoreRow(components.value, scale.value, values, sheet.value?.rounding);
       return {
         ...r,
         cells,
@@ -118,7 +118,13 @@ export function useScoreEntry(
   );
 
   const stats = computed(() =>
-    statsOf(components.value, scale.value, parsed.value, sheet.value?.passMark ?? 40),
+    statsOf(
+      components.value,
+      scale.value,
+      parsed.value,
+      sheet.value?.passMark ?? 40,
+      sheet.value?.rounding,
+    ),
   );
   const invalidCount = computed(
     () => parsed.value.flatMap((r) => r.cells.filter((c) => c.error)).length,

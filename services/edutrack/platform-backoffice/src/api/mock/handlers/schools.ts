@@ -38,6 +38,10 @@ mock.get('/v1/platform/schools', ({ query }) => {
   return paginate(rows, query, (s) => `${s.name} ${s.admin} ${s.state}`);
 });
 
+mock.get('/v1/platform/schools/names', () =>
+  schools.map((s) => ({ id: s.id, name: s.name })).sort((a, b) => a.name.localeCompare(b.name)),
+);
+
 mock.get('/v1/platform/schools/:id', ({ params }) => findSchool(params.id!));
 
 mock.patch('/v1/platform/schools/:id', ({ params, body }) => {

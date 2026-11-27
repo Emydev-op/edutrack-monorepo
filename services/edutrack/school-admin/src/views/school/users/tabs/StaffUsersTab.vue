@@ -39,11 +39,12 @@ const actions = (u: SchoolUserRow): RowAction[] => [
 ];
 
 const columns: Column[] = [
-  { key: 'name', label: 'User', width: 'minmax(220px,1.6fr)' },
-  { key: 'position', label: 'Position', width: 'minmax(150px,1.3fr)' },
-  { key: 'roles', label: 'System roles', width: 'minmax(150px,1.3fr)' },
-  { key: 'scope', label: 'Scope', width: 'minmax(120px,1fr)' },
-  { key: 'sections', label: 'Sections', width: 'minmax(130px,1fr)' },
+  // Fits beside the sidebar on a 1366px laptop, so the action column isn't cut off.
+  { key: 'name', label: 'User', width: 'minmax(200px,1.6fr)' },
+  { key: 'position', label: 'Position', width: 'minmax(130px,1.3fr)' },
+  { key: 'roles', label: 'System roles', width: 'minmax(130px,1.3fr)' },
+  { key: 'scope', label: 'Scope', width: 'minmax(110px,1fr)' },
+  { key: 'sections', label: 'Sections', width: 'minmax(110px,1fr)' },
   { key: 'status', label: 'Account', width: '110px' },
   { key: 'lastActive', label: 'Last active', width: '100px' },
 ];
@@ -57,7 +58,7 @@ const columns: Column[] = [
     :row-label="(u) => u.name"
     :actions="actions"
     :loading="isPending"
-    min-width="1130px"
+    min-width="980px"
     empty-text="No users match your search."
   >
     <template #search><SearchInput v-model="search" placeholder="Search users" /></template>

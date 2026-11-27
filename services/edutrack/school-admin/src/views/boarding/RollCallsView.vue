@@ -13,6 +13,7 @@ import SectionCard from '@edutrack/app-kit/components/common/SectionCard.vue';
 import { useRouteQuery } from '@edutrack/app-kit/composables/useRouteQuery';
 
 import { useRollCallsQuery } from '@/api/services/boarding-house';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { RollCallHostel } from '@/types';
 
@@ -24,6 +25,7 @@ import RollCallTimesDialog from './RollCallTimesDialog.vue';
  * one shows the sheet to mark or correct.
  */
 const today = lagosToday();
+const can = useCan();
 const date = useRouteQuery<string>('date', today);
 const { data, isPending, isError, refetch } = useRollCallsQuery(date);
 const hostels = computed(() => data.value?.hostels ?? []);
@@ -41,6 +43,7 @@ const sheetLink = (h: RollCallHostel, slot: string) => ({
   params: { hostelId: h.id },
   query: { date: date.value, slot },
 });
+const boardersLabel = (n: number) => `${n} boarder${n === 1 ? '' : 's'}`;
 </script>
 
 <template>
@@ -70,7 +73,7 @@ const sheetLink = (h: RollCallHostel, slot: string) => ({
     title="No hostels to call"
     description="Add hostels and place boarders first. Each hostel’s roll calls show here."
   >
-    <Button as-child variant="outline" size="sm"
+    <Button v-if="can('boarding.manage')" as-child variant="outline" size="sm"
       ><RouterLink :to="{ name: routesPath.boarding.hostels.name }"
         >Go to Hostels</RouterLink
       ></Button
@@ -84,7 +87,7 @@ const sheetLink = (h: RollCallHostel, slot: string) => ({
       :title="h.name"
       :description="multiCampus ? h.campus : undefined"
     >
-      <template #actions>
+      <template v-if="can('boarding.manage')" #actions>
         <Button variant="ghost" size="sm" @click="editTimes(h)"
           ><ClockIcon />Roll call times</Button
         >
@@ -126,7 +129,9 @@ const sheetLink = (h: RollCallHostel, slot: string) => ({
             </template>
             <template v-else>
               <span class="text-xs text-warning-strong">Not taken</span>
-              <span class="text-xs tabular-nums text-muted-foreground">{{ s.total }} boarders</span>
+              <span class="text-xs tabular-nums text-muted-foreground">{{
+                boardersLabel(h.boarders ?? s.total)
+              }}</span>
             </template>
           </RouterLink>
         </li>

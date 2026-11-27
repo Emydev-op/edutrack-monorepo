@@ -13,6 +13,7 @@ import PageHeader from '@edutrack/app-kit/components/common/PageHeader.vue';
 import { initials } from '@edutrack/app-kit/lib/format';
 
 import { useApplicationQuery } from '@/api/services/students';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useLayoutStore } from '@/stores/layout';
 import type { ApplicationStage, TimelineEntry } from '@/types';
@@ -23,6 +24,7 @@ import { tone } from './student-tones';
 
 const route = useRoute();
 const layout = useLayoutStore();
+const can = useCan();
 const id = computed(() => route.params.id as string);
 const { data: app, isPending, isError } = useApplicationQuery(id);
 
@@ -111,26 +113,28 @@ const offerStatus = computed(() => {
       :description="`${app.number} · ${app.level} · ${app.branch} · applied ${app.applied}`"
     >
       <template #actions>
-        <Button v-if="app.canEdit" as-child variant="ghost"
+        <Button v-if="app.canEdit && can('students.create')" as-child variant="ghost"
           ><RouterLink
             :to="{ name: routesPath.students.applicationEdit.name, params: { id: app.id } }"
             >Edit details</RouterLink
           ></Button
         >
-        <Button
-          v-for="a in actions"
-          :key="a.stage"
-          :variant="a.variant"
-          @click="openStage({ stage: a.stage, label: a.label })"
-          >{{ a.label }}</Button
-        >
+        <template v-if="can('students.create')">
+          <Button
+            v-for="a in actions"
+            :key="a.stage"
+            :variant="a.variant"
+            @click="openStage({ stage: a.stage, label: a.label })"
+            >{{ a.label }}</Button
+          >
+        </template>
         <Button v-if="app.studentId" as-child variant="outline"
           ><RouterLink
             :to="{ name: routesPath.students.detail.name, params: { id: app.studentId } }"
             >View student</RouterLink
           ></Button
         >
-        <Button v-if="app.canAdmit" as-child
+        <Button v-if="app.canAdmit && can('students.create')" as-child
           ><RouterLink
             :to="{ name: routesPath.students.admit.name, query: { application: app.id } }"
             >Admit</RouterLink

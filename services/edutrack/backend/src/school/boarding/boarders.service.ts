@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { Clock } from '../../common/clock/clock.js';
 import { RequestContext } from '../../common/context/request-context.js';
+import { requireScopedBranch, scopedBranchIds } from './boarding-actor.js';
 import { AppException } from '../../common/errors/app.exception.js';
 import { lagosToday } from '../../platform/shared/format.js';
 import { isUuid } from '../../platform/shared/params.js';
@@ -157,6 +158,7 @@ export class BoardersService {
   ) {
     const session = await this.session();
     const e = await this.enrolment(studentId, session.id);
+    requireScopedBranch(e.branchId);
     const name = `${e.student.firstName} ${e.student.surname}`;
     if (!ON_ROLL.includes(e.student.status))
       throw conflict(`${name} has left the school.`, 'STUDENT_LEFT');
@@ -305,6 +307,7 @@ export class BoardersService {
   }) {
     const session = await this.session();
     const e = await this.enrolment(dto.studentId, session.id);
+    requireScopedBranch(e.branchId);
     const name = `${e.student.firstName} ${e.student.surname}`;
     if (!e.boarding)
       throw conflict(`${name} is a day student. Make them a boarder first.`, 'NOT_BOARDER');
@@ -402,6 +405,7 @@ export class BoardersService {
           }),
         },
         ...(q.branchId && { branchId: q.branchId }),
+        ...(scopedBranchIds() && { AND: [{ branchId: { in: scopedBranchIds()! } }] }),
         ...(q.levelId && { levelId: q.levelId }),
         ...(q.hostelId && { bedAllocation: { room: { hostelId: q.hostelId } } }),
         ...(q.unplaced && { bedAllocation: null }),
@@ -521,6 +525,7 @@ export class BoardersService {
       },
     });
     if (!hostel) throw AppException.notFound('That hostel doesn’t exist.', 'NOT_FOUND');
+    requireScopedBranch(hostel.branchId);
     const boardingLevels = (await this.boarding.boardingLevels(hostel.branchId)).map((l) => l.id);
     const levels = hostel.levelIds.length ? hostel.levelIds : boardingLevels;
     const waiting = await this.db.enrollment.findMany({

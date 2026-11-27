@@ -24,6 +24,7 @@ import {
   useRefundQuery,
   useRejectRefundMutation,
 } from '@/api/services/finance';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
 
@@ -40,6 +41,7 @@ const { data: accounts } = useAccountsQuery();
 const approve = useApproveRefundMutation();
 const rejectRefund = useRejectRefundMutation();
 const pay = usePayRefundMutation();
+const can = useCan();
 
 const limit = computed(() => options.value?.settings.refundLimit ?? 500000);
 const me = computed(() => (auth.user ? `${auth.user.firstName} ${auth.user.lastName}` : 'You'));
@@ -163,7 +165,7 @@ const refundRows = computed(() => {
       description="A refund is its own transaction. The original payment stays unchanged."
     >
       <template #actions>
-        <template v-if="r.status === 'Awaiting approval'">
+        <template v-if="r.status === 'Awaiting approval' && can('finance.refund')">
           <Button variant="outline" :disabled="rejectRefund.isPending.value" @click="askReject"
             >Reject</Button
           >
@@ -172,10 +174,14 @@ const refundRows = computed(() => {
           }}</Button>
         </template>
         <template v-else-if="r.status === 'Approved'">
-          <Button variant="outline" :disabled="rejectRefund.isPending.value" @click="askReject"
+          <Button
+            v-if="can('finance.refund')"
+            variant="outline"
+            :disabled="rejectRefund.isPending.value"
+            @click="askReject"
             >Reject</Button
           >
-          <Button @click="openPay">Mark as paid</Button>
+          <Button v-if="can('finance.payment')" @click="openPay">Mark as paid</Button>
         </template>
       </template>
     </PageHeader>

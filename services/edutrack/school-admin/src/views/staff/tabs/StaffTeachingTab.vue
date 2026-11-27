@@ -10,11 +10,13 @@ import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 import MeterRow from '@edutrack/app-kit/components/common/MeterRow.vue';
 import SectionCard from '@edutrack/app-kit/components/common/SectionCard.vue';
 
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { StaffDetail } from '@/types';
 
 const props = defineProps<{ staff: StaffDetail }>();
 const t = computed(() => props.staff.teaching);
+const can = useCan();
 const load = computed(() => props.staff.load);
 const branches = computed(() => [...new Set(t.value?.assignments.map((a) => a.branch) ?? [])]);
 const over = computed(() => !!load.value && load.value.periods > load.value.max);
@@ -106,7 +108,7 @@ const classTo = (armId: string) => ({
       title="No classes assigned"
       :description="`${staff.name} isn’t teaching any subject this term. They’ll see an empty Teacher Workspace until you assign them.`"
     >
-      <Button as-child variant="outline"
+      <Button v-if="can('academics.configure')" as-child variant="outline"
         ><RouterLink :to="assignTo">Go to Teacher Assignments</RouterLink></Button
       >
     </EmptyState>

@@ -29,6 +29,11 @@ const props = defineProps<{ exeat: Exeat | null }>();
 const open = defineModel<boolean>('open', { required: true });
 
 const signOut = useSignOutMutation();
+/** Hours before the exeat starts (signing out more than 2 hours early is flagged). */
+const hoursEarly = computed(() => {
+  const at = props.exeat?.leaveAt ? new Date(props.exeat.leaveAt).getTime() : NaN;
+  return Number.isNaN(at) ? 0 : Math.floor((at - Date.now()) / 3_600_000);
+});
 const studentId = computed(() => (open.value ? (props.exeat?.student.id ?? '') : ''));
 const termBreak = computed(() => props.exeat?.kind === 'Term break');
 
@@ -132,6 +137,12 @@ async function submit() {
           title="Not signed out"
           :description="serverError"
           role="alert"
+        />
+        <InlineNotice
+          v-if="hoursEarly >= 2"
+          tone="warning"
+          title="This is early"
+          :description="`The exeat starts ${exeat?.leaves} (in about ${hoursEarly} hours). Sign them out now only if the house staff agreed.`"
         />
         <Skeleton v-if="pickupsPending && !choices.length" class="h-24" />
         <InlineNotice

@@ -11,20 +11,56 @@ import {
 
 import { routesPath as r } from '@/router/routes-path';
 
-/** The design's eight shortcuts for a school administrator's day. */
+/** The design's eight shortcuts for a school administrator's day (each shown only with its permission). */
 export const QUICK_ACTIONS = [
-  { label: 'Admit student', icon: UserPlusIcon, to: { name: r.students.admissions.name } },
-  { label: 'Import students', icon: FileSpreadsheetIcon, to: { name: r.students.import.name } },
-  { label: 'Add staff', icon: UsersIcon, to: { name: r.staff.directory.name } },
-  { label: 'Create invoice', icon: ReceiptIcon, to: { name: r.finance.invoiceGenerate.name } },
-  { label: 'Record payment', icon: HandCoinsIcon, to: { name: r.finance.paymentNew.name } },
-  { label: 'Review results', icon: BookCheckIcon, to: { name: r.academics.results.name } },
+  {
+    label: 'Admit student',
+    permission: 'students.create',
+    icon: UserPlusIcon,
+    to: { name: r.students.admissions.name },
+  },
+  {
+    label: 'Import students',
+    permission: 'students.create',
+    icon: FileSpreadsheetIcon,
+    to: { name: r.students.import.name },
+  },
+  {
+    label: 'Add staff',
+    permission: 'settings.users',
+    icon: UsersIcon,
+    to: { name: r.staff.directory.name },
+  },
+  {
+    label: 'Create invoice',
+    permission: 'finance.invoice',
+    icon: ReceiptIcon,
+    to: { name: r.finance.invoiceGenerate.name },
+  },
+  {
+    label: 'Record payment',
+    permission: 'finance.payment',
+    icon: HandCoinsIcon,
+    to: { name: r.finance.paymentNew.name },
+  },
+  {
+    label: 'Review results',
+    permission: 'results.view',
+    icon: BookCheckIcon,
+    to: { name: r.academics.results.name },
+  },
   {
     label: 'New announcement',
+    permission: 'comms.class',
     icon: MegaphoneIcon,
     to: { name: r.communication.announcementNew.name },
   },
-  { label: 'Raise stock request', icon: PackageIcon, to: { name: r.inventory.requests.name } },
+  {
+    label: 'Raise stock request',
+    permission: 'inventory.request',
+    icon: PackageIcon,
+    to: { name: r.inventory.requests.name },
+  },
 ];
 
 /** First steps for a school with no data yet. */

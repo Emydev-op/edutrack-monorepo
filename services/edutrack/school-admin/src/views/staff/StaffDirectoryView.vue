@@ -28,6 +28,7 @@ import {
   useStaffListQuery,
 } from '@/api/services/staff';
 import SetupStepBar from '@/components/academics/SetupStepBar.vue';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { StaffAccount, StaffListRow, StaffQuery } from '@/types';
 import { accountTone } from '@/views/school/users/user-tones';
@@ -36,6 +37,7 @@ type GroupFilter = NonNullable<StaffQuery['group']>;
 
 const route = useRoute();
 const invite = useInviteStaffMutation();
+const can = useCan();
 const { data: options } = useStaffFormOptionsQuery();
 
 const group = useRouteQuery<GroupFilter>('group', 'All');
@@ -114,7 +116,7 @@ async function sendInvites(ids: string[]) {
 
 const actions = (s: StaffListRow): RowAction[] => [
   { label: 'View profile', icon: EyeIcon, to: staffLink(s) },
-  ...(s.status === 'Active'
+  ...(s.status === 'Active' && can('settings.users')
     ? [
         {
           label: 'Edit',
@@ -123,7 +125,10 @@ const actions = (s: StaffListRow): RowAction[] => [
         },
       ]
     : []),
-  ...(s.status === 'Active' && !s.isYou && ['No account', 'Invited'].includes(s.account)
+  ...(s.status === 'Active' &&
+  !s.isYou &&
+  ['No account', 'Invited'].includes(s.account) &&
+  can('settings.users')
     ? [
         {
           label: s.account === 'Invited' ? 'Resend invitation' : 'Invite to Edutrack',
@@ -173,7 +178,7 @@ const setupDetails = computed<[string, string][]>(() =>
         : 'Everyone who works at the school.'
     "
   >
-    <template #actions>
+    <template v-if="can('settings.users')" #actions>
       <AddMenu
         label="Add staff"
         manual-label="Add a staff member"
@@ -204,7 +209,7 @@ const setupDetails = computed<[string, string][]>(() =>
       title="Add your first staff member"
       description="Add teachers and office staff one by one, or import them from a spreadsheet. Teaching staff are assigned to classes next."
     >
-      <div class="flex gap-2">
+      <div v-if="can('settings.users')" class="flex gap-2">
         <Button as-child variant="outline"
           ><RouterLink :to="importTo">Bulk upload from Excel</RouterLink></Button
         >
@@ -233,7 +238,7 @@ const setupDetails = computed<[string, string][]>(() =>
       <template #action>
         <div class="flex shrink-0 gap-2">
           <Button variant="ghost" size="sm" @click="group = 'Teaching'">Show them</Button>
-          <Button as-child variant="outline" size="sm"
+          <Button v-if="can('academics.configure')" as-child variant="outline" size="sm"
             ><RouterLink :to="{ name: routesPath.academics.assignments.name }"
               >Teacher Assignments</RouterLink
             ></Button
@@ -262,7 +267,7 @@ const setupDetails = computed<[string, string][]>(() =>
       :row-key="(s) => s.id"
       :row-label="(s) => s.name"
       :actions="actions"
-      :selection="selection"
+      :selection="can('settings.users') ? selection : undefined"
       :loading="isPending"
       min-width="1080px"
       :empty-text="

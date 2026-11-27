@@ -112,7 +112,7 @@ const checks = computed(() => {
     :title="`Boarding · ${child?.firstName ?? ''}`"
     :sub="
       child?.boarding?.place
-        ? `${child.boarding.place.hostel} · Room ${child.boarding.place.room}`
+        ? `${child.boarding.place.hostel} · ${/^room\b/i.test(child.boarding.place.room) ? '' : 'Room '}${child.boarding.place.room}`
         : child?.className
     "
   />

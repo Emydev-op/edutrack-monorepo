@@ -25,6 +25,7 @@ import {
   useDeleteRoomMutation,
   useHostelQuery,
 } from '@/api/services/boarding';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useLayoutStore } from '@/stores/layout';
 import type { Hostel, HostelFloor, HostelRoom, HostelStaff } from '@/types';
@@ -47,6 +48,7 @@ const router = useRouter();
 const confirm = useConfirm();
 const layoutStore = useLayoutStore();
 const b = routesPath.boarding;
+const can = useCan();
 
 const id = computed(() => String(route.params.id ?? ''));
 const { data: hostel, isPending, isError, error, refetch } = useHostelQuery(id);
@@ -231,7 +233,7 @@ const onCopied = (h: Hostel) => router.push({ name: b.hostel.name, params: { id:
         { label: 'Free', value: formatCount(hostel.totals.free) },
       ]"
     >
-      <template #actions>
+      <template v-if="can('boarding.manage')" #actions>
         <Button variant="outline" @click="editOpen = true"><PencilIcon />Edit</Button>
         <Button variant="outline" @click="copyOpen = true"><CopyIcon />Copy layout</Button>
         <Button variant="outline" class="text-destructive" @click="deleteHostel"
@@ -245,7 +247,7 @@ const onCopied = (h: Hostel) => router.push({ name: b.hostel.name, params: { id:
     </div>
 
     <SectionCard title="House staff" description="Who looks after the boarders here.">
-      <template #actions>
+      <template v-if="can('boarding.manage')" #actions>
         <Button variant="outline" size="sm" @click="staffOpen = true"
           ><UsersIcon />Edit staff</Button
         >
@@ -268,6 +270,7 @@ const onCopied = (h: Hostel) => router.push({ name: b.hostel.name, params: { id:
       <p v-else class="text-[13px] text-muted-foreground">
         No house master / mistress yet.
         <button
+          v-if="can('boarding.manage')"
           type="button"
           class="font-medium text-primary hover:underline"
           @click="staffOpen = true"
@@ -293,7 +296,7 @@ const onCopied = (h: Hostel) => router.push({ name: b.hostel.name, params: { id:
       title="Floors & rooms"
       :description="`${hostel.totals.floors ? `${pluralize(hostel.totals.floors, 'floor or wing', 'floors or wings')} · ` : ''}${pluralize(hostel.totals.rooms, 'room')} · ${pluralize(hostel.totals.places, 'place')}`"
     >
-      <template #actions>
+      <template v-if="can('boarding.manage')" #actions>
         <div class="flex flex-wrap justify-end gap-2">
           <Button variant="outline" size="sm" @click="addFloor"
             ><PlusIcon />Add floor / wing</Button
@@ -308,7 +311,7 @@ const onCopied = (h: Hostel) => router.push({ name: b.hostel.name, params: { id:
         title="No rooms yet"
         description="One big dormitory? Add 1 room with all its places. Several floors or wings? Add them first, then the rooms on each. Use “Add rooms” to add many at once, e.g. Room 1–10 with 4 places each."
       >
-        <div class="flex flex-wrap gap-2">
+        <div v-if="can('boarding.manage')" class="flex flex-wrap gap-2">
           <Button size="sm" @click="generateRooms()"><LayersIcon />Add rooms</Button>
           <Button variant="outline" size="sm" @click="addFloor"
             ><PlusIcon />Add floor / wing</Button
@@ -344,7 +347,7 @@ const onCopied = (h: Hostel) => router.push({ name: b.hostel.name, params: { id:
               </span>
             </div>
             <RowActions
-              v-if="g.floor"
+              v-if="g.floor && can('boarding.manage')"
               :actions="floorActions(g.floor)"
               :label="`${g.floor.name} actions`"
             />
@@ -375,7 +378,11 @@ const onCopied = (h: Hostel) => router.push({ name: b.hostel.name, params: { id:
                 }}</span>
               </button>
               <span class="relative z-10 -mr-1.5 -mt-1">
-                <RowActions :actions="roomActions(r)" :label="`${r.name} actions`" />
+                <RowActions
+                  v-if="can('boarding.manage')"
+                  :actions="roomActions(r)"
+                  :label="`${r.name} actions`"
+                />
               </span>
             </li>
           </ul>

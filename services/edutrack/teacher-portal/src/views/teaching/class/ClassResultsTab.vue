@@ -50,7 +50,7 @@ const left = computed(() =>
         <div class="flex flex-col">
           <dt class="text-xs text-faint">Class average</dt>
           <dd class="font-semibold tabular-nums">
-            {{ s.average === null ? '—' : s.average.toFixed(1) }}
+            {{ s.average === null ? '—' : s.average }}
           </dd>
         </div>
         <div class="flex flex-col">

@@ -6,11 +6,13 @@ import { RouterLink } from 'vue-router';
 import EmptyState from '@edutrack/app-kit/components/common/EmptyState.vue';
 import SectionCard from '@edutrack/app-kit/components/common/SectionCard.vue';
 
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { DAYS, type ClassDetail } from '@/types';
 
 const props = defineProps<{ detail: ClassDetail }>();
 const tt = computed(() => props.detail.timetable);
+const can = useCan();
 const nameOf = (code: string) => tt.value?.palette.find((p) => p.code === code)?.name ?? code;
 const teacherOf = (code: string) =>
   (tt.value?.palette.find((p) => p.code === code)?.teacher ?? '').replace(
@@ -29,7 +31,7 @@ const builder = computed(() => ({
     title="No timetable this term"
     :description="`Build ${detail.arm.name}’s timetable from its subjects and teachers.`"
   >
-    <Button as-child variant="outline"
+    <Button v-if="can('academics.timetable')" as-child variant="outline"
       ><RouterLink :to="builder">Open timetable builder</RouterLink></Button
     >
   </EmptyState>
@@ -73,7 +75,7 @@ const builder = computed(() => ({
         </tbody>
       </table>
     </div>
-    <div class="flex justify-end border-t border-divider p-3">
+    <div v-if="can('academics.timetable')" class="flex justify-end border-t border-divider p-3">
       <Button as-child variant="outline" size="sm"
         ><RouterLink :to="builder">Open in builder</RouterLink></Button
       >

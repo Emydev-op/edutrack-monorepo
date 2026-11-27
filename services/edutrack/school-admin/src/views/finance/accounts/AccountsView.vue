@@ -24,6 +24,7 @@ import {
   useFinanceOptionsQuery,
   useToggleAccountMutation,
 } from '@/api/services/finance';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { BankAccountRow } from '@/types';
 
@@ -37,6 +38,7 @@ const confirm = useConfirm();
 const { data, isPending } = useAccountsQuery();
 const { data: options } = useFinanceOptionsQuery();
 const toggle = useToggleAccountMutation();
+const can = useCan();
 
 const rows = computed(() => data.value?.rows ?? []);
 const multiBranch = computed(() => (options.value?.branches.length ?? 0) > 1);
@@ -88,6 +90,9 @@ function setActive(a: BankAccountRow) {
 
 const actions = (a: BankAccountRow): RowAction[] => [
   { label: 'View transactions', icon: EyeIcon, to: detail(a) },
+  ...(can('finance.payment') ? writeActions(a) : []),
+];
+const writeActions = (a: BankAccountRow): RowAction[] => [
   { label: 'Edit', icon: PencilIcon, onSelect: () => edit(a) },
   ...(a.kind === 'Bank' && a.status === 'Active'
     ? [
@@ -125,7 +130,7 @@ const columns = computed<Column[]>(() => [
     title="Bank & Cash Accounts"
     description="Where fees are paid in and expenses paid from. Balances are worked out from what’s recorded."
   >
-    <template #actions>
+    <template v-if="can('finance.payment')" #actions>
       <Button v-if="rows.length > 1" variant="outline" @click="move()"
         ><ArrowLeftRightIcon class="size-4" /> Move money</Button
       >
@@ -158,7 +163,7 @@ const columns = computed<Column[]>(() => [
       title="Add the account parents pay into"
       description="EduTrack never holds money. Invoices show your bank details and each student’s transfer reference; you then verify transfers against your statement."
     >
-      <Button @click="add">Add bank account</Button>
+      <Button v-if="can('finance.payment')" @click="add">Add bank account</Button>
     </EmptyState>
 
     <template v-else>

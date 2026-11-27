@@ -22,6 +22,7 @@ import RowActions, { type RowAction } from '@edutrack/app-kit/components/common/
 import { formatCount, pluralize } from '@edutrack/app-kit/lib/format';
 
 import { useBoardingSettingsQuery, useHostelsQuery } from '@/api/services/boarding';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { Hostel } from '@/types';
 
@@ -33,6 +34,7 @@ import ImportRoomsPanel from './ImportRoomsPanel.vue';
 /** Hostels by campus, with the totals, adding a hostel, copying a layout and bulk upload. */
 const b = routesPath.boarding;
 const router = useRouter();
+const can = useCan();
 const { data, isPending, isError, refetch } = useHostelsQuery();
 const { data: settings } = useBoardingSettingsQuery();
 
@@ -113,10 +115,12 @@ const actions = (h: Hostel): RowAction[] => [
       <Button as-child variant="outline"
         ><RouterLink :to="{ name: b.setup.name }">Boarding set-up</RouterLink></Button
       >
-      <Button variant="outline" :disabled="!enabled" @click="importOpen = true"
-        ><FileSpreadsheetIcon />Bulk upload rooms</Button
-      >
-      <Button :disabled="!enabled" @click="addHostel()"><PlusIcon />Add hostel</Button>
+      <template v-if="can('boarding.manage')">
+        <Button variant="outline" :disabled="!enabled" @click="importOpen = true"
+          ><FileSpreadsheetIcon />Bulk upload rooms</Button
+        >
+        <Button :disabled="!enabled" @click="addHostel()"><PlusIcon />Add hostel</Button>
+      </template>
     </template>
   </PageHeader>
 
@@ -126,7 +130,7 @@ const actions = (h: Hostel): RowAction[] => [
     title="Boarding isn’t switched on"
     description="Choose which sections take boarders at each campus first. Hostels are set up for those classes."
   >
-    <template #action>
+    <template v-if="can('boarding.manage')" #action>
       <Button as-child variant="outline" size="sm"
         ><RouterLink :to="{ name: b.setup.name }">Go to Boarding set-up</RouterLink></Button
       >
@@ -165,7 +169,7 @@ const actions = (h: Hostel): RowAction[] => [
           : 'Switch boarding on in Boarding set-up, then add your hostels here.'
       "
     >
-      <div v-if="enabled" class="flex flex-wrap justify-center gap-2">
+      <div v-if="enabled && can('boarding.manage')" class="flex flex-wrap justify-center gap-2">
         <Button @click="addHostel()"><PlusIcon />Add hostel</Button>
         <Button variant="outline" @click="importOpen = true">Bulk upload rooms</Button>
       </div>
@@ -181,7 +185,7 @@ const actions = (h: Hostel): RowAction[] => [
           >
         </h2>
         <Button
-          v-if="boardingCampuses.some((c) => c.branchId === g.id)"
+          v-if="can('boarding.manage') && boardingCampuses.some((c) => c.branchId === g.id)"
           variant="ghost"
           size="sm"
           @click="addHostel(g.id)"
@@ -206,7 +210,7 @@ const actions = (h: Hostel): RowAction[] => [
                 <span class="text-xs text-muted-foreground">{{ h.levels.join(', ') }}</span>
               </span>
             </div>
-            <span class="relative z-10"
+            <span v-if="can('boarding.manage')" class="relative z-10"
               ><RowActions :actions="actions(h)" :label="`${h.name} actions`"
             /></span>
           </div>

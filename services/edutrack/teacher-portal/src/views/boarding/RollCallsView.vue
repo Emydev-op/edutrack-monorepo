@@ -46,6 +46,7 @@ const sheetLink = (hostelId: string, slot: string) => ({
   params: { hostelId },
   query: { slot, ...(date.value !== today.value ? { date: date.value } : {}) },
 });
+const boardersLabel = (n: number) => `${n} boarder${n === 1 ? '' : 's'}`;
 </script>
 
 <template>
@@ -99,7 +100,8 @@ const sheetLink = (hostelId: string, slot: string) => ({
                 />
               </span>
               <span class="text-xs text-muted-foreground">
-                {{ s.total }} boarders<template v-if="s.taken"> · {{ summary(s) }}</template
+                {{ boardersLabel(s.taken ? s.total : (h.boarders ?? s.total))
+                }}<template v-if="s.taken"> · {{ summary(s) }}</template
                 ><template v-else-if="s.exeat || s.sickBay">
                   · {{ s.exeat }} on exeat, {{ s.sickBay }} in sick bay</template
                 >

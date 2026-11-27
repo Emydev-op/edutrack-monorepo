@@ -23,6 +23,7 @@ import { formatNaira } from '@edutrack/app-kit/lib/format';
 
 import { useExpensesQuery, useFinanceOptionsQuery } from '@/api/services/finance';
 import { routesPath } from '@/router/routes-path';
+import { useCan } from '@/composables/useCan';
 import { useContextStore } from '@/stores/context';
 import type { ExpenseRow, ExpenseStatus } from '@/types';
 
@@ -32,6 +33,7 @@ import ExpenseDrawer from './ExpenseDrawer.vue';
 const route = useRoute();
 const router = useRouter();
 const context = useContextStore();
+const can = useCan();
 const { data: options } = useFinanceOptionsQuery();
 
 const status = useRouteQuery<ExpenseStatus | 'All'>('status', 'All');
@@ -119,7 +121,7 @@ const filtered = computed(
     title="Expenses"
     :description="`Draft → Submitted → Approved → Paid · ${context.current.session} · ${context.current.branch}`"
   >
-    <template #actions>
+    <template v-if="can('finance.expenses')" #actions>
       <Button @click="drawerOpen = true">New expense</Button>
     </template>
   </PageHeader>
@@ -191,7 +193,9 @@ const filtered = computed(
     :empty-text="
       filtered
         ? 'No expenses match. Clear the search or filters.'
-        : 'No expenses yet. Record one with New expense.'
+        : can('finance.expenses')
+          ? 'No expenses yet. Record one with New expense.'
+          : 'No expenses yet.'
     "
     @update:page="page = String($event)"
     @update:page-size="pageSize = $event"

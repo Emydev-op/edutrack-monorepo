@@ -21,6 +21,7 @@ import {
   useStatementQuery,
   useUpdateStatementLineMutation,
 } from '@/api/services/finance';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { StatementLine } from '@/types';
 
@@ -34,6 +35,7 @@ const accountId = computed(() => String(route.params.id));
 const { data, isPending, isError } = useStatementQuery(statementId);
 const updateLine = useUpdateStatementLineMutation();
 const confirmLines = useConfirmStatementMutation();
+const can = useCan();
 
 const rows = computed(() => data.value?.rows ?? []);
 const confirmable = (l: StatementLine) =>
@@ -122,7 +124,11 @@ const columns: Column[] = [
             >Back to account</RouterLink
           ></Button
         >
-        <Button :disabled="!toConfirm.length || confirmLines.isPending.value" @click="confirmAll">
+        <Button
+          v-if="can('finance.payment')"
+          :disabled="!toConfirm.length || confirmLines.isPending.value"
+          @click="confirmAll"
+        >
           Confirm {{ toConfirm.length || '' }} payment{{ toConfirm.length === 1 ? '' : 's' }}
         </Button>
       </template>
@@ -155,7 +161,7 @@ const columns: Column[] = [
       :columns="columns"
       :rows="rows"
       :row-key="(l) => l.id"
-      :selection="selection"
+      :selection="can('finance.payment') ? selection : undefined"
       min-width="900px"
       empty-text="No transactions in this file."
     >
@@ -187,7 +193,7 @@ const columns: Column[] = [
           <span class="text-xs text-muted-foreground">{{ row.student }}</span>
         </template>
         <select
-          v-if="row.credit && open(row)"
+          v-if="row.credit && open(row) && can('finance.payment')"
           class="mt-1 h-8 w-full max-w-64 rounded-md border bg-card px-2 text-xs"
           :aria-label="`Link ${row.description} to a payment`"
           :value="row.paymentId ?? ''"

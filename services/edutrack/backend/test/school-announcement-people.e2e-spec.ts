@@ -2,6 +2,7 @@ import { authed, createTestApp, signIn, type TestApp } from './support/test-app.
 
 type Api = ReturnType<typeof authed>;
 const C = '/api/v1/comms';
+const HOST = 'greenfield.localhost';
 
 interface Person {
   key: string;
@@ -77,6 +78,32 @@ describe('Announcements to specific people (e2e)', () => {
     expect((sent.body.data.people as Person[]).map((p) => p.key)).toEqual(audience.people);
     const row = await t.prisma.announcement.findFirstOrThrow({ where: { schoolId, title } });
     expect(row.audiencePeople).toEqual(audience.people);
+
+    // It is on their Announcements pages too, not just a notification.
+    const parent = authed(
+      t,
+      (await signIn(t, 'funke.adeyemi@gmail.com', { portal: 'parent', host: HOST })).token,
+      { host: HOST },
+    );
+    const feed = await parent.get('/api/v1/parent/announcements');
+    expect(feed.status).toBe(200);
+    const mine = (feed.body.data as { title: string; audience: string }[]).find(
+      (a) => a.title === title,
+    );
+    expect(mine).toMatchObject({ audience: 'Sent to you' });
+    const okafor = authed(
+      t,
+      (await signIn(t, 'g.okafor@greenfield.edu.ng', { host: HOST })).token,
+      { host: HOST },
+    );
+    const staffFeed = await okafor.get('/api/v1/announcements');
+    expect(staffFeed.status).toBe(200);
+    expect(JSON.stringify(staffFeed.body.data)).toContain(title);
+    // Someone not chosen doesn't see it.
+    const ade = authed(t, (await signIn(t, 's.ade@greenfield.edu.ng', { host: HOST })).token, {
+      host: HOST,
+    });
+    expect(JSON.stringify((await ade.get('/api/v1/announcements')).body.data)).not.toContain(title);
   });
 
   it('refuses unknown people and an empty list', async () => {

@@ -23,6 +23,7 @@ import {
   useSaveDecisionsMutation,
   useSessionsQuery,
 } from '@/api/services/academics';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { PromotionDecision, PromotionStudent } from '@/types';
 
@@ -34,6 +35,7 @@ const { data: view, isPending } = usePromotionQuery(classId);
 const { data: sessions } = useSessionsQuery();
 const save = useSaveDecisionsMutation();
 const apply = useApplyPromotionMutation();
+const can = useCan();
 const router = useRouter();
 /** Promoted students whose subjects need choosing in the next session, after applying. */
 const needChoosing = ref<{ count: number; sessionId: string | null; classId: string } | null>(null);
@@ -238,13 +240,13 @@ async function confirmApply() {
       :description="`${view.from} → ${view.to || 'the next session'} · ${view.level} · ${view.branch}. ${view.suggestions ? 'The system suggests; authorised staff decide.' : 'Authorised staff decide for each student.'}`"
     >
       <template #actions>
-        <Button v-if="applied && fromSessionId" as-child
+        <Button v-if="applied && fromSessionId && can('academics.configure')" as-child
           ><RouterLink
             :to="{ name: routesPath.academics.sessionClose.name, params: { id: fromSessionId } }"
             >Continue to close {{ view.from }}</RouterLink
           ></Button
         >
-        <template v-else-if="!applied">
+        <template v-else-if="!applied && can('students.promote')">
           <Button v-if="view.suggestions" variant="outline" @click="applySuggestions"
             >Apply suggestions to pending</Button
           >
@@ -297,7 +299,7 @@ async function confirmApply() {
       :title="studentsNeed(needChoosing.count)"
       :description="`Their religious subject or electives don’t meet the rules of their ${view.to} class yet.`"
     >
-      <template #action>
+      <template v-if="can('students.edit')" #action>
         <Button size="sm" as-child
           ><RouterLink :to="subjectChoicesLink">Open Subject choices</RouterLink></Button
         >
@@ -386,6 +388,7 @@ async function confirmApply() {
               v-else
               :value="edits[s.id]?.decision ?? ''"
               :aria-label="`Decision for ${s.name}`"
+              :disabled="!can('students.promote')"
               class="h-9 rounded-md border bg-card px-2.5 text-sm"
               @change="setDecision(s.id, ($event.target as HTMLSelectElement).value)"
             >
@@ -422,6 +425,7 @@ async function confirmApply() {
         <span v-if="summary" class="text-muted-foreground"> · {{ summary }}</span></span
       >
       <Button
+        v-if="can('students.promote')"
         :disabled="!canApply || apply.isPending.value"
         :title="canApply ? '' : 'Decide for every student and give a reason for each exception'"
         @click="confirmApply"

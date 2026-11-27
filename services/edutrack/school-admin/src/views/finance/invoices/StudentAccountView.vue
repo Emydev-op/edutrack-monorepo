@@ -25,6 +25,7 @@ import {
   useStudentAccountQuery,
 } from '@/api/services/finance';
 import PayToCard from '@/components/finance/PayToCard.vue';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useAuthStore } from '@/stores/auth';
 
@@ -38,6 +39,7 @@ const key = computed(() => route.params.key as string);
 const { data: acc, isPending, error } = useStudentAccountQuery(key);
 const sendDetails = useSendPaymentDetailsMutation();
 const requestRefund = useRequestRefundMutation();
+const can = useCan();
 
 async function send() {
   try {
@@ -112,10 +114,13 @@ const print = () => window.print();
           <Button variant="outline" @click="print"
             ><PrinterIcon class="size-4" /> Print statement</Button
           >
-          <Button v-if="acc.credit > 0" variant="outline" @click="openRefund"
+          <Button
+            v-if="acc.credit > 0 && can('finance.payment')"
+            variant="outline"
+            @click="openRefund"
             >Request refund</Button
           >
-          <Button as-child
+          <Button v-if="can('finance.payment')" as-child
             ><RouterLink :to="{ name: r.paymentNew.name, query: { student: acc.studentKey } }"
               >Record payment</RouterLink
             ></Button

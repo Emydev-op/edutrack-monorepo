@@ -131,6 +131,8 @@ export interface ResultSheet extends ResultSheetSummary {
   scale: SheetGradeBand[];
   scaleName: string;
   passMark: number;
+  /** How totals round (the section's grading); one decimal place when absent. */
+  rounding?: 'WHOLE_NUMBER' | 'ONE_DECIMAL';
   rows: SheetRow[];
   stats: SheetStats;
   lock: SheetLock | null;

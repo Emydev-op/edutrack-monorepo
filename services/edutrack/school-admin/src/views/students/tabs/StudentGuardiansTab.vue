@@ -5,10 +5,12 @@ import { RouterLink } from 'vue-router';
 import EmptyState from '@edutrack/app-kit/components/common/EmptyState.vue';
 import KeyValueCard from '@edutrack/app-kit/components/common/KeyValueCard.vue';
 
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { StudentDetail } from '@/types';
 
 defineProps<{ student: StudentDetail }>();
+const can = useCan();
 </script>
 
 <template>
@@ -17,7 +19,7 @@ defineProps<{ student: StudentDetail }>();
     title="No guardian linked"
     description="Fee reminders and results can’t be sent until a guardian is linked."
   >
-    <Button as-child
+    <Button v-if="can('students.edit')" as-child
       ><RouterLink :to="{ name: routesPath.students.parents.name, query: { add: student.id } }"
         >Link guardian</RouterLink
       ></Button

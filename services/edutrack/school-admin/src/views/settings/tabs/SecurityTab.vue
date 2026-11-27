@@ -24,6 +24,7 @@ import {
   useSecurityQuery,
   useSignOutOthersMutation,
 } from '@/api/services/settings';
+import { useCan } from '@/composables/useCan';
 import type { SessionRow, SignInRules } from '@/types';
 import { fmtDay, todayIso } from '@/views/finance/finance-tones';
 
@@ -152,6 +153,7 @@ function endOthers() {
 /* ---------- Staff sign-in rules ---------- */
 
 const saveRules = useSaveSignInRulesMutation();
+const can = useCan();
 type RuleForm = Record<keyof SignInRules, string>;
 const rules = reactive<RuleForm>({
   idleTimeoutMinutes: '',
@@ -431,7 +433,7 @@ useSettingsDirtyGuard(() => pwDirty.value || rulesDirty.value);
           title="Not saved"
           :description="rulesServerError"
         />
-        <div class="flex flex-wrap gap-2">
+        <div v-if="can('settings.users')" class="flex flex-wrap gap-2">
           <Button
             type="submit"
             :disabled="!rulesDirty || saveRules.isPending.value || !!Object.keys(ruleErrors).length"

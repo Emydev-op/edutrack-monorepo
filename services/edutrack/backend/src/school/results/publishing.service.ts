@@ -1,3 +1,4 @@
+import { NotificationsService } from '../../notifications/notifications.service.js';
 import { StudentPhotoService } from '../students/student-photo.service.js';
 import { pdfName, reportCardPdf, type ReportCardDoc } from '../../common/pdf/school-documents.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
@@ -37,6 +38,7 @@ export class PublishingService {
     private readonly audit: SchoolAuditService,
     private readonly comms: CommsDispatchService,
     private readonly photos: StudentPhotoService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private get db() {
@@ -80,12 +82,17 @@ export class PublishingService {
         );
     }
     const flags: string[] = [];
+    /** Students with no elective choice recorded (on every option's sheet), by subject. */
+    const undecided = new Map<string, Set<string>>();
     if (approvedIds.length) {
       const results = await this.cards.armResults(term, arm);
-      for (const ctx of results.sheets.filter((c) => approvedIds.includes(c.sheet.id)))
+      for (const ctx of results.sheets.filter((c) => approvedIds.includes(c.sheet.id))) {
         for (const r of ctx.rows)
           if (r.flag) flags.push(`${r.name} · ${ctx.sheet.subject.name}: ${r.flag}`);
+        if (ctx.undecided.length) undecided.set(ctx.sheet.subject.name, new Set(ctx.undecided));
+      }
     }
+    const undecidedCount = new Set([...undecided.values()].flatMap((x) => [...x])).size;
     const written = new Set(remarks.map((r) => r.studentId));
     const missingRemarks = roll.filter((e) => !written.has(e.studentId)).length;
     const classTeacher = await this.scope.classTeacherOf(arm.id, term);
@@ -97,11 +104,18 @@ export class PublishingService {
       notApproved,
       flags,
       missingRemarks,
-      warnings: missingRemarks
-        ? [
-            `${arm.label}: ${plural(missingRemarks, 'report card')} ${missingRemarks === 1 ? 'has' : 'have'} no class teacher’s remark yet${classTeacher ? ` (${classTeacher.name})` : ' · the arm has no class teacher'}.`,
-          ]
-        : [],
+      warnings: [
+        ...(missingRemarks
+          ? [
+              `${arm.label}: ${plural(missingRemarks, 'report card')} ${missingRemarks === 1 ? 'has' : 'have'} no class teacher’s remark yet${classTeacher ? ` (${classTeacher.name})` : ' · the arm has no class teacher'}.`,
+            ]
+          : []),
+        ...(undecidedCount
+          ? [
+              `${arm.label}: ${plural(undecidedCount, 'student')} ${undecidedCount === 1 ? 'has' : 'have'} no subject choice recorded for ${[...undecided.keys()].join(', ')}, so ${undecidedCount === 1 ? 'their report card lists' : 'their report cards list'} every option. Record choices in Students › Subject choices first.`,
+            ]
+          : []),
+      ],
       allPublished: subjects.length > 0 && published === subjects.length,
       approved: approvedIds.length,
     };
@@ -299,7 +313,7 @@ export class PublishingService {
   /**
    * Tells the guardians of these students their report card is ready, through the school's
    * Communication settings (the "Result published" event: switch, channels, wording). A
-   * correction is an in-app notice only. Returns what sends email and SMS after the commit.
+   * correction is an in-app notice and an email. Returns what sends email and SMS after the commit.
    */
   private async notifyGuardians(
     tx: TenantTx,
@@ -330,7 +344,11 @@ export class PublishingService {
     const userOf = (l: (typeof links)[number]) =>
       l.guardian.membership?.status === 'ACTIVE' ? l.guardian.membership.userId : null;
     if (corrected) {
+      const emails: { to: string; subject: string; body: string }[] = [];
       for (const l of links) {
+        const subject = `${l.student.firstName}’s ${term.name} report card was updated`;
+        const body = `A corrected score was applied to ${l.student.firstName} ${l.student.surname}’s ${term.name} results. The report card in the Parent Portal shows the new version.`;
+        if (l.guardian.email) emails.push({ to: l.guardian.email, subject, body });
         const userId = userOf(l);
         if (!userId) continue;
         await tx.notification.create({
@@ -347,7 +365,22 @@ export class PublishingService {
           },
         });
       }
-      return none;
+      if (!emails.length) return none;
+      const school = await tx.school.findUniqueOrThrow({
+        where: { id: schoolId },
+        select: { name: true },
+      });
+      // Emailed once the correction is saved; a failed email never undoes it.
+      return async () => {
+        for (const e of emails)
+          await this.notifications
+            .email(e.to, 'announcement', {
+              subject: e.subject,
+              body: e.body,
+              schoolName: school.name,
+            })
+            .catch(() => undefined);
+      };
     }
     const guardian = (g: { title: string | null; fullName: string }) =>
       [g.title, g.fullName].filter(Boolean).join(' ');
@@ -393,10 +426,11 @@ export class PublishingService {
     const arm = await this.arm(armId);
     const { results, cards: views } = await this.cards.cards(term, arm, studentId);
     const cards = await this.db.reportCard.findMany({ where: { termId, armId } });
-    await this.db.$transaction(async (tx) => {
+    const flush = await this.db.$transaction(async (tx) => {
       await this.storePositions(tx, results);
-      await this.reissue(tx, term, results, cards, views, studentId);
+      return this.reissue(tx, term, results, cards, views, studentId);
     });
+    await flush();
   }
 
   private async reissue(
@@ -406,7 +440,8 @@ export class PublishingService {
     cards: Prisma.ReportCardGetPayload<object>[],
     views: Map<string, unknown>,
     studentId: string,
-  ) {
+  ): Promise<() => Promise<void>> {
+    let flush: () => Promise<void> = () => Promise.resolve();
     for (const r of results.students) {
       const card = cards.find((c) => c.studentId === r.student.id);
       if (!card?.publishedAt) continue;
@@ -426,8 +461,9 @@ export class PublishingService {
           }),
         },
       });
-      if (mine && !card.heldAt) await this.notifyGuardians(tx, [studentId], term, true);
+      if (mine && !card.heldAt) flush = await this.notifyGuardians(tx, [studentId], term, true);
     }
+    return flush;
   }
 
   /* ---------------- Report card ---------------- */

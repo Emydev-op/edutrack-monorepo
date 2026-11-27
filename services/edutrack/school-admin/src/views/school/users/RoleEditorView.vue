@@ -25,6 +25,7 @@ import {
   useUpdateRoleMutation,
 } from '@/api/services/school';
 import ChipGroup from '@/components/school/ChipGroup.vue';
+import { useCan } from '@/composables/useCan';
 import { actionLabel, PERMISSION_MODULES, ROLE_SCOPES } from '@/config/permissions';
 import { routesPath } from '@/router/routes-path';
 import { useLayoutStore } from '@/stores/layout';
@@ -34,6 +35,7 @@ const route = useRoute();
 const router = useRouter();
 const confirm = useConfirm();
 const layout = useLayoutStore();
+const can = useCan();
 
 const id = computed(() => (route.params.id as string | undefined) ?? '');
 const isNew = computed(() => !id.value);
@@ -225,7 +227,7 @@ const saving = computed(() => create.isPending.value || update.isPending.value);
           : `${existing!.users} user${existing!.users === 1 ? '' : 's'} · default scope ${existing!.scope}`
       "
     >
-      <template v-if="!isNew" #actions>
+      <template v-if="!isNew && can('settings.roles')" #actions>
         <template v-if="readOnly"
           ><Button @click="duplicate">Duplicate to customise</Button></template
         >
@@ -331,7 +333,7 @@ const saving = computed(() => create.isPending.value || update.isPending.value);
     </SectionCard>
 
     <div
-      v-if="!readOnly"
+      v-if="!readOnly && can('settings.roles')"
       class="sticky bottom-0 flex items-center gap-2.5 border-t bg-background py-3"
     >
       <span class="text-xs" :class="dirty ? 'text-warning-strong' : 'text-faint'">{{

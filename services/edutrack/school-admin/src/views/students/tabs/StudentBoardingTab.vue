@@ -18,6 +18,7 @@ import {
   useStudentBoardingQuery,
   useUnplaceMutation,
 } from '@/api/services/boarding';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { StudentBoarding, StudentDetail } from '@/types';
 import { placeLabel } from '@/views/boarding/boarding-format';
@@ -32,6 +33,7 @@ import StudentBoardingHouse from '@/views/boarding/StudentBoardingHouse.vue';
 const props = defineProps<{ student: StudentDetail }>();
 
 const confirm = useConfirm();
+const can = useCan();
 const {
   data: b,
   isPending,
@@ -69,7 +71,7 @@ function makeBoarder() {
   const s = b.value!;
   void confirm({
     title: `Make ${s.name} a boarder?`,
-    description: `${s.name} boards at ${s.campus} for ${s.session}. Place them in a room next.`,
+    description: `${s.name} boards at ${s.campus} for ${s.session}. This term’s boarding fees are added to their invoice (due in two weeks if its date has passed). Place them in a room next.`,
     confirmLabel: 'Make boarder',
     action: async () => {
       const result = await setBoarding.mutateAsync({ studentId: s.studentId, boarding: true });
@@ -143,7 +145,7 @@ function takeOut() {
       :title="`${b.className || 'This class'} at ${b.campus} doesn’t board`"
       :description="b.reason ?? 'Their campus or class doesn’t take boarders.'"
     >
-      <template #action>
+      <template v-if="can('boarding.manage')" #action>
         <Button as-child variant="outline" size="sm"
           ><RouterLink :to="{ name: routesPath.boarding.setup.name }"
             >Boarding set-up</RouterLink
@@ -157,7 +159,7 @@ function takeOut() {
       title="Needs a place"
       :description="`${b.name} is a boarder but has no room yet.`"
     >
-      <template v-if="b.editable" #action>
+      <template v-if="b.editable && can('boarding.manage')" #action>
         <Button size="sm" @click="placeOpen = true"><BedDoubleIcon />Place</Button>
       </template>
     </InlineNotice>
@@ -211,7 +213,7 @@ function takeOut() {
       </SectionCard>
     </div>
 
-    <div v-if="b.editable" class="flex flex-wrap gap-2">
+    <div v-if="b.editable && can('boarding.manage')" class="flex flex-wrap gap-2">
       <template v-if="b.boarding">
         <Button v-if="b.place" variant="outline" @click="placeOpen = true"
           ><ArrowRightLeftIcon />Move</Button

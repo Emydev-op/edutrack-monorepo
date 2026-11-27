@@ -3,7 +3,8 @@ import AddMenu from '@/components/common/AddMenu.vue';
 import ImportStudentsView from './ImportStudentsView.vue';
 import { Button } from '@edutrack/ui/components/button';
 import { StatusBadge } from '@edutrack/ui/components/status-badge';
-import { ArrowRightLeftIcon, EyeIcon, MessageSquareIcon } from '@lucide/vue';
+import { ArrowRightLeftIcon, BedDoubleIcon, EyeIcon, MessageSquareIcon } from '@lucide/vue';
+import { useCan } from '@/composables/useCan';
 import { refDebounced } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
 import { getApiErrorMessage, messageOf } from '@edutrack/web-core/http';
@@ -76,18 +77,36 @@ const filtered = computed(() =>
 );
 const classOptions = computed(() => Object.keys(options.value?.arms ?? {}));
 
+const can = useCan();
 const studentLink = (s: StudentRow) => ({
   name: routesPath.students.detail.name,
   params: { id: s.id },
 });
 const actions = (s: StudentRow): RowAction[] => [
   { label: 'View student', icon: EyeIcon, to: studentLink(s) },
-  {
-    label: 'Message guardian',
-    icon: MessageSquareIcon,
-    to: { name: routesPath.communication.announcements.name },
-  },
-  ...(['Active', 'Incomplete profile'].includes(s.status)
+  ...(can('comms.class')
+    ? [
+        {
+          label: 'Message guardian',
+          icon: MessageSquareIcon,
+          to: { name: routesPath.communication.announcements.name },
+        },
+      ]
+    : []),
+  ...(boardingOn.value &&
+  can('boarding.manage') &&
+  ['Active', 'Incomplete profile'].includes(s.status)
+    ? [
+        {
+          label: s.boarder ? 'Make a day student' : 'Make a boarder',
+          icon: BedDoubleIcon,
+          onSelect: () => mark(!s.boarder, [s]),
+        },
+      ]
+    : []),
+  ...(can('students.edit') &&
+  can('students.archive') &&
+  ['Active', 'Incomplete profile'].includes(s.status)
     ? [
         {
           label: 'Transfer or withdraw',
@@ -140,12 +159,15 @@ function moveArm() {
   });
 }
 
-/** Marks the selected students as boarders or day students for this session. */
-function mark(toBoarding: boolean) {
-  const picked = selection.selectedRows();
+/** Marks the selected students (or one row's) as boarders or day students for this session. */
+function mark(toBoarding: boolean, rowsToMark?: StudentRow[]) {
+  const picked = rowsToMark ?? selection.selectedRows();
+  const one = picked.length === 1 ? picked[0]! : null;
   const what = toBoarding ? 'boarders' : 'day students';
   void confirm({
-    title: `Mark ${picked.length} student${picked.length === 1 ? '' : 's'} as ${what}?`,
+    title: one
+      ? `Make ${one.name} a ${toBoarding ? 'boarder' : 'day student'}?`
+      : `Mark ${picked.length} students as ${what}?`,
     description: toBoarding
       ? 'Only students whose campus and class take boarders are changed. This term’s boarding fees are added to their invoices. Place them in rooms from Boarding › Boarders.'
       : 'Boarders among them leave boarding, and their beds are freed. This term’s boarding fees come off the invoice only in the first two weeks of term.',
@@ -255,8 +277,11 @@ const columns: Column[] = [
     :description="`${context.current.session} · ${context.current.term} · ${context.current.branch}${data ? ` · ${data.meta.total} students` : ''}`"
   >
     <template #actions>
-      <Button variant="outline" @click="studentLogins">Student logins</Button>
+      <Button v-if="can('settings.users')" variant="outline" @click="studentLogins"
+        >Student logins</Button
+      >
       <AddMenu
+        v-if="can('students.create')"
         label="Add students"
         manual-label="Admit a student"
         :manual-to="{ name: routesPath.students.admit.name }"
@@ -316,18 +341,22 @@ const columns: Column[] = [
       >
     </template>
     <template #bulk>
-      <Button size="sm" variant="outline" @click="moveArm">Assign arm</Button>
-      <template v-if="boardingOn">
+      <Button v-if="can('students.edit')" size="sm" variant="outline" @click="moveArm"
+        >Assign arm</Button
+      >
+      <template v-if="boardingOn && can('boarding.manage')">
         <Button size="sm" variant="outline" @click="mark(true)">Mark as boarders</Button>
         <Button size="sm" variant="outline" @click="mark(false)">Mark as day students</Button>
       </template>
       <Button
+        v-if="can('students.promote')"
         size="sm"
         variant="outline"
         @click="router.push({ name: routesPath.academics.promotion.name })"
         >Promote</Button
       >
       <Button
+        v-if="can('comms.class')"
         size="sm"
         variant="outline"
         @click="router.push({ name: routesPath.communication.announcements.name })"

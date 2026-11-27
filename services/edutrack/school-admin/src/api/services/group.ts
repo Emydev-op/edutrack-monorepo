@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import type { Ref } from 'vue';
 
 import { useAuthStore } from '@/stores/auth';
+import { useContextStore } from '@/stores/context';
 import type { LoginResponse } from '@/types';
 
 import { getRequest, postRequest } from '../helpers';
@@ -50,6 +51,8 @@ export const useSwitchSchoolMutation = () => {
       postRequest<LoginResponse>('/v1/auth/switch-school', { schoolId }),
     onSuccess: (session) => {
       auth.refreshed(session);
+      // Nothing from the last school carries over, its working session and term included.
+      useContextStore().options = null;
       qc.clear();
     },
   });

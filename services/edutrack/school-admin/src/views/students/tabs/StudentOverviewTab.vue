@@ -8,12 +8,14 @@ import InlineNotice from '@edutrack/app-kit/components/common/InlineNotice.vue';
 import KeyValueCard from '@edutrack/app-kit/components/common/KeyValueCard.vue';
 import { formatNaira } from '@edutrack/app-kit/lib/format';
 
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import type { StudentDetail } from '@/types';
 
 const props = defineProps<{ student: StudentDetail }>();
 const context = useContextStore();
+const can = useCan();
 const s = computed(() => props.student);
 
 const dob = computed(() =>
@@ -103,7 +105,7 @@ const feesTo = computed(() => ({
     title="No guardian linked"
     description="This student has no parent or guardian on record. Fee reminders and results cannot be sent to anyone."
   >
-    <template #action>
+    <template v-if="can('students.edit')" #action>
       <Button as-child variant="outline" size="sm"
         ><RouterLink :to="{ name: routesPath.students.parents.name, query: { add: s.id } }"
           >Link guardian</RouterLink
@@ -133,7 +135,7 @@ const feesTo = computed(() => ({
     title="Not yet placed in a class arm"
     description="Teachers can’t see this student until they’re enrolled into an arm for this session."
   >
-    <template #action>
+    <template v-if="can('students.edit')" #action>
       <Button as-child variant="outline" size="sm"
         ><RouterLink :to="{ name: routesPath.students.enrollment.name }">Enroll</RouterLink></Button
       >

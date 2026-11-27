@@ -13,6 +13,7 @@ import SearchInput from '@edutrack/app-kit/components/common/SearchInput.vue';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 
 import { useDeleteSubjectMutation } from '@/api/services/academics';
+import { useCan } from '@/composables/useCan';
 import type { CurriculumView, Subject } from '@/types';
 
 import SubjectDrawer from './SubjectDrawer.vue';
@@ -21,6 +22,7 @@ const props = defineProps<{ view: CurriculumView }>();
 const emit = defineEmits<{ add: [] }>();
 const confirm = useConfirm();
 const remove = useDeleteSubjectMutation();
+const can = useCan();
 const search = ref('');
 const sectionFilter = ref('');
 const editing = ref<Subject | null>(null);
@@ -123,7 +125,7 @@ const columns: Column[] = [
     :rows="rows"
     :row-key="(s) => s.code"
     :row-label="(s) => s.name"
-    :actions="actions"
+    :actions="can('academics.configure') ? actions : undefined"
     min-width="1100px"
     :empty-text="
       view.subjects.length
@@ -135,7 +137,7 @@ const columns: Column[] = [
     <template v-if="sectionNames.length > 1" #filters>
       <FilterMenu v-model="sectionFilter" label="Section" :options="sectionOptions" />
     </template>
-    <template #toolbar>
+    <template v-if="can('academics.configure')" #toolbar>
       <Button variant="outline" size="sm" @click="emit('add')">Add subject</Button>
     </template>
     <template #cell-code="{ row }"
@@ -143,7 +145,7 @@ const columns: Column[] = [
     >
     <template #cell-name="{ row }"
       ><button
-        v-if="row.canEdit"
+        v-if="row.canEdit && can('academics.configure')"
         type="button"
         class="text-left font-medium hover:text-primary"
         @click="edit(row)"

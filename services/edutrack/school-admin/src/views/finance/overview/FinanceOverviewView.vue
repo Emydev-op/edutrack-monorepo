@@ -18,6 +18,7 @@ import SectionCard from '@edutrack/app-kit/components/common/SectionCard.vue';
 import { formatNaira } from '@edutrack/app-kit/lib/format';
 
 import { useFinanceOverviewQuery } from '@/api/services/finance';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import type { FinanceOverview } from '@/types';
@@ -28,6 +29,7 @@ import IncomeExpenditureChart from './IncomeExpenditureChart.vue';
 
 const r = routesPath.finance;
 const context = useContextStore();
+const can = useCan();
 const { data, isPending } = useFinanceOverviewQuery(() => ({
   branch: context.current.branch,
   session: context.current.session,
@@ -104,12 +106,12 @@ const STEPS = [
     :description="`Finance · ${context.current.session} · ${context.current.term} · ${data?.branch ?? context.current.branch}`"
   >
     <template #actions>
-      <Button as-child variant="outline"
+      <Button v-if="can('finance.expenses')" as-child variant="outline"
         ><RouterLink :to="{ name: r.expenses.name, query: { new: '1' } }"
           >Record expense</RouterLink
         ></Button
       >
-      <Button as-child
+      <Button v-if="can('finance.payment')" as-child
         ><RouterLink :to="{ name: r.paymentNew.name }">Record payment</RouterLink></Button
       >
     </template>
@@ -255,7 +257,10 @@ const STEPS = [
         </ul>
         <p v-else class="text-[13px] text-muted-foreground">
           No accounts yet.
-          <RouterLink :to="{ name: r.accounts.name }" class="text-primary hover:underline"
+          <RouterLink
+            v-if="can('finance.payment')"
+            :to="{ name: r.accounts.name }"
+            class="text-primary hover:underline"
             >Add one</RouterLink
           >
         </p>

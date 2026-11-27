@@ -19,6 +19,7 @@ import {
   useFinanceSettingsQuery,
   useSaveFinanceSettingsMutation,
 } from '@/api/services/finance';
+import { useCan } from '@/composables/useCan';
 import type { FinanceSettings, PaymentMethod } from '@/types';
 
 import { fmtDay } from '../finance-tones';
@@ -26,6 +27,7 @@ import { fmtDay } from '../finance-tones';
 const { data, isPending, isError } = useFinanceSettingsQuery();
 const { data: options } = useFinanceOptionsQuery();
 const save = useSaveFinanceSettingsMutation();
+const can = useCan();
 
 const toForm = (s: FinanceSettings) => ({
   dueDates: Object.fromEntries(s.dueDates.map((d) => [d.termId, d.due])),
@@ -309,7 +311,7 @@ const TOGGLES: {
       </p>
     </SectionCard>
 
-    <div class="flex justify-end gap-2">
+    <div v-if="can('finance.invoice')" class="flex justify-end gap-2">
       <Button
         type="button"
         variant="ghost"

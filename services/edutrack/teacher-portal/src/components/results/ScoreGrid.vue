@@ -38,11 +38,13 @@ function move(row: number, col: number) {
 
 function onKey(e: KeyboardEvent, row: number, col: number) {
   const el = e.target as HTMLInputElement;
-  // At the edge of the text, or the whole value selected (as it is after moving into a cell).
+  // Score cells move like a spreadsheet: ← and → always go to the next cell (a score is short;
+  // retype it or use Backspace). In the remark, they move only from the edge of the text.
+  const score = col < comps.value.length;
   const all = el.selectionStart === 0 && el.selectionEnd === el.value.length;
-  const atStart = all || (el.selectionStart === 0 && el.selectionEnd === 0);
+  const atStart = score || all || (el.selectionStart === 0 && el.selectionEnd === 0);
   const atEnd =
-    all || (el.selectionStart === el.value.length && el.selectionEnd === el.value.length);
+    score || all || (el.selectionStart === el.value.length && el.selectionEnd === el.value.length);
   if (e.key === 'Enter' || e.key === 'ArrowDown') {
     e.preventDefault();
     move(row + 1, col);
@@ -50,9 +52,9 @@ function onKey(e: KeyboardEvent, row: number, col: number) {
     e.preventDefault();
     move(row - 1, col);
   } else if (e.key === 'ArrowLeft' && atStart) {
-    if (move(row, col - 1)) e.preventDefault();
+    if (move(row, col - 1) || score) e.preventDefault();
   } else if (e.key === 'ArrowRight' && atEnd) {
-    if (move(row, col + 1)) e.preventDefault();
+    if (move(row, col + 1) || score) e.preventDefault();
   }
 }
 

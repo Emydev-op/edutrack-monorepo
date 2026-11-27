@@ -25,6 +25,7 @@ import {
   useRemoveVisitingDayMutation,
   useVisitingDaysQuery,
 } from '@/api/services/boarding-house';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { Incident, VisitingDay } from '@/types';
 
@@ -42,6 +43,7 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'property', label: 'Property checklist' },
 ];
 const confirm = useConfirm();
+const can = useCan();
 
 /* ---------------- Visiting days ---------------- */
 
@@ -123,7 +125,9 @@ function close(i: Incident) {
 }
 
 const incidentActions = (i: Incident): RowAction[] => [
-  ...(i.status === 'Open' ? [{ label: 'Close', icon: CheckIcon, onSelect: () => close(i) }] : []),
+  ...(i.status === 'Open' && can('boarding.rollcall')
+    ? [{ label: 'Close', icon: CheckIcon, onSelect: () => close(i) }]
+    : []),
   {
     label: 'View student',
     icon: UserIcon,
@@ -145,10 +149,12 @@ const incidentColumns: Column[] = [
     description="Visiting days, hostel incidents and the property checklist."
   >
     <template #actions>
-      <Button v-if="tab === 'visiting'" @click="dayOpen = true"
+      <Button v-if="tab === 'visiting' && can('boarding.manage')" @click="dayOpen = true"
         ><PlusIcon />Add visiting day</Button
       >
-      <Button v-else-if="tab === 'incidents'" @click="incidentOpen = true"
+      <Button
+        v-else-if="tab === 'incidents' && can('boarding.rollcall')"
+        @click="incidentOpen = true"
         ><PlusIcon />Record incident</Button
       >
     </template>
@@ -199,6 +205,7 @@ const incidentColumns: Column[] = [
             <span v-if="d.date < today" class="text-xs text-faint">Past</span>
           </span>
           <Button
+            v-if="can('boarding.manage')"
             variant="ghost"
             size="icon"
             :aria-label="`Remove the visiting day on ${dayLabel(d.date)}`"

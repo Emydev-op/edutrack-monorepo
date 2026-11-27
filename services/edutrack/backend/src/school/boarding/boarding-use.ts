@@ -122,7 +122,13 @@ export async function boardingOf(db: TenantTx, studentIds: string[], sessionId: 
                       role: true,
                       floorId: true,
                       staff: {
-                        select: { title: true, firstName: true, lastName: true, status: true },
+                        select: {
+                          title: true,
+                          firstName: true,
+                          lastName: true,
+                          status: true,
+                          gender: true,
+                        },
                       },
                     },
                   },
@@ -157,8 +163,14 @@ export async function boardingOf(db: TenantTx, studentIds: string[], sessionId: 
                 name: [s.staff.title, s.staff.firstName, s.staff.lastName]
                   .filter(Boolean)
                   .join(' '),
-                role:
-                  s.role === 'HOUSE_MASTER' ? 'House master / mistress' : 'Floor master / mistress',
+                // "House mistress" for a woman, "House master" for a man (both when not recorded).
+                role: `${s.role === 'HOUSE_MASTER' ? 'House' : 'Floor'} ${
+                  s.staff.gender === 'FEMALE'
+                    ? 'mistress'
+                    : s.staff.gender === 'MALE'
+                      ? 'master'
+                      : 'master / mistress'
+                }`,
               })),
           }
         : null,

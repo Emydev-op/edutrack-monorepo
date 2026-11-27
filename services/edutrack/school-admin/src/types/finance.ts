@@ -80,6 +80,8 @@ export interface StructureLevel {
   id: string;
   name: string;
   section: string;
+  /** The campus takes boarders in this class (boarding items apply). Absent: assume it does. */
+  boards?: boolean;
   students: number;
   /** itemId → naira, or null when not offered / blank. */
   amounts: Record<string, number | null>;

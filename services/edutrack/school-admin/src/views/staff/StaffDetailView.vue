@@ -17,12 +17,14 @@ import {
   useReactivateStaffMutation,
   useStaffMemberQuery,
 } from '@/api/services/staff';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useLayoutStore } from '@/stores/layout';
 
 const route = useRoute();
 const layout = useLayoutStore();
 const confirm = useConfirm();
+const can = useCan();
 const id = computed(() => String(route.params.id));
 const { data: staff, isPending, isError } = useStaffMemberQuery(id);
 const deactivate = useDeactivateStaffMutation();
@@ -135,7 +137,7 @@ function askReactivate() {
         { label: 'Employment', value: staff.employment },
       ]"
     >
-      <template #actions>
+      <template v-if="can('settings.users')" #actions>
         <template v-if="staff.status === 'Deactivated'">
           <Button @click="askReactivate">Reactivate</Button>
         </template>

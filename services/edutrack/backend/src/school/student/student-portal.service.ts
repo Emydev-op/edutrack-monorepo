@@ -109,7 +109,7 @@ export class StudentPortalService {
       this.results.latest(me),
       this.homework(me, term.id),
       this.school.todayLessons(id, term),
-      this.school.announcementsFor(auth.schoolId!, [id], ['EVERYONE', 'STUDENTS'], 3),
+      this.school.announcementsFor(auth.schoolId!, [id], ['EVERYONE', 'STUDENTS'], 3, [`s:${id}`]),
       this.school.attendanceSummary(id, term.id),
     ]);
     const due = hw.assignments
@@ -137,7 +137,13 @@ export class StudentPortalService {
 
   /** `GET /v1/student/announcements`: to everyone or students (their branch), or their class. */
   announcements(auth: AuthUserContext, me: StudentScope) {
-    return this.school.announcementsFor(auth.schoolId!, [me.student.id], ['EVERYONE', 'STUDENTS']);
+    return this.school.announcementsFor(
+      auth.schoolId!,
+      [me.student.id],
+      ['EVERYONE', 'STUDENTS'],
+      50,
+      [`s:${me.student.id}`],
+    );
   }
 
   /** `GET /v1/student/profile`: the pupil's details as the school holds them (read-only). */

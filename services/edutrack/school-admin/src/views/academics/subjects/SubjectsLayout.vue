@@ -14,6 +14,7 @@ import { pluralize } from '@edutrack/app-kit/lib/format';
 
 import { useApplyDefaultSubjectsMutation, useCurriculumQuery } from '@/api/services/academics';
 import SetupStepBar from '@/components/academics/SetupStepBar.vue';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 
 import SubjectDrawer from './SubjectDrawer.vue';
@@ -23,13 +24,19 @@ const a = routesPath.academics;
 const route = useRoute();
 const { data: view, isPending } = useCurriculumQuery();
 const applyDefaults = useApplyDefaultSubjectsMutation();
+const can = useCan();
 const startedBlank = ref(false);
 const adding = ref(false);
 const importing = ref(false);
 
 const noLevels = computed(() => !!view.value && !view.value.levels.length);
 const choosing = computed(
-  () => !!view.value && !noLevels.value && !view.value.subjects.length && !startedBlank.value,
+  () =>
+    !!view.value &&
+    !noLevels.value &&
+    !view.value.subjects.length &&
+    !startedBlank.value &&
+    can('academics.configure'),
 );
 /** Classes with no compulsory subject block completing the step. */
 const empty = computed(() =>
@@ -80,7 +87,7 @@ async function useSuggested() {
     title="Subjects & Curriculum"
     description="Your school owns its curriculum. Offerings are set per session, so changing them never rewrites past sessions."
   >
-    <template #actions>
+    <template v-if="can('academics.configure')" #actions>
       <Button variant="outline" :disabled="noLevels" @click="importing = true">Bulk upload</Button>
       <Button :disabled="noLevels" @click="adding = true">Add subject</Button>
     </template>

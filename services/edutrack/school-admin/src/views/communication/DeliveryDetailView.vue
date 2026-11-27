@@ -17,6 +17,7 @@ import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 import { useRouteQuery } from '@edutrack/app-kit/composables/useRouteQuery';
 
 import { useDeliveryQuery, useRetryDeliveryMutation } from '@/api/services/communication';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 
 import ChannelStats from './ChannelStats.vue';
@@ -24,6 +25,7 @@ import { deliveryTone, fmtCount, fmtStamp } from './comms-tones';
 
 const route = useRoute();
 const confirm = useConfirm();
+const can = useCan();
 const id = computed(() => String(route.params.id));
 const channel = useRouteQuery<string>('channel', '');
 const status = useRouteQuery<string>('status', '');
@@ -101,7 +103,11 @@ function doRetry() {
         <Button v-if="m.source" as-child variant="outline">
           <RouterLink :to="m.source.to">Open {{ m.source.label }}</RouterLink>
         </Button>
-        <Button :disabled="!m.retryable || retry.isPending.value" @click="doRetry">
+        <Button
+          v-if="can('comms.school')"
+          :disabled="!m.retryable || retry.isPending.value"
+          @click="doRetry"
+        >
           Retry failed{{ m.retryable ? ` (${fmtCount(m.retryable)})` : '' }}
         </Button>
       </template>

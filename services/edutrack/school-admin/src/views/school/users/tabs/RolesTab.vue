@@ -7,19 +7,25 @@ import DataTable, { type Column } from '@edutrack/app-kit/components/common/Data
 import type { RowAction } from '@edutrack/app-kit/components/common/RowActions.vue';
 
 import { useRolesQuery } from '@/api/services/school';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { Role } from '@/types';
 
 const { data, isPending } = useRolesQuery();
+const can = useCan();
 
 const roleLink = (r: Role) => ({ name: routesPath.school.role.name, params: { id: r.id } });
 const actions = (r: Role): RowAction[] => [
   { label: r.type === 'Custom' ? 'Edit role' : 'View role', icon: EyeIcon, to: roleLink(r) },
-  {
-    label: 'Duplicate',
-    icon: CopyIcon,
-    to: { name: routesPath.school.roleNew.name, query: { from: r.id } },
-  },
+  ...(can('settings.roles')
+    ? [
+        {
+          label: 'Duplicate',
+          icon: CopyIcon,
+          to: { name: routesPath.school.roleNew.name, query: { from: r.id } },
+        },
+      ]
+    : []),
 ];
 
 const columns: Column[] = [

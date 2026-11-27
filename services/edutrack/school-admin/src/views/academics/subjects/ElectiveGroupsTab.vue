@@ -12,11 +12,13 @@ import FieldShell from '@edutrack/app-kit/components/form/FieldShell.vue';
 import { useUnsavedChanges } from '@edutrack/app-kit/composables/useUnsavedChanges';
 
 import { useSaveCurriculumMutation } from '@/api/services/academics';
+import { useCan } from '@/composables/useCan';
 import type { CurriculumView, ElectiveGroup } from '@/types';
 
 const props = defineProps<{ view: CurriculumView }>();
 defineEmits<{ add: [] }>();
 const save = useSaveCurriculumMutation();
+const can = useCan();
 
 interface Draft extends Omit<ElectiveGroup, 'min' | 'max'> {
   min: string;
@@ -146,7 +148,12 @@ async function submit() {
               >{{ rule(g) }} of {{ g.subjects.length }}</span
             >
           </span>
-          <Button variant="ghost" size="sm" class="text-destructive" @click="groups.splice(i, 1)"
+          <Button
+            v-if="can('academics.configure')"
+            variant="ghost"
+            size="sm"
+            class="text-destructive"
+            @click="groups.splice(i, 1)"
             ><Trash2Icon />Remove</Button
           >
         </div>
@@ -204,7 +211,7 @@ async function submit() {
         </FieldShell>
       </div>
     </div>
-    <div class="mt-3 flex items-center gap-2">
+    <div v-if="can('academics.configure')" class="mt-3 flex items-center gap-2">
       <Button variant="outline" size="sm" :disabled="!sections.length" @click="add"
         ><PlusIcon />Add elective group</Button
       >

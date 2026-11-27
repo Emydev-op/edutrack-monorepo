@@ -102,9 +102,15 @@ export function useExeatActions() {
       return false;
     }
     const pickupKey = e.pickup ? `pickup:${e.pickup.pickupPersonId}` : undefined;
+    // More than 2 hours before the exeat starts: say so before they go.
+    const hoursEarly = Math.floor((new Date(e.leaveAt).getTime() - Date.now()) / 3_600_000);
+    const early =
+      hoursEarly >= 2
+        ? ` This is early: the exeat starts ${e.leaves} (in about ${hoursEarly} hours). Go ahead only if the house staff agreed.`
+        : '';
     return confirm({
       title: `Sign ${e.student.name} out`,
-      description: `Back by ${e.returns}. Check the collector’s ID before they leave.`,
+      description: `Back by ${e.returns}. Check the collector’s ID before they leave.${early}`,
       details: [
         ['Boarder', `${e.student.name} · ${e.student.className}`],
         ...(e.pickup

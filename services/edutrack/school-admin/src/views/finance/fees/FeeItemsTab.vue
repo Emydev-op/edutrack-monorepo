@@ -10,6 +10,7 @@ import type { RowAction } from '@edutrack/app-kit/components/common/RowActions.v
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 
 import { useRemoveFeeItemMutation, useRestoreFeeItemMutation } from '@/api/services/finance';
+import { useCan } from '@/composables/useCan';
 import type { FeeItem } from '@/types';
 
 import { financeTone } from '../finance-tones';
@@ -19,6 +20,7 @@ defineProps<{ items: FeeItem[] }>();
 const confirm = useConfirm();
 const remove = useRemoveFeeItemMutation();
 const restore = useRestoreFeeItemMutation();
+const can = useCan();
 
 const drawer = ref(false);
 const editing = ref<FeeItem | null>(null);
@@ -82,11 +84,11 @@ const actions = (item: FeeItem): RowAction[] =>
     :rows="items"
     :row-key="(i) => i.id"
     :row-label="(i) => i.name"
-    :actions="actions"
+    :actions="can('finance.invoice') ? actions : undefined"
     min-width="760px"
     empty-text="No fee items yet."
   >
-    <template #toolbar>
+    <template v-if="can('finance.invoice')" #toolbar>
       <Button size="sm" @click="edit(null)"><PlusIcon class="size-4" /> Add fee item</Button>
     </template>
     <template #cell-name="{ row }">

@@ -54,8 +54,9 @@ export class BranchScopeGuard implements CanActivate {
     const fallback = names[0] ?? '';
 
     // Reads: the header's branch and a `branch` query stay within their branches.
-    const working = ctx.working;
-    if (working && (!working.branch || !names.includes(working.branch)))
+    // A read without the working-context headers is still pinned to one of their branches.
+    const working = ctx.working ?? {};
+    if (!working.branch || !names.includes(working.branch))
       RequestContext.patch({ working: { ...working, branch: fallback } });
     const query = req.query as Record<string, unknown>;
     if ('branch' in query) {

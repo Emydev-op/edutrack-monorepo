@@ -14,6 +14,7 @@ import { useUnsavedChanges } from '@edutrack/app-kit/composables/useUnsavedChang
 
 import { useAssessmentQuery, useSaveAssessmentMutation } from '@/api/services/academics';
 import SetupStepBar from '@/components/academics/SetupStepBar.vue';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 
 import { createAssessmentDraft } from './draft';
@@ -21,6 +22,7 @@ import { createAssessmentDraft } from './draft';
 const route = useRoute();
 const { data: view, isPending } = useAssessmentQuery();
 const save = useSaveAssessmentMutation();
+const can = useCan();
 const d = createAssessmentDraft(view);
 useUnsavedChanges(d.dirty);
 
@@ -116,7 +118,7 @@ async function submit() {
         <Button variant="outline" :disabled="save.isPending.value" @click="d.reset()"
           >Discard</Button
         >
-        <Button :disabled="save.isPending.value" @click="submit">
+        <Button v-if="can('academics.configure')" :disabled="save.isPending.value" @click="submit">
           <Spinner v-if="save.isPending.value" />
           {{ save.isPending.value ? 'Saving…' : 'Save changes' }}
         </Button>

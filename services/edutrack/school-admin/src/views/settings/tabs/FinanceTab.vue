@@ -11,12 +11,14 @@ import ToggleList from '@edutrack/app-kit/components/common/ToggleList.vue';
 import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 
 import { useFinanceTogglesQuery, useSaveFinanceTogglesMutation } from '@/api/services/settings';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import type { FinanceToggles } from '@/types';
 
 const { data, isPending, isError, refetch } = useFinanceTogglesQuery();
 const save = useSaveFinanceTogglesMutation();
 const confirm = useConfirm();
+const can = useCan();
 
 const ITEMS: { key: keyof FinanceToggles; label: string; description: string }[] = [
   {
@@ -45,7 +47,11 @@ const ITEMS: { key: keyof FinanceToggles; label: string; description: string }[]
   },
 ];
 const items = computed(() =>
-  ITEMS.map((i) => ({ ...i, enabled: !!data.value?.[i.key], disabled: save.isPending.value })),
+  ITEMS.map((i) => ({
+    ...i,
+    enabled: !!data.value?.[i.key],
+    disabled: save.isPending.value || !can('settings.profile'),
+  })),
 );
 
 async function toggle(key: string, enabled: boolean) {

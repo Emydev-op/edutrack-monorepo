@@ -21,6 +21,7 @@ import {
   useReportCardHoldMutation,
   useReportCardQuery,
 } from '@/api/services/academics';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useLayoutStore } from '@/stores/layout';
 import { CONDUCT_SCALE } from '@/types';
@@ -32,6 +33,7 @@ const studentId = computed(() => String(route.params.studentId));
 const { data: card, isPending, error } = useReportCardQuery(studentId);
 const confirm = useConfirm();
 const holdMut = useReportCardHoldMutation();
+const can = useCan();
 const showPositions = computed(() => card.value?.subjects.some((s) => s.position) ?? false);
 /** Nursery: ratings per learning area, height and weight, and the head teacher's comment. */
 const nursery = computed(() => card.value?.mode === 'descriptive');
@@ -134,8 +136,10 @@ const pickStudent = (id: string) =>
         :description="`${card.student.name} · ${card.student.className} · ${card.title}`"
       >
         <template #actions>
-          <Button v-if="card.held" variant="outline" @click="release">Release</Button>
-          <Button v-else variant="outline" @click="hold">Hold report card</Button>
+          <template v-if="can('results.publish')">
+            <Button v-if="card.held" variant="outline" @click="release">Release</Button>
+            <Button v-else variant="outline" @click="hold">Hold report card</Button>
+          </template>
           <Button variant="outline" :disabled="downloading" @click="downloadPdf(card)">{{
             downloading ? 'Preparing PDF…' : 'Download PDF'
           }}</Button>
@@ -472,7 +476,7 @@ const pickStudent = (id: string) =>
         <h3 id="rc-head" class="text-xs font-semibold tracking-[0.04em] uppercase">
           {{ card.headLabel ?? 'Head teacher' }}’s comment
         </h3>
-        <template v-if="!card.published">
+        <template v-if="!card.published && can('results.publish')">
           <Textarea
             v-model="headRemark"
             :maxlength="400"

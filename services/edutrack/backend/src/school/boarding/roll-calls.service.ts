@@ -325,12 +325,25 @@ export class RollCallsService {
         takenRollCalls: { where: { date }, include: { marks: { select: { mark: true } } } },
       },
     });
+    // How many boarders each hostel has now (shown before a roll call is taken).
+    const session = await boardingSession(this.db);
+    const placed =
+      session && hostels.length
+        ? await this.db.bedAllocation.findMany({
+            where: {
+              enrollment: { sessionId: session.id, status: 'ACTIVE', boarding: true },
+              room: { hostelId: { in: hostels.map((h) => h.id) }, archivedAt: null },
+            },
+            select: { room: { select: { hostelId: true } } },
+          })
+        : [];
     return {
       date: iso(date),
       hostels: hostels.map((h) => ({
         id: h.id,
         name: h.name,
         campus: h.branch.name,
+        boarders: placed.filter((p) => p.room.hostelId === h.id).length,
         slots: h.rollCallSlots.map((slot) => {
           const taken = h.takenRollCalls.filter((r) => r.slot === slot);
           const marks = taken.flatMap((r) => r.marks.map((m) => MARK_LABEL[m.mark]));

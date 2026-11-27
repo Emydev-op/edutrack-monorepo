@@ -20,7 +20,7 @@ import { useConfirm } from '@edutrack/app-kit/composables/useConfirm';
 
 import { useRequestCorrectionMutation, useResultSheetQuery } from '@/api/services/results';
 import AccessDenied from '@/components/common/AccessDenied.vue';
-import { gradeOf, parseScore, totalOf } from '@/components/results/scoring';
+import { formatTotal, gradeOf, parseScore, totalOf } from '@/components/results/scoring';
 import { useUnsavedWork } from '@/composables/useUnsavedWork';
 import { fieldErrorsOf, getApiErrorMessage, isForbidden } from '@/lib/api-errors';
 import { routesPath } from '@/router/routes-path';
@@ -141,8 +141,8 @@ const label = (v: ScoreValue | undefined) =>
 const fmt = (scores: ScoreValue[] | undefined) => {
   const s = sheet.value;
   if (!s || !scores) return '—';
-  const t = totalOf(s.components, scores);
-  return t === null ? '—' : `${t.toFixed(1)} · ${gradeOf(s.scale, t)?.grade ?? '—'}`;
+  const t = totalOf(s.components, scores, s.rounding);
+  return t === null ? '—' : `${formatTotal(t, s.rounding)} · ${gradeOf(s.scale, t)?.grade ?? '—'}`;
 };
 const totals = computed(() => {
   const r = row.value;

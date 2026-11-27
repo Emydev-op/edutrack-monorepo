@@ -437,7 +437,10 @@ export class ParentSchoolService {
   async announcements(auth: AuthUserContext, childId?: string, take = 50) {
     const { links } = await this.scope.children(auth);
     const ids = childId ? [childId] : links.map((l) => l.studentId);
-    return this.announcementsFor(auth.schoolId!, ids, ['EVERYONE', 'PARENTS'], take);
+    const guardian = await this.scope.guardian(auth);
+    return this.announcementsFor(auth.schoolId!, ids, ['EVERYONE', 'PARENTS'], take, [
+      `g:${guardian.id}`,
+    ]);
   }
 
   /**
@@ -450,6 +453,8 @@ export class ParentSchoolService {
     ids: string[],
     kinds: ('EVERYONE' | 'PARENTS' | 'STUDENTS')[],
     take = 50,
+    /** The reader's own keys ("g:<guardianId>" or "s:<studentId>"): sent to them by name. */
+    people: string[] = [],
   ) {
     const terms = await this.scope.terms();
     const current = ParentScopeService.current(terms, this.scope.today());
@@ -480,6 +485,9 @@ export class ParentSchoolService {
                 OR: [{ audienceBranchId: null }, { audienceBranchId: { in: branchIds } }],
               },
               { audienceKind: 'CLASSES', audienceArms: { some: { armId: { in: armIds } } } },
+              ...(people.length
+                ? [{ audienceKind: 'PEOPLE' as const, audiencePeople: { hasSome: people } }]
+                : []),
             ],
           },
         ],
@@ -512,7 +520,9 @@ export class ParentSchoolService {
                 .map((x) => classOf.get(x.armId))
                 .filter(Boolean)
                 .join(', ') || 'Classes'
-            : (AUDIENCE[a.audienceKind] ?? 'Everyone'),
+            : a.audienceKind === 'PEOPLE'
+              ? 'Sent to you'
+              : (AUDIENCE[a.audienceKind] ?? 'Everyone'),
         expiresOn: a.expiresOn ? isoDate(a.expiresOn) : null,
       };
     });

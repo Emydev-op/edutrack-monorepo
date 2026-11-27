@@ -18,6 +18,7 @@ import SearchInput from '@edutrack/app-kit/components/common/SearchInput.vue';
 import { useRouteQuery } from '@edutrack/app-kit/composables/useRouteQuery';
 
 import { useTeachersQuery } from '@/api/services/staff';
+import { useCan } from '@/composables/useCan';
 import { routesPath } from '@/router/routes-path';
 import { useContextStore } from '@/stores/context';
 import type { TeacherRow } from '@/types';
@@ -26,6 +27,7 @@ import { accountTone } from '@/views/school/users/user-tones';
 type Show = 'all' | 'unassigned' | 'near';
 
 const context = useContextStore();
+const can = useCan();
 const { data, isPending } = useTeachersQuery();
 
 const show = useRouteQuery<Show>('show', 'all');
@@ -100,7 +102,7 @@ const columns: Column[] = [
           >Teacher Assignments</RouterLink
         ></Button
       >
-      <Button as-child
+      <Button v-if="can('settings.users')" as-child
         ><RouterLink :to="{ name: routesPath.staff.new.name, query: { kind: 'Teaching' } }"
           >Add teacher</RouterLink
         ></Button
@@ -114,7 +116,7 @@ const columns: Column[] = [
     title="No teaching staff yet"
     description="Add teachers so you can assign them to subjects and classes. They’ll see their classes in the Teacher Workspace."
   >
-    <Button as-child
+    <Button v-if="can('settings.users')" as-child
       ><RouterLink :to="{ name: routesPath.staff.new.name, query: { kind: 'Teaching' } }"
         >Add teacher</RouterLink
       ></Button
